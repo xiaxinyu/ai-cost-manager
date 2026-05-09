@@ -1,0 +1,324 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Import - Models Cost Management</title>
+    <link rel="stylesheet" href="/static/css/app-shell.css" />
+    <link rel="stylesheet" href="/static/css/page-common.css" />
+    <link rel="stylesheet" href="/static/css/pages/import.css" />
+  </head>
+  <body>
+    <div class="appNav">
+      <div class="appNavInner">
+        <div class="brand">Models Cost Management</div>
+        <div class="navLinks">
+          <a class="navLink" href="/">Dashboard</a>
+          <a class="navLink" href="/reports">Reports</a>
+          <a class="navLink" href="/prices">Prices</a>
+          <a class="navLink active" href="/import">Import</a>
+        </div>
+        <div class="navRight">
+          <button id="navToggle" class="navToggle" type="button">Menu</button>
+          {% if username %}<span class="muted">{{ username }}</span>{% endif %}
+          <button id="logoutBtn" class="logoutBtn" type="button">Logout</button>
+        </div>
+      </div>
+    </div>
+    <div class="appLayout">
+      <main class="contentArea">
+        <div class="container">
+          <div class="pageHeader">
+            <div class="breadcrumb">Home / Data Operations / Import</div>
+            <div class="pageTitle">Billing File Import</div>
+            <div class="pageDesc">Review missing files and ingest selected records into SQLite.</div>
+          </div>
+
+          <div class="header">
+        <div>
+          <div class="title">Models Cost Management</div>
+          <div class="subTitle">Import missing billing files into SQLite</div>
+        </div>
+        <div class="rowActions">
+          <a href="/" id="backToHome" class="btnSecondary">Back</a>
+        </div>
+      </div>
+
+          <div class="card">
+        <div class="grid2">
+          <div class="stat">
+            <div class="label muted">Missing files</div>
+            <div class="value" id="missingCount">-</div>
+          </div>
+          <div class="stat" style="justify-content:space-between;">
+            <div class="muted" id="importStatus">-</div>
+            <div style="display:flex; justify-content:flex-end; gap:10px; flex-wrap:wrap;">
+              <button id="refreshBtn" class="btnSecondary" type="button">Refresh</button>
+              <button id="importBtn" class="btnPrimary" type="button">Import Selected</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="tableScroll">
+          <table>
+            <thead>
+              <tr>
+                <th style="width:56px; text-align:center;">Pick</th>
+                <th style="width:220px;">Project</th>
+                <th>File</th>
+                <th style="width:220px;">Last Modified</th>
+              </tr>
+            </thead>
+            <tbody id="missingFilesTbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+          <div class="card" style="margin-top: 14px;">
+        <div class="muted">Imported files (latest)</div>
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; margin-top:10px;">
+          <div class="muted">Count</div>
+          <div style="font-size:20px; font-weight:750;" id="ingestedCount">-</div>
+          <div style="margin-left:auto;">
+            <button id="verifyImportedBtn" class="btnSecondary" type="button" disabled>Verify Imported</button>
+          </div>
+        </div>
+        <div id="verifyImportedStatus" class="muted" style="display:none; margin-top:10px;"></div>
+
+        <div class="tableScroll">
+          <table>
+            <thead>
+              <tr>
+                <th style="width:56px; text-align:center;">Verify</th>
+                <th style="width:220px;">Project</th>
+                <th>File</th>
+                <th style="width:120px; text-align:right;">Rows</th>
+                <th style="width:220px;">IngestedAt</th>
+              </tr>
+            </thead>
+            <tbody id="ingestedFilesTbody"></tbody>
+          </table>
+        </div>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <script src="/static/js/app-shell.js"></script>
+    <script src="/static/js/http.js"></script>
+    <script>
+      const missingFilesTbody = document.getElementById('missingFilesTbody');
+      const missingCountEl = document.getElementById('missingCount');
+      const importBtn = document.getElementById('importBtn');
+      const importStatus = document.getElementById('importStatus');
+      const refreshBtn = document.getElementById('refreshBtn');
+
+      const selectedFiles = new Set();
+      const selectedVerifyFiles = new Set();
+
+      const ingestedFilesTbody = document.getElementById('ingestedFilesTbody');
+      const ingestedCountEl = document.getElementById('ingestedCount');
+      const verifyImportedBtn = document.getElementById('verifyImportedBtn');
+      const verifyImportedStatus = document.getElementById('verifyImportedStatus');
+
+      function fmtTs(ts) {
+        if (!ts) return '-';
+        try {
+          const d = new Date(ts * 1000);
+          return d.toLocaleString();
+        } catch (e) {
+          return '-';
+        }
+      }
+
+      async function loadMissingFiles() {
+        importStatus.textContent = 'Loading...';
+        const data = await window.AppHttp.getJson('/api/import/missing-files');
+        const missing = data.missing_files || [];
+
+        missingCountEl.textContent = String(data.missing_count ?? missing.length);
+        missingFilesTbody.innerHTML = '';
+        for (const f of missing) {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td style="text-align:center;">
+              <input type="checkbox" class="filePick" value="${f.file_path_rel}" ${selectedFiles.has(f.file_path_rel) ? 'checked' : ''} />
+            </td>
+            <td>${f.project_name}</td>
+            <td class="cellFile">${f.file_path_rel}</td>
+            <td>${fmtTs(f.source_last_modified)}</td>
+          `;
+          missingFilesTbody.appendChild(tr);
+        }
+
+        const empty = missing.length === 0;
+        importBtn.disabled = empty || selectedFiles.size === 0;
+        importStatus.textContent = empty ? 'Up to date' : 'Ready';
+      }
+
+      async function runImport() {
+        const chosen = Array.from(selectedFiles);
+        if (chosen.length === 0) {
+          importStatus.textContent = 'No file selected';
+          importBtn.disabled = false;
+          return;
+        }
+
+        importStatus.textContent = 'Importing...';
+        importBtn.disabled = true;
+        try {
+          const data = await window.AppHttp.getJson('/api/import/run', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ reimport_changed: false, file_path_rels: chosen }),
+          });
+          if (data?.verification_passed) {
+            importStatus.textContent = `Imported: ${data.files_ingested} file(s), ${data.rows_ingested} row(s). Verified: ${data.files_verified} file(s).`;
+          } else {
+            const err = data?.import_error ? String(data.import_error) : 'Unknown verification error';
+            importStatus.textContent = `Audit failed: ${err}`;
+          }
+        } catch (e) {
+          console.error(e);
+          importStatus.textContent = 'Import failed';
+        } finally {
+          // Reset selection before re-rendering missing list, so checkboxes match UI state.
+          selectedFiles.clear();
+          await loadMissingFiles();
+          bindPickEvents();
+          await loadIngestedFiles();
+        }
+      }
+
+      async function verifyImported() {
+        if (!verifyImportedBtn) return;
+        const chosen = Array.from(selectedVerifyFiles);
+        if (chosen.length === 0) {
+          if (verifyImportedStatus) {
+            verifyImportedStatus.style.display = 'block';
+            verifyImportedStatus.textContent = 'Please select at least one ingested file to verify.';
+          }
+          return;
+        }
+
+        verifyImportedBtn.disabled = true;
+        if (verifyImportedStatus) {
+          verifyImportedStatus.style.display = 'block';
+          verifyImportedStatus.textContent = 'Verifying imported files...';
+        }
+        try {
+          const params = new URLSearchParams();
+          for (const p of chosen) params.append('file_path_rels', p);
+          const data = await window.AppHttp.getJson(`/api/import/verify-ingested-files?${params.toString()}`);
+          const failed = Number(data.fail_count ?? 0);
+          const pass = Number(data.pass_count ?? 0);
+          if (failed === 0) {
+            verifyImportedStatus.textContent = `Verify OK: ${pass}/${chosen.length} selected file(s) passed.`;
+          } else {
+            const items = data.items || [];
+            const firstFails = items.filter((x) => !x.pass).slice(0, 5);
+            const details = firstFails
+              .map((x) => `${x.file_path_rel}: ${x.error ? String(x.error).slice(0, 120) : 'unknown error'}`)
+              .join('\\n');
+            const selectedTotal = chosen.length;
+            verifyImportedStatus.textContent = `Verify failed: ${failed}/${selectedTotal} selected file(s) failed.\\n${details}`;
+          }
+        } catch (e) {
+          console.error(e);
+          if (verifyImportedStatus) verifyImportedStatus.textContent = 'Verify request failed';
+        } finally {
+          verifyImportedBtn.disabled = selectedVerifyFiles.size === 0;
+        }
+      }
+
+      async function loadIngestedFiles() {
+        try {
+          const data = await window.AppHttp.getJson('/api/import/ingested-files?limit=50');
+          const files = data.files || [];
+
+          ingestedCountEl.textContent = String(files.length);
+          selectedVerifyFiles.clear();
+          if (verifyImportedBtn) verifyImportedBtn.disabled = selectedVerifyFiles.size === 0 || files.length === 0;
+          ingestedFilesTbody.innerHTML = '';
+          for (const f of files) {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+              <td style="text-align:center;">
+                <input type="checkbox" class="verifyFilePick" value="${f.file_path_rel}" />
+              </td>
+              <td>${f.project_name}</td>
+              <td class="cellFile">${f.file_path_rel}</td>
+              <td style="text-align:right;">${f.row_count}</td>
+              <td>${f.ingested_at ?? ''}</td>
+            `;
+            ingestedFilesTbody.appendChild(tr);
+          }
+          bindVerifyPickEvents();
+        } catch (e) {
+          console.error(e);
+        }
+      }
+
+      function bindPickEvents() {
+        const boxes = missingFilesTbody.querySelectorAll('input.filePick[type="checkbox"]');
+        for (const box of boxes) {
+          box.addEventListener('change', (e) => {
+            const val = e.target.value;
+            if (e.target.checked) selectedFiles.add(val);
+            else selectedFiles.delete(val);
+            importBtn.disabled = selectedFiles.size === 0;
+          });
+        }
+      }
+
+      function bindVerifyPickEvents() {
+        const boxes = ingestedFilesTbody.querySelectorAll('input.verifyFilePick[type="checkbox"]');
+        for (const box of boxes) {
+          box.addEventListener('change', (e) => {
+            const val = e.target.value;
+            if (e.target.checked) selectedVerifyFiles.add(val);
+            else selectedVerifyFiles.delete(val);
+            if (verifyImportedBtn) verifyImportedBtn.disabled = selectedVerifyFiles.size === 0;
+          });
+        }
+      }
+
+      async function refreshAll() {
+        selectedFiles.clear();
+        selectedVerifyFiles.clear();
+        await loadMissingFiles();
+        bindPickEvents();
+        await loadIngestedFiles();
+      }
+
+      importBtn.addEventListener('click', () => runImport());
+      if (verifyImportedBtn) {
+        verifyImportedBtn.addEventListener('click', () => verifyImported().catch((e) => console.error(e)));
+      }
+      if (refreshBtn) {
+        refreshBtn.addEventListener('click', () => refreshAll().catch((e) => console.error(e)));
+      }
+
+      loadMissingFiles()
+        .then(() => {
+          bindPickEvents();
+          return loadIngestedFiles();
+        })
+        .catch((e) => {
+        console.error(e);
+        importStatus.textContent = 'Failed to load missing files';
+      });
+
+      const logoutBtn = document.getElementById('logoutBtn');
+      if (logoutBtn) {
+        logoutBtn.addEventListener('click', async () => {
+          try {
+            await fetch('/auth/logout', { method: 'POST', credentials: 'same-origin' });
+          } finally {
+            window.location = '/login';
+          }
+        });
+      }
+    </script>
+  </body>
+</html>

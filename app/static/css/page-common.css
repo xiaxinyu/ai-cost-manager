@@ -1,0 +1,172 @@
+/* Shared page-level components for dashboard/import/reports/prices */
+.container {
+  max-width: 1280px;
+  margin: 0 auto;
+}
+
+.title {
+  font-size: clamp(16px, 1.9vw, 20px);
+  font-weight: 680;
+  letter-spacing: 0.2px;
+}
+
+.muted,
+.subTitle,
+.stat .label,
+.stat .sub,
+label {
+  color: #a6b7cd;
+  font-size: 11px;
+}
+
+.card {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(173, 196, 228, 0.18);
+  border-radius: 10px;
+  padding: clamp(8px, 1.2vw, 12px);
+}
+
+select,
+button,
+input,
+a.btn,
+a.btnLink,
+a.btnSecondary,
+a.actionBtn {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(173, 196, 228, 0.24);
+  color: #e7edf6;
+  border-radius: 8px;
+  padding: 7px 10px;
+  outline: none;
+}
+
+button,
+.actionBtn,
+.btn,
+.btnPrimary,
+.btnSecondary,
+.btnSmall,
+.btnLink {
+  cursor: pointer;
+}
+
+.btnPrimary,
+.actionBtn.primary,
+button[type="submit"] {
+  border-color: rgba(94, 234, 212, 0.45);
+  background: linear-gradient(180deg, rgba(94, 234, 212, 0.2), rgba(94, 234, 212, 0.1));
+}
+
+.btnSecondary {
+  border-color: rgba(96, 165, 250, 0.42);
+  background: linear-gradient(180deg, rgba(96, 165, 250, 0.18), rgba(96, 165, 250, 0.09));
+}
+
+.pill,
+.viewBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(173, 196, 228, 0.3);
+  background: rgba(255, 255, 255, 0.08);
+  color: #d3deed;
+  font-size: 11px;
+}
+
+.grid,
+.grid2,
+.gridStats,
+.gridCharts {
+  gap: 10px;
+}
+
+.tableScroll,
+.tableWrap {
+  margin-top: 8px;
+  border-radius: 10px;
+  border: 1px solid rgba(173, 196, 228, 0.18);
+  background: rgba(6, 12, 22, 0.35);
+  overflow: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th,
+td {
+  padding: 8px 6px;
+  border-bottom: 1px solid rgba(173, 196, 228, 0.16);
+  text-align: left;
+  font-size: 12px;
+}
+
+th {
+  color: #adc0d8;
+  font-weight: 620;
+}
+
+thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: rgba(7, 14, 26, 0.96);
+}
+
+tbody tr:nth-child(odd) {
+  background: rgba(255, 255, 255, 0.015);
+}
+
+.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.rowsToolbar,
+.pager,
+.controls,
+.controlsRow,
+.toolbar,
+.headerActions,
+.rowActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.header {
+  margin-bottom: 10px;
+}
+
+.headerActions {
+  margin-left: auto;
+}
+
+.dropdownMenu {
+  border: 1px solid rgba(173, 196, 228, 0.26);
+  background: rgba(8, 16, 30, 0.97);
+}
+
+@media (max-width: 980px) {
+  .headerActions {
+    width: 100%;
+    margin-left: 0;
+    justify-content: flex-start;
+  }
+
+  .controls,
+  .toolbar,
+  .controlsRow {
+    align-items: stretch;
+  }
+
+  .field {
+    min-width: 100% !important;
+  }
+}

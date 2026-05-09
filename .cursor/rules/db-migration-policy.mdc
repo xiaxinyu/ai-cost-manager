@@ -1,0 +1,10 @@
+---
+description: SQLite schema change policy
+---
+
+## DB Migration Policy
+- Prefer **additive migrations** (new columns/tables) over destructive changes.
+- Maintain compatibility with existing DB files in `data/`.
+- Validate ingestion + reporting flows after schema changes.
+- Document migration impact and rollback notes.
+

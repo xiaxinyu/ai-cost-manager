@@ -1,0 +1,9 @@
+---
+description: Release readiness notes for changes
+---
+
+## Release Readiness
+- Include upgrade notes when behavior/config changes.
+- Note any data migration needs and runtime flags.
+- Provide rollback plan if change is risky.
+

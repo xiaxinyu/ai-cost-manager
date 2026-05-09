@@ -1,0 +1,13 @@
+---
+description: Python web app (FastAPI) Harness rules
+---
+
+## API & Web
+- Keep auth/session behavior **consistent across pages**.
+- Prefer returning **structured errors** for UI consumption.
+- Add security headers deliberately; keep CSP aligned with templates/static assets.
+
+## Testing
+- Backend changes: run `pytest`.
+- UI changes: do a quick navigation smoke check (`/`, `/import`, `/reports`, `/prices`, `/login`).
+

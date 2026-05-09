@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Model Prices</title>
+    <link rel="stylesheet" href="/static/css/app-shell.css" />
+    <link rel="stylesheet" href="/static/css/page-common.css" />
+    <link rel="stylesheet" href="/static/css/pages/prices.css" />
+  </head>
+  <body>
+    <div class="appNav">
+      <div class="appNavInner">
+        <div class="brand">Models Cost Management</div>
+        <div class="navLinks">
+          <a class="navLink" href="/">Dashboard</a>
+          <a class="navLink" href="/reports">Reports</a>
+          <a class="navLink active" href="/prices">Prices</a>
+          <a class="navLink" href="/import">Import</a>
+        </div>
+        <div class="navRight">
+          <button id="navToggle" class="navToggle" type="button">Menu</button>
+          {% if username %}<span class="muted">{{ username }}</span>{% endif %}
+          <button id="logoutBtnTop" class="logoutBtn" type="button">Logout</button>
+        </div>
+      </div>
+    </div>
+    <div class="appLayout">
+      <main class="contentArea">
+        <div class="container">
+          <div class="pageHeader">
+            <div class="breadcrumb">Home / Pricing / Model Catalog</div>
+            <div class="pageTitle">Model Price Explorer</div>
+            <div class="pageDesc">Filter and review unit prices by vendor, platform, and model series.</div>
+          </div>
+
+          <div class="header">
+        <div>
+          <div class="title">Model Price Viewer</div>
+          <div class="muted">Filter by vendor, platform, and model series.</div>
+        </div>
+        <div class="headerActions">
+          <span id="viewLabel" class="viewBadge">View: Detail</span>
+          <button id="pivotBtn" class="actionBtn" type="button">Switch View</button>
+          <button id="exportBtn" class="actionBtn primary" type="button">Export CSV</button>
+        </div>
+      </div>
+
+          <div class="card">
+        <div class="toolbar">
+          <div class="field">
+            <label class="muted" for="vendorSelect">Vendor</label>
+            <select id="vendorSelect"></select>
+          </div>
+          <div class="field">
+            <label class="muted" for="platformSelect">Platform</label>
+            <select id="platformSelect"></select>
+          </div>
+          <div class="field">
+            <label class="muted" for="seriesSelect">Model Series</label>
+            <select id="seriesSelect"></select>
+          </div>
+          <button id="queryBtn" class="btn" type="button">Query</button>
+          <div id="summary" class="muted"></div>
+        </div>
+      </div>
+
+          <div class="tableWrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Item</th>
+              <th>Scope</th>
+              <th>Mode</th>
+              <th>Metric</th>
+              <th>Region</th>
+              <th>Currency</th>
+              <th class="num">Amount</th>
+              <th>Unit</th>
+              <th>Series</th>
+              <th>Platform</th>
+              <th>Vendor</th>
+              <th>Effective Date</th>
+            </tr>
+          </thead>
+          <tbody id="tbody"></tbody>
+        </table>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <script src="/static/js/app-shell.js"></script>
+    <script src="/static/js/http.js"></script>
+    <script src="/static/js/pages/prices.js"></script>
+  </body>
+</html>

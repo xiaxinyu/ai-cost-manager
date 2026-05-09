@@ -1,0 +1,129 @@
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 24px;
+      }
+      .header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 16px;
+        margin-bottom: 10px;
+      }
+      .title {
+        font-size: 16px;
+        font-weight: 620;
+      }
+      .subTitle {
+        margin-top: 4px;
+        color: #9fb2c7;
+        font-size: 12px;
+      }
+      .muted {
+        color: #9fb2c7;
+        font-size: 12px;
+      }
+      .card {
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid rgba(255, 255, 255, 0.10);
+        border-radius: 12px;
+        padding: 16px;
+      }
+      .rowActions {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+      .pill {
+        display: inline-block;
+        padding: 2px 10px;
+        border-radius: 999px;
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        color: #e6edf3;
+        background: rgba(255, 255, 255, 0.06);
+        font-size: 12px;
+      }
+      select, button, input {
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        border-radius: 10px;
+        color: #e6edf3;
+        padding: 7px 10px;
+        outline: none;
+      }
+      a {
+        text-decoration: none;
+        display: inline-flex;
+      }
+      .btnPrimary {
+        border-color: rgba(94,234,212,0.35);
+        background: rgba(94,234,212,0.14);
+        color: #e6edf3;
+        font-weight: 750;
+        padding: 7px 11px;
+        cursor: pointer;
+      }
+      .btnPrimary:disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+      }
+      .btnSecondary {
+        border-color: rgba(96,165,250,0.35);
+        background: rgba(96,165,250,0.12);
+        color: #e6edf3;
+        font-weight: 650;
+        padding: 7px 11px;
+        cursor: pointer;
+      }
+      .grid2 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 14px;
+      }
+      @media (max-width: 900px) {
+        .grid2 { grid-template-columns: 1fr; }
+      }
+      .stat {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .stat .label { color: #9fb2c7; font-size: 12px; }
+      .stat .value { font-size: 18px; font-weight: 700; }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 14px;
+      }
+      th, td {
+        padding: 8px 6px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.10);
+        text-align: left;
+        font-size: 12px;
+        vertical-align: top;
+      }
+      th { color: #9fb2c7; font-weight: 650; }
+      .cellFile {
+        word-break: break-word;
+        max-width: 520px;
+      }
+      .tableScroll {
+        max-height: 420px;
+        overflow: auto;
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        margin-top: 14px;
+      }
+      table {
+        margin-top: 0 !important;
+      }
+      thead th {
+        position: sticky;
+        top: 0;
+        background: rgba(11, 18, 32, 0.98);
+        z-index: 1;
+      }
+      tbody tr:nth-child(odd) {
+        background: rgba(255, 255, 255, 0.02);
+      }

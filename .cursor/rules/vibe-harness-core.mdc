@@ -1,0 +1,19 @@
+---
+description: Core Harness Engineering rules for this repo
+---
+
+## Core Principles
+- Prefer **small cohesive changes** over broad refactors.
+- Keep **behavior explicit** (no silent failures).
+- Always include **verification evidence** (minimum `pytest`).
+
+## Boundaries (source of truth)
+- `app/main.py`: transport/routing only
+- `app/db.py` (+ related modules): schema + queries
+- `app/templates/`: view structure (minimal logic)
+- `app/static/js/`: shared UI primitives + page logic
+
+## Delivery
+- Summarize **what/why** and include **how validated**.
+- Avoid unrelated file churn.
+

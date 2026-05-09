@@ -1,0 +1,12 @@
+---
+description: Incident response workflow reference
+---
+
+## Incident Workflow (Minimum)
+- Stabilize/contain impact first
+- Classify severity
+- Mitigate safely
+- Verify service + data integrity
+- Write postmortem using `docs/templates/incident-postmortem.md`
+- Add at least one regression test/guardrail
+

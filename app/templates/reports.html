@@ -1,0 +1,1578 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Reports - Models Cost Management</title>
+    <link rel="stylesheet" href="/static/css/app-shell.css" />
+    <link rel="stylesheet" href="/static/css/page-common.css" />
+    <link rel="stylesheet" href="/static/css/pages/reports.css" />
+  </head>
+  <body>
+    <div class="appNav">
+      <div class="appNavInner">
+        <div class="brand">Models Cost Management</div>
+        <div class="navLinks">
+          <a class="navLink" href="/">Dashboard</a>
+          <a class="navLink active" href="/reports">Reports</a>
+          <a class="navLink" href="/prices">Prices</a>
+          <a class="navLink" href="/import">Import</a>
+        </div>
+        <div class="navRight">
+          <button id="navToggle" class="navToggle" type="button">Menu</button>
+          {% if username %}<span class="muted">{{ username }}</span>{% endif %}
+          <button id="logoutBtn" class="logoutBtn" type="button">Logout</button>
+        </div>
+      </div>
+    </div>
+    <div class="appLayout">
+      <main class="contentArea">
+        <div class="container">
+          <div class="pageHeader">
+            <div class="breadcrumb">Home / Reporting / Financial Reports</div>
+            <div class="pageTitle">Financial Report Center</div>
+            <div class="pageDesc">Analyze daily and monthly spend distributions across selected project scope.</div>
+          </div>
+
+          <div class="header">
+        <div>
+          <div class="title">Models Cost Management</div>
+          <div class="muted">Financial report with project scope (audit-style)</div>
+        </div>
+        <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap;"></div>
+      </div>
+
+          <div class="card">
+        <div class="controlsRow">
+          <div style="min-width: 320px;">
+            <label>Project Scope</label>
+            <div class="dropdownWrap" id="projectDropdownWrap">
+              <button id="projectDropdownBtn" type="button" class="dropdownBtn">
+                <span class="dropdownBtnText" id="projectDropdownBtnText">All projects</span>
+                <span style="color:#9fb2c7; font-size:12px;">▾</span>
+              </button>
+              <div id="projectDropdownMenu" class="dropdownMenu" role="menu" aria-label="Project scope">
+                <label class="dropdownItem" title="Clear filtering and include all projects">
+                  <input type="checkbox" id="projectAllChk" checked />
+                  <span>All projects</span>
+                </label>
+                <div class="dropdownDivider"></div>
+                <div id="projectCheckboxList" style="display:flex; flex-direction:column; gap:2px;"></div>
+              </div>
+            </div>
+          </div>
+          <div style="min-width: 260px;">
+            <label for="currencySelect">Currency</label>
+            <select id="currencySelect"></select>
+          </div>
+          <div style="min-width: 180px;">
+            <label for="startDate">Start</label>
+            <input id="startDate" type="date" />
+          </div>
+          <div style="min-width: 180px;">
+            <label for="endDate">End</label>
+            <input id="endDate" type="date" />
+          </div>
+          <div style="display:flex; gap:12px; align-items:flex-end;">
+            <div style="min-width: 140px;">
+              <button id="loadBtn" type="button">Load Report</button>
+            </div>
+          </div>
+          <div style="display:flex; gap:12px; align-items:flex-end;">
+            <div style="min-width: 170px;">
+              <button id="verifyBtn" class="btnSmall" type="button">Verify Data</button>
+            </div>
+          </div>
+        </div>
+        <div id="verifyResult" class="tableNote" style="display:none; margin-top:10px;"></div>
+        <div class="tableNote">
+          Data source: CSV rows imported into SQLite table `transactions`. Daily/monthly statistics are computed from summed daily/monthly totals.
+        </div>
+      </div>
+
+          <div class="gridStats">
+        <div class="card">
+          <div class="muted" style="margin-bottom:10px;">Daily (per day)</div>
+          <div class="statRow"><div class="statKey">Days With Data</div><div class="statVal" id="d_count">-</div></div>
+          <div class="statRow"><div class="statKey">Total Actual</div><div class="statVal" id="d_total_actual">-</div></div>
+          <div class="statRow"><div class="statKey">Estimated Input Tokens (Total)</div><div class="statVal" id="d_est_input_tokens">-</div></div>
+          <div class="statRow"><div class="statKey">Estimated Output Tokens (Total)</div><div class="statVal" id="d_est_output_tokens">-</div></div>
+          <div class="statRow"><div class="statKey">Projects With Token Estimate</div><div class="statVal" id="d_est_projects">-</div></div>
+          <div class="statRow"><div class="statKey">Token Estimate Model</div><div class="statVal" id="d_token_model">-</div></div>
+          <div class="statRow"><div class="statKey">Token Estimate Region</div><div class="statVal" id="d_token_region">-</div></div>
+          <div class="statRow"><div class="statKey">Avg Actual / Day</div><div class="statVal" id="d_avg_actual">-</div></div>
+          <div class="statRow"><div class="statKey">Median Actual / Day</div><div class="statVal" id="d_median_actual">-</div></div>
+          <div class="statRow"><div class="statKey">Variance Actual / Day</div><div class="statVal" id="d_var_actual">-</div></div>
+        </div>
+        <div class="card">
+          <div class="muted" style="margin-bottom:10px;">Monthly (per month)</div>
+          <div class="statRow"><div class="statKey">Months With Data</div><div class="statVal" id="m_count">-</div></div>
+          <div class="statRow"><div class="statKey">Avg Actual / Month</div><div class="statVal" id="m_avg_actual">-</div></div>
+          <div class="statRow"><div class="statKey">Median Actual / Month</div><div class="statVal" id="m_median_actual">-</div></div>
+          <div class="statRow"><div class="statKey">Variance Actual / Month</div><div class="statVal" id="m_var_actual">-</div></div>
+        </div>
+      </div>
+
+          <div class="card" style="margin-top: 14px;">
+        <div class="rowsToolbar">
+          <div>
+            <div class="muted" style="margin-bottom:4px;">By project</div>
+            <div class="tableNote" style="margin:0;">
+              Per-project CostUSD in the current scope. Token columns use the project&rsquo;s linked model and standard USD list prices (optional).
+            </div>
+          </div>
+          <button id="exportProjectBreakdownBtn" class="btnSmall" type="button">Export CSV</button>
+        </div>
+        <div class="tableScroll" style="max-height: 320px; margin-top: 10px;">
+          <table id="projectBreakdownTable">
+            <thead>
+              <tr>
+                <th class="sortable" data-label="Project" data-sort-key="project_name" scope="col">Project</th>
+                <th class="num sortable" data-label="Cost (USD)" data-sort-key="actual_cost_usd_total" scope="col">Cost (USD)</th>
+                <th class="num sortable" data-label="Days" data-sort-key="actual_days" scope="col">Days</th>
+                <th data-label="Model" scope="col">Model</th>
+                <th class="num sortable" data-label="Estimated in tokens" data-sort-key="estimated_input_tokens" scope="col">Estimated in tokens</th>
+                <th class="num sortable" data-label="Estimated out tokens" data-sort-key="estimated_output_tokens" scope="col">Estimated out tokens</th>
+              </tr>
+            </thead>
+            <tbody id="projectBreakdownTbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+          <div class="sectionHeaderRow">
+            <div class="sectionTitle">Cost</div>
+            <div class="muted">Actual + Forecast</div>
+          </div>
+          <div class="gridCharts">
+            <div class="card chartWrap">
+              <div class="muted" style="margin-bottom:10px;">Daily Actual</div>
+              <canvas id="dailyChart"></canvas>
+            </div>
+            <div class="card chartWrap">
+              <div class="muted" style="margin-bottom:10px;">Monthly Actual</div>
+              <canvas id="monthlyChart"></canvas>
+            </div>
+          </div>
+
+          <div class="gridCharts" style="margin-top: 14px;">
+            <div class="card chartWrap">
+          <div class="rowsToolbar" style="margin-bottom:10px;">
+            <div>
+              <div class="muted">Cost Forecast (7d)</div>
+              <div class="tableNote" style="margin:0;">Forecast uses last 28 days (trend + day-of-week correction). Values are integers.</div>
+            </div>
+          </div>
+          <canvas id="costForecastChart"></canvas>
+          <div class="forecastMetaRow">
+            <div class="muted">Last 28 days · 7-day horizon · DOW correction</div>
+            <div id="forecastQualityCostReport" class="qualityBadge qualityMedium">Forecast quality: -</div>
+          </div>
+          <details class="forecastAssumptions">
+            <summary>Forecast assumptions (7d)</summary>
+            <div class="assumptionBody">
+              Uses the last <b>28</b> valid daily points to fit a <b>linear trend</b> with <b>day-of-week residual correction</b>.
+              Output is <b>integer</b> and <b>clamped to ≥ 0</b>.
+              <ul>
+                <li><b>Window</b>: 28 samples (clamped to [2, 365])</li>
+                <li><b>Horizon</b>: 7 days (clamped to [1, 30])</li>
+                <li><b>Continuity</b>: dashed forecast starts at last actual point</li>
+              </ul>
+            </div>
+          </details>
+          <div class="tableScroll" style="max-height: 220px; margin-top: 10px;">
+            <table>
+              <thead>
+                <tr><th style="width:160px;">Date</th><th class="num">Forecast Cost</th></tr>
+              </thead>
+              <tbody id="costForecastTbody"></tbody>
+            </table>
+          </div>
+            </div>
+          </div>
+
+          <div class="sectionHeaderRow" style="margin-top: 14px;">
+            <div class="sectionTitle">Tokens</div>
+            <div class="muted">Estimated + Ratio + Forecast</div>
+          </div>
+          <div class="gridCharts">
+            <div class="card chartWrap">
+              <div class="muted" style="margin-bottom:10px;">Daily Token Estimates</div>
+              <canvas id="dailyTokenChart"></canvas>
+            </div>
+        <div class="card chartWrap">
+          <div class="rowsToolbar" style="margin-bottom:10px;">
+            <div class="muted">Daily Token Output/Input Ratio</div>
+            <button id="exportTokenRatioBtn" class="btnSmall" type="button">Export CSV</button>
+          </div>
+          <div class="forecastMetaRow" style="margin-top: -6px;">
+            <div class="muted" id="ratioKpiSummaryReport">Valid days: - · >1: - · <1: -</div>
+            <div class="muted">Baseline: 1.0</div>
+          </div>
+              <canvas id="dailyTokenRatioChart"></canvas>
+              <div class="tableScroll" style="max-height: 220px; margin-top: 10px;">
+                <table>
+                  <thead>
+                    <tr><th style="width:160px;">Date</th><th class="num">Output/Input</th></tr>
+                  </thead>
+                  <tbody id="tokenRatioTbody"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+          <div class="gridCharts" style="margin-top: 14px;">
+            <div class="card chartWrap">
+              <div class="muted" style="margin-bottom:10px;">Monthly Token Estimates</div>
+              <canvas id="monthlyTokenChart"></canvas>
+            </div>
+            <div class="card chartWrap">
+          <div class="rowsToolbar" style="margin-bottom:10px;">
+            <div>
+              <div class="muted">Token Forecast (7d)</div>
+              <div class="tableNote" style="margin:0;">Forecast uses last 28 days (trend + day-of-week correction). Values are integers.</div>
+            </div>
+          </div>
+          <canvas id="tokenForecastChart"></canvas>
+          <div class="forecastMetaRow">
+            <div class="muted">Last 28 days · 7-day horizon · DOW correction</div>
+            <div id="forecastQualityTokensReport" class="qualityBadge qualityMedium">Forecast quality: -</div>
+          </div>
+          <details class="forecastAssumptions">
+            <summary>Forecast assumptions (7d)</summary>
+            <div class="assumptionBody">
+              Each token series (input/output/total) is forecast independently with the same method.
+              Output is <b>integer</b> and <b>clamped to ≥ 0</b>.
+              <ul>
+                <li><b>Window</b>: 28 samples (clamped to [2, 365])</li>
+                <li><b>Horizon</b>: 7 days (clamped to [1, 30])</li>
+                <li><b>Continuity</b>: dashed forecast starts at last actual point</li>
+              </ul>
+            </div>
+          </details>
+          <div class="tableScroll" style="max-height: 220px; margin-top: 10px;">
+            <table>
+              <thead>
+                <tr>
+                  <th style="width:160px;">Date</th>
+                  <th class="num">Forecast Input</th>
+                  <th class="num">Forecast Output</th>
+                  <th class="num">Forecast Total</th>
+                </tr>
+              </thead>
+              <tbody id="tokenForecastTbody"></tbody>
+            </table>
+          </div>
+            </div>
+          </div>
+
+          <div class="gridCharts" style="margin-top: 14px;">
+        <div class="card">
+          <div class="rowsToolbar">
+            <div class="muted">Daily Actual Table</div>
+            <div class="pager">
+              <span class="muted">Page size</span>
+              <select id="dailyPageSizeSelect">
+                <option value="25">25</option>
+                <option value="50" selected>50</option>
+                <option value="100">100</option>
+                <option value="200">200</option>
+              </select>
+              <button id="dailyPrevBtn" class="btnSmall" type="button">Prev</button>
+              <button id="dailyNextBtn" class="btnSmall" type="button">Next</button>
+              <span id="dailyPageInfo" class="pageInfo">-</span>
+              <span class="muted">Go</span>
+              <input id="dailyGoInput" inputmode="numeric" placeholder="page" style="width: 90px;" />
+              <button id="dailyGoBtn" class="btnSmall" type="button">Go</button>
+            </div>
+          </div>
+          <div class="tableScroll">
+            <table>
+              <thead>
+                <tr><th style="width:160px;">Date</th><th class="num">Actual</th></tr>
+              </thead>
+              <tbody id="dailyTbody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="rowsToolbar">
+            <div class="muted">Monthly Actual Table</div>
+            <div class="pager">
+              <span class="muted">Page size</span>
+              <select id="monthlyPageSizeSelect">
+                <option value="25">25</option>
+                <option value="50" selected>50</option>
+                <option value="100">100</option>
+                <option value="200">200</option>
+              </select>
+              <button id="monthlyPrevBtn" class="btnSmall" type="button">Prev</button>
+              <button id="monthlyNextBtn" class="btnSmall" type="button">Next</button>
+              <span id="monthlyPageInfo" class="pageInfo">-</span>
+              <span class="muted">Go</span>
+              <input id="monthlyGoInput" inputmode="numeric" placeholder="page" style="width: 90px;" />
+              <button id="monthlyGoBtn" class="btnSmall" type="button">Go</button>
+            </div>
+          </div>
+          <div class="tableScroll">
+            <table>
+              <thead>
+                <tr><th style="width:160px;">Month</th><th class="num">Actual</th></tr>
+              </thead>
+              <tbody id="monthlyTbody"></tbody>
+            </table>
+          </div>
+        </div>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <script src="/static/js/chart.umd.min.js"></script>
+    <script src="/static/js/app-shell.js"></script>
+    <script src="/static/js/http.js"></script>
+    <script src="/static/js/forecasting.js"></script>
+    <script src="/static/js/chart-plugins.js"></script>
+    <script src="/static/js/chart-style.js"></script>
+    <script>
+      Chart.defaults.font.family = 'system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif';
+      Chart.defaults.color = '#e6edf3';
+
+      let dailyChart = null;
+      let monthlyChart = null;
+      let dailyTokenChart = null;
+      let dailyTokenRatioChart = null;
+      let monthlyTokenChart = null;
+      let costForecastChart = null;
+      let tokenForecastChart = null;
+      let lastReport = null;
+      let lastTokenRatioRows = [];
+
+      let dailyPage = 1;
+      let dailyPageSize = 50;
+      let monthlyPage = 1;
+      let monthlyPageSize = 50;
+
+      let projectBreakdownRows = [];
+      let pbSortKey = 'actual_cost_usd_total';
+      let pbSortDir = -1;
+
+      function _currency() {
+        return document.getElementById('currencySelect')?.value || null;
+      }
+
+      const forecastQualityCostReportEl = document.getElementById('forecastQualityCostReport');
+      const forecastQualityTokensReportEl = document.getElementById('forecastQualityTokensReport');
+      const ratioKpiSummaryReportEl = document.getElementById('ratioKpiSummaryReport');
+
+      function _renderForecastQualityBadge(el, q) {
+        if (!el) return;
+        const level = q?.level || 'medium';
+        const txt = level === 'high' ? 'High' : level === 'low' ? 'Low' : 'Medium';
+        el.textContent = `Forecast quality: ${txt}`;
+        el.classList.remove('qualityHigh', 'qualityMedium', 'qualityLow');
+        el.classList.add(level === 'high' ? 'qualityHigh' : level === 'low' ? 'qualityLow' : 'qualityMedium');
+        const details = q ? `samples ${q.valid}/${q.expected} · missing ${(q.missingRatio * 100).toFixed(0)}% · volatility ${(q.relVol * 100).toFixed(0)}%` : '';
+        el.title = details;
+      }
+
+      function tooltipLabelCurrency(ctx) {
+        const v = ctx.parsed?.y;
+        if (v === null || v === undefined || Number.isNaN(v)) return `${ctx.dataset.label}: -`;
+        const cur = _currency();
+        const unit = cur ? ` ${cur}` : '';
+        return `${ctx.dataset.label}: ${Number(v).toLocaleString(undefined, { maximumFractionDigits: 4 })}${unit}`;
+      }
+
+      function tooltipLabelTokens(ctx) {
+        const v = ctx.parsed?.y;
+        if (v === null || v === undefined || Number.isNaN(v)) return `${ctx.dataset.label}: -`;
+        return `${ctx.dataset.label}: ${Math.round(Number(v)).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
+      }
+
+      function fmt(n) {
+        if (n === null || n === undefined || isNaN(n)) return '-';
+        return Number(n).toLocaleString(undefined, { maximumFractionDigits: 6 });
+      }
+
+      function fmtInt(n) {
+        if (n === null || n === undefined || isNaN(n)) return '-';
+        // Token estimates should be shown as full integers (no small decimals).
+        return Math.round(Number(n)).toLocaleString(undefined, { maximumFractionDigits: 0, minimumFractionDigits: 0 });
+      }
+
+      function toYmd(d) {
+        const pad = (n) => String(n).padStart(2, '0');
+        return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+      }
+
+      function addDaysYmd(dateStr, days) {
+        const d = new Date(`${dateStr}T00:00:00`);
+        if (Number.isNaN(d.getTime())) return null;
+        d.setDate(d.getDate() + Number(days || 0));
+        return toYmd(d);
+      }
+
+      function safeDateStr(s) {
+        if (!s) return '';
+        const t = String(s).trim();
+        return t.length > 0 ? t : '';
+      }
+
+      // Forecast utilities are shared across pages via /static/js/forecasting.js.
+      const forecastNextDaysDOW = (...args) => window.AppForecasting.forecastNextDaysDOW(...args);
+
+      function setText(id, val) {
+        const el = document.getElementById(id);
+        if (el) el.textContent = fmt(val);
+      }
+
+      function setTextInt(id, val) {
+        const el = document.getElementById(id);
+        if (el) el.textContent = fmtInt(val);
+      }
+
+      function setTextRaw(id, val) {
+        const el = document.getElementById(id);
+        if (!el) return;
+        if (val === null || val === undefined || val === '') el.textContent = '-';
+        else el.textContent = String(val);
+      }
+
+      function escapeHtml(s) {
+        return String(s)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;');
+      }
+
+      function csvEscapeCell(s) {
+        const t = String(s ?? '');
+        if (/[",\n\r]/.test(t)) return `"${t.replace(/"/g, '""')}"`;
+        return t;
+      }
+
+      function numForSort(v) {
+        if (v === null || v === undefined) return null;
+        const n = Number(v);
+        return Number.isFinite(n) ? n : null;
+      }
+
+      function compareBreakdown(a, b, key, dir) {
+        if (key === 'project_name') {
+          const c = String(a.project_name || '').localeCompare(String(b.project_name || ''), undefined, { sensitivity: 'base' });
+          return dir * c;
+        }
+        const av = numForSort(a[key]);
+        const bv = numForSort(b[key]);
+        if (av === null && bv === null) return 0;
+        if (av === null) return 1;
+        if (bv === null) return -1;
+        return dir * (av - bv);
+      }
+
+      function getSortedProjectBreakdown() {
+        return [...projectBreakdownRows].sort((a, b) => compareBreakdown(a, b, pbSortKey, pbSortDir));
+      }
+
+      function updateProjectBreakdownHeaderLabels() {
+        document.querySelectorAll('#projectBreakdownTable thead th').forEach((th) => {
+          const label = th.getAttribute('data-label');
+          if (!label) return;
+          const k = th.getAttribute('data-sort-key');
+          if (!k) {
+            th.textContent = label;
+            return;
+          }
+          th.textContent = label + (k === pbSortKey ? (pbSortDir === 1 ? ' ▲' : ' ▼') : '');
+        });
+      }
+
+      function renderProjectBreakdownTable() {
+        const tbody = document.getElementById('projectBreakdownTbody');
+        if (!tbody) return;
+        const rows = getSortedProjectBreakdown();
+        tbody.innerHTML = '';
+        for (const r of rows) {
+          const tr = document.createElement('tr');
+          const inTok = r.estimated_input_tokens;
+          const outTok = r.estimated_output_tokens;
+          const modelName = r.token_estimate_model || r.configured_model_name || '—';
+          const modelHtml =
+            escapeHtml(modelName) +
+            (inTok == null && r.configured_model_name
+              ? ' <span class="muted" style="font-size:11px;">(no price match)</span>'
+              : '');
+          tr.innerHTML = `
+            <td>${escapeHtml(r.project_name || '')}</td>
+            <td class="num">${fmt(r.actual_cost_usd_total)}</td>
+            <td class="num">${fmt(r.actual_days)}</td>
+            <td class="mono" style="max-width:220px; word-break:break-word;">${modelHtml}</td>
+            <td class="num">${inTok == null ? '—' : fmtInt(inTok)}</td>
+            <td class="num">${outTok == null ? '—' : fmtInt(outTok)}</td>
+          `;
+          tbody.appendChild(tr);
+        }
+        updateProjectBreakdownHeaderLabels();
+      }
+
+      function renderProjectBreakdown(report) {
+        projectBreakdownRows = report.project_breakdown || [];
+        renderProjectBreakdownTable();
+      }
+
+      function exportProjectBreakdownCsv() {
+        const rows = getSortedProjectBreakdown();
+        const header = [
+          'project_name',
+          'actual_cost_usd_total',
+          'actual_days',
+          'currency',
+          'configured_model_name',
+          'estimated_input_tokens',
+          'estimated_output_tokens',
+        ];
+        const lines = [header.join(',')];
+        for (const r of rows) {
+          lines.push(
+            [
+              csvEscapeCell(r.project_name),
+              csvEscapeCell(r.actual_cost_usd_total),
+              csvEscapeCell(r.actual_days),
+              csvEscapeCell(r.currency),
+              csvEscapeCell(r.configured_model_name ?? ''),
+              csvEscapeCell(r.estimated_input_tokens ?? ''),
+              csvEscapeCell(r.estimated_output_tokens ?? ''),
+            ].join(',')
+          );
+        }
+        const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'financial-project-breakdown.csv';
+        a.click();
+        URL.revokeObjectURL(a.href);
+      }
+
+      function exportTokenRatioCsv() {
+        const rows = lastTokenRatioRows || [];
+        const header = ['date', 'output_input_ratio'];
+        const lines = [header.map(csvEscapeCell).join(',')];
+        for (const r of rows) {
+          const ratio = r?.ratio;
+          lines.push([r?.date ?? '', (ratio === null || ratio === undefined || !Number.isFinite(Number(ratio))) ? '' : Number(ratio)].map(csvEscapeCell).join(','));
+        }
+        const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'daily-token-output-input-ratio.csv';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+      }
+
+      function bindProjectBreakdownTable() {
+        const table = document.getElementById('projectBreakdownTable');
+        if (!table) return;
+        table.querySelectorAll('thead th.sortable').forEach((th) => {
+          th.addEventListener('click', () => {
+            const k = th.getAttribute('data-sort-key');
+            if (!k) return;
+            if (k === pbSortKey) {
+              pbSortDir = -pbSortDir;
+            } else {
+              pbSortKey = k;
+              pbSortDir = k === 'project_name' ? 1 : -1;
+            }
+            renderProjectBreakdownTable();
+          });
+        });
+        const ex = document.getElementById('exportProjectBreakdownBtn');
+        if (ex) {
+          ex.addEventListener('click', () => exportProjectBreakdownCsv());
+        }
+      }
+
+      async function loadProjects() {
+        const data = await window.AppHttp.getJson('/api/projects');
+        const projects = data.projects || [];
+
+        const allChk = document.getElementById('projectAllChk');
+        const listEl = document.getElementById('projectCheckboxList');
+        const btnText = document.getElementById('projectDropdownBtnText');
+
+        listEl.innerHTML = '';
+
+        function projectCheckboxes() {
+          return Array.from(listEl.querySelectorAll('input.projectChk'));
+        }
+
+        function updateLabel() {
+          const selected = projectCheckboxes().filter((cb) => cb.checked).map((cb) => cb.value);
+          if (allChk.checked || selected.length === 0) {
+            btnText.textContent = 'All projects';
+          } else if (selected.length === 1) {
+            btnText.textContent = selected[0];
+          } else {
+            btnText.textContent = `${selected[0]} +${selected.length - 1} more`;
+          }
+        }
+
+        // Never disable project checkboxes: disabled inputs ignore clicks and feel "broken".
+        function setAllMode(isAll) {
+          const cbs = projectCheckboxes();
+          allChk.checked = isAll;
+          if (isAll) {
+            for (const cb of cbs) {
+              cb.checked = false;
+            }
+          }
+          updateLabel();
+        }
+
+        allChk.addEventListener('change', () => {
+          if (allChk.checked) {
+            setAllMode(true);
+          } else {
+            const anySelected = projectCheckboxes().some((cb) => cb.checked);
+            if (!anySelected) {
+              setAllMode(true);
+            } else {
+              updateLabel();
+            }
+          }
+        });
+
+        for (const p of projects) {
+          const label = document.createElement('label');
+          label.className = 'dropdownItem';
+
+          const cb = document.createElement('input');
+          cb.type = 'checkbox';
+          cb.value = p;
+          cb.className = 'projectChk';
+
+          cb.addEventListener('change', () => {
+            const anySelected = projectCheckboxes().some((x) => x.checked);
+            if (anySelected) {
+              allChk.checked = false;
+              updateLabel();
+            } else {
+              setAllMode(true);
+            }
+          });
+
+          const span = document.createElement('span');
+          span.textContent = p;
+
+          label.appendChild(cb);
+          label.appendChild(span);
+          listEl.appendChild(label);
+        }
+
+        // Start in "All projects" mode.
+        setAllMode(true);
+      }
+
+      async function fetchReport() {
+        const currency = document.getElementById('currencySelect').value || null;
+        const startDate = document.getElementById('startDate').value || null;
+        const endDate = document.getElementById('endDate').value || null;
+
+        const params = new URLSearchParams();
+        if (currency) params.set('currency', currency);
+        if (startDate) params.set('start_date', startDate);
+        if (endDate) params.set('end_date', endDate);
+
+        const allChk = document.getElementById('projectAllChk');
+        if (!allChk.checked) {
+          const selected = Array.from(document.querySelectorAll('#projectCheckboxList input.projectChk:checked')).map((cb) => cb.value);
+          for (const p of selected) params.append('project_names', p);
+        }
+
+        return await window.AppHttp.getJson(`/api/reports/all-financial?${params.toString()}`);
+      }
+
+      async function fetchVerify(mode = 'deep') {
+        const currency = document.getElementById('currencySelect').value || null;
+        const startDate = document.getElementById('startDate').value || null;
+        const endDate = document.getElementById('endDate').value || null;
+
+        const params = new URLSearchParams();
+        if (currency) params.set('currency', currency);
+        if (startDate) params.set('start_date', startDate);
+        if (endDate) params.set('end_date', endDate);
+        params.set('mode', mode);
+
+        const allChk = document.getElementById('projectAllChk');
+        if (!allChk.checked) {
+          const selected = Array.from(document.querySelectorAll('#projectCheckboxList input.projectChk:checked')).map((cb) => cb.value);
+          for (const p of selected) params.append('project_names', p);
+        }
+
+        return await window.AppHttp.getJson(`/api/verify/reports-all-financial-consistency?${params.toString()}`);
+      }
+
+      function renderCharts(report) {
+        const C = window.AppChartStyle?.colors || {};
+        const L = window.AppChartStyle?.labels || {};
+        const daily = report.daily_points || [];
+        const monthly = report.monthly_points || [];
+
+        // Daily
+        const dailyLabels = daily.map(p => p.date);
+        const dailyActual = daily.map(p => p.cost_usd);
+        const dailyCtx = document.getElementById('dailyChart').getContext('2d');
+        if (dailyChart) dailyChart.destroy();
+
+        const dailyGradient = dailyCtx.createLinearGradient(0, 0, 0, 360);
+        dailyGradient.addColorStop(0, 'rgba(94,234,212,0.28)');
+        dailyGradient.addColorStop(1, 'rgba(94,234,212,0.00)');
+
+        dailyChart = new Chart(dailyCtx, {
+          type: 'line',
+          data: {
+            labels: dailyLabels,
+            datasets: [
+              {
+                label: L.costActual || 'CostUSD (Actual)',
+                data: dailyActual,
+                borderColor: C.cost || '#5eead4',
+                backgroundColor: dailyGradient,
+                fill: true,
+                tension: 0.25,
+                pointRadius: 2,
+                borderWidth: 2,
+                spanGaps: true,
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              decimation: { enabled: true, algorithm: 'min-max' },
+              legend: { position: 'top' },
+              tooltip: {
+                backgroundColor: 'rgba(11,18,32,0.92)',
+                borderColor: 'rgba(255,255,255,0.16)',
+                borderWidth: 1,
+                callbacks: {
+                  label: tooltipLabelCurrency
+                }
+              }
+            },
+            interaction: { mode: 'index', intersect: false },
+            scales: {
+              x: {
+                ticks: { autoSkip: true, maxTicksLimit: 12, maxRotation: 0 }
+              },
+              y: {
+                beginAtZero: true,
+                ticks: {
+                  callback: (value) => {
+                    const n = Number(value);
+                    if (!Number.isFinite(n)) return String(value);
+                    return n.toLocaleString(undefined, { maximumFractionDigits: 4 });
+                  }
+                }
+              }
+            }
+          }
+        });
+
+        // Monthly
+        const monthlyLabels = monthly.map(p => p.date);
+        const monthlyActual = monthly.map(p => p.cost_usd);
+        const monthlyCtx = document.getElementById('monthlyChart').getContext('2d');
+        if (monthlyChart) monthlyChart.destroy();
+        monthlyChart = new Chart(monthlyCtx, {
+          type: 'bar',
+          data: {
+            labels: monthlyLabels,
+            datasets: [
+              {
+                label: L.costActual || 'CostUSD (Actual)',
+                data: monthlyActual,
+                backgroundColor: 'rgba(94,234,212,0.22)',
+                borderColor: C.cost || '#5eead4',
+                borderWidth: 1
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { position: 'top' },
+              tooltip: {
+                backgroundColor: 'rgba(11,18,32,0.92)',
+                borderColor: 'rgba(255,255,255,0.16)',
+                borderWidth: 1,
+                callbacks: { label: tooltipLabelCurrency }
+              }
+            },
+            scales: {
+              x: { ticks: { autoSkip: true, maxTicksLimit: 12, maxRotation: 0 } },
+              y: {
+                beginAtZero: true,
+                ticks: {
+                  callback: (value) => {
+                    const n = Number(value);
+                    if (!Number.isFinite(n)) return String(value);
+                    return n.toLocaleString(undefined, { maximumFractionDigits: 4 });
+                  }
+                }
+              }
+            }
+          }
+        });
+
+        // Daily Token Estimates
+        const dailyTokens = report.token_daily_points || [];
+        const dailyTokenLabels = dailyTokens.map(p => p.date);
+        const dailyTokenInput = dailyTokens.map(p => (p.estimated_input_tokens === null || p.estimated_input_tokens === undefined) ? null : Math.round(Number(p.estimated_input_tokens)));
+        const dailyTokenOutput = dailyTokens.map(p => (p.estimated_output_tokens === null || p.estimated_output_tokens === undefined) ? null : Math.round(Number(p.estimated_output_tokens)));
+        const dailyTokenTotal = dailyTokens.map(p => (p.estimated_total_tokens === null || p.estimated_total_tokens === undefined) ? null : Math.round(Number(p.estimated_total_tokens)));
+        const dailyTokenCtx = document.getElementById('dailyTokenChart').getContext('2d');
+        if (dailyTokenChart) dailyTokenChart.destroy();
+        dailyTokenChart = new Chart(dailyTokenCtx, {
+          type: 'line',
+          data: {
+            labels: dailyTokenLabels,
+            datasets: [
+              {
+                label: L.tokenInput || 'Estimated Input Tokens',
+                data: dailyTokenInput,
+                borderColor: C.input || '#60a5fa',
+                fill: false,
+                tension: 0.25,
+                pointRadius: 2,
+                borderWidth: 2.2,
+                spanGaps: true,
+                unitType: 'tokens',
+                yAxisID: 'yTokens'
+              },
+              {
+                label: L.tokenOutput || 'Estimated Output Tokens',
+                data: dailyTokenOutput,
+                borderColor: C.output || '#a78bfa',
+                fill: false,
+                tension: 0.25,
+                pointRadius: 2,
+                borderWidth: 2.2,
+                spanGaps: true,
+                unitType: 'tokens',
+                yAxisID: 'yTokens'
+              },
+              {
+                label: L.tokenTotal || 'Estimated Total Tokens',
+                data: dailyTokenTotal,
+                borderColor: C.total || '#f59e0b',
+                fill: false,
+                tension: 0.25,
+                pointRadius: 3,
+                borderWidth: 3.0,
+                spanGaps: true,
+                unitType: 'tokens',
+                yAxisID: 'yTokens'
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+              decimation: { enabled: true, algorithm: 'min-max' },
+              legend: { position: 'top' },
+              tooltip: {
+                backgroundColor: 'rgba(11,18,32,0.92)',
+                borderColor: 'rgba(255,255,255,0.16)',
+                borderWidth: 1,
+                callbacks: {
+                  label: tooltipLabelTokens
+                }
+              }
+            },
+            scales: {
+              x: { ticks: { autoSkip: true, maxTicksLimit: 12, maxRotation: 0 } },
+              y: { display: false },
+              yTokens: {
+                position: 'right',
+                beginAtZero: true,
+                ticks: {
+                  callback: (value) => {
+                    const n = Math.round(Number(value));
+                    if (!Number.isFinite(n)) return String(value);
+                    return n.toLocaleString(undefined, { maximumFractionDigits: 0 });
+                  }
+                },
+                grid: { drawOnChartArea: false }
+              }
+            }
+          }
+        });
+
+        // Daily Token Ratio (Output / Input)
+        const ratioRows = window.AppForecasting?.dailyTokenRatio?.(dailyTokens || [], { inputKey: 'estimated_input_tokens', outputKey: 'estimated_output_tokens' }) || [];
+        lastTokenRatioRows = ratioRows;
+        const ratioLabels = ratioRows.map((r) => r.date);
+        const ratioData = ratioRows.map((r) => (r.ratio === null || r.ratio === undefined ? null : Number(r.ratio)));
+        const ratioStats = window.AppForecasting?.ratioStats?.(ratioRows) || null;
+        const ratioYBounds = window.AppForecasting?.ratioSuggestedBounds?.(ratioRows) || null;
+        if (ratioKpiSummaryReportEl && ratioStats) {
+          ratioKpiSummaryReportEl.textContent = `Valid days: ${ratioStats.valid_days} · >1: ${ratioStats.above_1_days} (${ratioStats.above_1_pct}%) · <1: ${ratioStats.below_1_days} (${ratioStats.below_1_pct}%)`;
+        } else if (ratioKpiSummaryReportEl) {
+          ratioKpiSummaryReportEl.textContent = 'Valid days: - · >1: - · <1: -';
+        }
+        const ratioCtx = document.getElementById('dailyTokenRatioChart')?.getContext('2d');
+        if (ratioCtx) {
+          if (dailyTokenRatioChart) dailyTokenRatioChart.destroy();
+          dailyTokenRatioChart = new Chart(ratioCtx, {
+            type: 'line',
+            data: {
+              labels: ratioLabels,
+              datasets: [
+                {
+                  label: 'Output/Input',
+                  data: ratioData,
+                  borderColor: 'rgba(226,232,240,0.88)',
+                  backgroundColor: 'rgba(226,232,240,0.0)',
+                  fill: false,
+                  tension: 0.25,
+                  pointRadius: 2,
+                  borderWidth: 2.2,
+                  spanGaps: true
+                },
+                {
+                  label: 'Baseline (1.0)',
+                  data: ratioLabels.map(() => 1),
+                  borderColor: 'rgba(159,178,199,0.65)',
+                  backgroundColor: 'rgba(0,0,0,0)',
+                  fill: false,
+                  tension: 0,
+                  pointRadius: 0,
+                  borderWidth: 1.4,
+                  borderDash: [3, 4],
+                  spanGaps: true
+                }
+              ]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              interaction: { mode: 'index', intersect: false },
+              plugins: {
+                decimation: { enabled: true, algorithm: 'min-max' },
+                legend: {
+                  position: 'top',
+                  labels: { filter: (item) => !String(item?.text || '').includes('Baseline') }
+                },
+                tooltip: { callbacks: { label: (ctx) => {
+                  const v = ctx.parsed?.y;
+                  if (v === null || v === undefined || Number.isNaN(v)) return `${ctx.dataset.label}: -`;
+                  if (String(ctx.dataset.label || '').includes('Baseline')) return null;
+                  return `${ctx.dataset.label}: ${Number(v).toLocaleString(undefined, { maximumFractionDigits: 3 })}`;
+                } } }
+              },
+              scales: {
+                x: { ticks: { autoSkip: true, maxTicksLimit: 12, maxRotation: 0 } },
+                y: {
+                  beginAtZero: true,
+                  suggestedMin: ratioYBounds?.min,
+                  suggestedMax: ratioYBounds?.max,
+                  ticks: { callback: (value) => {
+                    const n = Number(value);
+                    if (!Number.isFinite(n)) return String(value);
+                    return n.toLocaleString(undefined, { maximumFractionDigits: 2 });
+                  } }
+                }
+              }
+            }
+          });
+        }
+
+        const ratioTbody = document.getElementById('tokenRatioTbody');
+        if (ratioTbody) {
+          ratioTbody.innerHTML = '';
+          if (!ratioRows.length) {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td colspan="2" class="muted">No ratio data in selected range.</td>`;
+            ratioTbody.appendChild(tr);
+          } else {
+            for (let i = ratioRows.length - 1; i >= 0; i--) {
+              const r = ratioRows[i];
+              const tr = document.createElement('tr');
+              const val = r.ratio === null || r.ratio === undefined ? '-' : Number(r.ratio).toLocaleString(undefined, { maximumFractionDigits: 3 });
+              tr.innerHTML = `<td>${r.date}</td><td class="num">${val}</td>`;
+              ratioTbody.appendChild(tr);
+            }
+          }
+        }
+
+        // Monthly Token Estimates
+        const monthlyTokens = report.token_monthly_points || [];
+        const monthlyTokenLabels = monthlyTokens.map(p => p.date);
+        const monthlyTokenInput = monthlyTokens.map(p => (p.estimated_input_tokens === null || p.estimated_input_tokens === undefined) ? null : Math.round(Number(p.estimated_input_tokens)));
+        const monthlyTokenOutput = monthlyTokens.map(p => (p.estimated_output_tokens === null || p.estimated_output_tokens === undefined) ? null : Math.round(Number(p.estimated_output_tokens)));
+        const monthlyTokenTotal = monthlyTokens.map(p => (p.estimated_total_tokens === null || p.estimated_total_tokens === undefined) ? null : Math.round(Number(p.estimated_total_tokens)));
+        const monthlyTokenCtx = document.getElementById('monthlyTokenChart').getContext('2d');
+        if (monthlyTokenChart) monthlyTokenChart.destroy();
+        monthlyTokenChart = new Chart(monthlyTokenCtx, {
+          type: 'line',
+          data: {
+            labels: monthlyTokenLabels,
+            datasets: [
+              {
+                label: L.tokenInput || 'Estimated Input Tokens',
+                data: monthlyTokenInput,
+                borderColor: C.input || '#60a5fa',
+                fill: false,
+                tension: 0.25,
+                pointRadius: 2,
+                borderWidth: 2.2,
+                spanGaps: true,
+                unitType: 'tokens',
+                yAxisID: 'yTokens'
+              },
+              {
+                label: L.tokenOutput || 'Estimated Output Tokens',
+                data: monthlyTokenOutput,
+                borderColor: C.output || '#a78bfa',
+                fill: false,
+                tension: 0.25,
+                pointRadius: 2,
+                borderWidth: 2.2,
+                spanGaps: true,
+                unitType: 'tokens',
+                yAxisID: 'yTokens'
+              },
+              {
+                label: L.tokenTotal || 'Estimated Total Tokens',
+                data: monthlyTokenTotal,
+                borderColor: C.total || '#f59e0b',
+                fill: false,
+                tension: 0.25,
+                pointRadius: 3,
+                borderWidth: 3.0,
+                spanGaps: true,
+                unitType: 'tokens',
+                yAxisID: 'yTokens'
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+              decimation: { enabled: true, algorithm: 'min-max' },
+              legend: { position: 'top' },
+              tooltip: {
+                backgroundColor: 'rgba(11,18,32,0.92)',
+                borderColor: 'rgba(255,255,255,0.16)',
+                borderWidth: 1,
+                callbacks: {
+                  label: tooltipLabelTokens
+                }
+              }
+            },
+            scales: {
+              x: { ticks: { autoSkip: true, maxTicksLimit: 12, maxRotation: 0 } },
+              y: { display: false },
+              yTokens: {
+                position: 'right',
+                beginAtZero: true,
+                ticks: {
+                  callback: (value) => {
+                    const n = Math.round(Number(value));
+                    if (!Number.isFinite(n)) return String(value);
+                    return n.toLocaleString(undefined, { maximumFractionDigits: 0 });
+                  }
+                },
+                grid: { drawOnChartArea: false }
+              }
+            }
+          }
+        });
+
+        renderForecastReports(report);
+      }
+
+      function renderForecastReports(report) {
+        const C = window.AppChartStyle?.colors || {};
+        const L = window.AppChartStyle?.labels || {};
+        const daily = report.daily_points || [];
+        const dailyTokens = report.token_daily_points || [];
+
+        const lastDate =
+          (daily.length ? safeDateStr(daily[daily.length - 1]?.date) : '') ||
+          (dailyTokens.length ? safeDateStr(dailyTokens[dailyTokens.length - 1]?.date) : '');
+
+        // Cost forecast
+        const costFc = forecastNextDaysDOW(daily, 'cost_usd', lastDate, { windowDays: 28, horizonDays: 7 }) || [];
+        try {
+          const q = window.AppForecasting?.forecastQuality?.(daily, 'cost_usd', { windowDays: 28 }) || null;
+          _renderForecastQualityBadge(forecastQualityCostReportEl, q);
+        } catch (e) {}
+        const costLabels = daily.map((p) => p.date).concat(costFc.map((x) => x.date));
+        const costActual = daily.map((p) => (p.cost_usd === null || p.cost_usd === undefined) ? null : Math.round(Number(p.cost_usd)));
+        const costFcData = costLabels.map(() => null);
+        const costBy = new Map(costFc.map((x) => [x.date, x.value]));
+        for (let i = daily.length; i < costLabels.length; i++) {
+          const d = costLabels[i];
+          if (costBy.has(d)) costFcData[i] = costBy.get(d);
+        }
+        // Make dashed forecast visually connect to the last actual point (no broken segment).
+        if (daily.length >= 1) {
+          const lastActual = costActual[daily.length - 1];
+          if (lastActual !== null && lastActual !== undefined && Number.isFinite(Number(lastActual))) {
+            costFcData[daily.length - 1] = Math.round(Number(lastActual));
+          }
+        }
+
+        const costCtx = document.getElementById('costForecastChart').getContext('2d');
+        if (costForecastChart) costForecastChart.destroy();
+        costForecastChart = new Chart(costCtx, {
+          type: 'line',
+          data: {
+            labels: costLabels,
+            datasets: [
+              {
+                label: L.costActual || 'CostUSD (Actual)',
+                data: costActual,
+                borderColor: C.cost || '#5eead4',
+                backgroundColor: 'rgba(94,234,212,0.10)',
+                fill: false,
+                tension: 0.25,
+                pointRadius: 2,
+                borderWidth: 2.2,
+                spanGaps: true,
+              },
+              {
+                label: L.costForecast || 'CostUSD (Forecast 7d)',
+                data: costFcData,
+                borderColor: 'rgba(94,234,212,0.92)',
+                backgroundColor: 'rgba(0,0,0,0)',
+                fill: false,
+                tension: 0.25,
+                pointRadius: 2,
+                borderWidth: 2.2,
+                borderDash: [5, 4],
+                spanGaps: true,
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+              legend: { position: 'top' },
+              tooltip: {
+                backgroundColor: 'rgba(11,18,32,0.92)',
+                borderColor: 'rgba(255,255,255,0.16)',
+                borderWidth: 1,
+                callbacks: {
+                  label: tooltipLabelCurrency
+                }
+              }
+            },
+            // Visualize forecast horizon as a shaded region starting at the last actual date.
+            // daily.length - 1 is the last actual index (forecast series also has a point there for continuity).
+            plugins: [window.AppChartPlugins?.forecastHorizonShade?.({ startIndex: Math.max(0, daily.length - 1), label: 'Forecast horizon' })].filter(Boolean),
+            scales: {
+              x: { ticks: { autoSkip: true, maxTicksLimit: 12, maxRotation: 0 } },
+              y: {
+                beginAtZero: true,
+                ticks: {
+                  callback: (value) => {
+                    const n = Math.round(Number(value));
+                    if (!Number.isFinite(n)) return String(value);
+                    return n.toLocaleString(undefined, { maximumFractionDigits: 0 });
+                  }
+                }
+              }
+            }
+          }
+        });
+
+        const costTbody = document.getElementById('costForecastTbody');
+        if (costTbody) {
+          costTbody.innerHTML = '';
+          for (const x of costFc) {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td>${x.date}</td><td class="num">${fmtInt(x.value)}</td>`;
+            costTbody.appendChild(tr);
+          }
+          if (costFc.length === 0) {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td colspan="2" class="muted">Not enough data to forecast (need at least 2 days).</td>`;
+            costTbody.appendChild(tr);
+          }
+        }
+
+        // Token forecast
+        const fcIn = forecastNextDaysDOW(dailyTokens, 'estimated_input_tokens', lastDate, { windowDays: 28, horizonDays: 7 }) || [];
+        const fcOut = forecastNextDaysDOW(dailyTokens, 'estimated_output_tokens', lastDate, { windowDays: 28, horizonDays: 7 }) || [];
+        const fcTot = forecastNextDaysDOW(dailyTokens, 'estimated_total_tokens', lastDate, { windowDays: 28, horizonDays: 7 }) || [];
+        try {
+          const q = window.AppForecasting?.forecastQuality?.(dailyTokens, 'estimated_total_tokens', { windowDays: 28 }) || null;
+          _renderForecastQualityBadge(forecastQualityTokensReportEl, q);
+        } catch (e) {}
+        const tokenLabels = dailyTokens.map((p) => p.date).concat(fcTot.map((x) => x.date));
+
+        const tokIn = dailyTokens.map((p) => (p.estimated_input_tokens === null || p.estimated_input_tokens === undefined) ? null : Math.round(Number(p.estimated_input_tokens)));
+        const tokOut = dailyTokens.map((p) => (p.estimated_output_tokens === null || p.estimated_output_tokens === undefined) ? null : Math.round(Number(p.estimated_output_tokens)));
+        const tokTot = dailyTokens.map((p) => (p.estimated_total_tokens === null || p.estimated_total_tokens === undefined) ? null : Math.round(Number(p.estimated_total_tokens)));
+
+        const tokFcIn = tokenLabels.map(() => null);
+        const tokFcOut = tokenLabels.map(() => null);
+        const tokFcTot = tokenLabels.map(() => null);
+        const byIn = new Map(fcIn.map((x) => [x.date, x.value]));
+        const byOut = new Map(fcOut.map((x) => [x.date, x.value]));
+        const byTot = new Map(fcTot.map((x) => [x.date, x.value]));
+        for (let i = dailyTokens.length; i < tokenLabels.length; i++) {
+          const d = tokenLabels[i];
+          if (byIn.has(d)) tokFcIn[i] = byIn.get(d);
+          if (byOut.has(d)) tokFcOut[i] = byOut.get(d);
+          if (byTot.has(d)) tokFcTot[i] = byTot.get(d);
+        }
+        // Connect dashed forecasts to last actual point for each token series.
+        if (dailyTokens.length >= 1) {
+          const li = dailyTokens.length - 1;
+          const lastIn = tokIn[li];
+          const lastOut = tokOut[li];
+          const lastTot = tokTot[li];
+          if (lastIn !== null && lastIn !== undefined && Number.isFinite(Number(lastIn))) tokFcIn[li] = Math.round(Number(lastIn));
+          if (lastOut !== null && lastOut !== undefined && Number.isFinite(Number(lastOut))) tokFcOut[li] = Math.round(Number(lastOut));
+          if (lastTot !== null && lastTot !== undefined && Number.isFinite(Number(lastTot))) tokFcTot[li] = Math.round(Number(lastTot));
+        }
+
+        const tokCtx = document.getElementById('tokenForecastChart').getContext('2d');
+        if (tokenForecastChart) tokenForecastChart.destroy();
+        tokenForecastChart = new Chart(tokCtx, {
+          type: 'line',
+          data: {
+            labels: tokenLabels,
+            datasets: [
+              { label: L.tokenInput || 'Estimated Input Tokens', data: tokIn, borderColor: C.input || '#60a5fa', fill: false, tension: 0.25, pointRadius: 2, borderWidth: 2.2, spanGaps: true, yAxisID: 'yTokens' },
+              { label: L.tokenInputForecast || 'Estimated Input Tokens (Forecast 7d)', data: tokFcIn, borderColor: 'rgba(96,165,250,0.88)', fill: false, tension: 0.25, pointRadius: 2, borderWidth: 2.2, borderDash: [5, 4], spanGaps: true, yAxisID: 'yTokens' },
+              { label: L.tokenOutput || 'Estimated Output Tokens', data: tokOut, borderColor: C.output || '#a78bfa', fill: false, tension: 0.25, pointRadius: 2, borderWidth: 2.2, spanGaps: true, yAxisID: 'yTokens' },
+              { label: L.tokenOutputForecast || 'Estimated Output Tokens (Forecast 7d)', data: tokFcOut, borderColor: 'rgba(167,139,250,0.88)', fill: false, tension: 0.25, pointRadius: 2, borderWidth: 2.2, borderDash: [5, 4], spanGaps: true, yAxisID: 'yTokens' },
+              { label: L.tokenTotal || 'Estimated Total Tokens', data: tokTot, borderColor: C.total || '#f59e0b', fill: false, tension: 0.25, pointRadius: 3, borderWidth: 2.8, spanGaps: true, yAxisID: 'yTokens' },
+              { label: L.tokenTotalForecast || 'Estimated Total Tokens (Forecast 7d)', data: tokFcTot, borderColor: 'rgba(245,158,11,0.92)', fill: false, tension: 0.25, pointRadius: 2, borderWidth: 2.6, borderDash: [4, 4], spanGaps: true, yAxisID: 'yTokens' },
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+              legend: { position: 'top' },
+              tooltip: {
+                backgroundColor: 'rgba(11,18,32,0.92)',
+                borderColor: 'rgba(255,255,255,0.16)',
+                borderWidth: 1,
+                callbacks: {
+                  label: tooltipLabelTokens
+                }
+              }
+            },
+            plugins: [window.AppChartPlugins?.forecastHorizonShade?.({ startIndex: Math.max(0, dailyTokens.length - 1), label: 'Forecast horizon' })].filter(Boolean),
+            scales: {
+              x: { ticks: { autoSkip: true, maxTicksLimit: 12, maxRotation: 0 } },
+              y: { display: false },
+              yTokens: {
+                position: 'right',
+                beginAtZero: true,
+                ticks: {
+                  callback: (value) => {
+                    const n = Math.round(Number(value));
+                    if (!Number.isFinite(n)) return String(value);
+                    return n.toLocaleString(undefined, { maximumFractionDigits: 0 });
+                  }
+                },
+                grid: { drawOnChartArea: false }
+              }
+            }
+          }
+        });
+
+        const tokTbody = document.getElementById('tokenForecastTbody');
+        if (tokTbody) {
+          tokTbody.innerHTML = '';
+          const byFi = new Map(fcIn.map((x) => [x.date, x.value]));
+          const byFo = new Map(fcOut.map((x) => [x.date, x.value]));
+          const byFt = new Map(fcTot.map((x) => [x.date, x.value]));
+          const dates = fcTot.map((x) => x.date);
+          if (dates.length === 0) {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td colspan="4" class="muted">Not enough data to forecast (need at least 2 days).</td>`;
+            tokTbody.appendChild(tr);
+          } else {
+            for (const d of dates) {
+              const tr = document.createElement('tr');
+              tr.innerHTML = `
+                <td>${d}</td>
+                <td class="num">${fmtInt(byFi.get(d))}</td>
+                <td class="num">${fmtInt(byFo.get(d))}</td>
+                <td class="num">${fmtInt(byFt.get(d))}</td>
+              `;
+              tokTbody.appendChild(tr);
+            }
+          }
+        }
+      }
+
+      function renderPagedTable({ points, page, pageSize, tbodyEl, pageInfoEl, prevBtn, nextBtn, label }) {
+        const total = points.length;
+        const pageCount = Math.max(1, Math.ceil(total / pageSize));
+        const safePage = Math.max(1, Math.min(pageCount, Math.floor(page)));
+        const offset = (safePage - 1) * pageSize;
+        const slice = points.slice(offset, offset + pageSize);
+
+        tbodyEl.innerHTML = '';
+        for (const p of slice) {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `<td>${p.date ?? ''}</td><td class="num">${fmt(p.cost_usd)}</td>`;
+          tbodyEl.appendChild(tr);
+        }
+
+        prevBtn.disabled = safePage <= 1;
+        nextBtn.disabled = safePage >= pageCount;
+        pageInfoEl.textContent = `${safePage} / ${pageCount} · ${total} ${label}`;
+        return safePage;
+      }
+
+      function renderTables(report) {
+        // Tables default to reverse-chronological order (latest first).
+        const daily = (report.daily_points || []).slice().reverse();
+        const monthly = (report.monthly_points || []).slice().reverse();
+
+        const dailyTbody = document.getElementById('dailyTbody');
+        const dailyPrevBtn = document.getElementById('dailyPrevBtn');
+        const dailyNextBtn = document.getElementById('dailyNextBtn');
+        const dailyPageInfo = document.getElementById('dailyPageInfo');
+        dailyPage = renderPagedTable({
+          points: daily,
+          page: dailyPage,
+          pageSize: dailyPageSize,
+          tbodyEl: dailyTbody,
+          pageInfoEl: dailyPageInfo,
+          prevBtn: dailyPrevBtn,
+          nextBtn: dailyNextBtn,
+          label: 'days'
+        });
+
+        const monthlyTbody = document.getElementById('monthlyTbody');
+        const monthlyPrevBtn = document.getElementById('monthlyPrevBtn');
+        const monthlyNextBtn = document.getElementById('monthlyNextBtn');
+        const monthlyPageInfo = document.getElementById('monthlyPageInfo');
+        monthlyPage = renderPagedTable({
+          points: monthly,
+          page: monthlyPage,
+          pageSize: monthlyPageSize,
+          tbodyEl: monthlyTbody,
+          pageInfoEl: monthlyPageInfo,
+          prevBtn: monthlyPrevBtn,
+          nextBtn: monthlyNextBtn,
+          label: 'months'
+        });
+      }
+
+      function renderStats(report) {
+        const d = report.daily || {};
+        const m = report.monthly || {};
+        const t = report.token_estimate || {};
+        setText('d_count', d.count_days);
+        setText('d_total_actual', d.total_actual);
+        setTextInt('d_est_input_tokens', t.estimated_input_tokens_total);
+        setTextInt('d_est_output_tokens', t.estimated_output_tokens_total);
+        setText('d_est_projects', t.projects_with_estimate);
+        setTextRaw('d_token_model', report.token_estimate_model_display ?? '-');
+        setTextRaw('d_token_region', report.token_estimate_region_display ?? '-');
+        setText('d_avg_actual', d.avg_actual);
+        setText('d_median_actual', d.median_actual);
+        setText('d_var_actual', d.var_actual);
+
+        setText('m_count', m.count_months);
+        setText('m_avg_actual', m.avg_actual);
+        setText('m_median_actual', m.median_actual);
+        setText('m_var_actual', m.var_actual);
+      }
+
+      async function init() {
+        await loadProjects();
+
+        const projectDropdownBtn = document.getElementById('projectDropdownBtn');
+        const projectDropdownMenu = document.getElementById('projectDropdownMenu');
+        projectDropdownMenu.addEventListener('click', (e) => {
+          // Prevent the "click outside to close" handler from firing
+          // so checkbox clicks can actually toggle.
+          e.stopPropagation();
+        });
+        projectDropdownMenu.addEventListener('mousedown', (e) => {
+          e.stopPropagation();
+        });
+        projectDropdownBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          projectDropdownMenu.style.display = projectDropdownMenu.style.display === 'block' ? 'none' : 'block';
+        });
+        document.addEventListener('click', () => {
+          projectDropdownMenu.style.display = 'none';
+        });
+
+        const report = await fetchReport();
+        lastReport = report;
+        const currencyOptions = report.currency_options || [];
+        const currencySelect = document.getElementById('currencySelect');
+        currencySelect.innerHTML = '';
+        for (const c of currencyOptions) {
+          const opt = document.createElement('option');
+          opt.value = c;
+          opt.textContent = c;
+          currencySelect.appendChild(opt);
+        }
+        const chosen = report.currency || (currencyOptions[0] || '');
+        currencySelect.value = chosen;
+        renderStats(report);
+        renderProjectBreakdown(report);
+        renderCharts(report);
+        renderTables(report);
+      }
+
+      const exportTokenRatioBtn = document.getElementById('exportTokenRatioBtn');
+      if (exportTokenRatioBtn) {
+        exportTokenRatioBtn.addEventListener('click', () => exportTokenRatioCsv());
+      }
+
+      document.getElementById('loadBtn').addEventListener('click', async () => {
+        try {
+          const report = await fetchReport();
+          lastReport = report;
+          const currencyOptions = report.currency_options || [];
+          const currencySelect = document.getElementById('currencySelect');
+          currencySelect.innerHTML = '';
+          for (const c of currencyOptions) {
+            const opt = document.createElement('option');
+            opt.value = c;
+            opt.textContent = c;
+            currencySelect.appendChild(opt);
+          }
+          const chosen = report.currency || (currencyOptions[0] || '');
+          currencySelect.value = chosen;
+
+          renderStats(report);
+          renderProjectBreakdown(report);
+          renderCharts(report);
+          dailyPage = 1;
+          monthlyPage = 1;
+          renderTables(report);
+        } catch (e) {
+          console.error(e);
+          // toast handled by AppHttp
+        }
+      });
+
+      const verifyBtn = document.getElementById('verifyBtn');
+      if (verifyBtn) {
+        verifyBtn.addEventListener('click', async () => {
+          try {
+            const res = await fetchVerify('deep');
+            const el = document.getElementById('verifyResult');
+            if (el) {
+              el.style.display = 'block';
+              if (res?.ok) {
+                el.textContent = `Verify OK: all ${res.failed_count ?? 0} checks passed.`;
+              } else {
+                const failed = (res?.failed_checks || []).join(', ');
+                el.textContent = `Verify Failed: ${res?.failed_count ?? 0} checks failed. ${failed ? `Failures: ${failed}` : ''}`;
+              }
+            }
+          } catch (e) {
+            console.error(e);
+            // toast handled by AppHttp
+          }
+        });
+      }
+
+      function bindTablePager() {
+        const dailyPageSizeSelect = document.getElementById('dailyPageSizeSelect');
+        const dailyPrevBtn = document.getElementById('dailyPrevBtn');
+        const dailyNextBtn = document.getElementById('dailyNextBtn');
+        const dailyGoInput = document.getElementById('dailyGoInput');
+        const dailyGoBtn = document.getElementById('dailyGoBtn');
+
+        dailyPageSizeSelect.addEventListener('change', () => {
+          dailyPageSize = Math.max(1, Math.min(200, Number(dailyPageSizeSelect.value || 50)));
+          dailyPage = 1;
+          if (lastReport) renderTables(lastReport);
+        });
+        dailyPrevBtn.addEventListener('click', () => {
+          dailyPage = Math.max(1, dailyPage - 1);
+          if (lastReport) renderTables(lastReport);
+        });
+        dailyNextBtn.addEventListener('click', () => {
+          dailyPage = dailyPage + 1;
+          if (lastReport) renderTables(lastReport);
+        });
+        dailyGoBtn.addEventListener('click', () => {
+          const n = Number((dailyGoInput.value || '').trim());
+          if (!Number.isFinite(n) || n < 1) return;
+          dailyPage = Math.floor(n);
+          if (lastReport) renderTables(lastReport);
+        });
+
+        const monthlyPageSizeSelect = document.getElementById('monthlyPageSizeSelect');
+        const monthlyPrevBtn = document.getElementById('monthlyPrevBtn');
+        const monthlyNextBtn = document.getElementById('monthlyNextBtn');
+        const monthlyGoInput = document.getElementById('monthlyGoInput');
+        const monthlyGoBtn = document.getElementById('monthlyGoBtn');
+
+        monthlyPageSizeSelect.addEventListener('change', () => {
+          monthlyPageSize = Math.max(1, Math.min(200, Number(monthlyPageSizeSelect.value || 50)));
+          monthlyPage = 1;
+          if (lastReport) renderTables(lastReport);
+        });
+        monthlyPrevBtn.addEventListener('click', () => {
+          monthlyPage = Math.max(1, monthlyPage - 1);
+          if (lastReport) renderTables(lastReport);
+        });
+        monthlyNextBtn.addEventListener('click', () => {
+          monthlyPage = monthlyPage + 1;
+          if (lastReport) renderTables(lastReport);
+        });
+        monthlyGoBtn.addEventListener('click', () => {
+          const n = Number((monthlyGoInput.value || '').trim());
+          if (!Number.isFinite(n) || n < 1) return;
+          monthlyPage = Math.floor(n);
+          if (lastReport) renderTables(lastReport);
+        });
+      }
+
+      init().catch((e) => {
+        console.error(e);
+        // toast handled by AppHttp
+      });
+
+      bindTablePager();
+      bindProjectBreakdownTable();
+
+      const logoutBtn = document.getElementById('logoutBtn');
+      if (logoutBtn) {
+        logoutBtn.addEventListener('click', async () => {
+          try {
+            await fetch('/auth/logout', { method: 'POST', credentials: 'same-origin' });
+          } finally {
+            window.location = '/login';
+          }
+        });
+      }
+    </script>
+  </body>
+</html>

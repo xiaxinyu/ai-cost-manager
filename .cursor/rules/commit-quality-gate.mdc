@@ -1,0 +1,10 @@
+---
+description: Commit and PR quality gates
+---
+
+## Quality Gate
+- No TODO leftovers or temporary hacks in final output.
+- No breaking schema/API changes without migration strategy.
+- Verification evidence recorded (minimum `pytest`).
+- Avoid committing secrets (`.env`, credentials).
+

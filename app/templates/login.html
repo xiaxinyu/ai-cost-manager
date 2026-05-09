@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Login - Models Cost Management</title>
+    <style>
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+        margin: 0;
+        background: #0b1220;
+        color: #e6edf3;
+      }
+      .wrap {
+        max-width: 520px;
+        margin: 0 auto;
+        padding: 48px 18px;
+      }
+      .card {
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid rgba(255, 255, 255, 0.10);
+        border-radius: 12px;
+        padding: 18px;
+      }
+      h1 {
+        font-size: 18px;
+        margin: 0 0 10px;
+        font-weight: 700;
+      }
+      .muted {
+        color: #9fb2c7;
+        font-size: 13px;
+        margin-bottom: 16px;
+      }
+      label {
+        display: block;
+        margin: 12px 0 6px;
+        color: #9fb2c7;
+        font-size: 12px;
+      }
+      input {
+        width: 100%;
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        border-radius: 10px;
+        color: #e6edf3;
+        padding: 10px 12px;
+        outline: none;
+      }
+      button {
+        margin-top: 16px;
+        width: 100%;
+        cursor: pointer;
+        border-radius: 10px;
+        border: 1px solid rgba(94,234,212,0.35);
+        background: rgba(94,234,212,0.14);
+        color: #e6edf3;
+        padding: 10px 12px;
+        font-weight: 700;
+      }
+      .footer {
+        margin-top: 14px;
+        color: #9fb2c7;
+        font-size: 12px;
+        line-height: 1.4;
+      }
+      a {
+        color: #93c5fd;
+        text-decoration: none;
+      }
+      .alert {
+        border-radius: 10px;
+        padding: 12px 14px;
+        margin-bottom: 16px;
+        font-size: 13px;
+        line-height: 1.45;
+        border: 1px solid rgba(248, 113, 113, 0.45);
+        background: rgba(248, 113, 113, 0.12);
+        color: #fecaca;
+      }
+      .alert strong {
+        display: block;
+        margin-bottom: 4px;
+        font-size: 14px;
+        color: #fca5a5;
+      }
+      .hint {
+        margin-top: 8px;
+        font-size: 12px;
+        color: #9fb2c7;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="card">
+        <h1>Models Cost Management</h1>
+        <div class="muted">Sign in to view and manage billing data.</div>
+
+        {% if login_error == "invalid" %}
+        <div class="alert" role="alert">
+          <strong>Sign-in failed</strong>
+          Incorrect username or password. Please try again.
+          <div class="hint">
+            If you see failed requests like <code>utils.js</code> in DevTools, they usually come from a
+            <strong>browser extension</strong> (chrome-extension://), not this app — all login assets here are local.
+          </div>
+        </div>
+        {% endif %}
+
+        <form method="post" action="/auth/login">
+          <label for="username">Username</label>
+          <input id="username" name="username" type="text" autocomplete="username" required />
+
+          <label for="password">Password</label>
+          <input id="password" name="password" type="password" autocomplete="current-password" required />
+
+          <button type="submit">Login</button>
+        </form>
+
+        <div class="footer">
+          安装安全建议：请先用 <code>create-admin</code> 设置强密码，并确保配置了 <code>COST_MGMT_SESSION_SECRET_KEY</code>。
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
+
