@@ -170,3 +170,95 @@ tbody tr:nth-child(odd) {
     min-width: 100% !important;
   }
 }
+
+/* Shared MIS / finance components */
+.title {
+  font-size: clamp(18px, 1.8vw, 22px);
+  font-weight: 760;
+  letter-spacing: 0;
+}
+
+.muted,
+.subTitle,
+.stat .label,
+.stat .sub,
+label {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.card {
+  background: var(--surface);
+  border-color: var(--border);
+  border-radius: 8px;
+  padding: clamp(12px, 1.2vw, 16px);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.025) inset;
+}
+
+select,
+button,
+input,
+a.btn,
+a.btnLink,
+a.btnSecondary,
+a.actionBtn {
+  background: var(--surface-2);
+  border-color: var(--border);
+  color: var(--text);
+  border-radius: 7px;
+  padding: 8px 10px;
+  font: inherit;
+  font-weight: 620;
+}
+
+.btnPrimary,
+.actionBtn.primary,
+button[type="submit"] {
+  border-color: rgba(20, 184, 166, 0.48);
+  background: rgba(20, 184, 166, 0.16);
+}
+
+.btnSecondary {
+  border-color: rgba(148, 163, 184, 0.38);
+  background: var(--surface-2);
+}
+
+.pill,
+.viewBadge {
+  border-color: var(--border);
+  background: var(--surface-2);
+  color: #d7dee9;
+  font-weight: 650;
+}
+
+.tableScroll,
+.tableWrap {
+  border-color: var(--border);
+  border-radius: 8px;
+  background: rgba(10, 13, 18, 0.25);
+}
+
+th,
+td {
+  padding: 9px 8px;
+  border-bottom-color: var(--border-soft);
+}
+
+th,
+thead th {
+  color: var(--text-muted);
+  background: #161b24;
+  font-weight: 720;
+}
+
+tbody tr:nth-child(odd) {
+  background: rgba(255, 255, 255, 0.018);
+}
+
+tbody tr:hover {
+  background: rgba(20, 184, 166, 0.055);
+}
+
+.num {
+  font-variant-numeric: tabular-nums;
+}

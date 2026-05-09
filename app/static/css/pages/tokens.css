@@ -147,3 +147,78 @@
     height: 260px !important;
   }
 }
+
+/* Tokens: operational MIS view separated from finance cost screens */
+.contentArea .container {
+  display: grid;
+  gap: 12px;
+}
+
+.tokenHeader {
+  margin-bottom: 0;
+}
+
+.tokenHeader .title {
+  font-size: 20px;
+  font-weight: 800;
+}
+
+.tokenFilters {
+  margin-top: 0;
+}
+
+.field label {
+  color: var(--text-subtle);
+  font-size: 11px;
+  font-weight: 760;
+  text-transform: uppercase;
+}
+
+.field select,
+.field input {
+  min-height: 38px;
+  background: var(--surface-2);
+  border-color: var(--border);
+}
+
+.stat {
+  position: relative;
+  overflow: hidden;
+}
+
+.stat::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  background: var(--token);
+}
+
+.stat .label {
+  color: var(--text-subtle);
+  font-size: 11px;
+  font-weight: 760;
+  text-transform: uppercase;
+}
+
+.stat .value {
+  font-size: 22px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.chartPanel canvas {
+  height: 320px !important;
+}
+
+.sectionTitle {
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 820;
+}
+
+.qualityBadge {
+  border-radius: 6px;
+  border-color: var(--border);
+  background: var(--surface-2);
+}

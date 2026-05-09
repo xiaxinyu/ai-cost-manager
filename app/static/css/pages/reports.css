@@ -343,3 +343,150 @@
         border: 1px solid rgba(255,255,255,0.10);
         background: rgba(255,255,255,0.04);
       }
+
+/* Reports: financial control-room layout */
+.contentArea .container {
+  display: grid;
+  gap: 12px;
+}
+
+.header {
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 0;
+}
+
+.header .title {
+  font-size: 20px;
+  font-weight: 800;
+}
+
+.controlsRow {
+  display: grid;
+  grid-template-columns: minmax(280px, 1.4fr) minmax(150px, 0.7fr) minmax(150px, 0.7fr) minmax(150px, 0.7fr) auto auto;
+  gap: 10px;
+  align-items: end;
+  margin-bottom: 10px;
+}
+
+.controlsRow label {
+  color: var(--text-subtle);
+  font-size: 11px;
+  font-weight: 760;
+  text-transform: uppercase;
+}
+
+.controlsRow select,
+.controlsRow input,
+.dropdownBtn {
+  min-height: 38px;
+  background: var(--surface-2);
+  border-color: var(--border);
+}
+
+button,
+.btnSmall {
+  min-height: 38px;
+  border-radius: 7px;
+  background: rgba(20, 184, 166, 0.14);
+  border-color: rgba(20, 184, 166, 0.42);
+}
+
+.gridStats {
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+  gap: 10px;
+}
+
+.gridStats .card {
+  position: relative;
+  overflow: hidden;
+}
+
+.gridStats .card::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  background: var(--finance);
+}
+
+.statRow {
+  grid-template-columns: minmax(180px, 0.9fr) minmax(0, 1fr);
+  border-bottom-color: var(--border-soft);
+}
+
+.statKey {
+  color: var(--text-subtle);
+  font-size: 11px;
+  font-weight: 720;
+  text-transform: uppercase;
+}
+
+.statVal {
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 760;
+  font-variant-numeric: tabular-nums;
+}
+
+.sectionHeaderRow {
+  margin-top: 2px;
+  margin-bottom: 8px;
+}
+
+.sectionTitle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 820;
+}
+
+.sectionTitle::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--finance);
+}
+
+.sectionHeaderRow:nth-of-type(2) .sectionTitle::before {
+  background: var(--token);
+}
+
+.gridCharts {
+  gap: 10px;
+}
+
+.chartWrap canvas {
+  height: 330px !important;
+}
+
+.tableNote {
+  color: var(--text-muted);
+}
+
+.tableScroll {
+  border-color: var(--border);
+  border-radius: 8px;
+}
+
+.dropdownMenu {
+  background: var(--surface);
+  border-color: var(--border);
+  box-shadow: var(--shadow);
+}
+
+@media (max-width: 1180px) {
+  .controlsRow {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 900px) {
+  .gridStats,
+  .gridCharts,
+  .controlsRow {
+    grid-template-columns: 1fr;
+  }
+}
