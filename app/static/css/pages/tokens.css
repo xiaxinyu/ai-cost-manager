@@ -1,0 +1,149 @@
+.tokenHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.tokenFilters {
+  display: grid;
+  grid-template-columns: minmax(240px, 1.8fr) minmax(120px, 0.8fr) minmax(150px, 0.75fr) minmax(150px, 0.75fr) auto;
+  align-items: end;
+  gap: 10px;
+}
+
+.field {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.field select,
+.field input {
+  width: 100%;
+  min-width: 0;
+}
+
+.tokenSummaryGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.stat .value {
+  font-size: 18px;
+  font-weight: 760;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.modelValue {
+  font-size: 14px !important;
+}
+
+.tokenCharts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.chartPanel {
+  min-width: 0;
+}
+
+.chartPanel canvas {
+  width: 100% !important;
+  height: 300px !important;
+}
+
+.chartHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.sectionTitle {
+  font-size: 13px;
+  font-weight: 750;
+  color: #e7edf6;
+}
+
+.qualityBadge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  border: 1px solid rgba(173, 196, 228, 0.26);
+  padding: 3px 8px;
+  color: #d7e4f3;
+  background: rgba(255, 255, 255, 0.06);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.qualityHigh {
+  border-color: rgba(94, 234, 212, 0.44);
+  background: rgba(94, 234, 212, 0.12);
+}
+
+.qualityMedium {
+  border-color: rgba(250, 204, 21, 0.36);
+  background: rgba(250, 204, 21, 0.10);
+}
+
+.qualityLow {
+  border-color: rgba(248, 113, 113, 0.38);
+  background: rgba(248, 113, 113, 0.10);
+}
+
+.tokenTablePanel {
+  margin-top: 10px;
+}
+
+.emptyState {
+  margin-top: 10px;
+}
+
+.emptyActions {
+  margin-top: 12px;
+}
+
+@media (max-width: 1100px) {
+  .tokenFilters,
+  .tokenSummaryGrid,
+  .tokenCharts {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .tokenFilters .projectField {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 720px) {
+  .tokenHeader,
+  .chartHeader {
+    flex-direction: column;
+  }
+
+  .tokenFilters,
+  .tokenSummaryGrid,
+  .tokenCharts {
+    grid-template-columns: 1fr;
+  }
+
+  .chartPanel canvas {
+    height: 260px !important;
+  }
+}

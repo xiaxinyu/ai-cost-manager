@@ -202,6 +202,18 @@ def create_app(
             {"username": request.session.get("username", "")},
         )
 
+    @app.get("/tokens", response_class=HTMLResponse)
+    def tokens_page(request: Request) -> HTMLResponse:
+        if auth_enabled:
+            username = request.session.get("username")
+            if not username:
+                return RedirectResponse(url="/login", status_code=303)
+        return templates.TemplateResponse(
+            request,
+            "tokens.html",
+            {"username": request.session.get("username", "")},
+        )
+
     @app.get("/prices", response_class=HTMLResponse)
     def prices_page(request: Request) -> HTMLResponse:
         if auth_enabled:
@@ -262,6 +274,7 @@ def create_app(
                     "actual_days": stats.actual_days,
                     "estimated_input_tokens": stats.estimated_input_tokens,
                     "estimated_output_tokens": stats.estimated_output_tokens,
+                    "estimated_total_tokens": stats.estimated_total_tokens,
                     "token_estimate_model": stats.token_estimate_model,
                 }
             )

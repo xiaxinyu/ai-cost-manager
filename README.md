@@ -105,6 +105,7 @@ export COST_MGMT_COOKIE_SECURE=1
 - 页面：`http://127.0.0.1:<PORT>/`
 - 登录页：`http://127.0.0.1:<PORT>/login`
 - 导入页面：`http://127.0.0.1:<PORT>/import`
+- Token 分析页面：`http://127.0.0.1:<PORT>/tokens`
 - 汇总报表页面：`http://127.0.0.1:<PORT>/reports`
 - 健康检查：`http://127.0.0.1:<PORT>/health`
 - API 项目列表：`http://127.0.0.1:<PORT>/api/projects`
@@ -192,4 +193,3 @@ WHERE project_name = 'YOUR_PROJECT' AND currency = 'USD';
 1. 小步快跑实现功能
 2. 立即验证（`pytest` + 必要的手工检查）
 3. 明确记录改动原因与验证结果
-

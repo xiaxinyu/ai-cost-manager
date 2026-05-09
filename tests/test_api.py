@@ -201,6 +201,13 @@ def test_api_token_timeseries_and_rows_estimated_tokens(tmp_path):
     assert p0["estimated_output_tokens"] == 250000.0
     assert p0["estimated_total_tokens"] == 750000.0
 
+    stats = client.get("/api/projects/projToken/stats?currency=USD")
+    assert stats.status_code == 200
+    stats_data = stats.json()
+    assert stats_data["estimated_input_tokens"] == 1500000.0
+    assert stats_data["estimated_output_tokens"] == 750000.0
+    assert stats_data["estimated_total_tokens"] == 2250000.0
+
     rows = client.get("/api/projects/projToken/rows?page=1&page_size=10&mode=simple")
     assert rows.status_code == 200
     rows_data = rows.json()

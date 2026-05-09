@@ -249,6 +249,7 @@ class ProjectStats:
     currency: str | None
     estimated_input_tokens: float | None
     estimated_output_tokens: float | None
+    estimated_total_tokens: float | None
     token_estimate_model: str | None
 
 
@@ -473,6 +474,12 @@ def get_project_stats(
         currency=currency_filter,
         estimated_input_tokens=token_estimate.get("estimated_input_tokens"),
         estimated_output_tokens=token_estimate.get("estimated_output_tokens"),
+        estimated_total_tokens=(
+            None
+            if token_estimate.get("estimated_input_tokens") is None
+            or token_estimate.get("estimated_output_tokens") is None
+            else float(token_estimate["estimated_input_tokens"]) + float(token_estimate["estimated_output_tokens"])
+        ),
         token_estimate_model=token_estimate.get("model_name"),
     )
 
