@@ -123,6 +123,23 @@ export COST_MGMT_COOKIE_SECURE=1
 .venv/bin/python -m pytest
 ```
 
+## 4.1) 浏览器级 E2E（Playwright）
+
+该套件会启动一个临时的 FastAPI/uvicorn 服务，并用真实浏览器执行前端 JavaScript（含图表渲染）。
+
+安装依赖 + 浏览器：
+
+```bash
+.venv/bin/pip install -r requirements-e2e.txt
+.venv/bin/python -m playwright install chromium
+```
+
+运行 e2e：
+
+```bash
+.venv/bin/python -m pytest -m e2e
+```
+
 ## 5) 代码质量（Lint）
 
 本项目使用 `ruff` 做基础静态检查（在 CI 中强制执行）。
