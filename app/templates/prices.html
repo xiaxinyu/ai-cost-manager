@@ -43,6 +43,7 @@
         <div class="headerActions">
           <span id="viewLabel" class="viewBadge">View: Detail</span>
           <button id="pivotBtn" class="actionBtn" type="button">Switch View</button>
+          <button id="syncRetailBtn" class="actionBtn" type="button">Sync prices</button>
           <button id="exportBtn" class="actionBtn primary" type="button">Export CSV</button>
         </div>
       </div>
@@ -61,9 +62,19 @@
             <label class="muted" for="seriesSelect">Model Series</label>
             <select id="seriesSelect"></select>
           </div>
+          <div class="field">
+            <label class="muted" for="pageSizeSelect">Page size</label>
+            <select id="pageSizeSelect">
+              <option value="50">50</option>
+              <option value="100" selected>100</option>
+              <option value="200">200</option>
+              <option value="500">500</option>
+            </select>
+          </div>
           <button id="queryBtn" class="btn" type="button">Query</button>
           <div id="summary" class="muted"></div>
         </div>
+        <div id="priceMeta" class="priceMeta muted"></div>
       </div>
 
           <div class="tableWrap">
@@ -82,14 +93,50 @@
               <th>Platform</th>
               <th>Vendor</th>
               <th>Effective Date</th>
+              <th class="colDetail">Details</th>
             </tr>
           </thead>
           <tbody id="tbody"></tbody>
         </table>
           </div>
+          <div id="pagination" class="pagination" aria-label="Pagination"></div>
         </div>
       </main>
     </div>
+
+    <dialog id="retailSyncDialog" class="priceDetailDialog">
+      <div class="priceDetailHeader">
+        <div class="priceDetailTitle">Sync Azure retail prices</div>
+        <button id="retailSyncClose" type="button" class="priceDetailClose" aria-label="Close">×</button>
+      </div>
+      <div id="retailSyncBody" class="priceDetailBody">
+        <p class="muted" style="margin-top:0;">
+          Fetches meters from <strong>prices.azure.com</strong> (Foundry / OpenAI). Only rows with
+          <code>source_id = azure_retail_prices_api</code> are replaced; other sources (for example CSV
+          <code>azure_openai_pricing_page</code>) are kept. Optional check hits Microsoft marketing pricing URLs
+          (often HTML, not imported).
+        </p>
+        <div class="field" style="margin-top:12px;">
+          <label class="muted" for="syncSeriesSelect">Model series scope</label>
+          <select id="syncSeriesSelect"></select>
+        </div>
+        <label class="syncCheck muted" style="display:flex;gap:8px;align-items:center;margin-top:10px;">
+          <input id="syncProbeMarketing" type="checkbox" />
+          Probe Azure marketing pricing URLs (read-only, shows status in result toast)
+        </label>
+        <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap;">
+          <button id="retailSyncRun" class="actionBtn primary" type="button">Start sync</button>
+        </div>
+      </div>
+    </dialog>
+
+    <dialog id="priceDetailDialog" class="priceDetailDialog">
+      <div class="priceDetailHeader">
+        <div class="priceDetailTitle">Price detail</div>
+        <button id="priceDetailClose" type="button" class="priceDetailClose" aria-label="Close">×</button>
+      </div>
+      <div id="priceDetailBody" class="priceDetailBody"></div>
+    </dialog>
 
     <script src="/static/js/app-shell.js"></script>
     <script src="/static/js/http.js"></script>

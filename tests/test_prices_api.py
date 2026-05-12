@@ -45,4 +45,33 @@ def test_prices_filters_and_query(tmp_path):
         "/api/prices?vendor=Microsoft&platform=azure-openai&model_series=GPT-5.3%20Series"
     ).json()
     assert rows["total"] == 1
+    assert rows["page"] == 1
+    assert rows["page_size"] == 100
+    assert len(rows["rows"]) == 1
     assert rows["rows"][0]["model_name"] == "GPT-5.3 Codex"
+    rid = rows["rows"][0]["id"]
+    assert isinstance(rid, int)
+
+    meta = client.get("/api/prices/meta").json()
+    assert meta["total_rows"] == 1
+    assert len(meta["sources"]) == 1
+    assert meta["sources"][0]["source_id"] == "src"
+
+    p2 = client.get("/api/prices?page=2&page_size=10").json()
+    assert p2["total"] == 1
+    assert p2["rows"] == []
+
+    detail = client.get(f"/api/prices/row/{rid}").json()
+    assert detail["id"] == rid
+    assert detail["metric_name"] == "input"
+    assert detail["source_detail"] is None
+
+    missing = client.get("/api/prices/row/999999")
+    assert missing.status_code == 404
+
+    opts = client.get("/api/prices/sync-series-options").json()
+    assert "series" in opts
+    assert any(s["key"] == "all" for s in opts["series"])
+
+    bad = client.post("/api/prices/sync-retail", json={"series": "not-a-real-key"})
+    assert bad.status_code == 400

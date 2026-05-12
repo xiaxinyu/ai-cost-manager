@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+import asyncio
 import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Optional
 
-from fastapi import Body, Depends, FastAPI, Form, Query, Request
+from fastapi import Body, Depends, FastAPI, Form, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -13,8 +14,10 @@ from starlette.middleware.sessions import SessionMiddleware
 from pydantic import BaseModel
 
 from .db import (
+    get_model_price_by_id,
     get_model_price_filter_options,
     get_model_prices,
+    get_model_prices_meta,
     get_project_model_config,
     get_all_currencies,
     get_all_financial_stats,
@@ -43,6 +46,11 @@ class ProjectModelConfigRequest(BaseModel):
     model_name: str
     api_version: Optional[str] = None
     azure_endpoint: Optional[str] = None
+
+
+class RetailSyncBody(BaseModel):
+    series: str = "all"
+    probe_marketing: bool = False
 
 
 def _default_bills_dir() -> str:
@@ -602,22 +610,98 @@ def create_app(
         finally:
             conn.close()
 
+    @app.get("/api/prices/meta")
+    def api_prices_meta(_: str = Depends(_auth_dep)) -> JSONResponse:
+        conn = get_connection(db_path)
+        try:
+            return JSONResponse(get_model_prices_meta(conn))
+        finally:
+            conn.close()
+
     @app.get("/api/prices")
     def api_prices(
         vendor: Optional[str] = Query(default=None),
         platform: Optional[str] = Query(default=None),
         model_series: Optional[str] = Query(default=None),
+        page: int = Query(default=1, ge=1),
+        page_size: int = Query(default=100, ge=1, le=500),
         _: str = Depends(_auth_dep),
     ) -> JSONResponse:
         conn = get_connection(db_path)
         try:
-            rows = get_model_prices(
+            rows, total = get_model_prices(
                 conn,
                 vendor=vendor,
                 platform=platform,
                 model_series=model_series,
+                page=page,
+                page_size=page_size,
             )
-            return JSONResponse({"total": len(rows), "rows": rows})
+            return JSONResponse(
+                {
+                    "total": total,
+                    "page": page,
+                    "page_size": page_size,
+                    "rows": rows,
+                }
+            )
+        finally:
+            conn.close()
+
+    @app.get("/api/prices/sync-series-options")
+    def api_prices_sync_series_options(_: str = Depends(_auth_dep)) -> JSONResponse:
+        from .azure_retail_prices import sync_series_options
+
+        return JSONResponse({"series": sync_series_options()})
+
+    @app.post("/api/prices/sync-retail")
+    async def api_prices_sync_retail(body: RetailSyncBody, _: str = Depends(_auth_dep)) -> JSONResponse:
+        from .azure_retail_prices import (
+            allowed_series_keys,
+            import_openai_retail_prices,
+            probe_azure_marketing_pricing_endpoints,
+        )
+
+        if body.series not in allowed_series_keys():
+            raise HTTPException(status_code=400, detail="invalid series key")
+
+        marketing = None
+        if body.probe_marketing:
+            marketing = await asyncio.to_thread(probe_azure_marketing_pricing_endpoints)
+
+        try:
+            result = await asyncio.to_thread(
+                import_openai_retail_prices,
+                db_path=str(db_path),
+                series_key=body.series,
+            )
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e)) from e
+        except Exception as e:
+            raise HTTPException(status_code=502, detail=str(e)) from e
+
+        return JSONResponse(
+            {
+                "ok": True,
+                "retail": {
+                    "rows_fetched": result.rows_fetched,
+                    "rows_imported": result.rows_imported,
+                    "retail_rows_deleted": result.retail_rows_deleted,
+                    "retrieved_at_utc": result.retrieved_at_utc,
+                    "filter_url": result.filter_url,
+                },
+                "marketing_probe": marketing,
+            }
+        )
+
+    @app.get("/api/prices/row/{price_id}")
+    def api_price_row(price_id: int, _: str = Depends(_auth_dep)) -> JSONResponse:
+        conn = get_connection(db_path)
+        try:
+            row = get_model_price_by_id(conn, price_id)
+            if row is None:
+                raise HTTPException(status_code=404, detail="Price row not found")
+            return JSONResponse(row)
         finally:
             conn.close()
 

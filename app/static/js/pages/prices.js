@@ -2,14 +2,28 @@
   const vendorSelect = document.getElementById("vendorSelect");
   const platformSelect = document.getElementById("platformSelect");
   const seriesSelect = document.getElementById("seriesSelect");
+  const pageSizeSelect = document.getElementById("pageSizeSelect");
   const queryBtn = document.getElementById("queryBtn");
   const tbody = document.getElementById("tbody");
   const summary = document.getElementById("summary");
+  const priceMeta = document.getElementById("priceMeta");
+  const paginationEl = document.getElementById("pagination");
   const exportBtn = document.getElementById("exportBtn");
   const pivotBtn = document.getElementById("pivotBtn");
   const viewLabel = document.getElementById("viewLabel");
+  const priceDetailDialog = document.getElementById("priceDetailDialog");
+  const priceDetailBody = document.getElementById("priceDetailBody");
+  const priceDetailClose = document.getElementById("priceDetailClose");
+  const syncRetailBtn = document.getElementById("syncRetailBtn");
+  const retailSyncDialog = document.getElementById("retailSyncDialog");
+  const retailSyncClose = document.getElementById("retailSyncClose");
+  const syncSeriesSelect = document.getElementById("syncSeriesSelect");
+  const syncProbeMarketing = document.getElementById("syncProbeMarketing");
+  const retailSyncRun = document.getElementById("retailSyncRun");
 
   let currentRows = [];
+  let totalMatching = 0;
+  let currentPage = 1;
   let isPivot = false;
 
   function fillSelect(el, items) {
@@ -28,6 +42,31 @@
     return x.toLocaleString(undefined, { maximumFractionDigits: 6 });
   }
 
+  function fmtInt(n) {
+    const x = Number(n);
+    if (!Number.isFinite(x)) return "-";
+    return Math.round(x).toLocaleString();
+  }
+
+  function esc(s) {
+    return String(s ?? "")
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;");
+  }
+
+  function pageSize() {
+    const v = Number(pageSizeSelect && pageSizeSelect.value);
+    if (Number.isFinite(v) && v > 0) return Math.min(500, v);
+    return 100;
+  }
+
+  function totalPages() {
+    const ps = pageSize();
+    return Math.max(1, Math.ceil(totalMatching / ps));
+  }
+
   async function loadFilters() {
     const data = await window.AppHttp.getJson("/api/prices/filters");
     fillSelect(vendorSelect, data.vendors || []);
@@ -35,24 +74,109 @@
     fillSelect(seriesSelect, data.model_series || []);
   }
 
+  async function loadMeta() {
+    if (!priceMeta) return;
+    try {
+      const meta = await window.AppHttp.getJson("/api/prices/meta");
+      const parts = (meta.sources || []).map(
+        (s) => `<strong>${esc(s.source_id)}</strong>: ${fmtInt(s.row_count)} rows`
+      );
+      const hasRetail = (meta.sources || []).some((s) => s.source_id === "azure_retail_prices_api");
+      let hint = "";
+      if (meta.total_rows < 2000 && !hasRetail) {
+        hint =
+          '<div style="margin-top:8px;color:#fbbf24;">Use <strong>Sync prices</strong> above (or CLI <code style="color:#e2e8f0;">python -m app.cli --db-path data/cost_mgmt.sqlite3 import-retail-prices</code>) to load the Azure Retail catalog. Other price sources in this database are left unchanged.</div>';
+      }
+      priceMeta.innerHTML = `<div>All filters combined — total in DB: <strong>${fmtInt(meta.total_rows)}</strong> rows.</div><div>${parts.join(" · ") || "No rows."}</div>${hint}`;
+    } catch (e) {
+      priceMeta.textContent = "";
+      console.error(e);
+    }
+  }
+
+  async function loadSyncSeriesOptions() {
+    if (!syncSeriesSelect) return;
+    const data = await window.AppHttp.getJson("/api/prices/sync-series-options");
+    syncSeriesSelect.innerHTML = "";
+    for (const o of data.series || []) {
+      const opt = document.createElement("option");
+      opt.value = o.key;
+      opt.textContent = o.label || o.key;
+      syncSeriesSelect.appendChild(opt);
+    }
+  }
+
+  function openRetailSyncDialog() {
+    if (!retailSyncDialog) return;
+    try {
+      if (typeof retailSyncDialog.showModal === "function") retailSyncDialog.showModal();
+      else retailSyncDialog.setAttribute("open", "");
+    } catch {
+      retailSyncDialog.setAttribute("open", "");
+    }
+  }
+
+  function closeRetailSyncDialog() {
+    if (!retailSyncDialog) return;
+    try {
+      retailSyncDialog.close();
+    } catch {
+      retailSyncDialog.removeAttribute("open");
+    }
+  }
+
+  async function runRetailSync() {
+    if (!syncSeriesSelect || !retailSyncRun) return;
+    retailSyncRun.disabled = true;
+    retailSyncRun.textContent = "Syncing…";
+    try {
+      const body = {
+        series: syncSeriesSelect.value,
+        probe_marketing: !!(syncProbeMarketing && syncProbeMarketing.checked),
+      };
+      const out = await window.AppHttp.postJson("/api/prices/sync-retail", body);
+      const r = out.retail || {};
+      let msg = `Synced ${fmtInt(r.rows_imported || 0)} retail rows (removed ${fmtInt(r.retail_rows_deleted || 0)} old retail).`;
+      if (out.marketing_probe && syncProbeMarketing && syncProbeMarketing.checked) {
+        const jsonLike = (out.marketing_probe || []).filter((x) => x && x.looks_like_json).length;
+        msg += ` Marketing probe: ${out.marketing_probe.length} URL(s), JSON-like: ${jsonLike}.`;
+      }
+      if (window.AppShell?.toast) window.AppShell.toast(msg, "info", 5200);
+      closeRetailSyncDialog();
+      currentPage = 1;
+      await loadMeta();
+      await loadFilters();
+      await loadRows();
+    } catch (e) {
+      console.error(e);
+    } finally {
+      retailSyncRun.disabled = false;
+      retailSyncRun.textContent = "Start sync";
+    }
+  }
+
   function renderDetail(rows) {
     tbody.innerHTML = "";
     for (const r of rows || []) {
       const tr = document.createElement("tr");
       const item = `${r.model_name || ""}${r.context_bucket ? ` (${r.context_bucket})` : ""}`;
+      const rid = r.id != null ? String(r.id) : "";
       tr.innerHTML = `
-        <td><div class="itemMain">${item}</div><div class="itemSub">${r.metric_name || ""}</div></td>
-        <td>${r.deployment_scope || ""}</td>
-        <td>${r.billing_mode || ""}</td>
-        <td>${r.metric_name || ""}</td>
-        <td>${r.price_region || ""}</td>
-        <td>${r.price_currency || ""}</td>
+        <td><div class="itemMain">${esc(item)}</div><div class="itemSub">${esc(r.metric_name || "")}</div></td>
+        <td>${esc(r.deployment_scope || "")}</td>
+        <td>${esc(r.billing_mode || "")}</td>
+        <td>${esc(r.metric_name || "")}</td>
+        <td>${esc(r.price_region || "")}</td>
+        <td>${esc(r.price_currency || "")}</td>
         <td class="num">${fmt(r.amount)}</td>
-        <td>${r.unit_expression || ""}</td>
-        <td>${r.model_series || ""}</td>
-        <td>${r.platform || ""}</td>
-        <td>${r.vendor || ""}</td>
-        <td>${r.effective_date || ""}</td>
+        <td>${esc(r.unit_expression || "")}</td>
+        <td>${esc(r.model_series || "")}</td>
+        <td>${esc(r.platform || "")}</td>
+        <td>${esc(r.vendor || "")}</td>
+        <td>${esc(r.effective_date || "")}</td>
+        <td class="colDetail">
+          <button type="button" class="detailBtn" data-price-id="${esc(rid)}">View</button>
+        </td>
       `;
       tbody.appendChild(tr);
     }
@@ -65,30 +189,84 @@
         r.vendor, r.platform, r.model_series, r.model_name, r.context_bucket || "",
         r.deployment_scope || "", r.billing_mode, r.price_region, r.price_currency, r.unit_expression,
       ].join("||");
-      if (!grouped.has(key)) grouped.set(key, { ...r, input: null, cached_input: null, output: null });
-      grouped.get(key)[r.metric_name] = r.amount;
+      if (!grouped.has(key)) {
+        grouped.set(key, {
+          ...r,
+          detail_id: r.id,
+          input: null,
+          cached_input: null,
+          output: null,
+        });
+      }
+      const g = grouped.get(key);
+      if (g.detail_id == null && r.id != null) g.detail_id = r.id;
+      g[r.metric_name] = r.amount;
     }
     const items = [...grouped.values()];
     tbody.innerHTML = "";
     for (const r of items) {
       const tr = document.createElement("tr");
       const item = `${r.model_name || ""}${r.context_bucket ? ` (${r.context_bucket})` : ""}`;
+      const rid = r.detail_id != null ? String(r.detail_id) : "";
       tr.innerHTML = `
-        <td><div class="itemMain">${item}</div><div class="itemSub">${r.billing_mode || ""}</div></td>
-        <td>${r.deployment_scope || ""}</td>
-        <td>${r.billing_mode || ""}</td>
-        <td>${r.price_region || ""}</td>
-        <td>${r.price_currency || ""}</td>
+        <td><div class="itemMain">${esc(item)}</div><div class="itemSub">${esc(r.billing_mode || "")}</div></td>
+        <td>${esc(r.deployment_scope || "")}</td>
+        <td>${esc(r.billing_mode || "")}</td>
+        <td>${esc(r.price_region || "")}</td>
+        <td>${esc(r.price_currency || "")}</td>
         <td class="num">${r.input == null ? "-" : fmt(r.input)}</td>
         <td class="num">${r.cached_input == null ? "-" : fmt(r.cached_input)}</td>
         <td class="num">${r.output == null ? "-" : fmt(r.output)}</td>
-        <td>${r.unit_expression || ""}</td>
-        <td>${r.model_series || ""}</td>
-        <td>${r.platform || ""}</td>
-        <td>${r.vendor || ""}</td>
+        <td>${esc(r.unit_expression || "")}</td>
+        <td>${esc(r.model_series || "")}</td>
+        <td>${esc(r.platform || "")}</td>
+        <td>${esc(r.vendor || "")}</td>
+        <td class="colDetail">
+          <button type="button" class="detailBtn" data-price-id="${esc(rid)}">View</button>
+        </td>
       `;
       tbody.appendChild(tr);
     }
+  }
+
+  function renderPagination() {
+    if (!paginationEl) return;
+    const tp = totalPages();
+    const ps = pageSize();
+    const from = totalMatching === 0 ? 0 : (currentPage - 1) * ps + 1;
+    const to = Math.min(totalMatching, currentPage * ps);
+    paginationEl.innerHTML = "";
+    const info = document.createElement("span");
+    info.className = "pgInfo";
+    info.textContent = `Showing ${from}–${to} of ${fmtInt(totalMatching)} (page ${currentPage} / ${tp})`;
+    paginationEl.appendChild(info);
+
+    const prev = document.createElement("button");
+    prev.type = "button";
+    prev.className = "pgBtn";
+    prev.textContent = "Previous";
+    prev.disabled = currentPage <= 1;
+    prev.addEventListener("click", () => {
+      if (currentPage > 1) {
+        currentPage -= 1;
+        loadRows().catch((e) => console.error(e));
+      }
+    });
+
+    const next = document.createElement("button");
+    next.type = "button";
+    next.className = "pgBtn";
+    next.textContent = "Next";
+    next.disabled = currentPage >= tp;
+    next.addEventListener("click", () => {
+      if (currentPage < tp) {
+        currentPage += 1;
+        loadRows().catch((e) => console.error(e));
+      }
+    });
+
+    paginationEl.appendChild(prev);
+    paginationEl.appendChild(next);
   }
 
   function renderRows(rows) {
@@ -97,7 +275,7 @@
       thead.innerHTML = `
         <th>Item</th><th>Scope</th><th>Mode</th><th>Region</th><th>Currency</th>
         <th class="num">Input</th><th class="num">Cached Input</th><th class="num">Output</th><th>Unit</th>
-        <th>Series</th><th>Platform</th><th>Vendor</th>
+        <th>Series</th><th>Platform</th><th>Vendor</th><th class="colDetail">Details</th>
       `;
       renderPivot(rows);
       viewLabel.textContent = "View: Pivot";
@@ -106,6 +284,7 @@
       thead.innerHTML = `
         <th>Item</th><th>Scope</th><th>Mode</th><th>Metric</th><th>Region</th><th>Currency</th>
         <th class="num">Amount</th><th>Unit</th><th>Series</th><th>Platform</th><th>Vendor</th><th>Effective Date</th>
+        <th class="colDetail">Details</th>
       `;
       renderDetail(rows);
       viewLabel.textContent = "View: Detail";
@@ -113,15 +292,15 @@
     }
     if (!rows || rows.length === 0) {
       const tr = document.createElement("tr");
-      tr.innerHTML = `<td colspan="12" style="color:#9fb2c7;">No price rows for current filters.</td>`;
+      tr.innerHTML = `<td colspan="13" style="color:#9fb2c7;">No price rows for current filters.</td>`;
       tbody.appendChild(tr);
     }
   }
 
   function toCsv(rows) {
-    const cols = ["vendor", "platform", "model_series", "model_name", "context_bucket", "deployment_scope", "billing_mode", "metric_name", "price_region", "price_currency", "amount", "unit_expression", "effective_date"];
-    const esc = (v) => `"${String(v ?? "").replaceAll('"', '""')}"`;
-    return [cols.join(","), ...rows.map((r) => cols.map((c) => esc(r[c])).join(","))].join("\n");
+    const cols = ["id", "vendor", "platform", "model_series", "model_name", "context_bucket", "deployment_scope", "billing_mode", "metric_name", "price_region", "price_currency", "amount", "unit_expression", "effective_date"];
+    const escCsv = (v) => `"${String(v ?? "").replaceAll('"', '""')}"`;
+    return [cols.join(","), ...rows.map((r) => cols.map((c) => escCsv(r[c])).join(","))].join("\n");
   }
 
   async function loadRows() {
@@ -129,11 +308,116 @@
     if (vendorSelect.value) params.set("vendor", vendorSelect.value);
     if (platformSelect.value) params.set("platform", platformSelect.value);
     if (seriesSelect.value) params.set("model_series", seriesSelect.value);
-    const url = `/api/prices${params.toString() ? `?${params.toString()}` : ""}`;
-    const data = await window.AppHttp.getJson(url);
+    params.set("page", String(currentPage));
+    params.set("page_size", String(pageSize()));
+    const url = `/api/prices?${params.toString()}`;
+    let data = await window.AppHttp.getJson(url);
+    totalMatching = Number(data.total) || 0;
+    const tp = totalPages();
+    if (totalMatching === 0) {
+      currentPage = 1;
+    } else if (currentPage > tp) {
+      currentPage = tp;
+      const params2 = new URLSearchParams(params);
+      params2.set("page", String(currentPage));
+      data = await window.AppHttp.getJson(`/api/prices?${params2.toString()}`);
+    }
     currentRows = data.rows || [];
-    summary.textContent = `Rows: ${data.total || 0}`;
+    const ps = pageSize();
+    const from = totalMatching === 0 ? 0 : (currentPage - 1) * ps + 1;
+    const to = Math.min(totalMatching, currentPage * ps);
+    let sum = `This page: ${currentRows.length} detail row(s) — positions ${from}–${to} of ${fmtInt(totalMatching)} matching filters.`;
+    if (isPivot && totalMatching > currentRows.length) {
+      sum += " Pivot only merges metrics within this page.";
+    }
+    summary.textContent = sum;
     renderRows(currentRows);
+    renderPagination();
+  }
+
+  function openDialog() {
+    if (!priceDetailDialog) return;
+    try {
+      if (typeof priceDetailDialog.showModal === "function") {
+        priceDetailDialog.showModal();
+      } else {
+        priceDetailDialog.setAttribute("open", "");
+      }
+    } catch {
+      priceDetailDialog.setAttribute("open", "");
+    }
+  }
+
+  function closeDialog() {
+    if (!priceDetailDialog) return;
+    try {
+      priceDetailDialog.close();
+    } catch {
+      priceDetailDialog.removeAttribute("open");
+    }
+  }
+
+  async function openPriceDetail(priceId) {
+    if (!priceDetailDialog || !priceDetailBody) return;
+    priceDetailBody.innerHTML = '<div class="muted">Loading…</div>';
+    openDialog();
+    try {
+      const row = await window.AppHttp.getJson(`/api/prices/row/${encodeURIComponent(priceId)}`);
+      const fields = [
+        ["id", row.id],
+        ["vendor", row.vendor],
+        ["platform", row.platform],
+        ["model_series", row.model_series],
+        ["model_name", row.model_name],
+        ["context_bucket", row.context_bucket],
+        ["deployment_scope", row.deployment_scope],
+        ["billing_mode", row.billing_mode],
+        ["metric_name", row.metric_name],
+        ["price_region", row.price_region],
+        ["price_currency", row.price_currency],
+        ["amount", row.amount],
+        ["unit_quantity", row.unit_quantity],
+        ["unit_name", row.unit_name],
+        ["unit_expression", row.unit_expression],
+        ["effective_date", row.effective_date],
+        ["retrieved_at_utc", row.retrieved_at_utc],
+        ["source_id", row.source_id],
+        ["source_url", row.source_url],
+        ["notes", row.notes],
+      ];
+      const dl = fields
+        .map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`)
+        .join("");
+      const retail = row.source_detail && row.source_detail.retailItem;
+      const loc = retail && retail.location ? retail.location : "";
+      const locHtml = loc ? `<dt>location (API)</dt><dd>${esc(loc)}</dd>` : "";
+      const jsonBlock = row.source_detail
+        ? `<h4 class="muted" style="margin:12px 0 6px;">Source payload (JSON)</h4><pre class="priceDetailPre">${esc(JSON.stringify(row.source_detail, null, 2))}</pre>`
+        : `<p class="muted" style="margin-top:10px;">No extended source payload (e.g. old CSV import). Notes and links still apply.</p>`;
+      const links = `
+        <div class="priceDetailLinks">
+          <a id="priceDetailSourceLink" href="#" target="_blank" rel="noopener">Open source_url</a>
+          <a href="https://azure.microsoft.com/en-us/pricing/details/azure-openai/" target="_blank" rel="noopener">Azure OpenAI marketing pricing page</a>
+          <a href="https://prices.azure.com/api/retail/prices" target="_blank" rel="noopener">Azure Retail Prices API root</a>
+        </div>
+      `;
+      priceDetailBody.innerHTML = `
+        <dl class="priceDetailDl">${dl}${locHtml}</dl>
+        ${jsonBlock}
+        ${links}
+      `;
+      const sl = priceDetailBody.querySelector("#priceDetailSourceLink");
+      if (sl && row.source_url) {
+        try {
+          sl.href = new URL(row.source_url).href;
+        } catch {
+          sl.removeAttribute("href");
+        }
+      }
+    } catch (e) {
+      priceDetailBody.innerHTML = `<div style="color:#f87171;">Failed to load this row (id may be invalid or session expired).</div>`;
+      console.error(e);
+    }
   }
 
   async function doLogout() {
@@ -145,24 +429,74 @@
   }
 
   queryBtn.addEventListener("click", () => {
+    currentPage = 1;
     loadRows().catch((e) => {
       console.error(e);
     });
   });
+
+  if (pageSizeSelect) {
+    pageSizeSelect.addEventListener("change", () => {
+      currentPage = 1;
+      loadRows().catch((e) => console.error(e));
+    });
+  }
+
   pivotBtn.addEventListener("click", () => {
     isPivot = !isPivot;
     renderRows(currentRows);
+    const ps = pageSize();
+    const from = totalMatching === 0 ? 0 : (currentPage - 1) * ps + 1;
+    const to = Math.min(totalMatching, currentPage * ps);
+    let sum = `This page: ${currentRows.length} detail row(s) — positions ${from}–${to} of ${fmtInt(totalMatching)} matching filters.`;
+    if (isPivot && totalMatching > currentRows.length) {
+      sum += " Pivot only merges metrics within this page.";
+    }
+    summary.textContent = sum;
+    renderPagination();
   });
+
   exportBtn.addEventListener("click", () => {
     const csv = toCsv(currentRows);
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "model_prices_export.csv";
+    a.download = "model_prices_export_current_page.csv";
     a.click();
     URL.revokeObjectURL(url);
   });
+
+  tbody.addEventListener("click", (ev) => {
+    const btn = ev.target && ev.target.closest && ev.target.closest("[data-price-id]");
+    if (!btn) return;
+    const pid = btn.getAttribute("data-price-id");
+    if (pid) openPriceDetail(pid).catch((e) => console.error(e));
+  });
+
+  if (priceDetailClose && priceDetailDialog) {
+    priceDetailClose.addEventListener("click", () => closeDialog());
+    priceDetailDialog.addEventListener("click", (ev) => {
+      if (ev.target === priceDetailDialog) closeDialog();
+    });
+  }
+
+  if (syncRetailBtn) {
+    syncRetailBtn.addEventListener("click", () => {
+      openRetailSyncDialog();
+    });
+  }
+  if (retailSyncClose && retailSyncDialog) {
+    retailSyncClose.addEventListener("click", () => closeRetailSyncDialog());
+    retailSyncDialog.addEventListener("click", (ev) => {
+      if (ev.target === retailSyncDialog) closeRetailSyncDialog();
+    });
+  }
+  if (retailSyncRun) {
+    retailSyncRun.addEventListener("click", () => {
+      runRetailSync().catch((e) => console.error(e));
+    });
+  }
 
   const logoutBtn = document.getElementById("logoutBtn");
   const logoutBtnTop = document.getElementById("logoutBtnTop");
@@ -171,6 +505,8 @@
 
   (async () => {
     await loadFilters();
+    await loadSyncSeriesOptions();
+    await loadMeta();
     await loadRows();
   })().catch((e) => {
     console.error(e);

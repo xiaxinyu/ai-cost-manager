@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Iterable
 
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 
 EXPECTED_CSV_COLUMNS = [
     "UsageDate",
@@ -119,6 +119,7 @@ def init_db(conn: sqlite3.Connection) -> None:
             unit_name TEXT NOT NULL,
             unit_expression TEXT NOT NULL,
             notes TEXT,
+            source_detail_json TEXT,
             created_at TEXT NOT NULL DEFAULT (datetime('now')),
             UNIQUE(
                 source_id, effective_date, vendor, platform, price_region, price_currency,
@@ -159,6 +160,7 @@ def init_db(conn: sqlite3.Connection) -> None:
     conn.commit()
 
     _migrate_billing_rows_if_needed(conn)
+    _migrate_model_prices_source_detail_json(conn)
 
 
 def _table_exists(conn: sqlite3.Connection, table_name: str) -> bool:
@@ -234,6 +236,16 @@ def _migrate_billing_rows_if_needed(conn: sqlite3.Connection) -> None:
         """,
         insert_rows,
     )
+    conn.commit()
+
+
+def _migrate_model_prices_source_detail_json(conn: sqlite3.Connection) -> None:
+    if not _table_exists(conn, "model_prices"):
+        return
+    cols = {str(r["name"]) for r in conn.execute("PRAGMA table_info(model_prices)").fetchall()}
+    if "source_detail_json" in cols:
+        return
+    conn.execute("ALTER TABLE model_prices ADD COLUMN source_detail_json TEXT")
     conn.commit()
 
 
@@ -1474,8 +1486,8 @@ def replace_model_prices(conn: sqlite3.Connection, rows: Iterable[tuple]) -> int
             vendor, platform, price_region, price_currency,
             model_series, model_name, context_bucket, deployment_scope,
             billing_mode, metric_name, amount,
-            unit_quantity, unit_name, unit_expression, notes
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            unit_quantity, unit_name, unit_expression, notes, source_detail_json
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         list(rows),
     )
@@ -1499,13 +1511,41 @@ def get_model_price_filter_options(conn: sqlite3.Connection) -> dict[str, list[s
     }
 
 
+def get_model_prices_meta(conn: sqlite3.Connection) -> dict[str, object]:
+    total = int(conn.execute("SELECT COUNT(*) AS c FROM model_prices").fetchone()["c"])
+    src_rows = conn.execute(
+        """
+        SELECT
+            source_id,
+            COUNT(*) AS row_count,
+            MAX(retrieved_at_utc) AS last_retrieved_at_utc
+        FROM model_prices
+        GROUP BY source_id
+        ORDER BY source_id
+        """
+    ).fetchall()
+    return {
+        "total_rows": total,
+        "sources": [
+            {
+                "source_id": r["source_id"],
+                "row_count": int(r["row_count"]),
+                "last_retrieved_at_utc": r["last_retrieved_at_utc"],
+            }
+            for r in src_rows
+        ],
+    }
+
+
 def get_model_prices(
     conn: sqlite3.Connection,
     *,
     vendor: str | None = None,
     platform: str | None = None,
     model_series: str | None = None,
-) -> list[dict]:
+    page: int = 1,
+    page_size: int = 100,
+) -> tuple[list[dict], int]:
     where = ["1=1"]
     params: list[object] = []
 
@@ -1520,9 +1560,21 @@ def get_model_prices(
         params.append(model_series)
 
     where_sql = " AND ".join(where)
+    page = max(1, int(page))
+    page_size = min(500, max(1, int(page_size)))
+    offset = (page - 1) * page_size
+
+    total = int(
+        conn.execute(
+            f"SELECT COUNT(*) AS c FROM model_prices WHERE {where_sql}",
+            tuple(params),
+        ).fetchone()["c"]
+    )
+
     rows = conn.execute(
         f"""
         SELECT
+            id,
             source_id, source_url, effective_date, retrieved_at_utc,
             vendor, platform, price_region, price_currency,
             model_series, model_name, context_bucket, deployment_scope,
@@ -1534,13 +1586,15 @@ def get_model_prices(
             vendor, platform, model_series, model_name,
             COALESCE(context_bucket, ''), COALESCE(deployment_scope, ''),
             billing_mode, metric_name
+        LIMIT ? OFFSET ?
         """
         ,
-        tuple(params),
+        tuple([*params, page_size, offset]),
     ).fetchall()
 
-    return [
+    out = [
         {
+            "id": int(r["id"]),
             "source_id": r["source_id"],
             "source_url": r["source_url"],
             "effective_date": r["effective_date"],
@@ -1563,3 +1617,53 @@ def get_model_prices(
         }
         for r in rows
     ]
+    return out, total
+
+
+def get_model_price_by_id(conn: sqlite3.Connection, price_id: int) -> dict | None:
+    r = conn.execute(
+        """
+        SELECT
+            id,
+            source_id, source_url, effective_date, retrieved_at_utc,
+            vendor, platform, price_region, price_currency,
+            model_series, model_name, context_bucket, deployment_scope,
+            billing_mode, metric_name, amount,
+            unit_quantity, unit_name, unit_expression, notes, source_detail_json
+        FROM model_prices
+        WHERE id = ?
+        """,
+        (price_id,),
+    ).fetchone()
+    if r is None:
+        return None
+    detail: dict | None = None
+    raw = r["source_detail_json"]
+    if raw:
+        try:
+            detail = json.loads(raw)
+        except Exception:
+            detail = {"parse_error": True, "raw": raw}
+    return {
+        "id": int(r["id"]),
+        "source_id": r["source_id"],
+        "source_url": r["source_url"],
+        "effective_date": r["effective_date"],
+        "retrieved_at_utc": r["retrieved_at_utc"],
+        "vendor": r["vendor"],
+        "platform": r["platform"],
+        "price_region": r["price_region"],
+        "price_currency": r["price_currency"],
+        "model_series": r["model_series"],
+        "model_name": r["model_name"],
+        "context_bucket": r["context_bucket"],
+        "deployment_scope": r["deployment_scope"],
+        "billing_mode": r["billing_mode"],
+        "metric_name": r["metric_name"],
+        "amount": float(r["amount"]),
+        "unit_quantity": int(r["unit_quantity"]),
+        "unit_name": r["unit_name"],
+        "unit_expression": r["unit_expression"],
+        "notes": r["notes"],
+        "source_detail": detail,
+    }

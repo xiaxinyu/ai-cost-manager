@@ -125,8 +125,8 @@ def test_api_token_timeseries_and_rows_estimated_tokens(tmp_path):
                 vendor, platform, price_region, price_currency,
                 model_series, model_name, context_bucket, deployment_scope,
                 billing_mode, metric_name, amount,
-                unit_quantity, unit_name, unit_expression, notes
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                unit_quantity, unit_name, unit_expression, notes, source_detail_json
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 "src",
@@ -148,6 +148,7 @@ def test_api_token_timeseries_and_rows_estimated_tokens(tmp_path):
                 "tokens",
                 "USD/1M tokens",
                 None,
+                None,
             ),
         )
         conn.execute(
@@ -157,8 +158,8 @@ def test_api_token_timeseries_and_rows_estimated_tokens(tmp_path):
                 vendor, platform, price_region, price_currency,
                 model_series, model_name, context_bucket, deployment_scope,
                 billing_mode, metric_name, amount,
-                unit_quantity, unit_name, unit_expression, notes
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                unit_quantity, unit_name, unit_expression, notes, source_detail_json
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 "src",
@@ -179,6 +180,7 @@ def test_api_token_timeseries_and_rows_estimated_tokens(tmp_path):
                 1_000_000,
                 "tokens",
                 "USD/1M tokens",
+                None,
                 None,
             ),
         )

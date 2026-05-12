@@ -52,5 +52,42 @@
     }
   }
 
-  window.AppHttp = Object.assign(window.AppHttp || {}, { getJson });
+  async function postJson(url, body, options = {}) {
+    activeRequests += 1;
+    if (activeRequests === 1) showBar();
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json", ...(options.headers || {}) },
+        body: JSON.stringify(body ?? {}),
+        ...options,
+      });
+      if (!res.ok) {
+        const err = new Error(`HTTP ${res.status}`);
+        err.status = res.status;
+        let detail = "";
+        try {
+          const j = await res.clone().json();
+          detail = j.detail != null ? String(j.detail) : "";
+        } catch {
+          /* ignore */
+        }
+        if (detail) err.message = `${err.message}: ${detail}`;
+        throw err;
+      }
+      return await res.json();
+    } catch (err) {
+      if (window.AppShell?.toast) {
+        const status = Number(err?.status || 0);
+        window.AppShell.toast(explainStatus(status), "error");
+      }
+      throw err;
+    } finally {
+      activeRequests = Math.max(0, activeRequests - 1);
+      if (activeRequests === 0) hideBar();
+    }
+  }
+
+  window.AppHttp = Object.assign(window.AppHttp || {}, { getJson, postJson });
 })();

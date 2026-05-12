@@ -46,6 +46,7 @@ def import_price_csv(*, db_path: str, csv_path: str) -> PriceImportResult:
                     (r.get("unit_name") or "").strip(),
                     (r.get("unit_expression") or "").strip(),
                     (r.get("notes") or "").strip() or None,
+                    (r.get("source_detail_json") or "").strip() or None,
                 )
             )
 

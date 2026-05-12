@@ -11,6 +11,7 @@ from .main import create_app
 from .auth import create_user
 from .db import get_connection, init_db
 from .bill_sync import sync_csv_file
+from .azure_retail_prices import allowed_series_keys, import_openai_retail_prices
 from .price_ingest import import_price_csv
 
 
@@ -59,6 +60,17 @@ def main() -> None:
     price_p = sub.add_parser("import-prices", help="Import model price CSV into SQLite")
     price_p.add_argument("--csv-path", default=_default_price_csv_path(), help="Price CSV path")
 
+    retail_p = sub.add_parser(
+        "import-retail-prices",
+        help="Merge Azure OpenAI meters from the Azure Retail Prices API (replaces only azure_retail_prices_api rows)",
+    )
+    retail_p.add_argument(
+        "--series",
+        default="all",
+        choices=sorted(allowed_series_keys()),
+        help="OData slice to fetch before merge (default: all OpenAI meters)",
+    )
+
     args = parser.parse_args()
 
     bills_dir = args.bills_dir
@@ -104,6 +116,11 @@ def main() -> None:
 
     if args.cmd == "import-prices":
         result = import_price_csv(db_path=db_path, csv_path=str(args.csv_path))
+        print(result)
+        return
+
+    if args.cmd == "import-retail-prices":
+        result = import_openai_retail_prices(db_path=db_path, series_key=str(args.series))
         print(result)
         return
 

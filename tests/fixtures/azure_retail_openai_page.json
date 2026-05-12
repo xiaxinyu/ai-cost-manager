@@ -1,0 +1,26 @@
+[
+  {
+    "currencyCode": "USD",
+    "retailPrice": 5.0,
+    "armRegionName": "eastus",
+    "effectiveStartDate": "2026-03-01T00:00:00Z",
+    "meterId": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeee0001",
+    "meterName": "5.5 ShortCo inp Gl 1M Tokens",
+    "productName": "Azure OpenAI GPT5",
+    "skuName": "5.5 ShortCo inp Gl",
+    "skuId": "DZH318Z0T9WD/TEST1",
+    "unitOfMeasure": "1M"
+  },
+  {
+    "currencyCode": "EUR",
+    "retailPrice": 4.6,
+    "armRegionName": "westeurope",
+    "effectiveStartDate": "2026-03-01T00:00:00Z",
+    "meterId": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeee0002",
+    "meterName": "5.5 ShortCo Batch cd inp Gl 1M Tokens",
+    "productName": "Azure OpenAI GPT5",
+    "skuName": "5.5 ShortCo Batch cd inp Gl",
+    "skuId": "DZH318Z0T9WD/TEST2",
+    "unitOfMeasure": "1M"
+  }
+]
