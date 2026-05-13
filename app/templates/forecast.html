@@ -36,10 +36,21 @@
             <h1 class="pageTitle">按模型与团队规模预测成本</h1>
             <p class="pageLead">
               模型列表与单价均来自 <a href="/prices">Model Prices</a> 中的<strong>价格表</strong>（任意已导入的 vendor / 平台），结合<strong
-                >每个披萨的假设日 token 用量</strong>与<strong>披萨倍率</strong>，估算 1 天～1 个月的总支出。
-              区域可选<strong>任意</strong>以自动匹配目录中最新一行；目录缺某计量项时按 0 单价计。仅供内部估算，非财务承诺。
+                >「每个披萨（7 人团队）」的假设日用量（以 1M tokens 为单位，可填 0.5、1.5 等）</strong>与<strong>团队规模倍率</strong>（可按人头 1 / 3，或按披萨 1 /
+                2），估算 1 天～1 个月的总支出。区域可选<strong>任意</strong>以自动匹配目录中最新一行；目录缺某计量项时按 0 单价计。仅供内部估算，非财务承诺。
             </p>
           </header>
+
+          <div class="forecastTopBar" aria-label="快速计算">
+            <button id="calcBtn" class="btn btnPrimary btnCalcTop" type="button">重新计算</button>
+            <div class="forecastTopBarText">
+              <p id="calcStatus" class="calcStatus muted">就绪：在下方选好模型与区域后点击，拉取目录单价并刷新预测表。</p>
+              <p class="forecastTopBarHint muted">
+                <strong>没有数据？</strong>通常是当前<strong>区域 / 部署 / 计费模式</strong>在价格表中没有对应的 input 或 output 行。请试「任意（自动匹配）」区域、切换 Global ↔ Data
+                zone、或 standard ↔ batch，并与 <a href="/prices">Model Prices</a> 对照。
+              </p>
+            </div>
+          </div>
 
           <section class="card cardStep" aria-labelledby="step1h">
             <div class="cardHead">
@@ -74,26 +85,70 @@
               </div>
             </div>
             <p id="catalogHint" class="catalogHint muted"></p>
+            <h3 class="forecastPriceHeading">当前模型的目录单价（匹配结果）</h3>
+            <p class="forecastPriceLead muted">以下单价用于步骤 3 的用量估算（步骤 3 以<strong>百万 tokens</strong>填写）；币种与价格表一致。</p>
+            <div id="rateBox" class="forecastPriceBox baselineBox baselineBoxEmpty muted">请选择模型后点击顶部「重新计算」。</div>
+            <p id="warnBox" class="warn forecastWarn" style="display: none"></p>
           </section>
 
           <section class="card cardStep" aria-labelledby="step2h">
             <div class="cardHead">
               <span class="stepBadge">2</span>
               <div>
-                <h2 id="step2h" class="cardTitle">团队规模（披萨）</h2>
-                <p class="cardSub">表示相对并发 / 人头：用量与成本按倍率放大。</p>
+                <h2 id="step2h" class="cardTitle">团队规模</h2>
+                <p class="cardSub">
+                  约定 <strong>1 个披萨 = 7 人</strong>、<strong>2 个披萨 = 14 人</strong>（相对并发 / 人头）；总成本 = 每披萨日均 × 倍率 × 天数。
+                </p>
               </div>
             </div>
-            <div class="teamScale" role="radiogroup" aria-labelledby="pizzaLegend">
-              <span class="muted" id="pizzaLegend" style="width: 100%">披萨倍率</span>
-              <label class="pizzaOpt"
-                ><input type="radio" name="pizza" value="1" checked /> <span>1 个披萨</span
-                ><span class="pizzaHint">×1 基准团队</span></label
-              >
-              <label class="pizzaOpt"
-                ><input type="radio" name="pizza" value="2" /> <span>2 个披萨</span
-                ><span class="pizzaHint">×2 约两倍用量 / 成本</span></label
-              >
+            <p class="teamScaleIntro muted">
+              第 3 步的用量按「整披萨团队（7 人）」填写；此处选择实际规模——可按<strong>人头</strong>细调，或直接选<strong>整披萨</strong>。
+            </p>
+            <div class="teamScaleGroups" role="radiogroup" aria-labelledby="step2h">
+              <div class="teamScaleGroup">
+                <div class="teamScaleGroupHead">
+                  <span class="teamScaleGroupTitle">按人头</span>
+                  <span class="teamScaleGroupHint">相对 1 个披萨（7 人）的占比</span>
+                </div>
+                <div class="teamScaleCards">
+                  <label class="scaleOpt">
+                    <input type="radio" name="teamScale" value="p1" />
+                    <div class="scaleOptText">
+                      <span class="scaleOptTitle">1 人</span>
+                      <span class="scaleOptHint">≈ 1/7 个披萨 · 倍率 ×(1/7)</span>
+                    </div>
+                  </label>
+                  <label class="scaleOpt">
+                    <input type="radio" name="teamScale" value="p3" />
+                    <div class="scaleOptText">
+                      <span class="scaleOptTitle">3 人</span>
+                      <span class="scaleOptHint">≈ 3/7 个披萨 · 倍率 ×(3/7)</span>
+                    </div>
+                  </label>
+                </div>
+              </div>
+              <div class="teamScaleGroup">
+                <div class="teamScaleGroupHead">
+                  <span class="teamScaleGroupTitle">按披萨</span>
+                  <span class="teamScaleGroupHint">整队放大，与步骤 3 的「每披萨」用量对齐</span>
+                </div>
+                <div class="teamScaleCards">
+                  <label class="scaleOpt">
+                    <input type="radio" name="teamScale" value="pz1" checked />
+                    <div class="scaleOptText">
+                      <span class="scaleOptTitle">1 个披萨</span>
+                      <span class="scaleOptHint">7 人规模 · 倍率 ×1（默认基准）</span>
+                    </div>
+                  </label>
+                  <label class="scaleOpt">
+                    <input type="radio" name="teamScale" value="pz2" />
+                    <div class="scaleOptText">
+                      <span class="scaleOptTitle">2 个披萨</span>
+                      <span class="scaleOptHint">14 人规模 · 倍率 ×2</span>
+                    </div>
+                  </label>
+                </div>
+              </div>
             </div>
           </section>
 
@@ -102,49 +157,34 @@
               <span class="stepBadge">3</span>
               <div>
                 <h2 id="stepTokh" class="cardTitle">假设用量（每个披萨 / 天）</h2>
-                <p class="cardSub">按模型实际调用习惯调整；默认值为占位示例。</p>
+                <p class="cardSub">
+                  数值单位均为<strong>百万 tokens（1M）</strong>，支持小数（如 0.3、0.5、1.5、10）。「每个披萨」= <strong>7 人团队</strong>合计日用量；单人请在步骤 2
+                  选「1 人」或按需改小数值。
+                </p>
               </div>
             </div>
             <div class="tokenGrid">
               <div class="field">
-                <label class="muted" for="tokIn">Input tokens / 天</label>
-                <input id="tokIn" type="number" min="0" step="1000" value="500000" />
+                <label class="muted" for="tokIn">Input（1M tokens）/ 天</label>
+                <input id="tokIn" type="number" min="0" step="any" value="0.5" />
               </div>
               <div class="field">
-                <label class="muted" for="tokCached">Cached input / 天</label>
-                <input id="tokCached" type="number" min="0" step="1000" value="0" />
+                <label class="muted" for="tokCached">Cached input（1M）/ 天</label>
+                <input id="tokCached" type="number" min="0" step="any" value="0" />
               </div>
               <div class="field">
-                <label class="muted" for="tokOut">Output tokens / 天</label>
-                <input id="tokOut" type="number" min="0" step="1000" value="100000" />
+                <label class="muted" for="tokOut">Output（1M tokens）/ 天</label>
+                <input id="tokOut" type="number" min="0" step="any" value="0.1" />
               </div>
             </div>
           </section>
 
-          <section class="card cardStep" aria-labelledby="step4h">
+          <section class="card cardStep cardResults" aria-labelledby="step4h">
             <div class="cardHead">
               <span class="stepBadge">4</span>
               <div>
-                <h2 id="step4h" class="cardTitle">目录单价与计算</h2>
-                <p class="cardSub">点击重新计算以拉取最新匹配行并刷新下表。</p>
-              </div>
-            </div>
-            <div class="toolbar">
-              <div class="field">
-                <label class="muted" for="calcBtn">操作</label>
-                <button id="calcBtn" class="btn btnPrimary" type="button">重新计算</button>
-              </div>
-            </div>
-            <div id="rateBox" class="baselineBox baselineBoxEmpty muted">请选择模型并点击「重新计算」。</div>
-            <p id="warnBox" class="warn" style="display: none"></p>
-          </section>
-
-          <section class="card cardStep cardResults" aria-labelledby="step5h">
-            <div class="cardHead">
-              <span class="stepBadge">5</span>
-              <div>
-                <h2 id="step5h" class="cardTitle">不同时间尺度的总成本</h2>
-                <p class="cardSub">Σ(日 token × 单价) × 披萨 × 天数；币种与目录一致。</p>
+                <h2 id="step4h" class="cardTitle">不同时间尺度的总成本</h2>
+                <p class="cardSub">Σ(每披萨日成本 × 团队倍率 × 天数)；倍率含 1/7、3/7、×1、×2；币种与目录一致。</p>
               </div>
             </div>
             <p id="forecastHint" class="forecastHint muted"></p>

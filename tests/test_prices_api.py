@@ -159,6 +159,20 @@ def test_forecast_model_catalog_and_unit_prices(tmp_path):
     assert up_any.status_code == 200
     assert up_any.json()["ok"] is True
 
+    up_ci = client.get(
+        "/api/forecast/model-unit-prices",
+        params={
+            "vendor": "microsoft",
+            "platform": "AZURE-OPENAI",
+            "model_series": "gpt-5.1 series",
+            "model_name": "gpt-5.1 global",
+            "deployment_scope": "global",
+            "price_region": "eastus2",
+        },
+    )
+    assert up_ci.status_code == 200
+    assert up_ci.json()["ok"] is True
+
 
 def test_openai_gpt55_api_pricing_csv_merge(tmp_path):
     db_path = tmp_path / "openai_gpt55.sqlite3"

@@ -109,7 +109,7 @@ def main() -> None:
     merge_p = sub.add_parser(
         "import-marketing-gpt51-gpt52-prices",
         parents=[common],
-        help="Merge East US 2 GPT-5.1/5.2 marketing snapshot (all rows use model_series GPT-5.2 Series)",
+        help="Merge East US 2 GPT-5.1/5.2 marketing snapshot (model_series follows model_name: GPT-5.1 vs GPT-5.2)",
     )
     merge_p.add_argument("--csv-path", default=_default_marketing_merge_csv_path(), help="Override CSV path")
 

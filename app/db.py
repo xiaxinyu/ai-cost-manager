@@ -1915,8 +1915,8 @@ def get_forecast_model_unit_prices(
         FROM model_prices
         WHERE lower(trim(vendor)) = lower(trim(?))
           AND lower(trim(platform)) = lower(trim(?))
-          AND model_series = ?
-          AND model_name = ?
+          AND lower(trim(model_series)) = lower(trim(?))
+          AND lower(trim(model_name)) = lower(trim(?))
           AND lower(trim(coalesce(billing_mode, ''))) = lower(trim(?))
           AND metric_name IN ('input', 'cached_input', 'output')
         ORDER BY effective_date DESC, retrieved_at_utc DESC
@@ -1989,7 +1989,7 @@ def get_forecast_model_unit_prices(
         "missing_metrics": [m for m in _FORECAST_METRICS if m not in picked],
         "notes_zh": (
             "单价来自 Model Prices 全表（所选 vendor / 平台 / 区域 / 部署 / 计费模式）。"
-            "「每日 token」为每个披萨的假设用量；总成本 = Σ(日量 × 单价) × 披萨倍数 × 天数。"
+            "Forecast 页「每日用量」以百万 tokens（1M）为单位填写；总成本 = Σ(实际日 token × 单价) × 团队倍率 × 天数。"
             "未出现在目录中的计量项按 0 单价计。仅供内部估算，最终以账单与合同为准。"
         ),
     }
