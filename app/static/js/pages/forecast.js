@@ -9,6 +9,11 @@
   const tbody = document.getElementById("forecastTbody");
   const forecastHint = document.getElementById("forecastHint");
   const catalogHint = document.getElementById("catalogHint");
+  const kpiDailyPizza = document.getElementById("kpiDailyPizza");
+  const kpiDailyTeam = document.getElementById("kpiDailyTeam");
+  const kpiMonthTeam = document.getElementById("kpiMonthTeam");
+  const costMixRows = document.getElementById("costMixRows");
+  const horizonBars = document.getElementById("horizonBars");
   const tokIn = document.getElementById("tokIn");
   const tokCached = document.getElementById("tokCached");
   const tokOut = document.getElementById("tokOut");
@@ -128,24 +133,137 @@
     return tin * pin + tc * pc + tout * po;
   }
 
-  function renderTable(dailyPerPizza, currency) {
-    if (!tbody) return;
+  function forecastRows(dailyPerPizza) {
+    const d = Number(dailyPerPizza);
     const scale = teamScaleFactor();
+    if (!Number.isFinite(d) || d < 0) return [];
+    return HORIZONS.map((h) => ({ ...h, total: d * h.days * scale }));
+  }
+
+  function setKpiText(el, text) {
+    if (el) el.textContent = text;
+  }
+
+  function resetVisuals() {
+    setKpiText(kpiDailyPizza, "—");
+    setKpiText(kpiDailyTeam, "—");
+    setKpiText(kpiMonthTeam, "—");
+    if (costMixRows) costMixRows.innerHTML = '<div class="muted">计算后显示 Input / Cached / Output 成本占比。</div>';
+    if (horizonBars) horizonBars.innerHTML = '<div class="muted">计算后显示各周期对比。</div>';
+  }
+
+  function renderKpis(dailyPerPizza, currency) {
     const d = Number(dailyPerPizza);
     if (!Number.isFinite(d) || d < 0) {
+      resetVisuals();
+      return;
+    }
+    const scale = teamScaleFactor();
+    setKpiText(kpiDailyPizza, fmtMoney(d, currency));
+    setKpiText(kpiDailyTeam, fmtMoney(d * scale, currency));
+    setKpiText(kpiMonthTeam, fmtMoney(d * 30 * scale, currency));
+  }
+
+  function renderCostMix(perToken, currency) {
+    if (!costMixRows) return;
+    if (!perToken) {
+      costMixRows.innerHTML = '<div class="muted">计算后显示 Input / Cached / Output 成本占比。</div>';
+      return;
+    }
+    const items = [
+      {
+        key: "input",
+        label: "Input",
+        unit: tokensPerDay("in") / TOKENS_PER_MILLION_UNIT,
+        cost: tokensPerDay("in") * (Number(perToken.input) || 0),
+        cls: "mixBarInput",
+      },
+      {
+        key: "cached_input",
+        label: "Cached input",
+        unit: tokensPerDay("cached") / TOKENS_PER_MILLION_UNIT,
+        cost: tokensPerDay("cached") * (Number(perToken.cached_input) || 0),
+        cls: "mixBarCached",
+      },
+      {
+        key: "output",
+        label: "Output",
+        unit: tokensPerDay("out") / TOKENS_PER_MILLION_UNIT,
+        cost: tokensPerDay("out") * (Number(perToken.output) || 0),
+        cls: "mixBarOutput",
+      },
+    ];
+    const total = items.reduce((acc, x) => acc + x.cost, 0);
+    if (!(total > 0)) {
+      costMixRows.innerHTML = '<div class="muted">当前日用量或单价为 0，暂无可视化占比。</div>';
+      return;
+    }
+    costMixRows.innerHTML = items
+      .map((it) => {
+        const pct = (it.cost / total) * 100;
+        return `
+          <div class="mixRow">
+            <div class="mixHead">
+              <span class="mixName">${esc(it.label)}</span>
+              <span class="mixMeta">${esc(it.unit.toFixed(2).replace(/\.?0+$/, ""))}M / 天 · ${esc(fmtMoney(it.cost, currency))}</span>
+            </div>
+            <div class="mixTrack"><div class="mixBar ${esc(it.cls)}" style="width:${Math.max(0, Math.min(100, pct)).toFixed(2)}%"></div></div>
+          </div>
+        `;
+      })
+      .join("");
+  }
+
+  function renderHorizonBars(rows, currency) {
+    if (!horizonBars) return;
+    if (!Array.isArray(rows) || rows.length === 0) {
+      horizonBars.innerHTML = '<div class="muted">计算后显示各周期对比。</div>';
+      return;
+    }
+    const max = Math.max(...rows.map((x) => Number(x.total) || 0), 0);
+    if (!(max > 0)) {
+      horizonBars.innerHTML = '<div class="muted">当前周期总成本均为 0。</div>';
+      return;
+    }
+    horizonBars.innerHTML = rows
+      .map((r) => {
+        const pct = ((Number(r.total) || 0) / max) * 100;
+        return `
+          <div class="hBarRow">
+            <div class="hBarHead">
+              <span class="hBarLabel">${esc(r.label)}（${r.days} 天）</span>
+              <span class="hBarVal">${esc(fmtMoney(r.total, currency))}</span>
+            </div>
+            <div class="hBarTrack"><div class="hBarFill" style="width:${Math.max(0, Math.min(100, pct)).toFixed(2)}%"></div></div>
+          </div>
+        `;
+      })
+      .join("");
+  }
+
+  function renderTable(dailyPerPizza, currency) {
+    if (!tbody) return;
+    const rowsData = forecastRows(dailyPerPizza);
+    if (!rowsData.length) {
       tbody.innerHTML = `<tr><td colspan="4" class="muted">无法计算（缺少单价或用量全为 0）。</td></tr>`;
       return;
     }
-    const rows = HORIZONS.map(
+    const rows = rowsData.map(
       (h, idx) => `
       <tr>
         <td class="num colIdx">${idx + 1}</td>
         <td>${esc(h.label)}</td>
         <td class="num">${h.days}</td>
-        <td class="num">${esc(fmtMoney(d * h.days * scale, currency))}</td>
+        <td class="num">${esc(fmtMoney(h.total, currency))}</td>
       </tr>`
     );
     tbody.innerHTML = rows.join("");
+    renderHorizonBars(rowsData, currency);
+  }
+
+  function renderVisuals(dailyPerPizza, currency, perToken) {
+    renderKpis(dailyPerPizza, currency);
+    renderCostMix(perToken, currency);
   }
 
   function renderHint(dailyPerPizza, currency) {
@@ -301,6 +419,7 @@
       setRateEmpty("请选择模型后点击「重新计算」。");
       lastRates = null;
       renderTable(NaN, "USD");
+      resetVisuals();
       return;
     }
     const reg = regionSelect.value.trim();
@@ -328,6 +447,7 @@
         renderRatesError(data, m);
         setCalcStatus("未匹配到单价：请按下方提示调整区域 / 部署 / 计费，或核对 Model Prices。");
         renderTable(NaN, "USD");
+        resetVisuals();
         clearForecastHint();
         if (warnBox && data.reason === "no_prices") {
           warnBox.style.display = "block";
@@ -351,6 +471,7 @@
         warnBox.textContent = "当前假设日用量为 0 或缺少 input/output 单价，总成本为 0。";
       }
       renderTable(daily, cur);
+      renderVisuals(daily, cur, per);
       renderHint(daily, cur);
     } catch (e) {
       console.error(e);
@@ -358,6 +479,7 @@
       setRateEmpty("请求失败（会话过期或网络错误）。", true);
       lastRates = null;
       renderTable(NaN, "USD");
+      resetVisuals();
       clearForecastHint();
     }
   }
@@ -372,6 +494,11 @@
           output: Number(pt.output) || 0,
         });
         renderTable(daily, lastRates.currency);
+        renderVisuals(daily, lastRates.currency, {
+          input: Number(pt.input) || 0,
+          cached_input: Number(pt.cached_input) || 0,
+          output: Number(pt.output) || 0,
+        });
         renderHint(daily, lastRates.currency);
       }
     });

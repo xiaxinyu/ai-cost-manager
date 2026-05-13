@@ -34,21 +34,19 @@
           <header class="forecastHero">
             <div class="breadcrumb">Home / Pricing / 模型成本预测</div>
             <h1 class="pageTitle">按模型与团队规模预测成本</h1>
-            <p class="pageLead">
-              模型列表与单价均来自 <a href="/prices">Model Prices</a> 中的<strong>价格表</strong>（任意已导入的 vendor / 平台），结合<strong
-                >「每个披萨（7 人团队）」的假设日用量（以 1M tokens 为单位，可填 0.5、1.5 等）</strong>与<strong>团队规模倍率</strong>（可按人头 1 / 3，或按披萨 1 /
-                2），估算 1 天～1 个月的总支出。区域可选<strong>任意</strong>以自动匹配目录中最新一行；目录缺某计量项时按 0 单价计。仅供内部估算，非财务承诺。
-            </p>
+            <p class="pageLead">先选模型单价，再填团队和日用量，页面会同步输出 1 天、1 周、半个月、1 个月的总成本与构成。</p>
           </header>
 
           <div class="forecastTopBar" aria-label="快速计算">
             <button id="calcBtn" class="btn btnPrimary btnCalcTop" type="button">重新计算</button>
             <div class="forecastTopBarText">
               <p id="calcStatus" class="calcStatus muted">就绪：在下方选好模型与区域后点击，拉取目录单价并刷新预测表。</p>
-              <p class="forecastTopBarHint muted">
-                <strong>没有数据？</strong>通常是当前<strong>区域 / 部署 / 计费模式</strong>在价格表中没有对应的 input 或 output 行。请试「任意（自动匹配）」区域、切换 Global ↔ Data
-                zone、或 standard ↔ batch，并与 <a href="/prices">Model Prices</a> 对照。
-              </p>
+              <details class="forecastTopBarHint muted">
+                <summary>没有匹配到单价时怎么办</summary>
+                <p>
+                  先试「任意（自动匹配）」区域，再切换 Global / Data zone 与 standard / batch；最后去 <a href="/prices">Model Prices</a> 对照该模型是否有 input 或 output 计量。
+                </p>
+              </details>
             </div>
           </div>
 
@@ -188,6 +186,39 @@
               </div>
             </div>
             <p id="forecastHint" class="forecastHint muted"></p>
+            <div class="forecastVizGrid">
+              <section class="vizPanel" aria-label="关键指标">
+                <h3 class="vizTitle">关键指标</h3>
+                <div class="kpiGrid">
+                  <article class="kpiCard">
+                    <div class="kpiLabel">每披萨日成本（7 人）</div>
+                    <div id="kpiDailyPizza" class="kpiValue">—</div>
+                  </article>
+                  <article class="kpiCard">
+                    <div class="kpiLabel">当前规模日成本</div>
+                    <div id="kpiDailyTeam" class="kpiValue">—</div>
+                  </article>
+                  <article class="kpiCard kpiCardAccent">
+                    <div class="kpiLabel">当前规模月成本（30 天）</div>
+                    <div id="kpiMonthTeam" class="kpiValue">—</div>
+                  </article>
+                </div>
+              </section>
+
+              <section class="vizPanel" aria-label="成本构成">
+                <h3 class="vizTitle">日成本构成（当前用量）</h3>
+                <div id="costMixRows" class="mixRows">
+                  <div class="muted">计算后显示 Input / Cached / Output 成本占比。</div>
+                </div>
+              </section>
+
+              <section class="vizPanel vizPanelWide" aria-label="周期总成本对比">
+                <h3 class="vizTitle">周期总成本对比（当前团队规模）</h3>
+                <div id="horizonBars" class="horizonBars">
+                  <div class="muted">计算后显示各周期对比。</div>
+                </div>
+              </section>
+            </div>
             <div class="tableWrap">
               <table class="forecastTable">
                 <thead>
