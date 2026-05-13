@@ -7,6 +7,7 @@ import pytest
 
 from app.azure_retail_prices import (
     compose_retail_filter,
+    delete_sql_clause_for_retail_series,
     import_openai_retail_prices,
     normalize_retail_item,
     retail_filter_url,
@@ -34,8 +35,8 @@ def test_normalize_retail_item_gpt55_priority_output():
     d = json.loads(row[19])
     assert row[6] == "eastus2"
     assert row[7] == "USD"
-    assert row[8] == "GPT-5.5 Series (Azure Retail)"
-    assert row[9] == "5.5 ShortCo PP opt Dz"
+    assert row[8] == "GPT-5.5 Series"
+    assert row[9] == "GPT-5.5 Data Zone"
     assert row[10] == "short_context"
     assert row[11] == "data_zone"
     assert row[12] == "priority"
@@ -81,9 +82,35 @@ def test_compose_retail_filter_gpt55():
     assert "Foundry Models" in f
 
 
+def test_compose_retail_filter_gpt55_54_combo():
+    f = compose_retail_filter("gpt_55_54")
+    assert "5.5" in f and "5.4" in f
+    assert "Foundry Models" in f
+    clause = delete_sql_clause_for_retail_series("gpt_55_54")
+    assert "GPT-5.5" in clause and "GPT-5.4" in clause
+
+
 def test_retail_filter_url_contains_filter():
     u = retail_filter_url("all")
     assert u.startswith("https://prices.azure.com/api/retail/prices")
+
+
+def test_compose_retail_filter_eastus2_core_models():
+    f = compose_retail_filter("eastus2_core_models")
+    assert "armRegionName eq 'eastus2'" in f
+    assert "contains(tolower(productName),'4o')" in f
+    assert "contains(skuName,'5.5')" in f
+
+
+def test_compose_retail_filter_appends_arm_region_once():
+    f = compose_retail_filter("gpt_55", arm_region="East US 2")
+    assert f.count("armRegionName eq 'eastus2'") == 1
+
+
+def test_delete_clause_eastus2_core_models():
+    clause = delete_sql_clause_for_retail_series("eastus2_core_models")
+    assert "eastus2" in clause.lower()
+    assert "GPT-4o" in clause
 
 
 def test_import_openai_retail_prices_live_smoke(tmp_path):

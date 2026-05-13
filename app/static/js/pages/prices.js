@@ -6,10 +6,10 @@
   const queryBtn = document.getElementById("queryBtn");
   const tbody = document.getElementById("tbody");
   const summary = document.getElementById("summary");
-  const priceMeta = document.getElementById("priceMeta");
   const paginationEl = document.getElementById("pagination");
   const exportBtn = document.getElementById("exportBtn");
   const pivotBtn = document.getElementById("pivotBtn");
+  const detailLayoutBtn = document.getElementById("detailLayoutBtn");
   const viewLabel = document.getElementById("viewLabel");
   const priceDetailDialog = document.getElementById("priceDetailDialog");
   const priceDetailBody = document.getElementById("priceDetailBody");
@@ -20,11 +20,14 @@
   const syncSeriesSelect = document.getElementById("syncSeriesSelect");
   const syncProbeMarketing = document.getElementById("syncProbeMarketing");
   const retailSyncRun = document.getElementById("retailSyncRun");
+  const syncArmRegionSelect = document.getElementById("syncArmRegionSelect");
 
   let currentRows = [];
   let totalMatching = 0;
   let currentPage = 1;
   let isPivot = false;
+  /** When not pivot: fewer table columns (Item … Series only). */
+  let isCompactDetail = false;
 
   function fillSelect(el, items) {
     el.innerHTML = '<option value="">All</option>';
@@ -74,29 +77,12 @@
     fillSelect(seriesSelect, data.model_series || []);
   }
 
-  async function loadMeta() {
-    if (!priceMeta) return;
-    try {
-      const meta = await window.AppHttp.getJson("/api/prices/meta");
-      const parts = (meta.sources || []).map(
-        (s) => `<strong>${esc(s.source_id)}</strong>: ${fmtInt(s.row_count)} rows`
-      );
-      const hasRetail = (meta.sources || []).some((s) => s.source_id === "azure_retail_prices_api");
-      let hint = "";
-      if (meta.total_rows < 2000 && !hasRetail) {
-        hint =
-          '<div style="margin-top:8px;color:#fbbf24;">Use <strong>Sync prices</strong> above (or CLI <code style="color:#e2e8f0;">python -m app.cli --db-path data/cost_mgmt.sqlite3 import-retail-prices</code>) to load the Azure Retail catalog. Other price sources in this database are left unchanged.</div>';
-      }
-      priceMeta.innerHTML = `<div>All filters combined — total in DB: <strong>${fmtInt(meta.total_rows)}</strong> rows.</div><div>${parts.join(" · ") || "No rows."}</div>${hint}`;
-    } catch (e) {
-      priceMeta.textContent = "";
-      console.error(e);
-    }
-  }
-
-  async function loadSyncSeriesOptions() {
+  async function loadSyncSeriesOptions(bustCache = false) {
     if (!syncSeriesSelect) return;
-    const data = await window.AppHttp.getJson("/api/prices/sync-series-options");
+    const suffix = bustCache ? `?bust=${Date.now()}` : "";
+    const data = await window.AppHttp.getJson(`/api/prices/sync-series-options${suffix}`, {
+      cache: "no-store",
+    });
     syncSeriesSelect.innerHTML = "";
     for (const o of data.series || []) {
       const opt = document.createElement("option");
@@ -104,15 +90,65 @@
       opt.textContent = o.label || o.key;
       syncSeriesSelect.appendChild(opt);
     }
+    const pref = syncSeriesSelect.querySelector('option[value="eastus2_core_models"]');
+    if (pref) syncSeriesSelect.value = "eastus2_core_models";
   }
 
-  function openRetailSyncDialog() {
-    if (!retailSyncDialog) return;
+  async function openRetailSyncDialog() {
+    if (!retailSyncDialog) {
+      if (window.AppShell?.toast) window.AppShell.toast("Sync dialog not found — reload the page.", "error", 4000);
+      return;
+    }
+    const prevLabel = syncRetailBtn ? syncRetailBtn.textContent : "";
+    if (syncRetailBtn) {
+      syncRetailBtn.disabled = true;
+      syncRetailBtn.setAttribute("aria-busy", "true");
+      syncRetailBtn.textContent = "Opening…";
+    }
     try {
-      if (typeof retailSyncDialog.showModal === "function") retailSyncDialog.showModal();
-      else retailSyncDialog.setAttribute("open", "");
+      await loadSyncSeriesOptions(true);
+    } catch (e) {
+      console.error(e);
+      return;
+    } finally {
+      if (syncRetailBtn) {
+        syncRetailBtn.disabled = false;
+        syncRetailBtn.removeAttribute("aria-busy");
+        syncRetailBtn.textContent = prevLabel || "Sync prices";
+      }
+    }
+    try {
+      if (retailSyncDialog.open) retailSyncDialog.close();
     } catch {
-      retailSyncDialog.setAttribute("open", "");
+      /* ignore */
+    }
+    try {
+      if (typeof retailSyncDialog.showModal === "function") {
+        retailSyncDialog.showModal();
+      } else if (typeof retailSyncDialog.show === "function") {
+        retailSyncDialog.show();
+      } else {
+        retailSyncDialog.setAttribute("open", "");
+      }
+    } catch (e1) {
+      console.error(e1);
+      try {
+        if (typeof retailSyncDialog.show === "function") retailSyncDialog.show();
+        else retailSyncDialog.setAttribute("open", "");
+      } catch (e2) {
+        console.error(e2);
+        retailSyncDialog.setAttribute("open", "");
+      }
+      if (window.AppShell?.toast) {
+        window.AppShell.toast(
+          "Sync panel opened in non-modal mode. If you still do not see it, try another browser or update Safari/Chrome.",
+          "info",
+          5200
+        );
+      }
+    }
+    if (window.AppShell?.toast) {
+      window.AppShell.toast("Choose a model scope, then tap Start sync (pulls from prices.azure.com).", "info", 3800);
     }
   }
 
@@ -134,6 +170,8 @@
         series: syncSeriesSelect.value,
         probe_marketing: !!(syncProbeMarketing && syncProbeMarketing.checked),
       };
+      const arm = syncArmRegionSelect && syncArmRegionSelect.value ? syncArmRegionSelect.value.trim() : "";
+      if (arm) body.arm_region = arm;
       const out = await window.AppHttp.postJson("/api/prices/sync-retail", body);
       const r = out.retail || {};
       let msg = `Synced ${fmtInt(r.rows_imported || 0)} retail rows (removed ${fmtInt(r.retail_rows_deleted || 0)} old retail).`;
@@ -144,7 +182,6 @@
       if (window.AppShell?.toast) window.AppShell.toast(msg, "info", 5200);
       closeRetailSyncDialog();
       currentPage = 1;
-      await loadMeta();
       await loadFilters();
       await loadRows();
     } catch (e) {
@@ -159,6 +196,7 @@
     tbody.innerHTML = "";
     for (const r of rows || []) {
       const tr = document.createElement("tr");
+      tr.className = "priceDataRow";
       const item = `${r.model_name || ""}${r.context_bucket ? ` (${r.context_bucket})` : ""}`;
       const rid = r.id != null ? String(r.id) : "";
       tr.innerHTML = `
@@ -177,6 +215,34 @@
         <td class="colDetail">
           <button type="button" class="detailBtn" data-price-id="${esc(rid)}">View</button>
         </td>
+      `;
+      tbody.appendChild(tr);
+    }
+  }
+
+  function renderDetailCompact(rows) {
+    tbody.innerHTML = "";
+    for (const r of rows || []) {
+      const tr = document.createElement("tr");
+      tr.className = "priceDataRow priceRowClickable";
+      const item = `${r.model_name || ""}${r.context_bucket ? ` (${r.context_bucket})` : ""}`;
+      const rid = r.id != null ? String(r.id) : "";
+      if (rid) {
+        tr.setAttribute("data-row-price-id", rid);
+        tr.setAttribute("tabindex", "0");
+        tr.setAttribute("role", "button");
+        tr.setAttribute("aria-label", `Open full detail for ${String(r.model_name || "price row").replace(/"/g, "'").slice(0, 120)}`);
+        tr.title = "Click or press Enter to open full detail (scope, platform, vendor, effective date, …)";
+      }
+      tr.innerHTML = `
+        <td><div class="itemMain">${esc(item)}</div></td>
+        <td>${esc(r.billing_mode || "")}</td>
+        <td>${esc(r.metric_name || "")}</td>
+        <td>${esc(r.price_region || "")}</td>
+        <td>${esc(r.price_currency || "")}</td>
+        <td class="num">${fmt(r.amount)}</td>
+        <td>${esc(r.unit_expression || "")}</td>
+        <td>${esc(r.model_series || "")}</td>
       `;
       tbody.appendChild(tr);
     }
@@ -206,6 +272,7 @@
     tbody.innerHTML = "";
     for (const r of items) {
       const tr = document.createElement("tr");
+      tr.className = "priceDataRow";
       const item = `${r.model_name || ""}${r.context_bucket ? ` (${r.context_bucket})` : ""}`;
       const rid = r.detail_id != null ? String(r.detail_id) : "";
       tr.innerHTML = `
@@ -271,7 +338,15 @@
 
   function renderRows(rows) {
     const thead = document.querySelector("thead tr");
+    const tableShell = document.getElementById("pricingTableShell") || document.querySelector(".pricingTableShell");
+    if (detailLayoutBtn) {
+      detailLayoutBtn.style.display = isPivot ? "none" : "";
+      if (!isPivot) {
+        detailLayoutBtn.textContent = isCompactDetail ? "Full columns" : "Compact";
+      }
+    }
     if (isPivot) {
+      if (tableShell) tableShell.classList.remove("is-compact");
       thead.innerHTML = `
         <th>Item</th><th>Scope</th><th>Mode</th><th>Region</th><th>Currency</th>
         <th class="num">Input</th><th class="num">Cached Input</th><th class="num">Output</th><th>Unit</th>
@@ -280,7 +355,17 @@
       renderPivot(rows);
       viewLabel.textContent = "View: Pivot";
       pivotBtn.textContent = "Detail View";
+    } else if (isCompactDetail) {
+      if (tableShell) tableShell.classList.add("is-compact");
+      thead.innerHTML = `
+        <th>Item</th><th>Mode</th><th>Metric</th><th>Region</th><th>Currency</th>
+        <th class="num">Amount</th><th>Unit</th><th>Series</th>
+      `;
+      renderDetailCompact(rows);
+      viewLabel.textContent = "View: Compact";
+      pivotBtn.textContent = "Pivot View";
     } else {
+      if (tableShell) tableShell.classList.remove("is-compact");
       thead.innerHTML = `
         <th>Item</th><th>Scope</th><th>Mode</th><th>Metric</th><th>Region</th><th>Currency</th>
         <th class="num">Amount</th><th>Unit</th><th>Series</th><th>Platform</th><th>Vendor</th><th>Effective Date</th>
@@ -292,7 +377,8 @@
     }
     if (!rows || rows.length === 0) {
       const tr = document.createElement("tr");
-      tr.innerHTML = `<td colspan="13" style="color:#9fb2c7;">No price rows for current filters.</td>`;
+      const colspan = isPivot ? 13 : isCompactDetail ? 8 : 13;
+      tr.innerHTML = `<td colspan="${colspan}" style="color:#9fb2c7;">No price rows for current filters.</td>`;
       tbody.appendChild(tr);
     }
   }
@@ -398,7 +484,7 @@
         <div class="priceDetailLinks">
           <a id="priceDetailSourceLink" href="#" target="_blank" rel="noopener">Open source_url</a>
           <a href="https://azure.microsoft.com/en-us/pricing/details/azure-openai/" target="_blank" rel="noopener">Azure OpenAI marketing pricing page</a>
-          <a href="https://prices.azure.com/api/retail/prices" target="_blank" rel="noopener">Azure Retail Prices API root</a>
+          <a href="https://prices.azure.com/api/retail/prices" target="_blank" rel="noopener">Microsoft unit price API (root)</a>
         </div>
       `;
       priceDetailBody.innerHTML = `
@@ -442,6 +528,14 @@
     });
   }
 
+  if (detailLayoutBtn) {
+    detailLayoutBtn.addEventListener("click", () => {
+      if (isPivot) return;
+      isCompactDetail = !isCompactDetail;
+      renderRows(currentRows);
+    });
+  }
+
   pivotBtn.addEventListener("click", () => {
     isPivot = !isPivot;
     renderRows(currentRows);
@@ -468,9 +562,25 @@
   });
 
   tbody.addEventListener("click", (ev) => {
-    const btn = ev.target && ev.target.closest && ev.target.closest("[data-price-id]");
-    if (!btn) return;
-    const pid = btn.getAttribute("data-price-id");
+    const btn = ev.target && ev.target.closest && ev.target.closest("button[data-price-id]");
+    if (btn) {
+      const pid = btn.getAttribute("data-price-id");
+      if (pid) openPriceDetail(pid).catch((e) => console.error(e));
+      return;
+    }
+    const row = ev.target && ev.target.closest && ev.target.closest("tr[data-row-price-id]");
+    if (row) {
+      const pid = row.getAttribute("data-row-price-id");
+      if (pid) openPriceDetail(pid).catch((e) => console.error(e));
+    }
+  });
+
+  tbody.addEventListener("keydown", (ev) => {
+    if (ev.key !== "Enter" && ev.key !== " ") return;
+    const row = ev.target && ev.target.closest && ev.target.closest("tr[data-row-price-id]");
+    if (!row || ev.target.closest("button")) return;
+    ev.preventDefault();
+    const pid = row.getAttribute("data-row-price-id");
     if (pid) openPriceDetail(pid).catch((e) => console.error(e));
   });
 
@@ -483,7 +593,7 @@
 
   if (syncRetailBtn) {
     syncRetailBtn.addEventListener("click", () => {
-      openRetailSyncDialog();
+      openRetailSyncDialog().catch((e) => console.error(e));
     });
   }
   if (retailSyncClose && retailSyncDialog) {
@@ -506,7 +616,6 @@
   (async () => {
     await loadFilters();
     await loadSyncSeriesOptions();
-    await loadMeta();
     await loadRows();
   })().catch((e) => {
     console.error(e);

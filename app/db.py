@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Iterable
 
 
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 5
 
 EXPECTED_CSV_COLUMNS = [
     "UsageDate",
@@ -139,6 +139,17 @@ def init_db(conn: sqlite3.Connection) -> None:
             azure_endpoint TEXT,
             updated_at TEXT NOT NULL DEFAULT (datetime('now'))
         );
+
+        CREATE TABLE IF NOT EXISTS price_source_catalog (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            source_key TEXT NOT NULL UNIQUE,
+            title TEXT NOT NULL,
+            reference_url TEXT NOT NULL DEFAULT '',
+            api_url TEXT NOT NULL DEFAULT '',
+            notes TEXT,
+            sort_order INTEGER NOT NULL DEFAULT 0,
+            updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
         """
     )
     conn.execute(
@@ -161,6 +172,7 @@ def init_db(conn: sqlite3.Connection) -> None:
 
     _migrate_billing_rows_if_needed(conn)
     _migrate_model_prices_source_detail_json(conn)
+    _ensure_price_source_catalog(conn)
 
 
 def _table_exists(conn: sqlite3.Connection, table_name: str) -> bool:
@@ -247,6 +259,100 @@ def _migrate_model_prices_source_detail_json(conn: sqlite3.Connection) -> None:
         return
     conn.execute("ALTER TABLE model_prices ADD COLUMN source_detail_json TEXT")
     conn.commit()
+
+
+PRICE_SOURCE_CATALOG_SEED: tuple[tuple[str, str, str, str, str, int], ...] = (
+    (
+        "microsoft_unit_price_api",
+        "Microsoft unit price catalog (REST)",
+        "https://azure.microsoft.com/en-us/pricing/details/azure-openai/",
+        "https://prices.azure.com/api/retail/prices",
+        "Used by Sync prices on the Model Prices page (Foundry Models + OpenAI product filter).",
+        10,
+    ),
+    (
+        "internal_billing_csv",
+        "Project billing CSV exports",
+        "",
+        "",
+        "Usage rows ingested from the configured bills directory (Import page).",
+        20,
+    ),
+    (
+        "model_price_csv",
+        "Model price CSV (per-row source_url)",
+        "",
+        "",
+        "Rows from price CSV files; each row can set source_url and source_id.",
+        30,
+    ),
+)
+
+
+def _ensure_price_source_catalog(conn: sqlite3.Connection) -> None:
+    if not _table_exists(conn, "price_source_catalog"):
+        return
+    cnt = int(conn.execute("SELECT COUNT(*) AS c FROM price_source_catalog").fetchone()["c"])
+    if cnt > 0:
+        return
+    for sk, title, ref, api, notes, so in PRICE_SOURCE_CATALOG_SEED:
+        conn.execute(
+            """
+            INSERT INTO price_source_catalog (source_key, title, reference_url, api_url, notes, sort_order)
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (sk, title, ref, api, notes, so),
+        )
+    conn.commit()
+
+
+def list_price_source_catalog(conn: sqlite3.Connection) -> list[dict[str, object]]:
+    rows = conn.execute(
+        """
+        SELECT id, source_key, title, reference_url, api_url, notes, sort_order, updated_at
+        FROM price_source_catalog
+        ORDER BY sort_order, id
+        """
+    ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def update_price_source_catalog_row(
+    conn: sqlite3.Connection,
+    row_id: int,
+    *,
+    title: str | None = None,
+    reference_url: str | None = None,
+    api_url: str | None = None,
+    notes: str | None = None,
+) -> dict[str, object] | None:
+    cur = conn.execute(
+        "SELECT id, title, reference_url, api_url, notes FROM price_source_catalog WHERE id = ?",
+        (row_id,),
+    ).fetchone()
+    if cur is None:
+        return None
+    t = title if title is not None else cur["title"]
+    r = reference_url if reference_url is not None else cur["reference_url"]
+    a = api_url if api_url is not None else cur["api_url"]
+    n = notes if notes is not None else cur["notes"]
+    conn.execute(
+        """
+        UPDATE price_source_catalog
+        SET title = ?, reference_url = ?, api_url = ?, notes = ?, updated_at = datetime('now')
+        WHERE id = ?
+        """,
+        (t, r, a, n, row_id),
+    )
+    conn.commit()
+    out = conn.execute(
+        """
+        SELECT id, source_key, title, reference_url, api_url, notes, sort_order, updated_at
+        FROM price_source_catalog WHERE id = ?
+        """,
+        (row_id,),
+    ).fetchone()
+    return dict(out) if out else None
 
 
 @dataclass(frozen=True)
@@ -1496,16 +1602,41 @@ def replace_model_prices(conn: sqlite3.Connection, rows: Iterable[tuple]) -> int
     return int(c)
 
 
+def clear_all_model_prices(conn: sqlite3.Connection) -> int:
+    """Delete every row in model_prices. Returns how many rows were removed."""
+    cur = conn.execute("DELETE FROM model_prices")
+    conn.commit()
+    return int(cur.rowcount or 0)
+
+
+# Typical `model_series` strings from Microsoft catalog sync (`azure_retail_prices.normalize_retail_item`),
+# merged into filter options so GPT-5.x families appear before matching rows exist in SQLite.
+_KNOWN_RETAIL_MODEL_SERIES_HINTS: tuple[str, ...] = (
+    "GPT-5.5 Series",
+    "GPT-5.4 Series",
+    "GPT-5.3 Series",
+    "GPT-5.2 Series",
+    "GPT-5.1 Series",
+    "GPT-5.1 Codex Series",
+    "GPT-4o Series",
+    "GPT-5 mini Series",
+    "GPT-5 nano Series",
+)
+
+
 def get_model_price_filter_options(conn: sqlite3.Connection) -> dict[str, list[str]]:
     def _list_values(col: str) -> list[str]:
         q = f"SELECT DISTINCT {col} AS v FROM model_prices WHERE {col} IS NOT NULL AND {col} != '' ORDER BY {col}"
         rows = conn.execute(q).fetchall()
         return [r["v"] for r in rows]
 
+    series_from_db = _list_values("model_series")
+    model_series = sorted(set(series_from_db) | set(_KNOWN_RETAIL_MODEL_SERIES_HINTS))
+
     return {
         "vendors": _list_values("vendor"),
         "platforms": _list_values("platform"),
-        "model_series": _list_values("model_series"),
+        "model_series": model_series,
         "currencies": _list_values("price_currency"),
         "regions": _list_values("price_region"),
     }
@@ -1534,6 +1665,7 @@ def get_model_prices_meta(conn: sqlite3.Connection) -> dict[str, object]:
             }
             for r in src_rows
         ],
+        "price_source_catalog": list_price_source_catalog(conn),
     }
 
 

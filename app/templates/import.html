@@ -18,6 +18,7 @@
           <a class="navLink" href="/reports">Reports</a>
           <a class="navLink" href="/prices">Prices</a>
           <a class="navLink active" href="/import">Import</a>
+          <a class="navLink" href="/price-sources">Price sources</a>
         </div>
         <div class="navRight">
           <button id="navToggle" class="navToggle" type="button">Menu</button>
@@ -76,6 +77,14 @@
       </div>
 
           <div class="card" style="margin-top: 14px;">
+            <div class="title" style="font-size: 14px; font-weight: 650">Reference &amp; API links</div>
+            <p class="muted" style="margin: 6px 0 0; font-size: 12px">
+              Same catalog shown after each import run. Maintain under <a href="/price-sources">Price sources</a>.
+            </p>
+            <div id="importPriceSourceLinks" class="muted" style="margin-top: 10px; font-size: 12px; line-height: 1.45"></div>
+          </div>
+
+          <div class="card" style="margin-top: 14px;">
         <div class="muted">Imported files (latest)</div>
         <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; margin-top:10px;">
           <div class="muted">Count</div>
@@ -113,6 +122,7 @@
       const importBtn = document.getElementById('importBtn');
       const importStatus = document.getElementById('importStatus');
       const refreshBtn = document.getElementById('refreshBtn');
+      const importPriceSourceLinks = document.getElementById('importPriceSourceLinks');
 
       const selectedFiles = new Set();
       const selectedVerifyFiles = new Set();
@@ -129,6 +139,55 @@
           return d.toLocaleString();
         } catch (e) {
           return '-';
+        }
+      }
+
+      function renderImportPriceCatalog(items) {
+        if (!importPriceSourceLinks) return;
+        importPriceSourceLinks.innerHTML = '';
+        for (const s of items || []) {
+          const block = document.createElement('div');
+          block.style.marginBottom = '10px';
+          const t = document.createElement('div');
+          t.style.fontWeight = '650';
+          t.textContent = s.title || s.source_key || '';
+          block.appendChild(t);
+          if (s.reference_url) {
+            const a = document.createElement('a');
+            a.href = s.reference_url;
+            a.target = '_blank';
+            a.rel = 'noopener';
+            a.textContent = 'Reference page';
+            a.style.display = 'block';
+            block.appendChild(a);
+          }
+          if (s.api_url) {
+            const a2 = document.createElement('a');
+            a2.href = s.api_url;
+            a2.target = '_blank';
+            a2.rel = 'noopener';
+            a2.textContent = 'API root';
+            a2.style.display = 'block';
+            block.appendChild(a2);
+          }
+          if (s.notes) {
+            const p = document.createElement('div');
+            p.className = 'muted';
+            p.style.marginTop = '4px';
+            p.textContent = s.notes;
+            block.appendChild(p);
+          }
+          importPriceSourceLinks.appendChild(block);
+        }
+      }
+
+      async function loadImportPriceSources() {
+        if (!importPriceSourceLinks) return;
+        try {
+          const data = await window.AppHttp.getJson('/api/price-sources');
+          renderImportPriceCatalog(data.sources || []);
+        } catch (e) {
+          console.error(e);
         }
       }
 
@@ -168,16 +227,18 @@
         importStatus.textContent = 'Importing...';
         importBtn.disabled = true;
         try {
-          const data = await window.AppHttp.getJson('/api/import/run', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ reimport_changed: false, file_path_rels: chosen }),
+          const data = await window.AppHttp.postJson('/api/import/run', {
+            reimport_changed: false,
+            file_path_rels: chosen,
           });
           if (data?.verification_passed) {
             importStatus.textContent = `Imported: ${data.files_ingested} file(s), ${data.rows_ingested} row(s). Verified: ${data.files_verified} file(s).`;
           } else {
             const err = data?.import_error ? String(data.import_error) : 'Unknown verification error';
             importStatus.textContent = `Audit failed: ${err}`;
+          }
+          if (data?.price_source_catalog) {
+            renderImportPriceCatalog(data.price_source_catalog);
           }
         } catch (e) {
           console.error(e);
@@ -305,6 +366,7 @@
           bindPickEvents();
           return loadIngestedFiles();
         })
+        .then(() => loadImportPriceSources())
         .catch((e) => {
         console.error(e);
         importStatus.textContent = 'Failed to load missing files';

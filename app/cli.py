@@ -62,7 +62,7 @@ def main() -> None:
 
     retail_p = sub.add_parser(
         "import-retail-prices",
-        help="Merge Azure OpenAI meters from the Azure Retail Prices API (replaces only azure_retail_prices_api rows)",
+        help="Merge Azure OpenAI meters from prices.azure.com (replaces only azure_retail_prices_api rows)",
     )
     retail_p.add_argument(
         "--series",

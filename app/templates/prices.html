@@ -6,6 +6,7 @@
     <title>Model Prices</title>
     <link rel="stylesheet" href="/static/css/app-shell.css" />
     <link rel="stylesheet" href="/static/css/page-common.css" />
+    <link rel="stylesheet" href="/static/css/pricing-surface.css" />
     <link rel="stylesheet" href="/static/css/pages/prices.css" />
   </head>
   <body>
@@ -18,6 +19,7 @@
           <a class="navLink" href="/reports">Reports</a>
           <a class="navLink active" href="/prices">Prices</a>
           <a class="navLink" href="/import">Import</a>
+          <a class="navLink" href="/price-sources">Price sources</a>
         </div>
         <div class="navRight">
           <button id="navToggle" class="navToggle" type="button">Menu</button>
@@ -36,68 +38,71 @@
           </div>
 
           <div class="header">
-        <div>
-          <div class="title">Model Price Viewer</div>
-          <div class="muted">Filter by vendor, platform, and model series.</div>
-        </div>
-        <div class="headerActions">
-          <span id="viewLabel" class="viewBadge">View: Detail</span>
-          <button id="pivotBtn" class="actionBtn" type="button">Switch View</button>
-          <button id="syncRetailBtn" class="actionBtn" type="button">Sync prices</button>
-          <button id="exportBtn" class="actionBtn primary" type="button">Export CSV</button>
-        </div>
-      </div>
+            <div>
+              <div class="title">Model Price Viewer</div>
+              <div class="muted">Filter by vendor, platform, and model series.</div>
+            </div>
+            <div class="headerActions">
+              <span id="viewLabel" class="viewBadge">View: Detail</span>
+              <button id="detailLayoutBtn" class="actionBtn" type="button">Compact</button>
+              <button id="pivotBtn" class="actionBtn" type="button">Pivot View</button>
+              <button id="syncRetailBtn" class="actionBtn" type="button">Sync prices</button>
+              <button id="exportBtn" class="actionBtn primary" type="button">Export CSV</button>
+            </div>
+          </div>
 
           <div class="card">
-        <div class="toolbar">
-          <div class="field">
-            <label class="muted" for="vendorSelect">Vendor</label>
-            <select id="vendorSelect"></select>
+            <div class="toolbarRow">
+              <div class="field fieldCompact">
+                <label class="muted" for="vendorSelect">Vendor</label>
+                <select id="vendorSelect"></select>
+              </div>
+              <div class="field fieldCompact">
+                <label class="muted" for="platformSelect">Platform</label>
+                <select id="platformSelect"></select>
+              </div>
+              <div class="field fieldSeries">
+                <label class="muted" for="seriesSelect">Model Series</label>
+                <select id="seriesSelect"></select>
+              </div>
+              <div class="field fieldCompact">
+                <label class="muted" for="pageSizeSelect">Page size</label>
+                <select id="pageSizeSelect">
+                  <option value="50">50</option>
+                  <option value="100" selected>100</option>
+                  <option value="200">200</option>
+                  <option value="500">500</option>
+                </select>
+              </div>
+              <div class="field fieldQuery">
+                <span class="muted toolbarLabelSpacer" aria-hidden="true">Query</span>
+                <button id="queryBtn" class="btn toolbarQueryBtn" type="button">Query</button>
+              </div>
+            </div>
+            <div id="summary" class="toolbarSummary muted"></div>
           </div>
-          <div class="field">
-            <label class="muted" for="platformSelect">Platform</label>
-            <select id="platformSelect"></select>
-          </div>
-          <div class="field">
-            <label class="muted" for="seriesSelect">Model Series</label>
-            <select id="seriesSelect"></select>
-          </div>
-          <div class="field">
-            <label class="muted" for="pageSizeSelect">Page size</label>
-            <select id="pageSizeSelect">
-              <option value="50">50</option>
-              <option value="100" selected>100</option>
-              <option value="200">200</option>
-              <option value="500">500</option>
-            </select>
-          </div>
-          <button id="queryBtn" class="btn" type="button">Query</button>
-          <div id="summary" class="muted"></div>
-        </div>
-        <div id="priceMeta" class="priceMeta muted"></div>
-      </div>
 
-          <div class="tableWrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Item</th>
-              <th>Scope</th>
-              <th>Mode</th>
-              <th>Metric</th>
-              <th>Region</th>
-              <th>Currency</th>
-              <th class="num">Amount</th>
-              <th>Unit</th>
-              <th>Series</th>
-              <th>Platform</th>
-              <th>Vendor</th>
-              <th>Effective Date</th>
-              <th class="colDetail">Details</th>
-            </tr>
-          </thead>
-          <tbody id="tbody"></tbody>
-        </table>
+          <div class="pricingTableShell" id="pricingTableShell">
+            <table class="dataTable">
+              <thead>
+                <tr>
+                  <th>Item</th>
+                  <th>Scope</th>
+                  <th>Mode</th>
+                  <th>Metric</th>
+                  <th>Region</th>
+                  <th>Currency</th>
+                  <th class="num">Amount</th>
+                  <th>Unit</th>
+                  <th>Series</th>
+                  <th>Platform</th>
+                  <th>Vendor</th>
+                  <th>Effective Date</th>
+                  <th class="colDetail">Details</th>
+                </tr>
+              </thead>
+              <tbody id="tbody"></tbody>
+            </table>
           </div>
           <div id="pagination" class="pagination" aria-label="Pagination"></div>
         </div>
@@ -106,25 +111,35 @@
 
     <dialog id="retailSyncDialog" class="priceDetailDialog">
       <div class="priceDetailHeader">
-        <div class="priceDetailTitle">Sync Azure retail prices</div>
+        <div class="priceDetailTitle">Sync Microsoft catalog (REST)</div>
         <button id="retailSyncClose" type="button" class="priceDetailClose" aria-label="Close">×</button>
       </div>
       <div id="retailSyncBody" class="priceDetailBody">
-        <p class="muted" style="margin-top:0;">
-          Fetches meters from <strong>prices.azure.com</strong> (Foundry / OpenAI). Only rows with
-          <code>source_id = azure_retail_prices_api</code> are replaced; other sources (for example CSV
-          <code>azure_openai_pricing_page</code>) are kept. Optional check hits Microsoft marketing pricing URLs
-          (often HTML, not imported).
+        <p class="syncDialogLead muted">
+          Pulls rows from the Microsoft unit-price REST API (<code>prices.azure.com</code>) using the same catalog as
+          <a class="syncDialogLink" href="https://azure.microsoft.com/en-us/pricing/details/azure-openai/">Azure OpenAI pricing</a>
+          (see also
+          <a class="syncDialogLink" href="https://azure.microsoft.com/en-us/pricing/api/">pricing API</a>).
+          Choose <strong>East US 2 — GPT-4o + GPT-5.1…5.5</strong> for a full refresh of those models in region
+          <code>eastus2</code>, or pick another scope and optional region. Reference roots live on the
+          <a class="syncDialogLink" href="/price-sources">Price sources</a> page.
         </p>
-        <div class="field" style="margin-top:12px;">
+        <div class="field" style="margin-top: 12px">
           <label class="muted" for="syncSeriesSelect">Model series scope</label>
           <select id="syncSeriesSelect"></select>
         </div>
-        <label class="syncCheck muted" style="display:flex;gap:8px;align-items:center;margin-top:10px;">
+        <div class="field" style="margin-top: 10px">
+          <label class="muted" for="syncArmRegionSelect">Restrict region (optional)</label>
+          <select id="syncArmRegionSelect">
+            <option value="">All regions (catalog default)</option>
+            <option value="eastus2" selected>East US 2 (armRegionName: eastus2)</option>
+          </select>
+        </div>
+        <label class="syncCheck muted" style="display: flex; gap: 8px; align-items: center; margin-top: 10px">
           <input id="syncProbeMarketing" type="checkbox" />
-          Probe Azure marketing pricing URLs (read-only, shows status in result toast)
+          Probe marketing pricing URLs (read-only, not imported)
         </label>
-        <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap;">
+        <div style="margin-top: 14px; display: flex; gap: 10px; flex-wrap: wrap">
           <button id="retailSyncRun" class="actionBtn primary" type="button">Start sync</button>
         </div>
       </div>

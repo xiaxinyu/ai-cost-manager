@@ -40,6 +40,7 @@ def test_prices_filters_and_query(tmp_path):
     assert "Microsoft" in filters["vendors"]
     assert "azure-openai" in filters["platforms"]
     assert "GPT-5.3 Series" in filters["model_series"]
+    assert "GPT-5.5 Series" in filters["model_series"]
 
     rows = client.get(
         "/api/prices?vendor=Microsoft&platform=azure-openai&model_series=GPT-5.3%20Series"
@@ -56,6 +57,9 @@ def test_prices_filters_and_query(tmp_path):
     assert meta["total_rows"] == 1
     assert len(meta["sources"]) == 1
     assert meta["sources"][0]["source_id"] == "src"
+    assert "price_source_catalog" in meta
+    assert isinstance(meta["price_source_catalog"], list)
+    assert len(meta["price_source_catalog"]) >= 1
 
     p2 = client.get("/api/prices?page=2&page_size=10").json()
     assert p2["total"] == 1
@@ -72,6 +76,7 @@ def test_prices_filters_and_query(tmp_path):
     opts = client.get("/api/prices/sync-series-options").json()
     assert "series" in opts
     assert any(s["key"] == "all" for s in opts["series"])
+    assert any(s["key"] == "eastus2_core_models" for s in opts["series"])
 
     bad = client.post("/api/prices/sync-retail", json={"series": "not-a-real-key"})
     assert bad.status_code == 400

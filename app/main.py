@@ -14,6 +14,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from pydantic import BaseModel
 
 from .db import (
+    clear_all_model_prices,
     get_model_price_by_id,
     get_model_price_filter_options,
     get_model_prices,
@@ -30,7 +31,9 @@ from .db import (
     verify_all_financial_consistency,
     get_timeseries,
     init_db,
+    list_price_source_catalog,
     list_projects,
+    update_price_source_catalog_row,
     upsert_project_model_config,
 )
 from .ingest import ingest_all, ingest_selected, list_ingested_files, list_missing_files, verify_ingested_files
@@ -51,6 +54,14 @@ class ProjectModelConfigRequest(BaseModel):
 class RetailSyncBody(BaseModel):
     series: str = "all"
     probe_marketing: bool = False
+    arm_region: Optional[str] = None
+
+
+class PriceSourcePatchBody(BaseModel):
+    title: Optional[str] = None
+    reference_url: Optional[str] = None
+    api_url: Optional[str] = None
+    notes: Optional[str] = None
 
 
 def _default_bills_dir() -> str:
@@ -125,6 +136,14 @@ def create_app(
         if not auth_enabled:
             return "anonymous"
         return require_active_user(request, db_path=db_path)
+
+    def _price_source_catalog_snapshot() -> list[dict[str, object]]:
+        conn = get_connection(db_path)
+        try:
+            init_db(conn)
+            return list_price_source_catalog(conn)
+        finally:
+            conn.close()
 
     @app.get("/health")
     def health() -> dict:
@@ -231,6 +250,18 @@ def create_app(
         return templates.TemplateResponse(
             request,
             "prices.html",
+            {"username": request.session.get("username", "")},
+        )
+
+    @app.get("/price-sources", response_class=HTMLResponse)
+    def price_sources_page(request: Request) -> HTMLResponse:
+        if auth_enabled:
+            username = request.session.get("username")
+            if not username:
+                return RedirectResponse(url="/login", status_code=303)
+        return templates.TemplateResponse(
+            request,
+            "price-sources.html",
             {"username": request.session.get("username", "")},
         )
 
@@ -450,6 +481,7 @@ def create_app(
                     "rows_ingested": result.rows_ingested,
                     "files_verified": result.files_verified,
                     "verification_passed": result.verification_passed,
+                    "price_source_catalog": _price_source_catalog_snapshot(),
                 }
             )
         except Exception as e:
@@ -464,6 +496,7 @@ def create_app(
                     "files_verified": 0,
                     "verification_passed": False,
                     "import_error": str(e),
+                    "price_source_catalog": _price_source_catalog_snapshot(),
                 }
             )
 
@@ -674,6 +707,7 @@ def create_app(
                 import_openai_retail_prices,
                 db_path=str(db_path),
                 series_key=body.series,
+                arm_region=body.arm_region,
             )
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e)) from e
@@ -691,8 +725,46 @@ def create_app(
                     "filter_url": result.filter_url,
                 },
                 "marketing_probe": marketing,
+                "price_source_catalog": _price_source_catalog_snapshot(),
             }
         )
+
+    @app.post("/api/prices/clear-all")
+    def api_prices_clear_all(_: str = Depends(_auth_dep)) -> JSONResponse:
+        conn = get_connection(db_path)
+        try:
+            init_db(conn)
+            deleted = clear_all_model_prices(conn)
+            return JSONResponse({"ok": True, "deleted": deleted})
+        finally:
+            conn.close()
+
+    @app.get("/api/price-sources")
+    def api_price_sources_list(_: str = Depends(_auth_dep)) -> JSONResponse:
+        return JSONResponse({"sources": _price_source_catalog_snapshot()})
+
+    @app.patch("/api/price-sources/{row_id}")
+    def api_price_sources_patch(
+        row_id: int,
+        body: PriceSourcePatchBody = Body(...),
+        _: str = Depends(_auth_dep),
+    ) -> JSONResponse:
+        conn = get_connection(db_path)
+        try:
+            init_db(conn)
+            out = update_price_source_catalog_row(
+                conn,
+                row_id,
+                title=body.title,
+                reference_url=body.reference_url,
+                api_url=body.api_url,
+                notes=body.notes,
+            )
+            if out is None:
+                raise HTTPException(status_code=404, detail="Price source row not found")
+            return JSONResponse(out)
+        finally:
+            conn.close()
 
     @app.get("/api/prices/row/{price_id}")
     def api_price_row(price_id: int, _: str = Depends(_auth_dep)) -> JSONResponse:

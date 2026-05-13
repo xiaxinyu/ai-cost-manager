@@ -17,19 +17,70 @@ OPENAI_RETAIL_FILTER = "serviceName eq 'Foundry Models' and contains(productName
 MARKETING_PRICING_URL = "https://azure.microsoft.com/en-us/pricing/details/azure-openai/"
 SOURCE_ID = "azure_retail_prices_api"
 MARKETING_PRICING_API_CANDIDATES = (
+    "https://azure.microsoft.com/en-us/pricing/api/",
     "https://azure.microsoft.com/en-us/api/pricing/details/azure-openai/",
     "https://azure.microsoft.com/api/pricing/details/azure-openai/",
-    "https://azure.microsoft.com/en-us/pricing/api/",
 )
 
 # UI + API whitelist: OData filter suffix (AND …) appended to OPENAI_RETAIL_FILTER.
+# Names align with Azure OpenAI marketing tables; rows use Microsoft retail fields (skuName, meterName, …).
 RETAIL_SYNC_SERIES: tuple[tuple[str, str, str], ...] = (
     ("all", "All OpenAI meters (Foundry + OpenAI product name)", ""),
+    (
+        "eastus2_core_models",
+        "East US 2 — GPT-4o + GPT-5.1 … GPT-5.5 (retail catalog)",
+        " and armRegionName eq 'eastus2' and ("
+        "("
+        "(contains(skuName,'4o') or contains(meterName,'4o') or contains(tolower(productName),'4o'))"
+        " and not (contains(skuName,'5.') or contains(meterName,'5.'))"
+        ") or ("
+        "(contains(skuName,'5.1') or contains(meterName,'5.1'))"
+        " and not (contains(skuName,'5.2') or contains(meterName,'5.2'))"
+        " and not (contains(skuName,'5.3') or contains(meterName,'5.3'))"
+        " and not (contains(skuName,'5.4') or contains(meterName,'5.4'))"
+        " and not (contains(skuName,'5.5') or contains(meterName,'5.5'))"
+        ") or ("
+        "(contains(skuName,'5.2') or contains(meterName,'5.2'))"
+        " and not (contains(skuName,'5.3') or contains(meterName,'5.3'))"
+        " and not (contains(skuName,'5.4') or contains(meterName,'5.4'))"
+        " and not (contains(skuName,'5.5') or contains(meterName,'5.5'))"
+        ") or ("
+        "(contains(skuName,'5.3') or contains(meterName,'5.3'))"
+        " and not (contains(skuName,'5.4') or contains(meterName,'5.4'))"
+        " and not (contains(skuName,'5.5') or contains(meterName,'5.5'))"
+        ") or ("
+        "(contains(skuName,'5.4') or contains(meterName,'5.4'))"
+        " and not (contains(skuName,'5.5') or contains(meterName,'5.5'))"
+        ") or ("
+        "contains(skuName,'5.5') or contains(meterName,'5.5')"
+        ")"
+        ")",
+    ),
+    (
+        "gpt_55_54",
+        "GPT-5.5 + GPT-5.4 (one sync)",
+        " and ((contains(skuName,'5.5') or contains(meterName,'5.5')) or (contains(skuName,'5.4') or contains(meterName,'5.4')))",
+    ),
     ("gpt_55", "GPT-5.5 (SKU/meter contains 5.5)", " and (contains(skuName,'5.5') or contains(meterName,'5.5'))"),
     ("gpt_54", "GPT-5.4", " and (contains(skuName,'5.4') or contains(meterName,'5.4')) and not (contains(skuName,'5.5') or contains(meterName,'5.5'))"),
     ("gpt_53", "GPT-5.3", " and (contains(skuName,'5.3') or contains(meterName,'5.3')) and not (contains(skuName,'5.4') or contains(meterName,'5.4')) and not (contains(skuName,'5.5') or contains(meterName,'5.5'))"),
     ("gpt_52", "GPT-5.2", " and (contains(skuName,'5.2') or contains(meterName,'5.2')) and not (contains(skuName,'5.3') or contains(meterName,'5.3')) and not (contains(skuName,'5.4') or contains(meterName,'5.4')) and not (contains(skuName,'5.5') or contains(meterName,'5.5'))"),
-    ("gpt_51_codex", "GPT-5.1 Codex", " and contains(skuName,'5.1') and contains(skuName,'codex')"),
+    (
+        "gpt_51",
+        "GPT-5.1 family",
+        " and (contains(skuName,'5.1') or contains(meterName,'5.1'))"
+        " and not (contains(skuName,'5.2') or contains(meterName,'5.2'))"
+        " and not (contains(skuName,'5.3') or contains(meterName,'5.3'))"
+        " and not (contains(skuName,'5.4') or contains(meterName,'5.4'))"
+        " and not (contains(skuName,'5.5') or contains(meterName,'5.5'))",
+    ),
+    ("gpt_51_codex", "GPT-5.1 Codex only", " and contains(skuName,'5.1') and contains(skuName,'codex')"),
+    (
+        "gpt_4o",
+        "GPT-4o",
+        " and (contains(skuName,'4o') or contains(meterName,'4o') or contains(tolower(productName),'4o'))"
+        " and not (contains(skuName,'5.') or contains(meterName,'5.'))",
+    ),
     ("gpt_5_mini", "GPT-5 mini", " and contains(skuName,'5 mini')"),
     ("gpt_5_nano", "GPT-5 nano", " and contains(skuName,'5 nano')"),
 )
@@ -43,21 +94,53 @@ def sync_series_options() -> list[dict[str, str]]:
     return [{"key": k, "label": lab} for k, lab, _ in RETAIL_SYNC_SERIES]
 
 
-def compose_retail_filter(series_key: str) -> str:
+def _odata_escape_literal(value: str) -> str:
+    return str(value or "").replace("'", "''")
+
+
+def normalize_arm_region_slug(raw: str | None) -> str | None:
+    """Map UI labels to Azure retail `armRegionName` (e.g. eastus2)."""
+    if not raw or not str(raw).strip():
+        return None
+    s = str(raw).strip()
+    compact = re.sub(r"[\s_-]+", "", s.lower())
+    aliases = {
+        "eastus2": "eastus2",
+        "eastus2region": "eastus2",
+    }
+    if compact in aliases:
+        return aliases[compact]
+    if re.fullmatch(r"[a-z][a-z0-9]*", compact):
+        return compact
+    return None
+
+
+def append_arm_region_to_filter(expr: str, arm_region: str | None) -> str:
+    slug = normalize_arm_region_slug(arm_region)
+    if not slug:
+        return expr
+    frag = f"armRegionName eq '{_odata_escape_literal(slug)}'"
+    if frag.lower() in expr.lower():
+        return expr
+    return f"{expr} and {frag}"
+
+
+def compose_retail_filter(series_key: str, *, arm_region: str | None = None) -> str:
     if series_key not in allowed_series_keys():
         raise ValueError(f"unsupported series_key: {series_key!r}")
     for k, _, extra in RETAIL_SYNC_SERIES:
         if k == series_key:
-            return OPENAI_RETAIL_FILTER + extra
-    return OPENAI_RETAIL_FILTER
+            base = OPENAI_RETAIL_FILTER + extra
+            return append_arm_region_to_filter(base, arm_region)
+    return append_arm_region_to_filter(OPENAI_RETAIL_FILTER, arm_region)
 
 
 def listing_url_for_filter(filter_expr: str) -> str:
     return f"{RETAIL_API_BASE}?$filter={urllib.parse.quote(filter_expr)}"
 
 
-def retail_filter_url(series_key: str = "all") -> str:
-    return listing_url_for_filter(compose_retail_filter(series_key))
+def retail_filter_url(series_key: str = "all", *, arm_region: str | None = None) -> str:
+    return listing_url_for_filter(compose_retail_filter(series_key, arm_region=arm_region))
 
 
 def delete_sql_clause_for_retail_series(series_key: str) -> str | None:
@@ -67,6 +150,41 @@ def delete_sql_clause_for_retail_series(series_key: str) -> str | None:
     """
     if series_key == "all":
         return None
+    if series_key == "eastus2_core_models":
+        return (
+            "source_id = ? AND ("
+            " lower(trim(price_region)) IN ('eastus2','east us 2','eastus 2')"
+            " OR price_region LIKE 'East US%2'"
+            ") AND ("
+            " model_series LIKE '%GPT-4o%' OR model_name LIKE '%GPT-4o%'"
+            " OR (model_name LIKE '%4o%' AND model_series NOT LIKE '%GPT-5%')"
+            " OR model_series LIKE '%GPT-5.1%'"
+            " OR model_series LIKE '%GPT-5.2%'"
+            " OR model_series LIKE '%GPT-5.3%'"
+            " OR model_series LIKE '%GPT-5.4%'"
+            " OR model_series LIKE '%GPT-5.5%'"
+            ")"
+        )
+    if series_key == "gpt_4o":
+        return (
+            "source_id = ? AND ("
+            " model_series LIKE '%GPT-4o%' OR model_name LIKE '%GPT-4o%'"
+            " OR (model_name LIKE '%4o%' AND model_series NOT LIKE '%GPT-5%')"
+            ")"
+        )
+    if series_key == "gpt_51":
+        return (
+            "source_id = ? AND (model_series LIKE '%GPT-5.1%' OR model_name LIKE '%5.1%') "
+            "AND model_series NOT LIKE '%GPT-5.2%' AND model_series NOT LIKE '%GPT-5.3%' "
+            "AND model_series NOT LIKE '%GPT-5.4%' AND model_series NOT LIKE '%GPT-5.5%'"
+        )
+    if series_key == "gpt_55_54":
+        return (
+            "source_id = ? AND ("
+            "model_series LIKE '%GPT-5.5%' OR model_series LIKE '%GPT-5.4%' "
+            "OR model_name LIKE '%5.5%' OR model_name LIKE '%5.4%'"
+            ")"
+        )
     if series_key == "gpt_55":
         return "source_id = ? AND (model_series LIKE '%GPT-5.5%' OR model_name LIKE '5.5%')"
     if series_key == "gpt_54":
@@ -208,24 +326,27 @@ def _parse_deployment_scope(sku: str, meter: str) -> str | None:
 
 
 def _infer_model_series(product_name: str, sku_name: str) -> str:
+    combined = f"{sku_name} {product_name}".lower()
+    if ("4o" in combined or "4-o" in combined) and "5." not in sku_name:
+        return "GPT-4o Series"
     s = sku_name.strip()
     if re.match(r"^5\.\d+\s+codex", s, re.I):
         m = re.match(r"^(5\.\d+)\s+codex", s, re.I)
-        return f"GPT-{m.group(1)} Codex Series (Azure Retail)" if m else "GPT Codex Series (Azure Retail)"
+        return f"GPT-{m.group(1)} Codex Series" if m else "GPT Codex Series"
     if re.match(r"^5\.\d+", s):
         m = re.match(r"^(5\.\d+)", s)
-        return f"GPT-{m.group(1)} Series (Azure Retail)" if m else "GPT-5 Series (Azure Retail)"
+        return f"GPT-{m.group(1)} Series" if m else "GPT-5 Series"
     m = re.match(r"^(\d+)\s+mini", s, re.I)
     if m:
-        return f"GPT-{m.group(1)} mini Series (Azure Retail)"
+        return f"GPT-{m.group(1)} mini Series"
     m = re.match(r"^(\d+(?:\.\d+)?)\s+nano", s, re.I)
     if m:
-        return f"GPT-{m.group(1)} nano Series (Azure Retail)"
+        return f"GPT-{m.group(1)} nano Series"
     if "codex" in s.lower():
-        return "GPT Codex Series (Azure Retail)"
+        return "GPT Codex Series"
     if product_name:
-        return f"{product_name.strip()} (Azure Retail)"
-    return "Azure OpenAI (Azure Retail)"
+        return product_name.strip()
+    return "Azure OpenAI"
 
 
 def _unit_fields(item: dict[str, Any], currency: str) -> tuple[int, str, str]:
@@ -250,6 +371,43 @@ def _unit_fields(item: dict[str, Any], currency: str) -> tuple[int, str, str]:
     return qty, unit_name, expr
 
 
+def _azure_marketing_style_model_name(sku: str, meter: str, product: str) -> str:
+    """
+    Build a display name closer to Azure OpenAI marketing tables (Model column),
+    from retail `skuName` tokens (Gl/Dz → Global/Data Zone, strip meter/billing tails).
+    """
+    s = (sku or "").strip()
+    if not s:
+        return (meter or product or "Azure OpenAI")[:160]
+    scope = ""
+    if re.search(r"\sGl$", s, re.I):
+        scope = " Global"
+        s = re.sub(r"\sGl$", "", s, flags=re.I).strip()
+    elif re.search(r"\sDz$", s, re.I):
+        scope = " Data Zone"
+        s = re.sub(r"\sDz$", "", s, flags=re.I).strip()
+    while True:
+        nxt = re.sub(r"\s+(cd\s+)?(inp|opt)$", "", s, flags=re.I).strip()
+        if nxt == s:
+            break
+        s = nxt
+    s = re.sub(r"\s+Batch(\s+cd)?(\s+(inp|opt))?$", "", s, flags=re.I).strip()
+    s = re.sub(r"\s+PP(\s+(inp|opt))?$", "", s, flags=re.I).strip()
+    s = re.sub(r"\s+ShortCo$", "", s, flags=re.I).strip()
+    s = re.sub(r"\s+Flex.*$", "", s, flags=re.I).strip()
+    s = re.sub(r"\s+Batch$", "", s, flags=re.I).strip()
+    if re.match(r"^5\.\d+", s) and not s.lower().startswith("gpt-"):
+        s = "GPT-" + s
+    elif re.match(r"(?i)^4o", s):
+        s = re.sub(r"(?i)^4o", "GPT-4o", s)
+    elif "4o" in s.lower() and "5." not in s:
+        if not re.match(r"(?i)^gpt", s):
+            s = "GPT-4o " + s
+    out = (s + scope).strip()
+    out = re.sub(r"\s+", " ", out)
+    return out[:200] if out else (product or "Azure OpenAI")[:160]
+
+
 def normalize_retail_item(
     item: dict[str, Any],
     *,
@@ -268,12 +426,13 @@ def normalize_retail_item(
     ctx = _parse_context_bucket(sku, meter)
     scope = _parse_deployment_scope(sku, meter)
     series = _infer_model_series(product, sku)
+    display_name = _azure_marketing_style_model_name(sku, meter, product)
     qty, unit_name, unit_expr = _unit_fields(item, currency)
     eff = _effective_date(item)
     meter_id = str(item.get("meterId") or "")
     notes = (
-        f"Microsoft Azure Retail Prices API (Foundry Models, OpenAI product filter). "
-        f"Cross-reference: {marketing_url} "
+        f"Microsoft unit price catalog (prices.azure.com; Foundry Models + OpenAI filter). "
+        f"Reference page: {marketing_url} "
         f"meterId={meter_id} skuId={item.get('skuId','')}"
     )
     detail = {
@@ -296,7 +455,7 @@ def normalize_retail_item(
         region,
         currency,
         series,
-        sku or meter or product,
+        display_name,
         ctx,
         scope,
         billing,
@@ -359,11 +518,12 @@ def import_openai_retail_prices(
     *,
     db_path: str,
     series_key: str = "all",
+    arm_region: str | None = None,
     opener: Callable[[str], Any] | None = None,
 ) -> RetailImportResult:
     if series_key not in allowed_series_keys():
         raise ValueError(f"unsupported series_key: {series_key!r}")
-    filter_expr = compose_retail_filter(series_key)
+    filter_expr = compose_retail_filter(series_key, arm_region=arm_region)
     listing = listing_url_for_filter(filter_expr)
     retrieved = _iso_utc_now()
     rows: list[tuple[Any, ...]] = []
