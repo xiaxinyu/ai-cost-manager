@@ -16,7 +16,9 @@ RETAIL_API_BASE = "https://prices.azure.com/api/retail/prices"
 OPENAI_RETAIL_FILTER = "serviceName eq 'Foundry Models' and contains(productName,'OpenAI')"
 MARKETING_PRICING_URL = "https://azure.microsoft.com/en-us/pricing/details/azure-openai/"
 SOURCE_ID = "azure_retail_prices_api"
+# Public marketing pages (often HTML). Legacy JSON paths may 404; retail import uses prices.azure.com.
 MARKETING_PRICING_API_CANDIDATES = (
+    "https://azure.microsoft.com/en-us/pricing/details/azure-openai/",
     "https://azure.microsoft.com/en-us/pricing/api/",
     "https://azure.microsoft.com/en-us/api/pricing/details/azure-openai/",
     "https://azure.microsoft.com/api/pricing/details/azure-openai/",
@@ -60,6 +62,24 @@ RETAIL_SYNC_SERIES: tuple[tuple[str, str, str], ...] = (
         "eastus2_gpt_51_52",
         "East US 2 — GPT-5.1 + GPT-5.2 (matches pricing page / retail API)",
         " and armRegionName eq 'eastus2' and ("
+        "("
+        "(contains(skuName,'5.1') or contains(meterName,'5.1'))"
+        " and not (contains(skuName,'5.2') or contains(meterName,'5.2'))"
+        " and not (contains(skuName,'5.3') or contains(meterName,'5.3'))"
+        " and not (contains(skuName,'5.4') or contains(meterName,'5.4'))"
+        " and not (contains(skuName,'5.5') or contains(meterName,'5.5'))"
+        ") or ("
+        "(contains(skuName,'5.2') or contains(meterName,'5.2'))"
+        " and not (contains(skuName,'5.3') or contains(meterName,'5.3'))"
+        " and not (contains(skuName,'5.4') or contains(meterName,'5.4'))"
+        " and not (contains(skuName,'5.5') or contains(meterName,'5.5'))"
+        ")"
+        ")",
+    ),
+    (
+        "gpt_51_52",
+        "GPT-5.1 + GPT-5.2 (all Series / marketing variants; set region below — same catalog as azure.microsoft.com pricing tables)",
+        " and ("
         "("
         "(contains(skuName,'5.1') or contains(meterName,'5.1'))"
         " and not (contains(skuName,'5.2') or contains(meterName,'5.2'))"
@@ -161,10 +181,41 @@ def retail_filter_url(series_key: str = "all", *, arm_region: str | None = None)
     return listing_url_for_filter(compose_retail_filter(series_key, arm_region=arm_region))
 
 
-def delete_sql_clause_for_retail_series(series_key: str) -> str | None:
+def _gpt_51_52_model_sql_fragment() -> str:
+    return (
+        "( (model_series LIKE '%GPT-5.1%' OR model_name LIKE '%5.1%')"
+        " OR (model_series LIKE '%GPT-5.2%' OR model_name LIKE '%5.2%')"
+        ")"
+        " AND model_series NOT LIKE '%GPT-5.3%'"
+        " AND model_series NOT LIKE '%GPT-5.4%'"
+        " AND model_series NOT LIKE '%GPT-5.5%'"
+    )
+
+
+def _sql_region_matches_arm_filter(arm_region: str | None) -> str | None:
+    """SQL fragment matching `price_region` to an ARM region slug; None = do not filter by region."""
+    slug = normalize_arm_region_slug(arm_region)
+    if not slug:
+        return None
+    if slug == "eastus2":
+        return (
+            "("
+            " lower(trim(price_region)) IN ('eastus2','east us 2','eastus 2')"
+            " OR price_region LIKE 'East US%2'"
+            ")"
+        )
+    if re.fullmatch(r"[a-z][a-z0-9]*", slug):
+        return f"(lower(trim(price_region)) = '{slug}')"
+    return None
+
+
+def delete_sql_clause_for_retail_series(series_key: str, *, arm_region: str | None = None) -> str | None:
     """
     Returns SQL fragment (without WHERE) to match existing retail rows to remove
     before inserting an updated slice. None = delete all retail rows.
+
+    For ``gpt_51_52``, pass ``arm_region`` (e.g. ``eastus2``) so deletes match the
+    same geography as the OData filter; omit for all regions.
     """
     if series_key == "all":
         return None
@@ -196,6 +247,12 @@ def delete_sql_clause_for_retail_series(series_key: str) -> str | None:
             " AND model_series NOT LIKE '%GPT-5.4%'"
             " AND model_series NOT LIKE '%GPT-5.5%'"
         )
+    if series_key == "gpt_51_52":
+        model_sql = _gpt_51_52_model_sql_fragment()
+        reg_sql = _sql_region_matches_arm_filter(arm_region)
+        if reg_sql:
+            return f"source_id = ? AND {reg_sql} AND {model_sql}"
+        return f"source_id = ? AND {model_sql}"
     if series_key == "gpt_4o":
         return (
             "source_id = ? AND ("
@@ -527,8 +584,10 @@ _INSERT_MODEL_PRICE_SQL = """
         """
 
 
-def _delete_existing_retail(conn: sqlite3.Connection, series_key: str) -> int:
-    clause = delete_sql_clause_for_retail_series(series_key)
+def _delete_existing_retail(
+    conn: sqlite3.Connection, series_key: str, *, arm_region: str | None = None
+) -> int:
+    clause = delete_sql_clause_for_retail_series(series_key, arm_region=arm_region)
     if clause is None:
         cur = conn.execute("DELETE FROM model_prices WHERE source_id = ?", (SOURCE_ID,))
     else:
@@ -572,7 +631,7 @@ def import_openai_retail_prices(
     conn = get_connection(db_path)
     try:
         init_db(conn)
-        deleted = _delete_existing_retail(conn, series_key)
+        deleted = _delete_existing_retail(conn, series_key, arm_region=arm_region)
         if rows:
             conn.executemany(_INSERT_MODEL_PRICE_SQL, rows)
         conn.commit()

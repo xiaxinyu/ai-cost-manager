@@ -77,6 +77,7 @@ def test_prices_filters_and_query(tmp_path):
     assert "series" in opts
     assert any(s["key"] == "all" for s in opts["series"])
     assert any(s["key"] == "eastus2_core_models" for s in opts["series"])
+    assert any(s["key"] == "gpt_51_52" for s in opts["series"])
     assert any(s["key"] == "eastus2_gpt_51_52" for s in opts["series"])
 
     bad = client.post("/api/prices/sync-retail", json={"series": "not-a-real-key"})

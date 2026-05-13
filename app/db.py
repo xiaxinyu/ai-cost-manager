@@ -267,7 +267,8 @@ PRICE_SOURCE_CATALOG_SEED: tuple[tuple[str, str, str, str, str, int], ...] = (
         "Microsoft unit price catalog (REST)",
         "https://azure.microsoft.com/en-us/pricing/details/azure-openai/",
         "https://prices.azure.com/api/retail/prices",
-        "Used by Sync prices on the Model Prices page (Foundry Models + OpenAI product filter).",
+        "Used by Sync prices (Foundry Models + OpenAI filter). GPT-5.1 / GPT-5.2 marketing-page rows align with the "
+        "\"GPT-5.1 + GPT-5.2 (Series…)\" scope plus an ARM region such as eastus2.",
         10,
     ),
     (
@@ -672,13 +673,28 @@ def get_cost_forecast_baseline(
     from datetime import date, timedelta
 
     wd = max(7, min(90, int(window_days)))
+    cfg_row = get_project_model_config(conn, project_name)
+    team_model: dict[str, Any] | None = None
+    if cfg_row:
+        team_model = {
+            "model_name": cfg_row["model_name"],
+            "api_version": cfg_row["api_version"],
+            "has_endpoint": bool(cfg_row.get("azure_endpoint")),
+            "updated_at": cfg_row.get("updated_at"),
+        }
+
     row = conn.execute(
         "SELECT MAX(usage_date) AS mx FROM transactions WHERE project_name = ?",
         (project_name,),
     ).fetchone()
     end_s = row["mx"] if row else None
     if not end_s:
-        return {"ok": False, "reason": "no_transactions", "project": project_name}
+        return {
+            "ok": False,
+            "reason": "no_transactions",
+            "project": project_name,
+            "team_model": team_model,
+        }
 
     end_d = date.fromisoformat(str(end_s))
     start_d = end_d - timedelta(days=wd - 1)
@@ -710,10 +726,12 @@ def get_cost_forecast_baseline(
         "window_end": end_s_str,
         "window_total_usd": round(total, 6),
         "baseline_usd_per_day": round(baseline, 6),
+        "team_model": team_model,
         "method": f"sum(daily_cost_usd)/{wd}_calendar_days_inclusive",
         "notes_zh": (
-            "基线 = 最近窗口内「日历天」的 CostUSD 日均（无账单日记为 0）。"
-            "「披萨」表示团队规模倍率（1 披萨≈基线用量，2 披萨≈约 2×），用于粗略外推，非财务承诺。"
+            "外推金额 = 上表「日均基线」× 时间天数 × 披萨倍率；基线来自账单 CostUSD，不是单价公式。"
+            "主力模型在 Tokens 页配置，便于在 Model Prices 对照目录价做 sanity check。"
+            "「披萨」= 团队规模倍率（1≈基线用量，2≈约 2×）。仅供内部规划，非财务承诺。"
         ),
     }
 

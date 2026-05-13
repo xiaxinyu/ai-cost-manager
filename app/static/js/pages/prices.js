@@ -90,8 +90,8 @@
       opt.textContent = o.label || o.key;
       syncSeriesSelect.appendChild(opt);
     }
-    const pref = syncSeriesSelect.querySelector('option[value="eastus2_gpt_51_52"]');
-    if (pref) syncSeriesSelect.value = "eastus2_gpt_51_52";
+    const pref = syncSeriesSelect.querySelector('option[value="gpt_51_52"]');
+    if (pref) syncSeriesSelect.value = "gpt_51_52";
   }
 
   async function openRetailSyncDialog() {
@@ -192,14 +192,18 @@
     }
   }
 
-  function renderDetail(rows) {
+  function renderDetail(rows, serialBase) {
     tbody.innerHTML = "";
+    let i = 0;
     for (const r of rows || []) {
       const tr = document.createElement("tr");
       tr.className = "priceDataRow";
       const item = `${r.model_name || ""}${r.context_bucket ? ` (${r.context_bucket})` : ""}`;
       const rid = r.id != null ? String(r.id) : "";
+      const serial = serialBase + i + 1;
+      i += 1;
       tr.innerHTML = `
+        <td class="num colRowNum">${fmtInt(serial)}</td>
         <td><div class="itemMain">${esc(item)}</div><div class="itemSub">${esc(r.metric_name || "")}</div></td>
         <td>${esc(r.deployment_scope || "")}</td>
         <td>${esc(r.billing_mode || "")}</td>
@@ -220,13 +224,16 @@
     }
   }
 
-  function renderDetailCompact(rows) {
+  function renderDetailCompact(rows, serialBase) {
     tbody.innerHTML = "";
+    let i = 0;
     for (const r of rows || []) {
       const tr = document.createElement("tr");
       tr.className = "priceDataRow priceRowClickable";
       const item = `${r.model_name || ""}${r.context_bucket ? ` (${r.context_bucket})` : ""}`;
       const rid = r.id != null ? String(r.id) : "";
+      const serial = serialBase + i + 1;
+      i += 1;
       if (rid) {
         tr.setAttribute("data-row-price-id", rid);
         tr.setAttribute("tabindex", "0");
@@ -235,6 +242,7 @@
         tr.title = "Click or press Enter to open full detail (scope, platform, vendor, effective date, …)";
       }
       tr.innerHTML = `
+        <td class="num colRowNum">${fmtInt(serial)}</td>
         <td><div class="itemMain">${esc(item)}</div></td>
         <td>${esc(r.billing_mode || "")}</td>
         <td>${esc(r.metric_name || "")}</td>
@@ -248,7 +256,7 @@
     }
   }
 
-  function renderPivot(rows) {
+  function renderPivot(rows, serialBase) {
     const grouped = new Map();
     for (const r of rows || []) {
       const key = [
@@ -270,12 +278,16 @@
     }
     const items = [...grouped.values()];
     tbody.innerHTML = "";
+    let i = 0;
     for (const r of items) {
       const tr = document.createElement("tr");
       tr.className = "priceDataRow";
       const item = `${r.model_name || ""}${r.context_bucket ? ` (${r.context_bucket})` : ""}`;
       const rid = r.detail_id != null ? String(r.detail_id) : "";
+      const serial = serialBase + i + 1;
+      i += 1;
       tr.innerHTML = `
+        <td class="num colRowNum">${fmtInt(serial)}</td>
         <td><div class="itemMain">${esc(item)}</div><div class="itemSub">${esc(r.billing_mode || "")}</div></td>
         <td>${esc(r.deployment_scope || "")}</td>
         <td>${esc(r.billing_mode || "")}</td>
@@ -339,6 +351,8 @@
   function renderRows(rows) {
     const thead = document.querySelector("thead tr");
     const tableShell = document.getElementById("pricingTableShell") || document.querySelector(".pricingTableShell");
+    const ps = pageSize();
+    const serialBase = totalMatching === 0 ? 0 : (currentPage - 1) * ps;
     if (detailLayoutBtn) {
       detailLayoutBtn.style.display = isPivot ? "none" : "";
       if (!isPivot) {
@@ -348,36 +362,39 @@
     if (isPivot) {
       if (tableShell) tableShell.classList.remove("is-compact");
       thead.innerHTML = `
+        <th class="num colRowNum" scope="col">#</th>
         <th>Item</th><th>Scope</th><th>Mode</th><th>Region</th><th>Currency</th>
         <th class="num">Input</th><th class="num">Cached Input</th><th class="num">Output</th><th>Unit</th>
         <th>Series</th><th>Platform</th><th>Vendor</th><th class="colDetail">Details</th>
       `;
-      renderPivot(rows);
+      renderPivot(rows, serialBase);
       viewLabel.textContent = "View: Pivot";
       pivotBtn.textContent = "Detail View";
     } else if (isCompactDetail) {
       if (tableShell) tableShell.classList.add("is-compact");
       thead.innerHTML = `
+        <th class="num colRowNum" scope="col">#</th>
         <th>Item</th><th>Mode</th><th>Metric</th><th>Region</th><th>Currency</th>
         <th class="num">Amount</th><th>Unit</th><th>Series</th>
       `;
-      renderDetailCompact(rows);
+      renderDetailCompact(rows, serialBase);
       viewLabel.textContent = "View: Compact";
       pivotBtn.textContent = "Pivot View";
     } else {
       if (tableShell) tableShell.classList.remove("is-compact");
       thead.innerHTML = `
+        <th class="num colRowNum" scope="col">#</th>
         <th>Item</th><th>Scope</th><th>Mode</th><th>Metric</th><th>Region</th><th>Currency</th>
         <th class="num">Amount</th><th>Unit</th><th>Series</th><th>Platform</th><th>Vendor</th><th>Effective Date</th>
         <th class="colDetail">Details</th>
       `;
-      renderDetail(rows);
+      renderDetail(rows, serialBase);
       viewLabel.textContent = "View: Detail";
       pivotBtn.textContent = "Pivot View";
     }
     if (!rows || rows.length === 0) {
       const tr = document.createElement("tr");
-      const colspan = isPivot ? 13 : isCompactDetail ? 8 : 13;
+      const colspan = isPivot ? 14 : isCompactDetail ? 9 : 14;
       tr.innerHTML = `<td colspan="${colspan}" style="color:#9fb2c7;">No price rows for current filters.</td>`;
       tbody.appendChild(tr);
     }

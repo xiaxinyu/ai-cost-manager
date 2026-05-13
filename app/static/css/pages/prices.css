@@ -63,6 +63,16 @@
         color: #9fb2c7;
         border-top: 1px solid rgba(255,255,255,.06);
       }
+      .pricingTableShell .dataTable th.colRowNum,
+      .pricingTableShell .dataTable td.colRowNum {
+        width: 2.75rem;
+        max-width: 3.25rem;
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+        color: #9fb2c7;
+        white-space: nowrap;
+      }
+
       .pagination {
         display: flex;
         flex-wrap: wrap;
