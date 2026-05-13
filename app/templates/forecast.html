@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>团队成本预测 - Models Cost Management</title>
+    <title>模型成本预测 - Models Cost Management</title>
     <link rel="stylesheet" href="/static/css/app-shell.css" />
     <link rel="stylesheet" href="/static/css/page-common.css" />
     <link rel="stylesheet" href="/static/css/pages/forecast.css" />
@@ -32,12 +32,12 @@
       <main class="contentArea">
         <div class="container">
           <header class="forecastHero">
-            <div class="breadcrumb">Home / Pricing / 团队成本预测</div>
-            <h1 class="pageTitle">团队总体成本预测</h1>
+            <div class="breadcrumb">Home / Pricing / 模型成本预测</div>
+            <h1 class="pageTitle">按模型与团队规模预测成本</h1>
             <p class="pageLead">
-              以账单中的 <strong>CostUSD</strong> 在最近窗口的<strong>日历日均</strong>为基线，按团队规模（披萨）外推未来
-              1 天～1 个月的<strong>总支出</strong>。项目在 <a href="/tokens">Tokens</a> 绑定的<strong>主力模型</strong>用于标注与在
-              <a href="/prices">Model Prices</a> 中对照目录单价；<strong>预测数字仍来自历史账单</strong>，不是按 token 单价重算。
+              模型列表与单价均来自 <a href="/prices">Model Prices</a> 中的<strong>价格表</strong>（任意已导入的 vendor / 平台），结合<strong
+                >每个披萨的假设日 token 用量</strong>与<strong>披萨倍率</strong>，估算 1 天～1 个月的总支出。
+              区域可选<strong>任意</strong>以自动匹配目录中最新一行；目录缺某计量项时按 0 单价计。仅供内部估算，非财务承诺。
             </p>
           </header>
 
@@ -45,70 +45,106 @@
             <div class="cardHead">
               <span class="stepBadge">1</span>
               <div>
-                <h2 id="step1h" class="cardTitle">项目与团队规模</h2>
-                <p class="cardSub">选择账单项目，并用「披萨」表示相对用量（人头 / 并行度）倍率。</p>
+                <h2 id="step1h" class="cardTitle">模型与目录条件</h2>
+                <p class="cardSub">下拉项由价格表去重生成（vendor + 平台 + 系列 + 模型名）。区域留空则按生效日期取最新匹配行。</p>
               </div>
             </div>
-            <div class="gridTop">
+            <div class="gridModel">
               <div class="field fieldGrow">
-                <label class="muted" for="projectSelect">账单项目</label>
-                <select id="projectSelect" class="controlWide"></select>
+                <label class="muted" for="modelSelect">模型（价格表）</label>
+                <select id="modelSelect" class="controlWide"></select>
+              </div>
+              <div class="field">
+                <label class="muted" for="regionSelect">区域</label>
+                <select id="regionSelect"></select>
+              </div>
+              <div class="field">
+                <label class="muted" for="billingModeSelect">计费模式</label>
+                <select id="billingModeSelect">
+                  <option value="standard" selected>standard</option>
+                  <option value="batch">batch</option>
+                </select>
+              </div>
+              <div class="field fieldScope">
+                <span class="muted" id="depLegend">部署范围</span>
+                <div class="inlineRadios" role="radiogroup" aria-labelledby="depLegend">
+                  <label><input type="radio" name="deployment" value="global" checked /> Global</label>
+                  <label><input type="radio" name="deployment" value="data_zone" /> Data zone</label>
+                </div>
               </div>
             </div>
-            <div class="field fieldPizza">
-              <span class="muted" id="pizzaLegend">团队规模（披萨倍率）</span>
-              <div class="teamScale" role="radiogroup" aria-labelledby="pizzaLegend">
-                <label class="pizzaOpt"
-                  ><input type="radio" name="pizza" value="1" checked /> <span>1 个披萨</span
-                  ><span class="pizzaHint">×1，与当前基线用量一致</span></label
-                >
-                <label class="pizzaOpt"
-                  ><input type="radio" name="pizza" value="2" /> <span>2 个披萨</span
-                  ><span class="pizzaHint">×2，约两倍用量 / 成本</span></label
-                >
-              </div>
-            </div>
-          </section>
-
-          <section class="card cardStep" aria-labelledby="stepModelh">
-            <div class="cardHead">
-              <span class="stepBadge soft">◇</span>
-              <div>
-                <h2 id="stepModelh" class="cardTitle">主力模型（对照目录价）</h2>
-                <p class="cardSub">与单价预测联动：在 Tokens 配置后，可打开 Prices 核对官方目录是否匹配你的部署区域与计费项。</p>
-              </div>
-            </div>
-            <div id="teamModelPanel" class="modelPanel muted">加载项目后将显示主力模型。</div>
+            <p id="catalogHint" class="catalogHint muted"></p>
           </section>
 
           <section class="card cardStep" aria-labelledby="step2h">
             <div class="cardHead">
               <span class="stepBadge">2</span>
               <div>
-                <h2 id="step2h" class="cardTitle">账单基线与窗口</h2>
-                <p class="cardSub">窗口以账单中最后一天为终点，向前连续 N 个日历天（无账单日记作 0）。</p>
+                <h2 id="step2h" class="cardTitle">团队规模（披萨）</h2>
+                <p class="cardSub">表示相对并发 / 人头：用量与成本按倍率放大。</p>
+              </div>
+            </div>
+            <div class="teamScale" role="radiogroup" aria-labelledby="pizzaLegend">
+              <span class="muted" id="pizzaLegend" style="width: 100%">披萨倍率</span>
+              <label class="pizzaOpt"
+                ><input type="radio" name="pizza" value="1" checked /> <span>1 个披萨</span
+                ><span class="pizzaHint">×1 基准团队</span></label
+              >
+              <label class="pizzaOpt"
+                ><input type="radio" name="pizza" value="2" /> <span>2 个披萨</span
+                ><span class="pizzaHint">×2 约两倍用量 / 成本</span></label
+              >
+            </div>
+          </section>
+
+          <section class="card cardStep" aria-labelledby="stepTokh">
+            <div class="cardHead">
+              <span class="stepBadge">3</span>
+              <div>
+                <h2 id="stepTokh" class="cardTitle">假设用量（每个披萨 / 天）</h2>
+                <p class="cardSub">按模型实际调用习惯调整；默认值为占位示例。</p>
+              </div>
+            </div>
+            <div class="tokenGrid">
+              <div class="field">
+                <label class="muted" for="tokIn">Input tokens / 天</label>
+                <input id="tokIn" type="number" min="0" step="1000" value="500000" />
+              </div>
+              <div class="field">
+                <label class="muted" for="tokCached">Cached input / 天</label>
+                <input id="tokCached" type="number" min="0" step="1000" value="0" />
+              </div>
+              <div class="field">
+                <label class="muted" for="tokOut">Output tokens / 天</label>
+                <input id="tokOut" type="number" min="0" step="1000" value="100000" />
+              </div>
+            </div>
+          </section>
+
+          <section class="card cardStep" aria-labelledby="step4h">
+            <div class="cardHead">
+              <span class="stepBadge">4</span>
+              <div>
+                <h2 id="step4h" class="cardTitle">目录单价与计算</h2>
+                <p class="cardSub">点击重新计算以拉取最新匹配行并刷新下表。</p>
               </div>
             </div>
             <div class="toolbar">
               <div class="field">
-                <label class="muted" for="windowDaysInput">基线窗口（天）</label>
-                <input id="windowDaysInput" type="number" min="7" max="90" value="28" />
-              </div>
-              <div class="field">
-                <label class="muted" for="refreshBtn">重新计算</label>
-                <button id="refreshBtn" class="btn btnPrimary" type="button">刷新基线</button>
+                <label class="muted" for="calcBtn">操作</label>
+                <button id="calcBtn" class="btn btnPrimary" type="button">重新计算</button>
               </div>
             </div>
-            <div id="baselineBox" class="baselineBox baselineBoxEmpty muted">请选择项目并点击「刷新基线」。</div>
+            <div id="rateBox" class="baselineBox baselineBoxEmpty muted">请选择模型并点击「重新计算」。</div>
             <p id="warnBox" class="warn" style="display: none"></p>
           </section>
 
-          <section class="card cardStep cardResults" aria-labelledby="step3h">
+          <section class="card cardStep cardResults" aria-labelledby="step5h">
             <div class="cardHead">
-              <span class="stepBadge">3</span>
+              <span class="stepBadge">5</span>
               <div>
-                <h2 id="step3h" class="cardTitle">团队总体成本外推</h2>
-                <p class="cardSub">下表为「日均基线 × 天数 × 披萨倍率」；仅供内部规划，非财务承诺。</p>
+                <h2 id="step5h" class="cardTitle">不同时间尺度的总成本</h2>
+                <p class="cardSub">Σ(日 token × 单价) × 披萨 × 天数；币种与目录一致。</p>
               </div>
             </div>
             <p id="forecastHint" class="forecastHint muted"></p>
@@ -124,7 +160,7 @@
                 </thead>
                 <tbody id="forecastTbody">
                   <tr>
-                    <td colspan="4" class="muted">加载后将显示 1 天 / 1 周 / 半个月 / 1 个月。</td>
+                    <td colspan="4" class="muted">计算后将显示 1 天 / 1 周 / 半个月 / 1 个月。</td>
                   </tr>
                 </tbody>
               </table>

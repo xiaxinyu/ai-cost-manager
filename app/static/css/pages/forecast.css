@@ -340,3 +340,65 @@ select,
   line-height: 1.5;
   margin-top: 10px;
 }
+
+.gridModel {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  align-items: end;
+}
+
+.gridModel .fieldGrow {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 720px) {
+  .gridModel .fieldGrow {
+    grid-column: auto;
+  }
+}
+
+.fieldScope {
+  min-width: 0;
+}
+
+.inlineRadios {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-top: 6px;
+}
+
+.inlineRadios label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #e2e8f0;
+  cursor: pointer;
+}
+
+.tokenGrid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+@media (max-width: 720px) {
+  .tokenGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.catalogHint {
+  margin: 12px 0 0;
+  font-size: 12.5px;
+  line-height: 1.55;
+}
+
+.catalogHint a {
+  color: #7ee0cf;
+  text-decoration: none;
+  font-weight: 600;
+  border-bottom: 1px solid rgba(126, 224, 207, 0.35);
+}

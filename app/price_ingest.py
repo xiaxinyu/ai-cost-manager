@@ -14,20 +14,22 @@ class PriceImportResult:
     rows_imported: int
 
 
-def import_price_csv(*, db_path: str, csv_path: str) -> PriceImportResult:
+def _read_price_csv_rows(csv_path: str) -> tuple[list[tuple], set[str]]:
     p = Path(csv_path).expanduser().resolve()
     if not p.exists():
         raise FileNotFoundError(f"price csv not found: {p}")
 
     rows: list[tuple] = []
-    rows_read = 0
+    source_ids: set[str] = set()
     with p.open("r", encoding="utf-8-sig", newline="") as f:
         reader = csv.DictReader(f)
         for r in reader:
-            rows_read += 1
+            sid = (r.get("source_id") or "").strip()
+            if sid:
+                source_ids.add(sid)
             rows.append(
                 (
-                    (r.get("source_id") or "").strip(),
+                    sid,
                     (r.get("source_url") or "").strip(),
                     (r.get("effective_date") or "").strip(),
                     (r.get("retrieved_at_utc") or "").strip() or None,
@@ -49,6 +51,12 @@ def import_price_csv(*, db_path: str, csv_path: str) -> PriceImportResult:
                     (r.get("source_detail_json") or "").strip() or None,
                 )
             )
+    return rows, source_ids
+
+
+def import_price_csv(*, db_path: str, csv_path: str) -> PriceImportResult:
+    p = Path(csv_path).expanduser().resolve()
+    rows, _ = _read_price_csv_rows(str(p))
 
     conn = get_connection(db_path)
     try:
@@ -57,4 +65,42 @@ def import_price_csv(*, db_path: str, csv_path: str) -> PriceImportResult:
     finally:
         conn.close()
 
-    return PriceImportResult(source_csv=str(p), rows_read=rows_read, rows_imported=imported)
+    return PriceImportResult(source_csv=str(p), rows_read=len(rows), rows_imported=imported)
+
+
+def import_price_csv_merge(*, db_path: str, csv_path: str) -> PriceImportResult:
+    """
+    Delete existing rows whose ``source_id`` appears in the CSV, then insert all CSV rows.
+
+    Keeps other ``source_id`` values (for example retail sync under ``azure_retail_prices_api``).
+    """
+    p = Path(csv_path).expanduser().resolve()
+    rows, source_ids = _read_price_csv_rows(str(p))
+    if not source_ids:
+        raise ValueError("CSV must set non-empty source_id on at least one row for merge import")
+
+    conn = get_connection(db_path)
+    try:
+        init_db(conn)
+        for sid in sorted(source_ids):
+            conn.execute("DELETE FROM model_prices WHERE source_id = ?", (sid,))
+        conn.executemany(
+            """
+            INSERT INTO model_prices(
+                source_id, source_url, effective_date, retrieved_at_utc,
+                vendor, platform, price_region, price_currency,
+                model_series, model_name, context_bucket, deployment_scope,
+                billing_mode, metric_name, amount,
+                unit_quantity, unit_name, unit_expression, notes, source_detail_json
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            rows,
+        )
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+    return PriceImportResult(source_csv=str(p), rows_read=len(rows), rows_imported=len(rows))

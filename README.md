@@ -47,9 +47,9 @@ pip install -r requirements.txt
 
 ```bash
 .venv/bin/python -m app.cli \
+  ingest \
   --bills-dir bills \
-  --db-path data/cost_mgmt.sqlite3 \
-  ingest
+  --db-path data/cost_mgmt.sqlite3
 ```
 
 导入逻辑会在数据库里记录 `ingested_files`，同一个 `bills/<project>/<file>.csv` 文件已读取后会跳过；可选 `--reimport-changed` 用于校验和重新导入。
@@ -62,9 +62,10 @@ pip install -r requirements.txt
 
 ```bash
 .venv/bin/python -m app.cli \
+  create-admin \
   --bills-dir bills \
   --db-path data/cost_mgmt.sqlite3 \
-  create-admin --username admin --password "请换成强密码"
+  --username admin --password "请换成强密码"
 ```
 
 `create-admin` 的默认值是 `admin/admin12345`，请不要直接使用默认密码。
@@ -86,18 +87,20 @@ export COST_MGMT_COOKIE_SECURE=1
 
 ```bash
 .venv/bin/python -m app.cli \
+  serve \
   --bills-dir bills \
   --db-path data/cost_mgmt.sqlite3 \
-  serve --host 127.0.0.1 --port 8000
+  --host 127.0.0.1 --port 8000
 ```
 
 如果 `8000` 端口被占用（例如你已在运行旧服务），可以改用其它端口（例如 `8002`）：
 
 ```bash
 .venv/bin/python -m app.cli \
+  serve \
   --bills-dir bills \
   --db-path data/cost_mgmt.sqlite3 \
-  serve --host 127.0.0.1 --port 8002
+  --host 127.0.0.1 --port 8002
 ```
 
 访问地址（以你实际启动的端口为准）：

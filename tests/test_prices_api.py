@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 from fastapi.testclient import TestClient
 
 from app.auth import create_user
 from app.main import create_app
-from app.price_ingest import import_price_csv
+from app.price_ingest import import_price_csv, import_price_csv_merge
 
 
 def test_prices_filters_and_query(tmp_path):
@@ -82,3 +84,142 @@ def test_prices_filters_and_query(tmp_path):
 
     bad = client.post("/api/prices/sync-retail", json={"series": "not-a-real-key"})
     assert bad.status_code == 400
+
+
+def test_forecast_model_catalog_and_unit_prices(tmp_path):
+    db_path = tmp_path / "fc.sqlite3"
+    bills_dir = tmp_path / "bills_fc"
+    bills_dir.mkdir()
+
+    price_csv = tmp_path / "fc_prices.csv"
+    price_csv.write_text(
+        "vendor,platform,source_id,effective_date,retrieved_at_utc,price_region,price_currency,model_series,model_name,context_bucket,deployment_scope,billing_mode,metric_name,amount,unit_quantity,unit_name,unit_expression,source_url,notes\n"
+        "Microsoft,azure-openai,src,2026-04-29,2026-04-29T00:00:00Z,eastus2,USD,GPT-5.1 Series,GPT-5.1 Global,,global,standard,input,1.25,1000000,tokens,USD/1M tokens,https://example.com,\n"
+        "Microsoft,azure-openai,src,2026-04-29,2026-04-29T00:00:00Z,eastus2,USD,GPT-5.1 Series,GPT-5.1 Global,,global,standard,cached_input,0.13,1000000,tokens,USD/1M tokens,https://example.com,\n"
+        "Microsoft,azure-openai,src,2026-04-29,2026-04-29T00:00:00Z,eastus2,USD,GPT-5.1 Series,GPT-5.1 Global,,global,standard,output,10,1000000,tokens,USD/1M tokens,https://example.com,\n",
+        encoding="utf-8",
+    )
+    import_price_csv(db_path=str(db_path), csv_path=str(price_csv))
+
+    app = create_app(db_path=str(db_path), bills_dir=str(bills_dir), auto_ingest=False)
+    client = TestClient(app)
+
+    import sqlite3
+
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    try:
+        conn.execute("PRAGMA foreign_keys = ON")
+        create_user(conn, username="admin", password="admin12345", is_active=True)
+    finally:
+        conn.close()
+
+    res = client.post("/auth/login", data={"username": "admin", "password": "admin12345"})
+    assert res.status_code in {200, 303}
+
+    cat = client.get("/api/forecast/model-catalog")
+    assert cat.status_code == 200
+    opts = cat.json()["options"]
+    assert any(
+        o["vendor"] == "Microsoft"
+        and o["platform"] == "azure-openai"
+        and o["model_name"] == "GPT-5.1 Global"
+        and o["model_series"] == "GPT-5.1 Series"
+        for o in opts
+    )
+
+    up = client.get(
+        "/api/forecast/model-unit-prices",
+        params={
+            "vendor": "Microsoft",
+            "platform": "azure-openai",
+            "model_series": "GPT-5.1 Series",
+            "model_name": "GPT-5.1 Global",
+            "price_region": "eastus2",
+            "deployment_scope": "global",
+        },
+    )
+    assert up.status_code == 200
+    body = up.json()
+    assert body["ok"] is True
+    assert body["currency"] == "USD"
+    assert body["per_token"]["input"] == 1.25e-6
+    assert abs(body["per_token"]["output"] - 1e-5) < 1e-12
+
+    up_any = client.get(
+        "/api/forecast/model-unit-prices",
+        params={
+            "vendor": "Microsoft",
+            "platform": "azure-openai",
+            "model_series": "GPT-5.1 Series",
+            "model_name": "GPT-5.1 Global",
+            "deployment_scope": "global",
+        },
+    )
+    assert up_any.status_code == 200
+    assert up_any.json()["ok"] is True
+
+
+def test_openai_gpt55_api_pricing_csv_merge(tmp_path):
+    db_path = tmp_path / "openai_gpt55.sqlite3"
+    csv_path = Path(__file__).resolve().parents[1] / "fixtures" / "pricing" / "openai_com_api_pricing_gpt55_2026-05-13.csv"
+    r = import_price_csv_merge(db_path=str(db_path), csv_path=str(csv_path))
+    assert r.rows_read == 5
+
+    import sqlite3
+
+    conn = sqlite3.connect(db_path)
+    try:
+        n = int(
+            conn.execute(
+                "SELECT COUNT(*) FROM model_prices WHERE source_id = ?",
+                ("openai_com_api_pricing_gpt55_20260513",),
+            ).fetchone()[0]
+        )
+        assert n == 5
+        row = conn.execute(
+            "SELECT source_url, vendor, platform FROM model_prices WHERE model_name = ? LIMIT 1",
+            ("GPT-5.5 Pro",),
+        ).fetchone()
+        assert row is not None
+        assert "https://openai.com/zh-Hans-CN/api/pricing/" in row[0]
+        assert row[1] == "OpenAI"
+        assert row[2] == "openai-api"
+    finally:
+        conn.close()
+
+
+def test_import_price_csv_merge_preserves_other_sources(tmp_path):
+    db_path = tmp_path / "merge.sqlite3"
+    bills_dir = tmp_path / "bills_m"
+    bills_dir.mkdir()
+
+    base_csv = tmp_path / "base.csv"
+    base_csv.write_text(
+        "vendor,platform,source_id,source_url,effective_date,retrieved_at_utc,price_region,price_currency,model_series,model_name,context_bucket,deployment_scope,billing_mode,metric_name,amount,unit_quantity,unit_name,unit_expression,notes\n"
+        "Microsoft,azure-openai,keep_src,https://example.com,2026-01-01,2026-01-01T00:00:00Z,eastus2,USD,Other Series,Other Model,,global,standard,input,9.99,1000000,tokens,USD/1M tokens,\n",
+        encoding="utf-8",
+    )
+    import_price_csv(db_path=str(db_path), csv_path=str(base_csv))
+
+    marketing = Path(__file__).resolve().parents[1] / "fixtures" / "pricing" / "azure_marketing_gpt51_gpt52_eastus2_2026-05-13.csv"
+    r = import_price_csv_merge(db_path=str(db_path), csv_path=str(marketing))
+    assert r.rows_read == 45
+
+    import sqlite3
+
+    conn = sqlite3.connect(db_path)
+    try:
+        n_keep = int(
+            conn.execute("SELECT COUNT(*) FROM model_prices WHERE source_id = ?", ("keep_src",)).fetchone()[0]
+        )
+        n_m = int(
+            conn.execute(
+                "SELECT COUNT(*) FROM model_prices WHERE source_id = ?",
+                ("azure_marketing_table_gpt51_gpt52_eastus2_20260513",),
+            ).fetchone()[0]
+        )
+        assert n_keep == 1
+        assert n_m == 45
+    finally:
+        conn.close()

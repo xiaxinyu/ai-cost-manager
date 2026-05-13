@@ -1832,6 +1832,169 @@ def get_model_prices(
     return out, total
 
 
+_FORECAST_METRICS: tuple[str, ...] = ("input", "cached_input", "output")
+
+
+def list_forecast_model_catalog(conn: sqlite3.Connection) -> list[dict[str, str]]:
+    """Distinct models from the full ``model_prices`` table (any vendor / platform)."""
+    rows = conn.execute(
+        """
+        SELECT DISTINCT
+            trim(vendor) AS v,
+            trim(platform) AS p,
+            trim(model_series) AS ms,
+            trim(model_name) AS mn
+        FROM model_prices
+        WHERE model_series IS NOT NULL AND trim(model_series) != ''
+          AND model_name IS NOT NULL AND trim(model_name) != ''
+          AND vendor IS NOT NULL AND trim(vendor) != ''
+          AND platform IS NOT NULL AND trim(platform) != ''
+        ORDER BY v COLLATE NOCASE, p COLLATE NOCASE, ms COLLATE NOCASE, mn COLLATE NOCASE
+        """
+    ).fetchall()
+    return [
+        {"vendor": str(r["v"]), "platform": str(r["p"]), "model_series": str(r["ms"]), "model_name": str(r["mn"])}
+        for r in rows
+    ]
+
+
+def _forecast_norm_compact(s: str | None) -> str:
+    return (s or "").strip().lower().replace(" ", "").replace("_", "").replace("-", "")
+
+
+def _forecast_region_matches(row_region: str | None, want: str | None) -> bool:
+    """Empty ``want`` = accept any region (first match wins in caller ordering)."""
+    if not want or not str(want).strip():
+        return True
+    rr = _forecast_norm_compact(row_region)
+    w = _forecast_norm_compact(want)
+    if not rr:
+        return False
+    return rr == w
+
+
+def _forecast_scope_matches(row_scope: str | None, want: str | None) -> bool:
+    w = (want or "global").strip().lower()
+    r = (row_scope or "").strip().lower()
+    if w == "global":
+        return r in ("", "global")
+    return r == w
+
+
+def get_forecast_model_unit_prices(
+    conn: sqlite3.Connection,
+    *,
+    vendor: str,
+    platform: str,
+    model_series: str,
+    model_name: str,
+    price_region: str | None = None,
+    deployment_scope: str | None = "global",
+    billing_mode: str = "standard",
+) -> dict[str, Any]:
+    """
+    Latest catalog unit prices for ``input`` / ``cached_input`` / ``output`` meters
+    (amount / unit_quantity = price per token in listed currency).
+    """
+    vn = (vendor or "").strip()
+    pl = (platform or "").strip()
+    ms = (model_series or "").strip()
+    mn = (model_name or "").strip()
+    if not vn or not pl or not ms or not mn:
+        return {
+            "ok": False,
+            "reason": "missing_model",
+            "notes_zh": "请提供 vendor、platform、model_series 与 model_name。",
+        }
+
+    bm = (billing_mode or "standard").strip()
+    rows = conn.execute(
+        """
+        SELECT metric_name, amount, unit_quantity, price_currency, price_region,
+               deployment_scope, effective_date, retrieved_at_utc
+        FROM model_prices
+        WHERE lower(trim(vendor)) = lower(trim(?))
+          AND lower(trim(platform)) = lower(trim(?))
+          AND model_series = ?
+          AND model_name = ?
+          AND lower(trim(coalesce(billing_mode, ''))) = lower(trim(?))
+          AND metric_name IN ('input', 'cached_input', 'output')
+        ORDER BY effective_date DESC, retrieved_at_utc DESC
+        """,
+        (vn, pl, ms, mn, bm),
+    ).fetchall()
+
+    picked: dict[str, dict[str, Any]] = {}
+    chosen_region: str | None = None
+    chosen_currency: str | None = None
+    for r in rows:
+        if not _forecast_region_matches(r["price_region"], price_region):
+            continue
+        if not _forecast_scope_matches(r["deployment_scope"], deployment_scope):
+            continue
+        m = str(r["metric_name"] or "")
+        if m in picked:
+            continue
+        uq = int(r["unit_quantity"] or 0)
+        if uq <= 0:
+            continue
+        amt = float(r["amount"] or 0.0)
+        per_token = amt / float(uq)
+        picked[m] = {
+            "amount_catalog": amt,
+            "unit_quantity": uq,
+            "per_token": per_token,
+            "price_currency": str(r["price_currency"] or "USD"),
+        }
+        if chosen_region is None:
+            chosen_region = str(r["price_region"] or "")
+        if chosen_currency is None:
+            chosen_currency = str(r["price_currency"] or "USD")
+
+    if "input" not in picked and "output" not in picked:
+        return {
+            "ok": False,
+            "reason": "no_prices",
+            "vendor": vn,
+            "platform": pl,
+            "model_series": ms,
+            "model_name": mn,
+            "notes_zh": "目录中没有匹配的单价行。请在 Model Prices 核对 vendor/平台/区域/部署范围/计费模式，或改用「任意区域」。",
+        }
+
+    def per_1m(key: str) -> float | None:
+        x = picked.get(key)
+        if not x:
+            return None
+        return float(x["per_token"]) * 1_000_000.0
+
+    cur = chosen_currency or "USD"
+    dsp = (deployment_scope or "global").strip().lower() or "global"
+    return {
+        "ok": True,
+        "vendor": vn,
+        "platform": pl,
+        "model_series": ms,
+        "model_name": mn,
+        "price_region": chosen_region,
+        "deployment_scope": dsp,
+        "billing_mode": bm,
+        "currency": cur,
+        "usd_per_1m_tokens": {
+            "input": per_1m("input"),
+            "cached_input": per_1m("cached_input"),
+            "output": per_1m("output"),
+        },
+        "per_token": {k: float(v["per_token"]) for k, v in picked.items()},
+        "missing_metrics": [m for m in _FORECAST_METRICS if m not in picked],
+        "notes_zh": (
+            "单价来自 Model Prices 全表（所选 vendor / 平台 / 区域 / 部署 / 计费模式）。"
+            "「每日 token」为每个披萨的假设用量；总成本 = Σ(日量 × 单价) × 披萨倍数 × 天数。"
+            "未出现在目录中的计量项按 0 单价计。仅供内部估算，最终以账单与合同为准。"
+        ),
+    }
+
+
 def get_model_price_by_id(conn: sqlite3.Connection, price_id: int) -> dict | None:
     r = conn.execute(
         """

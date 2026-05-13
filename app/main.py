@@ -16,6 +16,7 @@ from pydantic import BaseModel
 from .db import (
     clear_all_model_prices,
     get_cost_forecast_baseline,
+    get_forecast_model_unit_prices,
     get_model_price_by_id,
     get_model_price_filter_options,
     get_model_prices,
@@ -32,6 +33,7 @@ from .db import (
     verify_all_financial_consistency,
     get_timeseries,
     init_db,
+    list_forecast_model_catalog,
     list_price_source_catalog,
     list_projects,
     update_price_source_catalog_row,
@@ -380,6 +382,43 @@ def create_app(
         try:
             out = get_cost_forecast_baseline(
                 conn, project_name, window_days=window_days, currency=currency
+            )
+            return JSONResponse(out)
+        finally:
+            conn.close()
+
+    @app.get("/api/forecast/model-catalog")
+    def api_forecast_model_catalog(_: str = Depends(_auth_dep)) -> JSONResponse:
+        conn = get_connection(db_path)
+        try:
+            opts = list_forecast_model_catalog(conn)
+            return JSONResponse({"options": opts})
+        finally:
+            conn.close()
+
+    @app.get("/api/forecast/model-unit-prices")
+    def api_forecast_model_unit_prices(
+        vendor: str = Query(..., min_length=1),
+        platform: str = Query(..., min_length=1),
+        model_series: str = Query(..., min_length=1),
+        model_name: str = Query(..., min_length=1),
+        price_region: Optional[str] = Query(default=None, description="omit or empty = any region"),
+        deployment_scope: Optional[str] = Query(default="global"),
+        billing_mode: str = Query(default="standard"),
+        _: str = Depends(_auth_dep),
+    ) -> JSONResponse:
+        conn = get_connection(db_path)
+        try:
+            pr = (price_region.strip() if price_region else None) or None
+            out = get_forecast_model_unit_prices(
+                conn,
+                vendor=vendor,
+                platform=platform,
+                model_series=model_series,
+                model_name=model_name,
+                price_region=pr,
+                deployment_scope=(deployment_scope.strip() if deployment_scope else None),
+                billing_mode=billing_mode,
             )
             return JSONResponse(out)
         finally:
