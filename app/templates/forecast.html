@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="zh-Hans">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>成本预测 - Models Cost Management</title>
+    <link rel="stylesheet" href="/static/css/app-shell.css" />
+    <link rel="stylesheet" href="/static/css/page-common.css" />
+    <link rel="stylesheet" href="/static/css/pages/forecast.css" />
+  </head>
+  <body>
+    <div class="appNav">
+      <div class="appNavInner">
+        <div class="brand">Models Cost Management</div>
+        <div class="navLinks">
+          <a class="navLink" href="/">Dashboard</a>
+          <a class="navLink active" href="/forecast">Forecast</a>
+          <a class="navLink" href="/tokens">Tokens</a>
+          <a class="navLink" href="/reports">Reports</a>
+          <a class="navLink" href="/prices">Prices</a>
+          <a class="navLink" href="/import">Import</a>
+          <a class="navLink" href="/price-sources">Price sources</a>
+        </div>
+        <div class="navRight">
+          <button id="navToggle" class="navToggle" type="button">Menu</button>
+          {% if username %}<span class="muted">{{ username }}</span>{% endif %}
+          <button id="logoutBtnTop" class="logoutBtn" type="button">Logout</button>
+        </div>
+      </div>
+    </div>
+    <div class="appLayout">
+      <main class="contentArea">
+        <div class="container">
+          <div class="pageHeader">
+            <div class="breadcrumb">Home / Planning</div>
+            <div class="pageTitle">成本预测（披萨团队）</div>
+            <div class="pageDesc">
+              用最近账单窗口的<strong>日历日均 CostUSD</strong>做基线，按「披萨」团队倍率外推 1 天、1 周、半个月、1 个月的粗略成本。仅供内部规划，非财务承诺。
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="toolbar">
+              <div class="field">
+                <label class="muted" for="projectSelect">项目</label>
+                <select id="projectSelect"></select>
+              </div>
+              <div class="field">
+                <label class="muted" for="windowDaysInput">基线窗口（天）</label>
+                <input id="windowDaysInput" type="number" min="7" max="90" value="28" />
+              </div>
+              <div class="field">
+                <label class="muted" for="refreshBtn">操作</label>
+                <button id="refreshBtn" class="btn btnPrimary" type="button">刷新基线</button>
+              </div>
+            </div>
+            <div class="field" style="margin-top: 14px">
+              <span class="muted">团队规模（披萨）</span>
+              <div class="teamScale">
+                <label><input type="radio" name="pizza" value="1" checked /> 1 个披萨（×1 基线用量）</label>
+                <label><input type="radio" name="pizza" value="2" /> 2 个披萨（×2 用量）</label>
+              </div>
+            </div>
+            <div id="baselineBox" class="baselineBox muted" style="margin-top: 14px">请选择项目并点击「刷新基线」。</div>
+            <p id="warnBox" class="warn" style="display: none"></p>
+          </div>
+
+          <div class="card">
+            <div class="title" style="font-size: 15px; font-weight: 650; margin-bottom: 8px">外推成本（所选披萨倍率）</div>
+            <div class="tableWrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>时间范围</th>
+                    <th class="num">天数</th>
+                    <th class="num">预计成本</th>
+                  </tr>
+                </thead>
+                <tbody id="forecastTbody">
+                  <tr>
+                    <td colspan="3" class="muted">加载后将显示 1 天 / 1 周 / 半个月 / 1 个月。</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <script src="/static/js/app-shell.js"></script>
+    <script src="/static/js/http.js"></script>
+    <script src="/static/js/pages/forecast.js"></script>
+  </body>
+</html>

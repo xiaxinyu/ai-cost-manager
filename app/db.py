@@ -5,7 +5,7 @@ import os
 import sqlite3
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable
+from typing import Any, Iterable
 
 
 SCHEMA_VERSION = 5
@@ -654,6 +654,68 @@ def get_timeseries(
         for r in rows
     ]
     return points, currency_filter
+
+
+def get_cost_forecast_baseline(
+    conn: sqlite3.Connection,
+    project_name: str,
+    *,
+    window_days: int = 28,
+    currency: str | None = None,
+) -> dict[str, Any]:
+    """
+    Calendar-window average daily CostUSD for simple cost extrapolation.
+
+    Uses the last ``window_days`` calendar days ending at MAX(usage_date) for the project,
+    filling missing days with 0. Suitable for "pizza team scale" multipliers on the client.
+    """
+    from datetime import date, timedelta
+
+    wd = max(7, min(90, int(window_days)))
+    row = conn.execute(
+        "SELECT MAX(usage_date) AS mx FROM transactions WHERE project_name = ?",
+        (project_name,),
+    ).fetchone()
+    end_s = row["mx"] if row else None
+    if not end_s:
+        return {"ok": False, "reason": "no_transactions", "project": project_name}
+
+    end_d = date.fromisoformat(str(end_s))
+    start_d = end_d - timedelta(days=wd - 1)
+    start_s = start_d.isoformat()
+    end_s_str = str(end_s)
+
+    points, chosen_currency = get_timeseries(
+        conn,
+        project_name,
+        start_date=start_s,
+        end_date=end_s_str,
+        granularity="day",
+        currency=currency,
+    )
+    by_date = {str(p["date"]): float(p["cost_usd"] or 0.0) for p in points}
+    total = 0.0
+    d = start_d
+    for _ in range(wd):
+        total += float(by_date.get(d.isoformat(), 0.0) or 0.0)
+        d += timedelta(days=1)
+
+    baseline = total / float(wd) if wd else 0.0
+    return {
+        "ok": True,
+        "project": project_name,
+        "currency": chosen_currency,
+        "window_days": wd,
+        "window_start": start_s,
+        "window_end": end_s_str,
+        "window_total_usd": round(total, 6),
+        "baseline_usd_per_day": round(baseline, 6),
+        "method": f"sum(daily_cost_usd)/{wd}_calendar_days_inclusive",
+        "notes_zh": (
+            "基线 = 最近窗口内「日历天」的 CostUSD 日均（无账单日记为 0）。"
+            "「披萨」表示团队规模倍率（1 披萨≈基线用量，2 披萨≈约 2×），用于粗略外推，非财务承诺。"
+        ),
+    }
 
 
 def get_token_timeseries(

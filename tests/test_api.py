@@ -65,6 +65,16 @@ def test_api_project_flow(tmp_path):
     assert ts["points"][0]["date"] == "2026-03-01"
     assert ts["points"][0]["cost_usd"] == 1.0
 
+    res = client.get("/api/projects/projB/forecast-baseline?window_days=28")
+    assert res.status_code == 200
+    fb = res.json()
+    assert fb["ok"] is True
+    assert fb["project"] == "projB"
+    assert fb["window_days"] == 28
+    assert fb["currency"] == "USD"
+    assert fb["baseline_usd_per_day"] > 0
+    assert "notes_zh" in fb
+
     res = client.get("/api/projects/projB/rows?page=1&page_size=10")
     assert res.status_code == 200
     rows = res.json()

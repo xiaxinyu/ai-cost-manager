@@ -1,0 +1,101 @@
+.container {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 24px;
+}
+.card {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  padding: 16px 18px 18px;
+  margin-bottom: 16px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.2);
+}
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  align-items: flex-end;
+}
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 160px;
+}
+.muted {
+  color: #9fb2c7;
+  font-size: 12px;
+}
+select,
+input[type="number"],
+button {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: #e6edf3;
+  border-radius: 10px;
+  padding: 8px 11px;
+  font-size: 13px;
+}
+.btn {
+  cursor: pointer;
+  font-weight: 600;
+}
+.btnPrimary {
+  border-color: rgba(94, 234, 212, 0.35);
+  background: rgba(94, 234, 212, 0.12);
+  color: #b6f5e8;
+}
+.teamScale {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-top: 4px;
+}
+.teamScale label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  color: #e2e8f0;
+}
+.baselineBox {
+  font-size: 13px;
+  line-height: 1.55;
+  color: #cbd5e1;
+}
+.baselineBox strong {
+  color: #f1f5f9;
+}
+.tableWrap {
+  overflow: auto;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  margin-top: 12px;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+th,
+td {
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  text-align: left;
+}
+th {
+  color: #9fb2c7;
+  font-weight: 650;
+}
+.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.warn {
+  color: #fbbf24;
+  font-size: 12px;
+  line-height: 1.5;
+  margin-top: 10px;
+}

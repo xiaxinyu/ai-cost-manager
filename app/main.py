@@ -15,6 +15,7 @@ from pydantic import BaseModel
 
 from .db import (
     clear_all_model_prices,
+    get_cost_forecast_baseline,
     get_model_price_by_id,
     get_model_price_filter_options,
     get_model_prices,
@@ -241,6 +242,18 @@ def create_app(
             {"username": request.session.get("username", "")},
         )
 
+    @app.get("/forecast", response_class=HTMLResponse)
+    def forecast_page(request: Request) -> HTMLResponse:
+        if auth_enabled:
+            username = request.session.get("username")
+            if not username:
+                return RedirectResponse(url="/login", status_code=303)
+        return templates.TemplateResponse(
+            request,
+            "forecast.html",
+            {"username": request.session.get("username", "")},
+        )
+
     @app.get("/prices", response_class=HTMLResponse)
     def prices_page(request: Request) -> HTMLResponse:
         if auth_enabled:
@@ -353,6 +366,22 @@ def create_app(
                     "points": points,
                 }
             )
+        finally:
+            conn.close()
+
+    @app.get("/api/projects/{project_name}/forecast-baseline")
+    def api_forecast_baseline(
+        project_name: str,
+        window_days: int = Query(default=28, ge=7, le=90),
+        currency: Optional[str] = Query(default=None),
+        _: str = Depends(_auth_dep),
+    ) -> JSONResponse:
+        conn = get_connection(db_path)
+        try:
+            out = get_cost_forecast_baseline(
+                conn, project_name, window_days=window_days, currency=currency
+            )
+            return JSONResponse(out)
         finally:
             conn.close()
 
