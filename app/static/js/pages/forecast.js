@@ -9,6 +9,7 @@
   const tbody = document.getElementById("forecastTbody");
   const forecastHint = document.getElementById("forecastHint");
   const catalogHint = document.getElementById("catalogHint");
+  const teamSize = document.getElementById("teamSize");
   const kpiDailyPizza = document.getElementById("kpiDailyPizza");
   const kpiDailyTeam = document.getElementById("kpiDailyTeam");
   const kpiMonthTeam = document.getElementById("kpiMonthTeam");
@@ -24,9 +25,6 @@
     { days: 15, label: "半个月" },
     { days: 30, label: "1 个月" },
   ];
-
-  /** One "pizza" = 7 FTE-style concurrent seats for forecasting. */
-  const PEOPLE_PER_PIZZA = 7;
 
   /** Step 3 inputs are in millions of tokens (e.g. 0.5 → 500k tokens). */
   const TOKENS_PER_MILLION_UNIT = 1_000_000;
@@ -69,33 +67,14 @@
       .replaceAll('"', "&quot;");
   }
 
-  function teamScaleFactor() {
-    const r = document.querySelector('input[name="teamScale"]:checked');
-    const v = r && r.value;
-    if (v === "p1") return 1 / PEOPLE_PER_PIZZA;
-    if (v === "p3") return 3 / PEOPLE_PER_PIZZA;
-    if (v === "pz2") return 2;
-    return 1;
+  function teamSizeValue() {
+    const people = Number(teamSize && teamSize.value);
+    return Number.isFinite(people) && people > 0 ? Math.round(people) : 1;
   }
 
   function teamScaleSummary() {
-    const r = document.querySelector('input[name="teamScale"]:checked');
-    const v = r && r.value;
-    if (v === "p1") return { short: "1 人", people: 1, factor: 1 / PEOPLE_PER_PIZZA };
-    if (v === "p3") return { short: "3 人", people: 3, factor: 3 / PEOPLE_PER_PIZZA };
-    if (v === "pz2") return { short: "2 个披萨", people: 14, factor: 2 };
-    return { short: "1 个披萨", people: 7, factor: 1 };
-  }
-
-  function formatScaleFactor(f) {
-    const x = Number(f);
-    if (!Number.isFinite(x)) return "—";
-    if (Math.abs(x - 1) < 1e-9) return "1";
-    if (Math.abs(x - 2) < 1e-9) return "2";
-    if (Math.abs(x - 1 / PEOPLE_PER_PIZZA) < 1e-9) return "1/7";
-    if (Math.abs(x - 3 / PEOPLE_PER_PIZZA) < 1e-9) return "3/7";
-    const t = x.toFixed(3).replace(/\.?0+$/, "");
-    return t;
+    const p = teamSizeValue();
+    return { short: `${p} 人`, people: p };
   }
 
   function deploymentScope() {
@@ -123,7 +102,7 @@
     return millions * TOKENS_PER_MILLION_UNIT;
   }
 
-  function dailyUsdPerPizza(perToken) {
+  function dailyUsdPerPerson(perToken) {
     const tin = tokensPerDay("in");
     const tc = tokensPerDay("cached");
     const tout = tokensPerDay("out");
@@ -133,11 +112,11 @@
     return tin * pin + tc * pc + tout * po;
   }
 
-  function forecastRows(dailyPerPizza) {
-    const d = Number(dailyPerPizza);
-    const scale = teamScaleFactor();
+  function forecastRows(dailyPerPerson) {
+    const d = Number(dailyPerPerson);
+    const people = teamSizeValue();
     if (!Number.isFinite(d) || d < 0) return [];
-    return HORIZONS.map((h) => ({ ...h, total: d * h.days * scale }));
+    return HORIZONS.map((h) => ({ ...h, total: d * h.days * people }));
   }
 
   function setKpiText(el, text) {
@@ -152,16 +131,17 @@
     if (horizonBars) horizonBars.innerHTML = '<div class="muted">计算后显示各周期对比。</div>';
   }
 
-  function renderKpis(dailyPerPizza, currency) {
-    const d = Number(dailyPerPizza);
+  function renderKpis(dailyPerPerson, currency) {
+    const d = Number(dailyPerPerson);
     if (!Number.isFinite(d) || d < 0) {
       resetVisuals();
       return;
     }
-    const scale = teamScaleFactor();
+    const people = teamSizeValue();
+    const teamDaily = d * people;
     setKpiText(kpiDailyPizza, fmtMoney(d, currency));
-    setKpiText(kpiDailyTeam, fmtMoney(d * scale, currency));
-    setKpiText(kpiMonthTeam, fmtMoney(d * 30 * scale, currency));
+    setKpiText(kpiDailyTeam, fmtMoney(teamDaily * 7, currency));
+    setKpiText(kpiMonthTeam, fmtMoney(teamDaily * 30, currency));
   }
 
   function renderCostMix(perToken, currency) {
@@ -170,26 +150,27 @@
       costMixRows.innerHTML = '<div class="muted">计算后显示 Input / Cached / Output 成本占比。</div>';
       return;
     }
+    const people = teamSizeValue();
     const items = [
       {
         key: "input",
         label: "Input",
         unit: tokensPerDay("in") / TOKENS_PER_MILLION_UNIT,
-        cost: tokensPerDay("in") * (Number(perToken.input) || 0),
+        cost: tokensPerDay("in") * (Number(perToken.input) || 0) * people,
         cls: "mixBarInput",
       },
       {
         key: "cached_input",
         label: "Cached input",
         unit: tokensPerDay("cached") / TOKENS_PER_MILLION_UNIT,
-        cost: tokensPerDay("cached") * (Number(perToken.cached_input) || 0),
+        cost: tokensPerDay("cached") * (Number(perToken.cached_input) || 0) * people,
         cls: "mixBarCached",
       },
       {
         key: "output",
         label: "Output",
         unit: tokensPerDay("out") / TOKENS_PER_MILLION_UNIT,
-        cost: tokensPerDay("out") * (Number(perToken.output) || 0),
+        cost: tokensPerDay("out") * (Number(perToken.output) || 0) * people,
         cls: "mixBarOutput",
       },
     ];
@@ -205,7 +186,7 @@
           <div class="mixRow">
             <div class="mixHead">
               <span class="mixName">${esc(it.label)}</span>
-              <span class="mixMeta">${esc(it.unit.toFixed(2).replace(/\.?0+$/, ""))}M / 天 · ${esc(fmtMoney(it.cost, currency))}</span>
+              <span class="mixMeta">${esc(it.unit.toFixed(2).replace(/\.?0+$/, ""))}M / 人 / 天 · ${esc(fmtMoney(it.cost, currency))} / 团队 / 天</span>
             </div>
             <div class="mixTrack"><div class="mixBar ${esc(it.cls)}" style="width:${Math.max(0, Math.min(100, pct)).toFixed(2)}%"></div></div>
           </div>
@@ -241,9 +222,9 @@
       .join("");
   }
 
-  function renderTable(dailyPerPizza, currency) {
+  function renderTable(dailyPerPerson, currency) {
     if (!tbody) return;
-    const rowsData = forecastRows(dailyPerPizza);
+    const rowsData = forecastRows(dailyPerPerson);
     if (!rowsData.length) {
       tbody.innerHTML = `<tr><td colspan="4" class="muted">无法计算（缺少单价或用量全为 0）。</td></tr>`;
       return;
@@ -261,25 +242,20 @@
     renderHorizonBars(rowsData, currency);
   }
 
-  function renderVisuals(dailyPerPizza, currency, perToken) {
-    renderKpis(dailyPerPizza, currency);
+  function renderVisuals(dailyPerPerson, currency, perToken) {
+    renderKpis(dailyPerPerson, currency);
     renderCostMix(perToken, currency);
   }
 
-  function renderHint(dailyPerPizza, currency) {
+  function renderHint(dailyPerPerson, currency) {
     if (!forecastHint) return;
-    const d = Number(dailyPerPizza);
+    const d = Number(dailyPerPerson);
     if (!lastRates || !lastRates.ok || !Number.isFinite(d)) {
       forecastHint.textContent = "";
       return;
     }
     const s = teamScaleSummary();
-    forecastHint.textContent = `每披萨（7 人）日均目录成本约 ${fmtMoney(
-      d,
-      currency
-    )}；当前规模：${s.short}（约 ${s.people} 人 · 倍率 ×${formatScaleFactor(
-      s.factor
-    )}）；总成本 = 每披萨日均 × 倍率 × 天数。`;
+    forecastHint.textContent = `当前团队：${s.short} · 总成本 = 单人日成本 × 团队人数 × 天数。`;
   }
 
   function clearForecastHint() {
@@ -319,7 +295,7 @@
     `;
   }
 
-  function renderRatesOk(data, daily, cur) {
+  function renderRatesOk(data, cur) {
     if (!rateBox) return;
     rateBox.classList.remove("muted", "baselineBoxEmpty");
     rateBox.classList.add("forecastPriceBox");
@@ -329,20 +305,12 @@
         val != null && Number.isFinite(Number(val)) ? fmtMoney(Number(val), cur) : "—";
       return `<div class="priceChip"><span class="priceChipLabel">${esc(label)}</span><span class="priceChipVal">${esc(v)}</span></div>`;
     };
-    const miss = (data.missing_metrics || []).join(", ") || "无";
-    const meta = `${esc(data.vendor)} · ${esc(data.platform)} — ${esc(data.model_series)} — ${esc(data.model_name)} · 区域 ${esc(data.price_region || "—")} · ${esc(data.deployment_scope || "")} · ${esc(data.billing_mode || "")}`;
     rateBox.innerHTML = `
       <div class="priceChipRow">
         ${chip("Input / 1M tokens", p1m.input)}
         ${chip("Cached input / 1M", p1m.cached_input)}
         ${chip("Output / 1M tokens", p1m.output)}
       </div>
-      <div class="priceChipMeta muted">${meta}</div>
-      <div class="priceDailyHighlight">
-        <span class="priceDailyLabel">每披萨日均（7 人基准 · 按步骤 3 用量）</span>
-        <span class="priceDailyVal">${esc(fmtMoney(daily, cur))}</span>
-      </div>
-      <div class="baselineNotes">未匹配计量：${esc(miss)}。${esc(data.notes_zh || "")}</div>
     `;
   }
 
@@ -462,8 +430,8 @@
         cached_input: data.per_token && data.per_token.cached_input != null ? data.per_token.cached_input : 0,
         output: data.per_token && data.per_token.output != null ? data.per_token.output : 0,
       };
-      const daily = dailyUsdPerPizza(per);
-      renderRatesOk(data, daily, cur);
+      const daily = dailyUsdPerPerson(per);
+      renderRatesOk(data, cur);
       const regLabel = data.price_region || "任意匹配";
       setCalcStatus(`已匹配目录单价 · 区域 ${regLabel} · ${data.deployment_scope || dep} · ${data.billing_mode || bm}`);
       if (warnBox && daily === 0) {
@@ -484,11 +452,11 @@
     }
   }
 
-  document.querySelectorAll('input[name="teamScale"]').forEach((el) => {
-    el.addEventListener("change", () => {
+  if (teamSize) {
+    const onTeamSizeChange = () => {
       if (lastRates && lastRates.ok && lastRates.per_token) {
         const pt = lastRates.per_token;
-        const daily = dailyUsdPerPizza({
+        const daily = dailyUsdPerPerson({
           input: Number(pt.input) || 0,
           cached_input: Number(pt.cached_input) || 0,
           output: Number(pt.output) || 0,
@@ -501,8 +469,10 @@
         });
         renderHint(daily, lastRates.currency);
       }
-    });
-  });
+    };
+    teamSize.addEventListener("change", onTeamSizeChange);
+    teamSize.addEventListener("input", onTeamSizeChange);
+  }
 
   document.querySelectorAll('input[name="deployment"]').forEach((el) => {
     el.addEventListener("change", () => recalc().catch((e) => console.error(e)));
