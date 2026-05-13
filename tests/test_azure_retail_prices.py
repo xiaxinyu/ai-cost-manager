@@ -113,6 +113,18 @@ def test_delete_clause_eastus2_core_models():
     assert "GPT-4o" in clause
 
 
+def test_compose_retail_filter_eastus2_gpt_51_52():
+    f = compose_retail_filter("eastus2_gpt_51_52")
+    assert f.count("armRegionName eq 'eastus2'") == 1
+    assert "contains(skuName,'5.1')" in f
+    assert "contains(skuName,'5.2')" in f
+
+
+def test_delete_clause_eastus2_gpt_51_52():
+    clause = delete_sql_clause_for_retail_series("eastus2_gpt_51_52")
+    assert "GPT-5.1" in clause and "GPT-5.2" in clause
+
+
 def test_import_openai_retail_prices_live_smoke(tmp_path):
     """Optional live call; skipped in CI unless RUN_LIVE_AZURE_RETAIL=1."""
     import os

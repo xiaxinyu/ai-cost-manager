@@ -57,6 +57,24 @@ RETAIL_SYNC_SERIES: tuple[tuple[str, str, str], ...] = (
         ")",
     ),
     (
+        "eastus2_gpt_51_52",
+        "East US 2 — GPT-5.1 + GPT-5.2 (matches pricing page / retail API)",
+        " and armRegionName eq 'eastus2' and ("
+        "("
+        "(contains(skuName,'5.1') or contains(meterName,'5.1'))"
+        " and not (contains(skuName,'5.2') or contains(meterName,'5.2'))"
+        " and not (contains(skuName,'5.3') or contains(meterName,'5.3'))"
+        " and not (contains(skuName,'5.4') or contains(meterName,'5.4'))"
+        " and not (contains(skuName,'5.5') or contains(meterName,'5.5'))"
+        ") or ("
+        "(contains(skuName,'5.2') or contains(meterName,'5.2'))"
+        " and not (contains(skuName,'5.3') or contains(meterName,'5.3'))"
+        " and not (contains(skuName,'5.4') or contains(meterName,'5.4'))"
+        " and not (contains(skuName,'5.5') or contains(meterName,'5.5'))"
+        ")"
+        ")",
+    ),
+    (
         "gpt_55_54",
         "GPT-5.5 + GPT-5.4 (one sync)",
         " and ((contains(skuName,'5.5') or contains(meterName,'5.5')) or (contains(skuName,'5.4') or contains(meterName,'5.4')))",
@@ -164,6 +182,19 @@ def delete_sql_clause_for_retail_series(series_key: str) -> str | None:
             " OR model_series LIKE '%GPT-5.4%'"
             " OR model_series LIKE '%GPT-5.5%'"
             ")"
+        )
+    if series_key == "eastus2_gpt_51_52":
+        return (
+            "source_id = ? AND ("
+            " lower(trim(price_region)) IN ('eastus2','east us 2','eastus 2')"
+            " OR price_region LIKE 'East US%2'"
+            ") AND ("
+            " (model_series LIKE '%GPT-5.1%' OR model_name LIKE '%5.1%')"
+            " OR (model_series LIKE '%GPT-5.2%' OR model_name LIKE '%5.2%')"
+            ")"
+            " AND model_series NOT LIKE '%GPT-5.3%'"
+            " AND model_series NOT LIKE '%GPT-5.4%'"
+            " AND model_series NOT LIKE '%GPT-5.5%'"
         )
     if series_key == "gpt_4o":
         return (

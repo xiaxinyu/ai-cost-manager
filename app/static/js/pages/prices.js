@@ -90,8 +90,8 @@
       opt.textContent = o.label || o.key;
       syncSeriesSelect.appendChild(opt);
     }
-    const pref = syncSeriesSelect.querySelector('option[value="eastus2_core_models"]');
-    if (pref) syncSeriesSelect.value = "eastus2_core_models";
+    const pref = syncSeriesSelect.querySelector('option[value="eastus2_gpt_51_52"]');
+    if (pref) syncSeriesSelect.value = "eastus2_gpt_51_52";
   }
 
   async function openRetailSyncDialog() {
