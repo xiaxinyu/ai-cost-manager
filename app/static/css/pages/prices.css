@@ -1,18 +1,120 @@
       .container { max-width: 1280px; margin: 0 auto; padding: 24px; }
-      .header { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 10px; }
+      .header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        padding-bottom: 14px;
+        margin-bottom: 4px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+      }
       .title { font-size: 16px; font-weight: 620; }
       .muted { color: #9fb2c7; font-size: 12px; }
-      .toolbar { display: flex; gap: 12px; flex-wrap: wrap; align-items: end; }
-      .field { display: flex; flex-direction: column; gap: 6px; min-width: 180px; }
-      select, button, a { background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.16); color: #e6edf3; border-radius: 10px; padding: 7px 10px; text-decoration: none; }
+      .toolbarRow {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr)) minmax(76px, 100px) minmax(100px, 118px);
+        gap: 12px 14px;
+        align-items: end;
+        width: 100%;
+        padding-bottom: 2px;
+      }
+      @media (max-width: 960px) {
+        .toolbarRow {
+          display: flex;
+          flex-wrap: wrap;
+          align-items: flex-end;
+        }
+        .fieldCompact { flex: 1 1 140px; min-width: 120px; }
+        .fieldSeries { flex: 1 1 220px; min-width: 160px; }
+        .fieldQuery { flex: 0 0 auto; min-width: 96px; }
+      }
+      .toolbarRow .field { min-width: 0; }
+      .fieldCompact { min-width: 0; }
+      .fieldSeries { min-width: 0; }
+      .fieldQuery { min-width: 0; }
+      .toolbarLabelSpacer {
+        display: block;
+        font-size: 12px;
+        line-height: 1.2;
+        min-height: calc(12px * 1.2 + 6px);
+        visibility: hidden;
+        user-select: none;
+      }
+      .toolbarQueryBtn {
+        width: 100%;
+        min-height: 36px;
+        box-sizing: border-box;
+        font-weight: 600;
+      }
+      .toolbarRow select,
+      .toolbarRow .toolbarQueryBtn {
+        padding: 8px 11px;
+        font-size: 13px;
+      }
+      .toolbarRow select {
+        width: 100%;
+        min-height: 36px;
+        box-sizing: border-box;
+      }
+      .toolbarSummary {
+        margin-top: 12px;
+        padding: 8px 0 2px;
+        font-size: 12px;
+        color: #9fb2c7;
+        border-top: 1px solid rgba(255,255,255,.06);
+      }
+      .pricingTableShell .dataTable th.colRowNum,
+      .pricingTableShell .dataTable td.colRowNum {
+        width: 2.75rem;
+        max-width: 3.25rem;
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+        color: #9fb2c7;
+        white-space: nowrap;
+      }
+
+      .pagination {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+        margin-top: 12px;
+        padding: 10px 0 4px;
+      }
+      .pagination .pgBtn {
+        background: rgba(255,255,255,.08);
+        border: 1px solid rgba(255,255,255,.16);
+        color: #e6edf3;
+        border-radius: 8px;
+        padding: 6px 12px;
+        cursor: pointer;
+        font-size: 12px;
+      }
+      .pagination .pgBtn:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+      }
+      .pagination .pgInfo { color: #9fb2c7; font-size: 12px; }
+      .field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+      select,
+      button,
+      .toolbarQueryBtn {
+        background: rgba(255,255,255,.08);
+        border: 1px solid rgba(255,255,255,.14);
+        color: #e6edf3;
+        border-radius: 10px;
+      }
       .btn { cursor: pointer; }
-      .card { background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.10); border-radius: 12px; padding: 14px; }
-      .tableWrap { margin-top: 16px; max-height: 70vh; overflow: auto; border: 1px solid rgba(255,255,255,.10); border-radius: 12px; }
-      table { width: 100%; border-collapse: collapse; }
-      th, td { padding: 8px 6px; border-bottom: 1px solid rgba(255,255,255,.10); text-align: left; font-size: 12px; }
-      th { position: sticky; top: 0; background: rgba(11,18,32,.98); color: #9fb2c7; }
-      .num { text-align: right; font-variant-numeric: tabular-nums; }
-      .viewBadge { padding: 3px 8px; border-radius: 999px; border: 1px solid rgba(255,255,255,.14); color:#9fb2c7; font-size:11px; }
+      .card { background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.10); border-radius: 14px; padding: 16px 18px 18px; box-shadow: 0 8px 28px rgba(0,0,0,.2); }
+      .pricingTableShell {
+        margin-top: 20px;
+      }
+      .pricingTableShell.is-compact .dataTable th,
+      .pricingTableShell.is-compact .dataTable td {
+        padding: 9px 12px;
+        font-size: 12px;
+      }
+      .viewBadge { padding: 4px 10px; border-radius: 999px; border: 1px solid rgba(255,255,255,.14); color:#b8c5d8; font-size:11px; font-weight: 650; letter-spacing: 0.02em; }
       .itemMain { font-weight: 650; }
       .itemSub { color: #9fb2c7; font-size: 12px; margin-top: 2px; }
       .headerActions {
@@ -31,8 +133,152 @@
         padding: 7px 10px;
         cursor: pointer;
         font-size: 11px;
+        font-weight: 600;
+        transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+      }
+      .actionBtn:hover {
+        background: rgba(255, 255, 255, 0.12);
+        border-color: rgba(255, 255, 255, 0.22);
+      }
+      .actionBtn:active {
+        transform: translateY(1px);
+      }
+      .actionBtn:focus-visible {
+        outline: 2px solid rgba(94, 234, 212, 0.45);
+        outline-offset: 2px;
       }
       .actionBtn.primary {
         border-color: rgba(94,234,212,.35);
         background: rgba(94,234,212,.12);
+      }
+      .colDetail { width: 88px; text-align: center; }
+      .detailBtn {
+        background: rgba(45, 110, 95, 0.35);
+        border: 1px solid rgba(94, 234, 212, 0.32);
+        color: #d1faf0;
+        border-radius: 8px;
+        padding: 5px 10px;
+        font-size: 11px;
+        font-weight: 650;
+        cursor: pointer;
+        transition: filter 0.12s ease, box-shadow 0.12s ease;
+      }
+      .detailBtn:hover { filter: brightness(1.12); box-shadow: 0 0 0 1px rgba(94, 234, 212, 0.15); }
+      .detailBtn:focus-visible {
+        outline: 2px solid rgba(94, 234, 212, 0.55);
+        outline-offset: 2px;
+      }
+      .priceDetailDialog {
+        max-width: min(720px, 96vw);
+        width: 100%;
+        border: 1px solid rgba(255,255,255,.16);
+        border-radius: 14px;
+        background: #0b1220;
+        color: #e6edf3;
+        padding: 0;
+        z-index: 10050;
+      }
+      /* Non-modal fallback (showModal unsupported or failed): keep dialog on-screen */
+      dialog.priceDetailDialog[open]:not(:modal) {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        margin: 0;
+        box-sizing: border-box;
+      }
+      .priceDetailDialog::backdrop { background: rgba(0,0,0,.55); }
+      .priceDetailHeader {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12px 14px;
+        border-bottom: 1px solid rgba(255,255,255,.10);
+      }
+      .priceDetailTitle { font-weight: 650; font-size: 14px; }
+      .priceDetailClose {
+        background: transparent;
+        border: none;
+        color: #9fb2c7;
+        font-size: 22px;
+        line-height: 1;
+        cursor: pointer;
+        border-radius: 8px;
+        padding: 2px 6px;
+        transition: background-color 0.12s ease, color 0.12s ease;
+      }
+      .priceDetailClose:hover {
+        background: rgba(255, 255, 255, 0.08);
+        color: #e6edf3;
+      }
+      .priceDetailClose:focus-visible {
+        outline: 2px solid rgba(94, 234, 212, 0.45);
+        outline-offset: 2px;
+      }
+      .syncDialogLead {
+        margin: 0;
+        line-height: 1.55;
+      }
+      .syncDialogLink {
+        background: transparent !important;
+        border: none !important;
+        padding: 0 !important;
+        color: #7dd3fc !important;
+        text-decoration: underline;
+        font-weight: 600;
+      }
+      .priceDetailDl { display: grid; grid-template-columns: minmax(0, 150px) 1fr; gap: 8px 14px; margin: 0 0 16px; padding-bottom: 4px; }
+      .priceDetailDl dt { color: #8b9cb3; margin: 0; font-size: 11px; font-weight: 650; text-transform: uppercase; letter-spacing: 0.04em; }
+      .priceDetailDl dd { margin: 0; word-break: break-word; color: #e2e8f0; font-size: 12px; }
+      .priceDetailPre {
+        margin: 0;
+        padding: 10px;
+        border-radius: 10px;
+        background: rgba(0,0,0,.35);
+        border: 1px solid rgba(255,255,255,.08);
+        white-space: pre-wrap;
+        word-break: break-word;
+        font-size: 11px;
+        max-height: 360px;
+        overflow: auto;
+      }
+      .priceDetailBody {
+        padding: 16px 18px 20px;
+        max-height: min(72vh, 680px);
+        overflow: auto;
+        font-size: 12px;
+        line-height: 1.5;
+      }
+      .priceDetailBody a {
+        background: transparent !important;
+        border: none !important;
+        padding: 0 !important;
+        border-radius: 0 !important;
+        color: #7dd3fc !important;
+        text-decoration: underline;
+      }
+      .priceDetailLinks {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px 12px;
+        margin-top: 16px;
+        padding-top: 14px;
+        border-top: 1px solid rgba(255, 255, 255, 0.08);
+      }
+      .priceDetailLinks a {
+        display: inline-flex !important;
+        align-items: center;
+        padding: 7px 12px !important;
+        border-radius: 9px !important;
+        background: rgba(125, 211, 252, 0.1) !important;
+        border: 1px solid rgba(125, 211, 252, 0.28) !important;
+        color: #cffafe !important;
+        text-decoration: none !important;
+        font-size: 11px;
+        font-weight: 650;
+        transition: filter 0.12s ease, border-color 0.12s ease;
+      }
+      .priceDetailLinks a:hover {
+        filter: brightness(1.08);
+        border-color: rgba(125, 211, 252, 0.45) !important;
       }

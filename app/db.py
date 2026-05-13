@@ -5,10 +5,10 @@ import os
 import sqlite3
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable
+from typing import Any, Iterable
 
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 5
 
 EXPECTED_CSV_COLUMNS = [
     "UsageDate",
@@ -119,6 +119,7 @@ def init_db(conn: sqlite3.Connection) -> None:
             unit_name TEXT NOT NULL,
             unit_expression TEXT NOT NULL,
             notes TEXT,
+            source_detail_json TEXT,
             created_at TEXT NOT NULL DEFAULT (datetime('now')),
             UNIQUE(
                 source_id, effective_date, vendor, platform, price_region, price_currency,
@@ -136,6 +137,17 @@ def init_db(conn: sqlite3.Connection) -> None:
             model_name TEXT NOT NULL,
             api_version TEXT,
             azure_endpoint TEXT,
+            updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+
+        CREATE TABLE IF NOT EXISTS price_source_catalog (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            source_key TEXT NOT NULL UNIQUE,
+            title TEXT NOT NULL,
+            reference_url TEXT NOT NULL DEFAULT '',
+            api_url TEXT NOT NULL DEFAULT '',
+            notes TEXT,
+            sort_order INTEGER NOT NULL DEFAULT 0,
             updated_at TEXT NOT NULL DEFAULT (datetime('now'))
         );
         """
@@ -159,6 +171,8 @@ def init_db(conn: sqlite3.Connection) -> None:
     conn.commit()
 
     _migrate_billing_rows_if_needed(conn)
+    _migrate_model_prices_source_detail_json(conn)
+    _ensure_price_source_catalog(conn)
 
 
 def _table_exists(conn: sqlite3.Connection, table_name: str) -> bool:
@@ -235,6 +249,111 @@ def _migrate_billing_rows_if_needed(conn: sqlite3.Connection) -> None:
         insert_rows,
     )
     conn.commit()
+
+
+def _migrate_model_prices_source_detail_json(conn: sqlite3.Connection) -> None:
+    if not _table_exists(conn, "model_prices"):
+        return
+    cols = {str(r["name"]) for r in conn.execute("PRAGMA table_info(model_prices)").fetchall()}
+    if "source_detail_json" in cols:
+        return
+    conn.execute("ALTER TABLE model_prices ADD COLUMN source_detail_json TEXT")
+    conn.commit()
+
+
+PRICE_SOURCE_CATALOG_SEED: tuple[tuple[str, str, str, str, str, int], ...] = (
+    (
+        "microsoft_unit_price_api",
+        "Microsoft unit price catalog (REST)",
+        "https://azure.microsoft.com/en-us/pricing/details/azure-openai/",
+        "https://prices.azure.com/api/retail/prices",
+        "Used by Sync prices (Foundry Models + OpenAI filter). GPT-5.1 / GPT-5.2 marketing-page rows align with the "
+        "\"GPT-5.1 + GPT-5.2 (Series…)\" scope plus an ARM region such as eastus2.",
+        10,
+    ),
+    (
+        "internal_billing_csv",
+        "Project billing CSV exports",
+        "",
+        "",
+        "Usage rows ingested from the configured bills directory (Import page).",
+        20,
+    ),
+    (
+        "model_price_csv",
+        "Model price CSV (per-row source_url)",
+        "",
+        "",
+        "Rows from price CSV files; each row can set source_url and source_id.",
+        30,
+    ),
+)
+
+
+def _ensure_price_source_catalog(conn: sqlite3.Connection) -> None:
+    if not _table_exists(conn, "price_source_catalog"):
+        return
+    cnt = int(conn.execute("SELECT COUNT(*) AS c FROM price_source_catalog").fetchone()["c"])
+    if cnt > 0:
+        return
+    for sk, title, ref, api, notes, so in PRICE_SOURCE_CATALOG_SEED:
+        conn.execute(
+            """
+            INSERT INTO price_source_catalog (source_key, title, reference_url, api_url, notes, sort_order)
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (sk, title, ref, api, notes, so),
+        )
+    conn.commit()
+
+
+def list_price_source_catalog(conn: sqlite3.Connection) -> list[dict[str, object]]:
+    rows = conn.execute(
+        """
+        SELECT id, source_key, title, reference_url, api_url, notes, sort_order, updated_at
+        FROM price_source_catalog
+        ORDER BY sort_order, id
+        """
+    ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def update_price_source_catalog_row(
+    conn: sqlite3.Connection,
+    row_id: int,
+    *,
+    title: str | None = None,
+    reference_url: str | None = None,
+    api_url: str | None = None,
+    notes: str | None = None,
+) -> dict[str, object] | None:
+    cur = conn.execute(
+        "SELECT id, title, reference_url, api_url, notes FROM price_source_catalog WHERE id = ?",
+        (row_id,),
+    ).fetchone()
+    if cur is None:
+        return None
+    t = title if title is not None else cur["title"]
+    r = reference_url if reference_url is not None else cur["reference_url"]
+    a = api_url if api_url is not None else cur["api_url"]
+    n = notes if notes is not None else cur["notes"]
+    conn.execute(
+        """
+        UPDATE price_source_catalog
+        SET title = ?, reference_url = ?, api_url = ?, notes = ?, updated_at = datetime('now')
+        WHERE id = ?
+        """,
+        (t, r, a, n, row_id),
+    )
+    conn.commit()
+    out = conn.execute(
+        """
+        SELECT id, source_key, title, reference_url, api_url, notes, sort_order, updated_at
+        FROM price_source_catalog WHERE id = ?
+        """,
+        (row_id,),
+    ).fetchone()
+    return dict(out) if out else None
 
 
 @dataclass(frozen=True)
@@ -536,6 +655,85 @@ def get_timeseries(
         for r in rows
     ]
     return points, currency_filter
+
+
+def get_cost_forecast_baseline(
+    conn: sqlite3.Connection,
+    project_name: str,
+    *,
+    window_days: int = 28,
+    currency: str | None = None,
+) -> dict[str, Any]:
+    """
+    Calendar-window average daily CostUSD for simple cost extrapolation.
+
+    Uses the last ``window_days`` calendar days ending at MAX(usage_date) for the project,
+    filling missing days with 0. Suitable for "pizza team scale" multipliers on the client.
+    """
+    from datetime import date, timedelta
+
+    wd = max(7, min(90, int(window_days)))
+    cfg_row = get_project_model_config(conn, project_name)
+    team_model: dict[str, Any] | None = None
+    if cfg_row:
+        team_model = {
+            "model_name": cfg_row["model_name"],
+            "api_version": cfg_row["api_version"],
+            "has_endpoint": bool(cfg_row.get("azure_endpoint")),
+            "updated_at": cfg_row.get("updated_at"),
+        }
+
+    row = conn.execute(
+        "SELECT MAX(usage_date) AS mx FROM transactions WHERE project_name = ?",
+        (project_name,),
+    ).fetchone()
+    end_s = row["mx"] if row else None
+    if not end_s:
+        return {
+            "ok": False,
+            "reason": "no_transactions",
+            "project": project_name,
+            "team_model": team_model,
+        }
+
+    end_d = date.fromisoformat(str(end_s))
+    start_d = end_d - timedelta(days=wd - 1)
+    start_s = start_d.isoformat()
+    end_s_str = str(end_s)
+
+    points, chosen_currency = get_timeseries(
+        conn,
+        project_name,
+        start_date=start_s,
+        end_date=end_s_str,
+        granularity="day",
+        currency=currency,
+    )
+    by_date = {str(p["date"]): float(p["cost_usd"] or 0.0) for p in points}
+    total = 0.0
+    d = start_d
+    for _ in range(wd):
+        total += float(by_date.get(d.isoformat(), 0.0) or 0.0)
+        d += timedelta(days=1)
+
+    baseline = total / float(wd) if wd else 0.0
+    return {
+        "ok": True,
+        "project": project_name,
+        "currency": chosen_currency,
+        "window_days": wd,
+        "window_start": start_s,
+        "window_end": end_s_str,
+        "window_total_usd": round(total, 6),
+        "baseline_usd_per_day": round(baseline, 6),
+        "team_model": team_model,
+        "method": f"sum(daily_cost_usd)/{wd}_calendar_days_inclusive",
+        "notes_zh": (
+            "外推金额 = 上表「日均基线」× 时间天数 × 披萨倍率；基线来自账单 CostUSD，不是单价公式。"
+            "主力模型在 Tokens 页配置，便于在 Model Prices 对照目录价做 sanity check。"
+            "「披萨」= 团队规模倍率（1≈基线用量，2≈约 2×）。仅供内部规划，非财务承诺。"
+        ),
+    }
 
 
 def get_token_timeseries(
@@ -1474,8 +1672,8 @@ def replace_model_prices(conn: sqlite3.Connection, rows: Iterable[tuple]) -> int
             vendor, platform, price_region, price_currency,
             model_series, model_name, context_bucket, deployment_scope,
             billing_mode, metric_name, amount,
-            unit_quantity, unit_name, unit_expression, notes
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            unit_quantity, unit_name, unit_expression, notes, source_detail_json
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         list(rows),
     )
@@ -1484,18 +1682,70 @@ def replace_model_prices(conn: sqlite3.Connection, rows: Iterable[tuple]) -> int
     return int(c)
 
 
+def clear_all_model_prices(conn: sqlite3.Connection) -> int:
+    """Delete every row in model_prices. Returns how many rows were removed."""
+    cur = conn.execute("DELETE FROM model_prices")
+    conn.commit()
+    return int(cur.rowcount or 0)
+
+
+# Typical `model_series` strings from Microsoft catalog sync (`azure_retail_prices.normalize_retail_item`),
+# merged into filter options so GPT-5.x families appear before matching rows exist in SQLite.
+_KNOWN_RETAIL_MODEL_SERIES_HINTS: tuple[str, ...] = (
+    "GPT-5.5 Series",
+    "GPT-5.4 Series",
+    "GPT-5.3 Series",
+    "GPT-5.2 Series",
+    "GPT-5.1 Series",
+    "GPT-5.1 Codex Series",
+    "GPT-4o Series",
+    "GPT-5 mini Series",
+    "GPT-5 nano Series",
+)
+
+
 def get_model_price_filter_options(conn: sqlite3.Connection) -> dict[str, list[str]]:
     def _list_values(col: str) -> list[str]:
         q = f"SELECT DISTINCT {col} AS v FROM model_prices WHERE {col} IS NOT NULL AND {col} != '' ORDER BY {col}"
         rows = conn.execute(q).fetchall()
         return [r["v"] for r in rows]
 
+    series_from_db = _list_values("model_series")
+    model_series = sorted(set(series_from_db) | set(_KNOWN_RETAIL_MODEL_SERIES_HINTS))
+
     return {
         "vendors": _list_values("vendor"),
         "platforms": _list_values("platform"),
-        "model_series": _list_values("model_series"),
+        "model_series": model_series,
         "currencies": _list_values("price_currency"),
         "regions": _list_values("price_region"),
+    }
+
+
+def get_model_prices_meta(conn: sqlite3.Connection) -> dict[str, object]:
+    total = int(conn.execute("SELECT COUNT(*) AS c FROM model_prices").fetchone()["c"])
+    src_rows = conn.execute(
+        """
+        SELECT
+            source_id,
+            COUNT(*) AS row_count,
+            MAX(retrieved_at_utc) AS last_retrieved_at_utc
+        FROM model_prices
+        GROUP BY source_id
+        ORDER BY source_id
+        """
+    ).fetchall()
+    return {
+        "total_rows": total,
+        "sources": [
+            {
+                "source_id": r["source_id"],
+                "row_count": int(r["row_count"]),
+                "last_retrieved_at_utc": r["last_retrieved_at_utc"],
+            }
+            for r in src_rows
+        ],
+        "price_source_catalog": list_price_source_catalog(conn),
     }
 
 
@@ -1505,7 +1755,9 @@ def get_model_prices(
     vendor: str | None = None,
     platform: str | None = None,
     model_series: str | None = None,
-) -> list[dict]:
+    page: int = 1,
+    page_size: int = 100,
+) -> tuple[list[dict], int]:
     where = ["1=1"]
     params: list[object] = []
 
@@ -1520,9 +1772,21 @@ def get_model_prices(
         params.append(model_series)
 
     where_sql = " AND ".join(where)
+    page = max(1, int(page))
+    page_size = min(500, max(1, int(page_size)))
+    offset = (page - 1) * page_size
+
+    total = int(
+        conn.execute(
+            f"SELECT COUNT(*) AS c FROM model_prices WHERE {where_sql}",
+            tuple(params),
+        ).fetchone()["c"]
+    )
+
     rows = conn.execute(
         f"""
         SELECT
+            id,
             source_id, source_url, effective_date, retrieved_at_utc,
             vendor, platform, price_region, price_currency,
             model_series, model_name, context_bucket, deployment_scope,
@@ -1534,13 +1798,15 @@ def get_model_prices(
             vendor, platform, model_series, model_name,
             COALESCE(context_bucket, ''), COALESCE(deployment_scope, ''),
             billing_mode, metric_name
+        LIMIT ? OFFSET ?
         """
         ,
-        tuple(params),
+        tuple([*params, page_size, offset]),
     ).fetchall()
 
-    return [
+    out = [
         {
+            "id": int(r["id"]),
             "source_id": r["source_id"],
             "source_url": r["source_url"],
             "effective_date": r["effective_date"],
@@ -1563,3 +1829,216 @@ def get_model_prices(
         }
         for r in rows
     ]
+    return out, total
+
+
+_FORECAST_METRICS: tuple[str, ...] = ("input", "cached_input", "output")
+
+
+def list_forecast_model_catalog(conn: sqlite3.Connection) -> list[dict[str, str]]:
+    """Distinct models from the full ``model_prices`` table (any vendor / platform)."""
+    rows = conn.execute(
+        """
+        SELECT DISTINCT
+            trim(vendor) AS v,
+            trim(platform) AS p,
+            trim(model_series) AS ms,
+            trim(model_name) AS mn
+        FROM model_prices
+        WHERE model_series IS NOT NULL AND trim(model_series) != ''
+          AND model_name IS NOT NULL AND trim(model_name) != ''
+          AND vendor IS NOT NULL AND trim(vendor) != ''
+          AND platform IS NOT NULL AND trim(platform) != ''
+        ORDER BY v COLLATE NOCASE, p COLLATE NOCASE, ms COLLATE NOCASE, mn COLLATE NOCASE
+        """
+    ).fetchall()
+    return [
+        {"vendor": str(r["v"]), "platform": str(r["p"]), "model_series": str(r["ms"]), "model_name": str(r["mn"])}
+        for r in rows
+    ]
+
+
+def _forecast_norm_compact(s: str | None) -> str:
+    return (s or "").strip().lower().replace(" ", "").replace("_", "").replace("-", "")
+
+
+def _forecast_region_matches(row_region: str | None, want: str | None) -> bool:
+    """Empty ``want`` = accept any region (first match wins in caller ordering)."""
+    if not want or not str(want).strip():
+        return True
+    rr = _forecast_norm_compact(row_region)
+    w = _forecast_norm_compact(want)
+    if not rr:
+        return False
+    return rr == w
+
+
+def _forecast_scope_matches(row_scope: str | None, want: str | None) -> bool:
+    w = (want or "global").strip().lower()
+    r = (row_scope or "").strip().lower()
+    if w == "global":
+        return r in ("", "global")
+    return r == w
+
+
+def get_forecast_model_unit_prices(
+    conn: sqlite3.Connection,
+    *,
+    vendor: str,
+    platform: str,
+    model_series: str,
+    model_name: str,
+    price_region: str | None = None,
+    deployment_scope: str | None = "global",
+    billing_mode: str = "standard",
+) -> dict[str, Any]:
+    """
+    Latest catalog unit prices for ``input`` / ``cached_input`` / ``output`` meters
+    (amount / unit_quantity = price per token in listed currency).
+    """
+    vn = (vendor or "").strip()
+    pl = (platform or "").strip()
+    ms = (model_series or "").strip()
+    mn = (model_name or "").strip()
+    if not vn or not pl or not ms or not mn:
+        return {
+            "ok": False,
+            "reason": "missing_model",
+            "notes_zh": "请提供 vendor、platform、model_series 与 model_name。",
+        }
+
+    bm = (billing_mode or "standard").strip()
+    rows = conn.execute(
+        """
+        SELECT metric_name, amount, unit_quantity, price_currency, price_region,
+               deployment_scope, effective_date, retrieved_at_utc
+        FROM model_prices
+        WHERE lower(trim(vendor)) = lower(trim(?))
+          AND lower(trim(platform)) = lower(trim(?))
+          AND lower(trim(model_series)) = lower(trim(?))
+          AND lower(trim(model_name)) = lower(trim(?))
+          AND lower(trim(coalesce(billing_mode, ''))) = lower(trim(?))
+          AND metric_name IN ('input', 'cached_input', 'output')
+        ORDER BY effective_date DESC, retrieved_at_utc DESC
+        """,
+        (vn, pl, ms, mn, bm),
+    ).fetchall()
+
+    picked: dict[str, dict[str, Any]] = {}
+    chosen_region: str | None = None
+    chosen_currency: str | None = None
+    for r in rows:
+        if not _forecast_region_matches(r["price_region"], price_region):
+            continue
+        if not _forecast_scope_matches(r["deployment_scope"], deployment_scope):
+            continue
+        m = str(r["metric_name"] or "")
+        if m in picked:
+            continue
+        uq = int(r["unit_quantity"] or 0)
+        if uq <= 0:
+            continue
+        amt = float(r["amount"] or 0.0)
+        per_token = amt / float(uq)
+        picked[m] = {
+            "amount_catalog": amt,
+            "unit_quantity": uq,
+            "per_token": per_token,
+            "price_currency": str(r["price_currency"] or "USD"),
+        }
+        if chosen_region is None:
+            chosen_region = str(r["price_region"] or "")
+        if chosen_currency is None:
+            chosen_currency = str(r["price_currency"] or "USD")
+
+    if "input" not in picked and "output" not in picked:
+        return {
+            "ok": False,
+            "reason": "no_prices",
+            "vendor": vn,
+            "platform": pl,
+            "model_series": ms,
+            "model_name": mn,
+            "notes_zh": "目录中没有匹配的单价行。请在 Model Prices 核对 vendor/平台/区域/部署范围/计费模式，或改用「任意区域」。",
+        }
+
+    def per_1m(key: str) -> float | None:
+        x = picked.get(key)
+        if not x:
+            return None
+        return float(x["per_token"]) * 1_000_000.0
+
+    cur = chosen_currency or "USD"
+    dsp = (deployment_scope or "global").strip().lower() or "global"
+    return {
+        "ok": True,
+        "vendor": vn,
+        "platform": pl,
+        "model_series": ms,
+        "model_name": mn,
+        "price_region": chosen_region,
+        "deployment_scope": dsp,
+        "billing_mode": bm,
+        "currency": cur,
+        "usd_per_1m_tokens": {
+            "input": per_1m("input"),
+            "cached_input": per_1m("cached_input"),
+            "output": per_1m("output"),
+        },
+        "per_token": {k: float(v["per_token"]) for k, v in picked.items()},
+        "missing_metrics": [m for m in _FORECAST_METRICS if m not in picked],
+        "notes_zh": (
+            "单价来自 Model Prices 全表（所选 vendor / 平台 / 区域 / 部署 / 计费模式）。"
+            "Forecast 页「每日用量」以百万 tokens（1M）为单位填写；总成本 = Σ(实际日 token × 单价) × 团队倍率 × 天数。"
+            "未出现在目录中的计量项按 0 单价计。仅供内部估算，最终以账单与合同为准。"
+        ),
+    }
+
+
+def get_model_price_by_id(conn: sqlite3.Connection, price_id: int) -> dict | None:
+    r = conn.execute(
+        """
+        SELECT
+            id,
+            source_id, source_url, effective_date, retrieved_at_utc,
+            vendor, platform, price_region, price_currency,
+            model_series, model_name, context_bucket, deployment_scope,
+            billing_mode, metric_name, amount,
+            unit_quantity, unit_name, unit_expression, notes, source_detail_json
+        FROM model_prices
+        WHERE id = ?
+        """,
+        (price_id,),
+    ).fetchone()
+    if r is None:
+        return None
+    detail: dict | None = None
+    raw = r["source_detail_json"]
+    if raw:
+        try:
+            detail = json.loads(raw)
+        except Exception:
+            detail = {"parse_error": True, "raw": raw}
+    return {
+        "id": int(r["id"]),
+        "source_id": r["source_id"],
+        "source_url": r["source_url"],
+        "effective_date": r["effective_date"],
+        "retrieved_at_utc": r["retrieved_at_utc"],
+        "vendor": r["vendor"],
+        "platform": r["platform"],
+        "price_region": r["price_region"],
+        "price_currency": r["price_currency"],
+        "model_series": r["model_series"],
+        "model_name": r["model_name"],
+        "context_bucket": r["context_bucket"],
+        "deployment_scope": r["deployment_scope"],
+        "billing_mode": r["billing_mode"],
+        "metric_name": r["metric_name"],
+        "amount": float(r["amount"]),
+        "unit_quantity": int(r["unit_quantity"]),
+        "unit_name": r["unit_name"],
+        "unit_expression": r["unit_expression"],
+        "notes": r["notes"],
+        "source_detail": detail,
+    }

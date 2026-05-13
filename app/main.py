@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+import asyncio
 import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Optional
 
-from fastapi import Body, Depends, FastAPI, Form, Query, Request
+from fastapi import Body, Depends, FastAPI, Form, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -13,8 +14,13 @@ from starlette.middleware.sessions import SessionMiddleware
 from pydantic import BaseModel
 
 from .db import (
+    clear_all_model_prices,
+    get_cost_forecast_baseline,
+    get_forecast_model_unit_prices,
+    get_model_price_by_id,
     get_model_price_filter_options,
     get_model_prices,
+    get_model_prices_meta,
     get_project_model_config,
     get_all_currencies,
     get_all_financial_stats,
@@ -27,7 +33,10 @@ from .db import (
     verify_all_financial_consistency,
     get_timeseries,
     init_db,
+    list_forecast_model_catalog,
+    list_price_source_catalog,
     list_projects,
+    update_price_source_catalog_row,
     upsert_project_model_config,
 )
 from .ingest import ingest_all, ingest_selected, list_ingested_files, list_missing_files, verify_ingested_files
@@ -43,6 +52,19 @@ class ProjectModelConfigRequest(BaseModel):
     model_name: str
     api_version: Optional[str] = None
     azure_endpoint: Optional[str] = None
+
+
+class RetailSyncBody(BaseModel):
+    series: str = "all"
+    probe_marketing: bool = False
+    arm_region: Optional[str] = None
+
+
+class PriceSourcePatchBody(BaseModel):
+    title: Optional[str] = None
+    reference_url: Optional[str] = None
+    api_url: Optional[str] = None
+    notes: Optional[str] = None
 
 
 def _default_bills_dir() -> str:
@@ -117,6 +139,14 @@ def create_app(
         if not auth_enabled:
             return "anonymous"
         return require_active_user(request, db_path=db_path)
+
+    def _price_source_catalog_snapshot() -> list[dict[str, object]]:
+        conn = get_connection(db_path)
+        try:
+            init_db(conn)
+            return list_price_source_catalog(conn)
+        finally:
+            conn.close()
 
     @app.get("/health")
     def health() -> dict:
@@ -214,6 +244,18 @@ def create_app(
             {"username": request.session.get("username", "")},
         )
 
+    @app.get("/forecast", response_class=HTMLResponse)
+    def forecast_page(request: Request) -> HTMLResponse:
+        if auth_enabled:
+            username = request.session.get("username")
+            if not username:
+                return RedirectResponse(url="/login", status_code=303)
+        return templates.TemplateResponse(
+            request,
+            "forecast.html",
+            {"username": request.session.get("username", "")},
+        )
+
     @app.get("/prices", response_class=HTMLResponse)
     def prices_page(request: Request) -> HTMLResponse:
         if auth_enabled:
@@ -223,6 +265,18 @@ def create_app(
         return templates.TemplateResponse(
             request,
             "prices.html",
+            {"username": request.session.get("username", "")},
+        )
+
+    @app.get("/price-sources", response_class=HTMLResponse)
+    def price_sources_page(request: Request) -> HTMLResponse:
+        if auth_enabled:
+            username = request.session.get("username")
+            if not username:
+                return RedirectResponse(url="/login", status_code=303)
+        return templates.TemplateResponse(
+            request,
+            "price-sources.html",
             {"username": request.session.get("username", "")},
         )
 
@@ -314,6 +368,59 @@ def create_app(
                     "points": points,
                 }
             )
+        finally:
+            conn.close()
+
+    @app.get("/api/projects/{project_name}/forecast-baseline")
+    def api_forecast_baseline(
+        project_name: str,
+        window_days: int = Query(default=28, ge=7, le=90),
+        currency: Optional[str] = Query(default=None),
+        _: str = Depends(_auth_dep),
+    ) -> JSONResponse:
+        conn = get_connection(db_path)
+        try:
+            out = get_cost_forecast_baseline(
+                conn, project_name, window_days=window_days, currency=currency
+            )
+            return JSONResponse(out)
+        finally:
+            conn.close()
+
+    @app.get("/api/forecast/model-catalog")
+    def api_forecast_model_catalog(_: str = Depends(_auth_dep)) -> JSONResponse:
+        conn = get_connection(db_path)
+        try:
+            opts = list_forecast_model_catalog(conn)
+            return JSONResponse({"options": opts})
+        finally:
+            conn.close()
+
+    @app.get("/api/forecast/model-unit-prices")
+    def api_forecast_model_unit_prices(
+        vendor: str = Query(..., min_length=1),
+        platform: str = Query(..., min_length=1),
+        model_series: str = Query(..., min_length=1),
+        model_name: str = Query(..., min_length=1),
+        price_region: Optional[str] = Query(default=None, description="omit or empty = any region"),
+        deployment_scope: Optional[str] = Query(default="global"),
+        billing_mode: str = Query(default="standard"),
+        _: str = Depends(_auth_dep),
+    ) -> JSONResponse:
+        conn = get_connection(db_path)
+        try:
+            pr = (price_region.strip() if price_region else None) or None
+            out = get_forecast_model_unit_prices(
+                conn,
+                vendor=vendor,
+                platform=platform,
+                model_series=model_series,
+                model_name=model_name,
+                price_region=pr,
+                deployment_scope=(deployment_scope.strip() if deployment_scope else None),
+                billing_mode=billing_mode,
+            )
+            return JSONResponse(out)
         finally:
             conn.close()
 
@@ -442,6 +549,7 @@ def create_app(
                     "rows_ingested": result.rows_ingested,
                     "files_verified": result.files_verified,
                     "verification_passed": result.verification_passed,
+                    "price_source_catalog": _price_source_catalog_snapshot(),
                 }
             )
         except Exception as e:
@@ -456,6 +564,7 @@ def create_app(
                     "files_verified": 0,
                     "verification_passed": False,
                     "import_error": str(e),
+                    "price_source_catalog": _price_source_catalog_snapshot(),
                 }
             )
 
@@ -602,22 +711,137 @@ def create_app(
         finally:
             conn.close()
 
+    @app.get("/api/prices/meta")
+    def api_prices_meta(_: str = Depends(_auth_dep)) -> JSONResponse:
+        conn = get_connection(db_path)
+        try:
+            return JSONResponse(get_model_prices_meta(conn))
+        finally:
+            conn.close()
+
     @app.get("/api/prices")
     def api_prices(
         vendor: Optional[str] = Query(default=None),
         platform: Optional[str] = Query(default=None),
         model_series: Optional[str] = Query(default=None),
+        page: int = Query(default=1, ge=1),
+        page_size: int = Query(default=100, ge=1, le=500),
         _: str = Depends(_auth_dep),
     ) -> JSONResponse:
         conn = get_connection(db_path)
         try:
-            rows = get_model_prices(
+            rows, total = get_model_prices(
                 conn,
                 vendor=vendor,
                 platform=platform,
                 model_series=model_series,
+                page=page,
+                page_size=page_size,
             )
-            return JSONResponse({"total": len(rows), "rows": rows})
+            return JSONResponse(
+                {
+                    "total": total,
+                    "page": page,
+                    "page_size": page_size,
+                    "rows": rows,
+                }
+            )
+        finally:
+            conn.close()
+
+    @app.get("/api/prices/sync-series-options")
+    def api_prices_sync_series_options(_: str = Depends(_auth_dep)) -> JSONResponse:
+        from .azure_retail_prices import sync_series_options
+
+        return JSONResponse({"series": sync_series_options()})
+
+    @app.post("/api/prices/sync-retail")
+    async def api_prices_sync_retail(body: RetailSyncBody, _: str = Depends(_auth_dep)) -> JSONResponse:
+        from .azure_retail_prices import (
+            allowed_series_keys,
+            import_openai_retail_prices,
+            probe_azure_marketing_pricing_endpoints,
+        )
+
+        if body.series not in allowed_series_keys():
+            raise HTTPException(status_code=400, detail="invalid series key")
+
+        marketing = None
+        if body.probe_marketing:
+            marketing = await asyncio.to_thread(probe_azure_marketing_pricing_endpoints)
+
+        try:
+            result = await asyncio.to_thread(
+                import_openai_retail_prices,
+                db_path=str(db_path),
+                series_key=body.series,
+                arm_region=body.arm_region,
+            )
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e)) from e
+        except Exception as e:
+            raise HTTPException(status_code=502, detail=str(e)) from e
+
+        return JSONResponse(
+            {
+                "ok": True,
+                "retail": {
+                    "rows_fetched": result.rows_fetched,
+                    "rows_imported": result.rows_imported,
+                    "retail_rows_deleted": result.retail_rows_deleted,
+                    "retrieved_at_utc": result.retrieved_at_utc,
+                    "filter_url": result.filter_url,
+                },
+                "marketing_probe": marketing,
+                "price_source_catalog": _price_source_catalog_snapshot(),
+            }
+        )
+
+    @app.post("/api/prices/clear-all")
+    def api_prices_clear_all(_: str = Depends(_auth_dep)) -> JSONResponse:
+        conn = get_connection(db_path)
+        try:
+            init_db(conn)
+            deleted = clear_all_model_prices(conn)
+            return JSONResponse({"ok": True, "deleted": deleted})
+        finally:
+            conn.close()
+
+    @app.get("/api/price-sources")
+    def api_price_sources_list(_: str = Depends(_auth_dep)) -> JSONResponse:
+        return JSONResponse({"sources": _price_source_catalog_snapshot()})
+
+    @app.patch("/api/price-sources/{row_id}")
+    def api_price_sources_patch(
+        row_id: int,
+        body: PriceSourcePatchBody = Body(...),
+        _: str = Depends(_auth_dep),
+    ) -> JSONResponse:
+        conn = get_connection(db_path)
+        try:
+            init_db(conn)
+            out = update_price_source_catalog_row(
+                conn,
+                row_id,
+                title=body.title,
+                reference_url=body.reference_url,
+                api_url=body.api_url,
+                notes=body.notes,
+            )
+            if out is None:
+                raise HTTPException(status_code=404, detail="Price source row not found")
+            return JSONResponse(out)
+        finally:
+            conn.close()
+
+    @app.get("/api/prices/row/{price_id}")
+    def api_price_row(price_id: int, _: str = Depends(_auth_dep)) -> JSONResponse:
+        conn = get_connection(db_path)
+        try:
+            row = get_model_price_by_id(conn, price_id)
+            if row is None:
+                raise HTTPException(status_code=404, detail="Price row not found")
+            return JSONResponse(row)
         finally:
             conn.close()
 

@@ -65,6 +65,17 @@ def test_api_project_flow(tmp_path):
     assert ts["points"][0]["date"] == "2026-03-01"
     assert ts["points"][0]["cost_usd"] == 1.0
 
+    res = client.get("/api/projects/projB/forecast-baseline?window_days=28")
+    assert res.status_code == 200
+    fb = res.json()
+    assert fb["ok"] is True
+    assert fb["project"] == "projB"
+    assert fb["window_days"] == 28
+    assert fb["currency"] == "USD"
+    assert fb["baseline_usd_per_day"] > 0
+    assert "notes_zh" in fb
+    assert "team_model" in fb
+
     res = client.get("/api/projects/projB/rows?page=1&page_size=10")
     assert res.status_code == 200
     rows = res.json()
@@ -125,8 +136,8 @@ def test_api_token_timeseries_and_rows_estimated_tokens(tmp_path):
                 vendor, platform, price_region, price_currency,
                 model_series, model_name, context_bucket, deployment_scope,
                 billing_mode, metric_name, amount,
-                unit_quantity, unit_name, unit_expression, notes
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                unit_quantity, unit_name, unit_expression, notes, source_detail_json
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 "src",
@@ -148,6 +159,7 @@ def test_api_token_timeseries_and_rows_estimated_tokens(tmp_path):
                 "tokens",
                 "USD/1M tokens",
                 None,
+                None,
             ),
         )
         conn.execute(
@@ -157,8 +169,8 @@ def test_api_token_timeseries_and_rows_estimated_tokens(tmp_path):
                 vendor, platform, price_region, price_currency,
                 model_series, model_name, context_bucket, deployment_scope,
                 billing_mode, metric_name, amount,
-                unit_quantity, unit_name, unit_expression, notes
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                unit_quantity, unit_name, unit_expression, notes, source_detail_json
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 "src",
@@ -179,6 +191,7 @@ def test_api_token_timeseries_and_rows_estimated_tokens(tmp_path):
                 1_000_000,
                 "tokens",
                 "USD/1M tokens",
+                None,
                 None,
             ),
         )

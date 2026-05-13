@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Price sources - Models Cost Management</title>
+    <link rel="stylesheet" href="/static/css/app-shell.css" />
+    <link rel="stylesheet" href="/static/css/page-common.css" />
+    <link rel="stylesheet" href="/static/css/pricing-surface.css" />
+    <link rel="stylesheet" href="/static/css/pages/price-sources.css" />
+  </head>
+  <body>
+    <div class="appNav">
+      <div class="appNavInner">
+        <div class="brand">Models Cost Management</div>
+        <div class="navLinks">
+          <a class="navLink" href="/">Dashboard</a>
+          <a class="navLink" href="/tokens">Tokens</a>
+          <a class="navLink" href="/reports">Reports</a>
+          <a class="navLink" href="/prices">Prices</a>
+          <a class="navLink" href="/forecast">Forecast</a>
+          <a class="navLink" href="/import">Import</a>
+          <a class="navLink active" href="/price-sources">Price sources</a>
+        </div>
+        <div class="navRight">
+          <button id="navToggle" class="navToggle" type="button">Menu</button>
+          {% if username %}<span class="muted">{{ username }}</span>{% endif %}
+          <button id="logoutBtnTop" class="logoutBtn" type="button">Logout</button>
+        </div>
+      </div>
+    </div>
+    <div class="appLayout">
+      <main class="contentArea">
+        <div class="container">
+          <div class="pageHeader">
+            <div class="breadcrumb">Home / Pricing / Sources</div>
+            <div class="pageTitle">Price source catalog</div>
+            <div class="pageDesc">
+              Edit reference pages and API roots used by import, CSV tooling, and retail sync. Rows are keyed by
+              <code>source_key</code> and seeded on first database init.
+            </div>
+          </div>
+
+          <div class="card psRefCard">
+            <div class="psRefTitle">Reference &amp; API</div>
+            <p class="psRefLead muted">
+              Quick links mirror the catalog below; use <strong>Edit</strong> in the table to change URLs and notes.
+            </p>
+            <div id="priceSourceReference" class="psCatalogGuide"></div>
+          </div>
+
+          <div class="card">
+            <div class="psToolbar">
+              <button id="refreshBtn" type="button" class="btnSecondary">Reload</button>
+            </div>
+            <div class="pricingTableShell">
+              <table class="dataTable">
+                <thead>
+                  <tr>
+                    <th>Title</th>
+                    <th>Key</th>
+                    <th>Reference URL</th>
+                    <th>API URL</th>
+                    <th>Notes</th>
+                    <th style="width: 88px" class="colAction">Edit</th>
+                  </tr>
+                </thead>
+                <tbody id="srcTbody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <dialog id="editDialog" class="psDialog">
+      <div class="psDialogHeader">
+        <div class="psDialogTitle">Edit price source</div>
+        <button id="editClose" type="button" class="psDialogClose" aria-label="Close">×</button>
+      </div>
+      <div class="psDialogBody">
+        <input type="hidden" id="editId" />
+        <div class="field">
+          <label class="muted" for="editTitle">Title</label>
+          <input id="editTitle" type="text" class="psInput" />
+        </div>
+        <div class="field">
+          <label class="muted" for="editRef">Reference URL</label>
+          <input id="editRef" type="text" class="psInput" />
+        </div>
+        <div class="field">
+          <label class="muted" for="editApi">API URL</label>
+          <input id="editApi" type="text" class="psInput" />
+        </div>
+        <div class="field">
+          <label class="muted" for="editNotes">Notes</label>
+          <textarea id="editNotes" class="psTextarea" rows="3"></textarea>
+        </div>
+        <div class="psDialogActions">
+          <button id="editSave" type="button" class="btnPrimary">Save</button>
+        </div>
+      </div>
+    </dialog>
+
+    <script src="/static/js/app-shell.js"></script>
+    <script src="/static/js/http.js"></script>
+    <script src="/static/js/pages/price-sources.js"></script>
+  </body>
+</html>

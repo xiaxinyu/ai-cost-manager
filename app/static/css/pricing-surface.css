@@ -1,0 +1,127 @@
+/**
+ * Shared data-table chrome for /prices and /price-sources.
+ * Load after page-common.css so .dataTable rules win over global table styles.
+ */
+
+.pricingTableShell {
+  max-height: min(70vh, 880px);
+  overflow: auto;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  background: linear-gradient(180deg, rgba(14, 18, 28, 0.92) 0%, rgba(9, 12, 20, 0.96) 100%);
+  box-shadow:
+    0 4px 28px rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.pricingTableShell:focus-within {
+  border-color: rgba(125, 211, 252, 0.18);
+}
+
+.dataTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  line-height: 1.45;
+  color: #e2e8f0;
+}
+
+.dataTable th,
+.dataTable td {
+  padding: 12px 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-left: none;
+  border-right: none;
+  vertical-align: middle;
+  text-align: left;
+}
+
+.dataTable thead th {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background: linear-gradient(180deg, rgba(22, 28, 42, 0.98) 0%, rgba(15, 19, 28, 0.99) 100%);
+  backdrop-filter: blur(10px);
+  color: #8b9cb3;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  white-space: nowrap;
+}
+
+.dataTable tbody td {
+  color: #c5d0e0;
+}
+
+.dataTable tbody tr.priceDataRow {
+  transition: background-color 0.14s ease;
+}
+
+.dataTable tbody tr.priceDataRow:hover td {
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.dataTable tbody tr.priceDataRow:active td {
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.dataTable tbody tr.priceDataRow.priceRowClickable {
+  cursor: pointer;
+}
+
+.dataTable tbody tr.priceDataRow.priceRowClickable:focus-visible {
+  outline: 2px solid rgba(94, 234, 212, 0.45);
+  outline-offset: -2px;
+}
+
+.dataTable .num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+  color: #f1f5f9;
+}
+
+.dataTable tbody td .itemMain {
+  color: #f8fafc;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.dataTable tbody td .itemSub {
+  color: #94a3b8;
+  font-size: 12px;
+  margin-top: 4px;
+  line-height: 1.35;
+}
+
+/* Neutralize page-common zebra for these tables */
+.pricingTableShell .dataTable tbody tr:nth-child(odd),
+.pricingTableShell .dataTable tbody tr:nth-child(even) {
+  background: transparent;
+}
+
+.pricingTableShell .dataTable tbody tr:nth-child(odd):hover td,
+.pricingTableShell .dataTable tbody tr:nth-child(even):hover td {
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.dataTable code {
+  font-size: 12px;
+  color: #a5c9ff;
+  background: rgba(0, 0, 0, 0.22);
+  padding: 2px 6px;
+  border-radius: 6px;
+}
+
+.dataTable .cellUrl a {
+  color: #7dd3fc;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  word-break: break-all;
+}
+
+.dataTable .cellUrl a:hover {
+  color: #bae6fd;
+}

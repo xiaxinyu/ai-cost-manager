@@ -118,8 +118,8 @@ def e2e_server_base_url(tmp_path_factory: pytest.TempPathFactory) -> str:
               vendor, platform, price_region, price_currency,
               model_series, model_name, context_bucket, deployment_scope,
               billing_mode, metric_name, amount,
-              unit_quantity, unit_name, unit_expression, notes
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+              unit_quantity, unit_name, unit_expression, notes, source_detail_json
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 "fixture",
@@ -141,6 +141,7 @@ def e2e_server_base_url(tmp_path_factory: pytest.TempPathFactory) -> str:
                 "1M tokens",
                 "USD / 1M tokens",
                 "fixture",
+                None,
             ),
         )
         conn.execute(
@@ -150,8 +151,8 @@ def e2e_server_base_url(tmp_path_factory: pytest.TempPathFactory) -> str:
               vendor, platform, price_region, price_currency,
               model_series, model_name, context_bucket, deployment_scope,
               billing_mode, metric_name, amount,
-              unit_quantity, unit_name, unit_expression, notes
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+              unit_quantity, unit_name, unit_expression, notes, source_detail_json
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 "fixture",
@@ -173,6 +174,7 @@ def e2e_server_base_url(tmp_path_factory: pytest.TempPathFactory) -> str:
                 "1M tokens",
                 "USD / 1M tokens",
                 "fixture",
+                None,
             ),
         )
         conn.commit()
@@ -209,11 +211,11 @@ def e2e_server_base_url(tmp_path_factory: pytest.TempPathFactory) -> str:
         sys.executable,
         "-m",
         "app.cli",
+        "serve",
         "--bills-dir",
         str(bills_dir),
         "--db-path",
         str(db_path),
-        "serve",
         "--host",
         "127.0.0.1",
         "--port",

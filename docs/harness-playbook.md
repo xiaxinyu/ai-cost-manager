@@ -58,8 +58,8 @@ A change is done only when:
 
 ```bash
 .venv/bin/python -m pytest
-.venv/bin/python -m app.cli --db-path data/cost_mgmt.sqlite3 ingest
-.venv/bin/python -m app.cli --db-path data/cost_mgmt.sqlite3 import-prices --csv-path bills/price/azure_openai_prices_2026-04-29_eastus_usd.csv
+.venv/bin/python -m app.cli ingest --db-path data/cost_mgmt.sqlite3
+.venv/bin/python -m app.cli import-prices --db-path data/cost_mgmt.sqlite3 --csv-path bills/price/azure_openai_prices_2026-04-29_eastus_usd.csv
 ```
 
 ## 8) Team Roles Template

@@ -40,8 +40,8 @@ def _add_token_price_model(db_path: str, project_name: str = "projToken") -> Non
                     vendor, platform, price_region, price_currency,
                     model_series, model_name, context_bucket, deployment_scope,
                     billing_mode, metric_name, amount,
-                    unit_quantity, unit_name, unit_expression, notes
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    unit_quantity, unit_name, unit_expression, notes, source_detail_json
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     "src",
@@ -62,6 +62,7 @@ def _add_token_price_model(db_path: str, project_name: str = "projToken") -> Non
                     1_000_000,
                     "tokens",
                     "USD/1M tokens",
+                    None,
                     None,
                 ),
             )
