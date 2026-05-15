@@ -13,7 +13,7 @@
       <div class="appNavInner">
         <div class="brand">Models Cost Management</div>
         <div class="navLinks">
-          <a class="navLink" href="/">Dashboard</a>
+          <a class="navLink" href="/">Cost</a>
           <a class="navLink" href="/tokens">Tokens</a>
           <a class="navLink active" href="/reports">Reports</a>
           <a class="navLink" href="/prices">Prices</a>
@@ -30,22 +30,14 @@
     </div>
     <div class="appLayout">
       <main class="contentArea">
-        <div class="container">
-          <div class="pageHeader">
-            <div class="breadcrumb">Home / Reporting / Financial Reports</div>
-            <div class="pageTitle">Financial Report Center</div>
-            <div class="pageDesc">Analyze daily and monthly spend distributions across selected project scope.</div>
-          </div>
+        <div class="container reportPage">
+          <header class="pageHeader reportPageHeader">
+            <div class="breadcrumb">Home / Reports</div>
+            <h1 class="pageTitle">Financial Report Center</h1>
+            <p class="pageDesc">Cost trends, billing forecast, and token usage for the selected scope. Token forecasts are on the Forecast page.</p>
+          </header>
 
-          <div class="header">
-        <div>
-          <div class="title">Models Cost Management</div>
-          <div class="muted">Financial report with project scope (audit-style)</div>
-        </div>
-        <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap;"></div>
-      </div>
-
-          <div class="card">
+          <section class="card reportFilters">
         <div class="controlsRow">
           <div style="min-width: 320px;">
             <label>Project Scope</label>
@@ -88,245 +80,190 @@
           </div>
         </div>
         <div id="verifyResult" class="tableNote" style="display:none; margin-top:10px;"></div>
-        <div class="tableNote">
-          Data source: CSV rows imported into SQLite table `transactions`. Daily/monthly statistics are computed from summed daily/monthly totals.
-        </div>
-      </div>
+        <p class="tableNote reportSourceNote">Billing from imported CSVs. Token metrics use Grafana imports when available.</p>
+      </section>
 
-          <div class="gridStats">
-        <div class="card">
-          <div class="muted" style="margin-bottom:10px;">Daily (per day)</div>
-          <div class="statRow"><div class="statKey">Days With Data</div><div class="statVal" id="d_count">-</div></div>
-          <div class="statRow"><div class="statKey">Total Actual</div><div class="statVal" id="d_total_actual">-</div></div>
-          <div class="statRow"><div class="statKey">Estimated Input Tokens (Total)</div><div class="statVal" id="d_est_input_tokens">-</div></div>
-          <div class="statRow"><div class="statKey">Estimated Output Tokens (Total)</div><div class="statVal" id="d_est_output_tokens">-</div></div>
-          <div class="statRow"><div class="statKey">Projects With Token Estimate</div><div class="statVal" id="d_est_projects">-</div></div>
-          <div class="statRow"><div class="statKey">Token Estimate Model</div><div class="statVal" id="d_token_model">-</div></div>
-          <div class="statRow"><div class="statKey">Token Estimate Region</div><div class="statVal" id="d_token_region">-</div></div>
-          <div class="statRow"><div class="statKey">Avg Actual / Day</div><div class="statVal" id="d_avg_actual">-</div></div>
-          <div class="statRow"><div class="statKey">Median Actual / Day</div><div class="statVal" id="d_median_actual">-</div></div>
-          <div class="statRow"><div class="statKey">Variance Actual / Day</div><div class="statVal" id="d_var_actual">-</div></div>
-        </div>
-        <div class="card">
-          <div class="muted" style="margin-bottom:10px;">Monthly (per month)</div>
-          <div class="statRow"><div class="statKey">Months With Data</div><div class="statVal" id="m_count">-</div></div>
-          <div class="statRow"><div class="statKey">Avg Actual / Month</div><div class="statVal" id="m_avg_actual">-</div></div>
-          <div class="statRow"><div class="statKey">Median Actual / Month</div><div class="statVal" id="m_median_actual">-</div></div>
-          <div class="statRow"><div class="statKey">Variance Actual / Month</div><div class="statVal" id="m_var_actual">-</div></div>
-        </div>
-      </div>
+          <section class="gridStats reportKpis" aria-label="Summary metrics">
+            <article class="card kpiCard">
+              <h2 class="kpiTitle">Cost · Daily</h2>
+              <div class="statRow"><div class="statKey">Days with data</div><div class="statVal" id="d_count">-</div></div>
+              <div class="statRow"><div class="statKey">Total actual</div><div class="statVal" id="d_total_actual">-</div></div>
+              <div class="statRow"><div class="statKey">Avg / day</div><div class="statVal" id="d_avg_actual">-</div></div>
+              <div class="statRow"><div class="statKey">Median / day</div><div class="statVal" id="d_median_actual">-</div></div>
+              <div class="statRow"><div class="statKey">Variance / day</div><div class="statVal" id="d_var_actual">-</div></div>
+            </article>
+            <article class="card kpiCard">
+              <h2 class="kpiTitle">Cost · Monthly</h2>
+              <div class="statRow"><div class="statKey">Months with data</div><div class="statVal" id="m_count">-</div></div>
+              <div class="statRow"><div class="statKey">Avg / month</div><div class="statVal" id="m_avg_actual">-</div></div>
+              <div class="statRow"><div class="statKey">Median / month</div><div class="statVal" id="m_median_actual">-</div></div>
+              <div class="statRow"><div class="statKey">Variance / month</div><div class="statVal" id="m_var_actual">-</div></div>
+            </article>
+            <article class="card kpiCard kpiTokens" id="tokenKpiCard">
+              <h2 class="kpiTitle">Tokens · Scope</h2>
+              <div class="statRow"><div class="statKey" id="rptKeyInputTokens">Input tokens</div><div class="statVal" id="d_est_input_tokens">-</div></div>
+              <div class="statRow"><div class="statKey" id="rptKeyOutputTokens">Output tokens</div><div class="statVal" id="d_est_output_tokens">-</div></div>
+              <div class="statRow"><div class="statKey" id="rptKeyProjectsTokens">Projects with data</div><div class="statVal" id="d_est_projects">-</div></div>
+              <div class="statRow"><div class="statKey" id="rptKeyTokenModel">Source / model</div><div class="statVal" id="d_token_model">-</div></div>
+              <div class="statRow"><div class="statKey" id="rptKeyTokenRegion">Path / region</div><div class="statVal" id="d_token_region">-</div></div>
+            </article>
+          </section>
 
-          <div class="card" style="margin-top: 14px;">
-        <div class="rowsToolbar">
-          <div>
-            <div class="muted" style="margin-bottom:4px;">By project</div>
-            <div class="tableNote" style="margin:0;">
-              Per-project CostUSD in the current scope. Token columns use the project&rsquo;s linked model and standard USD list prices (optional).
-            </div>
-          </div>
-          <button id="exportProjectBreakdownBtn" class="btnSmall" type="button">Export CSV</button>
-        </div>
-        <div class="tableScroll" style="max-height: 320px; margin-top: 10px;">
-          <table id="projectBreakdownTable">
-            <thead>
-              <tr>
-                <th class="sortable" data-label="Project" data-sort-key="project_name" scope="col">Project</th>
-                <th class="num sortable" data-label="Cost (USD)" data-sort-key="actual_cost_usd_total" scope="col">Cost (USD)</th>
-                <th class="num sortable" data-label="Days" data-sort-key="actual_days" scope="col">Days</th>
-                <th data-label="Model" scope="col">Model</th>
-                <th class="num sortable" data-label="Estimated in tokens" data-sort-key="estimated_input_tokens" scope="col">Estimated in tokens</th>
-                <th class="num sortable" data-label="Estimated out tokens" data-sort-key="estimated_output_tokens" scope="col">Estimated out tokens</th>
-              </tr>
-            </thead>
-            <tbody id="projectBreakdownTbody"></tbody>
-          </table>
-        </div>
-      </div>
-
-          <div class="sectionHeaderRow">
-            <div class="sectionTitle">Cost</div>
-            <div class="muted">Actual + Forecast</div>
-          </div>
-          <div class="gridCharts">
-            <div class="card chartWrap">
-              <div class="muted" style="margin-bottom:10px;">Daily Actual</div>
-              <canvas id="dailyChart"></canvas>
-            </div>
-            <div class="card chartWrap">
-              <div class="muted" style="margin-bottom:10px;">Monthly Actual</div>
-              <canvas id="monthlyChart"></canvas>
-            </div>
-          </div>
-
-          <div class="gridCharts" style="margin-top: 14px;">
-            <div class="card chartWrap">
-          <div class="rowsToolbar" style="margin-bottom:10px;">
-            <div>
-              <div class="muted">Cost Forecast (7d)</div>
-              <div class="tableNote" style="margin:0;">Forecast uses last 28 days (trend + day-of-week correction). Values are integers.</div>
-            </div>
-          </div>
-          <canvas id="costForecastChart"></canvas>
-          <div class="forecastMetaRow">
-            <div class="muted">Last 28 days · 7-day horizon · DOW correction</div>
-            <div id="forecastQualityCostReport" class="qualityBadge qualityMedium">Forecast quality: -</div>
-          </div>
-          <details class="forecastAssumptions">
-            <summary>Forecast assumptions (7d)</summary>
-            <div class="assumptionBody">
-              Uses the last <b>28</b> valid daily points to fit a <b>linear trend</b> with <b>day-of-week residual correction</b>.
-              Output is <b>integer</b> and <b>clamped to ≥ 0</b>.
-              <ul>
-                <li><b>Window</b>: 28 samples (clamped to [2, 365])</li>
-                <li><b>Horizon</b>: 7 days (clamped to [1, 30])</li>
-                <li><b>Continuity</b>: dashed forecast starts at last actual point</li>
-              </ul>
-            </div>
-          </details>
-          <div class="tableScroll" style="max-height: 220px; margin-top: 10px;">
-            <table>
-              <thead>
-                <tr><th style="width:160px;">Date</th><th class="num">Forecast Cost</th></tr>
-              </thead>
-              <tbody id="costForecastTbody"></tbody>
-            </table>
-          </div>
-            </div>
-          </div>
-
-          <div class="sectionHeaderRow" style="margin-top: 14px;">
-            <div class="sectionTitle">Tokens</div>
-            <div class="muted">Estimated + Ratio + Forecast</div>
-          </div>
-          <div class="gridCharts">
-            <div class="card chartWrap">
-              <div class="muted" style="margin-bottom:10px;">Daily Token Estimates</div>
-              <canvas id="dailyTokenChart"></canvas>
-            </div>
-        <div class="card chartWrap">
-          <div class="rowsToolbar" style="margin-bottom:10px;">
-            <div class="muted">Daily Token Output/Input Ratio</div>
-            <button id="exportTokenRatioBtn" class="btnSmall" type="button">Export CSV</button>
-          </div>
-          <div class="forecastMetaRow" style="margin-top: -6px;">
-            <div class="muted" id="ratioKpiSummaryReport">Valid days: - · >1: - · <1: -</div>
-            <div class="muted">Baseline: 1.0</div>
-          </div>
-              <canvas id="dailyTokenRatioChart"></canvas>
-              <div class="tableScroll" style="max-height: 220px; margin-top: 10px;">
-                <table>
-                  <thead>
-                    <tr><th style="width:160px;">Date</th><th class="num">Output/Input</th></tr>
-                  </thead>
-                  <tbody id="tokenRatioTbody"></tbody>
-                </table>
+          <section class="card reportPanel">
+            <div class="rowsToolbar">
+              <div>
+                <h2 class="panelTitle">By project</h2>
+                <p class="tableNote panelDesc">Per-project cost in scope. Token columns use imported CSVs or cost-based estimates.</p>
               </div>
+              <button id="exportProjectBreakdownBtn" class="btnSmall" type="button">Export CSV</button>
             </div>
-          </div>
-          <div class="gridCharts" style="margin-top: 14px;">
-            <div class="card chartWrap">
-              <div class="muted" style="margin-bottom:10px;">Monthly Token Estimates</div>
-              <canvas id="monthlyTokenChart"></canvas>
+            <div class="tableScroll reportTableScroll">
+              <table id="projectBreakdownTable">
+                <thead>
+                  <tr>
+                    <th class="sortable" data-label="Project" data-sort-key="project_name" scope="col">Project</th>
+                    <th class="num sortable" data-label="Cost (USD)" data-sort-key="actual_cost_usd_total" scope="col">Cost (USD)</th>
+                    <th class="num sortable" data-label="Days" data-sort-key="actual_days" scope="col">Days</th>
+                    <th data-label="Model" scope="col">Model</th>
+                    <th class="num sortable" data-label="Input tokens" data-sort-key="estimated_input_tokens" scope="col">Input tokens</th>
+                    <th class="num sortable" data-label="Output tokens" data-sort-key="estimated_output_tokens" scope="col">Output tokens</th>
+                  </tr>
+                </thead>
+                <tbody id="projectBreakdownTbody"></tbody>
+              </table>
             </div>
-            <div class="card chartWrap">
-          <div class="rowsToolbar" style="margin-bottom:10px;">
-            <div>
-              <div class="muted">Token Forecast (7d)</div>
-              <div class="tableNote" style="margin:0;">Forecast uses last 28 days (trend + day-of-week correction). Values are integers.</div>
-            </div>
-          </div>
-          <canvas id="tokenForecastChart"></canvas>
-          <div class="forecastMetaRow">
-            <div class="muted">Last 28 days · 7-day horizon · DOW correction</div>
-            <div id="forecastQualityTokensReport" class="qualityBadge qualityMedium">Forecast quality: -</div>
-          </div>
-          <details class="forecastAssumptions">
-            <summary>Forecast assumptions (7d)</summary>
-            <div class="assumptionBody">
-              Each token series (input/output/total) is forecast independently with the same method.
-              Output is <b>integer</b> and <b>clamped to ≥ 0</b>.
-              <ul>
-                <li><b>Window</b>: 28 samples (clamped to [2, 365])</li>
-                <li><b>Horizon</b>: 7 days (clamped to [1, 30])</li>
-                <li><b>Continuity</b>: dashed forecast starts at last actual point</li>
-              </ul>
-            </div>
-          </details>
-          <div class="tableScroll" style="max-height: 220px; margin-top: 10px;">
-            <table>
-              <thead>
-                <tr>
-                  <th style="width:160px;">Date</th>
-                  <th class="num">Forecast Input</th>
-                  <th class="num">Forecast Output</th>
-                  <th class="num">Forecast Total</th>
-                </tr>
-              </thead>
-              <tbody id="tokenForecastTbody"></tbody>
-            </table>
-          </div>
-            </div>
-          </div>
+          </section>
 
-          <div class="gridCharts" style="margin-top: 14px;">
-        <div class="card">
-          <div class="rowsToolbar">
-            <div class="muted">Daily Actual Table</div>
-            <div class="pager">
-              <span class="muted">Page size</span>
-              <select id="dailyPageSizeSelect">
-                <option value="25">25</option>
-                <option value="50" selected>50</option>
-                <option value="100">100</option>
-                <option value="200">200</option>
-              </select>
-              <button id="dailyPrevBtn" class="btnSmall" type="button">Prev</button>
-              <button id="dailyNextBtn" class="btnSmall" type="button">Next</button>
-              <span id="dailyPageInfo" class="pageInfo">-</span>
-              <span class="muted">Go</span>
-              <input id="dailyGoInput" inputmode="numeric" placeholder="page" style="width: 90px;" />
-              <button id="dailyGoBtn" class="btnSmall" type="button">Go</button>
+          <section class="reportSection" aria-label="Cost charts">
+            <div class="sectionHeaderRow">
+              <h2 class="sectionTitle">Cost</h2>
+              <span class="sectionHint muted">Billing actuals and 7-day forecast</span>
             </div>
-          </div>
-          <div class="tableScroll">
-            <table>
-              <thead>
-                <tr><th style="width:160px;">Date</th><th class="num">Actual</th></tr>
-              </thead>
-              <tbody id="dailyTbody"></tbody>
-            </table>
-          </div>
-        </div>
+            <div class="chartGrid chartGrid3">
+              <article class="card chartCard">
+                <h3 class="chartCardTitle">Daily actual</h3>
+                <div class="chartCanvasHost"><canvas id="dailyChart"></canvas></div>
+              </article>
+              <article class="card chartCard">
+                <h3 class="chartCardTitle">Monthly actual</h3>
+                <div class="chartCanvasHost"><canvas id="monthlyChart"></canvas></div>
+              </article>
+              <article class="card chartCard chartCardForecast">
+                <div class="chartCardHead">
+                  <h3 class="chartCardTitle">Cost forecast (7d)</h3>
+                  <div id="forecastQualityCostReport" class="qualityBadge qualityMedium">Forecast quality: -</div>
+                </div>
+                <div class="chartCanvasHost chartCanvasHostShort"><canvas id="costForecastChart"></canvas></div>
+                <div class="forecastMetaRow">
+                  <span class="muted">28-day window · DOW correction</span>
+                  <a class="btnLinkQuiet" href="/forecast">Open Forecast</a>
+                </div>
+                <details class="forecastAssumptions">
+                  <summary>Assumptions</summary>
+                  <div class="assumptionBody">Linear trend + day-of-week residual on the last 28 valid days. Integer output, clamped ≥ 0.</div>
+                </details>
+                <div class="tableScroll tableScrollCompact">
+                  <table>
+                    <thead><tr><th>Date</th><th class="num">Forecast</th></tr></thead>
+                    <tbody id="costForecastTbody"></tbody>
+                  </table>
+                </div>
+              </article>
+            </div>
+          </section>
 
-        <div class="card">
-          <div class="rowsToolbar">
-            <div class="muted">Monthly Actual Table</div>
-            <div class="pager">
-              <span class="muted">Page size</span>
-              <select id="monthlyPageSizeSelect">
-                <option value="25">25</option>
-                <option value="50" selected>50</option>
-                <option value="100">100</option>
-                <option value="200">200</option>
-              </select>
-              <button id="monthlyPrevBtn" class="btnSmall" type="button">Prev</button>
-              <button id="monthlyNextBtn" class="btnSmall" type="button">Next</button>
-              <span id="monthlyPageInfo" class="pageInfo">-</span>
-              <span class="muted">Go</span>
-              <input id="monthlyGoInput" inputmode="numeric" placeholder="page" style="width: 90px;" />
-              <button id="monthlyGoBtn" class="btnSmall" type="button">Go</button>
+          <section class="reportSection" aria-label="Token usage" id="tokenReportSection">
+            <div class="sectionHeaderRow">
+              <h2 class="sectionTitle">Tokens</h2>
+              <span class="sectionHint muted">Historical usage only — no token forecast on this page</span>
             </div>
-          </div>
-          <div class="tableScroll">
-            <table>
-              <thead>
-                <tr><th style="width:160px;">Month</th><th class="num">Actual</th></tr>
-              </thead>
-              <tbody id="monthlyTbody"></tbody>
-            </table>
-          </div>
-        </div>
-          </div>
+            <div class="chartGrid chartGrid2">
+              <article class="card chartCard">
+                <h3 class="chartCardTitle">Daily usage</h3>
+                <div class="chartCanvasHost"><canvas id="dailyTokenChart"></canvas></div>
+              </article>
+              <article class="card chartCard">
+                <div class="chartCardHead">
+                  <h3 class="chartCardTitle">Output / input ratio</h3>
+                  <button id="exportTokenRatioBtn" class="btnSmall" type="button">Export CSV</button>
+                </div>
+                <p class="ratioKpiLine muted" id="ratioKpiSummaryReport">Valid days: - · &gt;1: - · &lt;1: -</p>
+                <div class="chartCanvasHost chartCanvasHostShort"><canvas id="dailyTokenRatioChart"></canvas></div>
+                <div class="tableScroll tableScrollCompact">
+                  <table>
+                    <thead><tr><th>Date</th><th class="num">Ratio</th></tr></thead>
+                    <tbody id="tokenRatioTbody"></tbody>
+                  </table>
+                </div>
+              </article>
+            </div>
+            <article class="card chartCard chartCardWide">
+              <h3 class="chartCardTitle">Monthly usage</h3>
+              <div class="chartCanvasHost"><canvas id="monthlyTokenChart"></canvas></div>
+            </article>
+          </section>
+
+          <section class="reportSection" aria-label="Cost tables">
+            <div class="sectionHeaderRow">
+              <h2 class="sectionTitle">Data tables</h2>
+              <span class="sectionHint muted">Paginated billing detail</span>
+            </div>
+            <div class="chartGrid chartGrid2">
+              <article class="card reportTableCard">
+                <div class="rowsToolbar">
+                  <h3 class="chartCardTitle">Daily actual</h3>
+                  <div class="pager">
+                    <span class="muted">Page size</span>
+                    <select id="dailyPageSizeSelect" aria-label="Daily page size">
+                      <option value="25">25</option>
+                      <option value="50" selected>50</option>
+                      <option value="100">100</option>
+                      <option value="200">200</option>
+                    </select>
+                    <button id="dailyPrevBtn" class="btnSmall" type="button">Prev</button>
+                    <button id="dailyNextBtn" class="btnSmall" type="button">Next</button>
+                    <span id="dailyPageInfo" class="pageInfo">-</span>
+                    <span class="muted">Go</span>
+                    <input id="dailyGoInput" inputmode="numeric" placeholder="page" style="width: 90px;" />
+                    <button id="dailyGoBtn" class="btnSmall" type="button">Go</button>
+                  </div>
+                </div>
+                <div class="tableScroll">
+                  <table>
+                    <thead><tr><th>Date</th><th class="num">Actual</th></tr></thead>
+                    <tbody id="dailyTbody"></tbody>
+                  </table>
+                </div>
+              </article>
+              <article class="card reportTableCard">
+                <div class="rowsToolbar">
+                  <h3 class="chartCardTitle">Monthly actual</h3>
+                  <div class="pager">
+                    <span class="muted">Page size</span>
+                    <select id="monthlyPageSizeSelect" aria-label="Monthly page size">
+                      <option value="25">25</option>
+                      <option value="50" selected>50</option>
+                      <option value="100">100</option>
+                      <option value="200">200</option>
+                    </select>
+                    <button id="monthlyPrevBtn" class="btnSmall" type="button">Prev</button>
+                    <button id="monthlyNextBtn" class="btnSmall" type="button">Next</button>
+                    <span id="monthlyPageInfo" class="pageInfo">-</span>
+                    <span class="muted">Go</span>
+                    <input id="monthlyGoInput" inputmode="numeric" placeholder="page" style="width: 90px;" />
+                    <button id="monthlyGoBtn" class="btnSmall" type="button">Go</button>
+                  </div>
+                </div>
+                <div class="tableScroll">
+                  <table>
+                    <thead><tr><th>Month</th><th class="num">Actual</th></tr></thead>
+                    <tbody id="monthlyTbody"></tbody>
+                  </table>
+                </div>
+              </article>
+            </div>
+          </section>
+
         </div>
       </main>
     </div>
@@ -347,7 +284,6 @@
       let dailyTokenRatioChart = null;
       let monthlyTokenChart = null;
       let costForecastChart = null;
-      let tokenForecastChart = null;
       let lastReport = null;
       let lastTokenRatioRows = [];
 
@@ -365,8 +301,33 @@
       }
 
       const forecastQualityCostReportEl = document.getElementById('forecastQualityCostReport');
-      const forecastQualityTokensReportEl = document.getElementById('forecastQualityTokensReport');
       const ratioKpiSummaryReportEl = document.getElementById('ratioKpiSummaryReport');
+
+      const chartLineDefaults = {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          decimation: { enabled: true, algorithm: 'min-max' },
+          legend: { labels: { boxWidth: 10, color: '#d8e5f4', padding: 14 } },
+          tooltip: {
+            backgroundColor: 'rgba(11,18,32,0.94)',
+            borderColor: 'rgba(173,196,228,0.22)',
+            borderWidth: 1,
+            padding: 10,
+          },
+        },
+        scales: {
+          x: {
+            grid: { color: 'rgba(173,196,228,0.08)' },
+            ticks: { maxRotation: 0, autoSkip: true, maxTicksLimit: 14 },
+          },
+          y: {
+            beginAtZero: true,
+            grid: { color: 'rgba(173,196,228,0.10)' },
+          },
+        },
+      };
 
       function _renderForecastQualityBadge(el, q) {
         if (!el) return;
@@ -746,35 +707,24 @@
                 borderColor: C.cost || '#5eead4',
                 backgroundColor: dailyGradient,
                 fill: true,
-                tension: 0.25,
+                tension: 0.28,
                 pointRadius: 2,
-                borderWidth: 2,
+                pointHoverRadius: 4,
+                borderWidth: 2.2,
                 spanGaps: true,
               }
             ]
           },
           options: {
-            responsive: true,
-            maintainAspectRatio: false,
+            ...chartLineDefaults,
             plugins: {
-              decimation: { enabled: true, algorithm: 'min-max' },
-              legend: { position: 'top' },
-              tooltip: {
-                backgroundColor: 'rgba(11,18,32,0.92)',
-                borderColor: 'rgba(255,255,255,0.16)',
-                borderWidth: 1,
-                callbacks: {
-                  label: tooltipLabelCurrency
-                }
-              }
+              ...chartLineDefaults.plugins,
+              tooltip: { ...chartLineDefaults.plugins.tooltip, callbacks: { label: tooltipLabelCurrency } },
             },
-            interaction: { mode: 'index', intersect: false },
             scales: {
-              x: {
-                ticks: { autoSkip: true, maxTicksLimit: 12, maxRotation: 0 }
-              },
+              ...chartLineDefaults.scales,
               y: {
-                beginAtZero: true,
+                ...chartLineDefaults.scales.y,
                 ticks: {
                   callback: (value) => {
                     const n = Number(value);
@@ -800,28 +750,24 @@
               {
                 label: L.costActual || 'CostUSD (Actual)',
                 data: monthlyActual,
-                backgroundColor: 'rgba(94,234,212,0.22)',
+                backgroundColor: 'rgba(94,234,212,0.28)',
                 borderColor: C.cost || '#5eead4',
-                borderWidth: 1
+                borderWidth: 1,
+                borderRadius: 6,
+                maxBarThickness: 42,
               }
             ]
           },
           options: {
-            responsive: true,
-            maintainAspectRatio: false,
+            ...chartLineDefaults,
             plugins: {
-              legend: { position: 'top' },
-              tooltip: {
-                backgroundColor: 'rgba(11,18,32,0.92)',
-                borderColor: 'rgba(255,255,255,0.16)',
-                borderWidth: 1,
-                callbacks: { label: tooltipLabelCurrency }
-              }
+              ...chartLineDefaults.plugins,
+              tooltip: { ...chartLineDefaults.plugins.tooltip, callbacks: { label: tooltipLabelCurrency } },
             },
             scales: {
-              x: { ticks: { autoSkip: true, maxTicksLimit: 12, maxRotation: 0 } },
+              ...chartLineDefaults.scales,
               y: {
-                beginAtZero: true,
+                ...chartLineDefaults.scales.y,
                 ticks: {
                   callback: (value) => {
                     const n = Number(value);
@@ -941,13 +887,14 @@
               labels: ratioLabels,
               datasets: [
                 {
-                  label: 'Output/Input',
+                  label: 'Output / input',
                   data: ratioData,
-                  borderColor: 'rgba(226,232,240,0.88)',
-                  backgroundColor: 'rgba(226,232,240,0.0)',
-                  fill: false,
-                  tension: 0.25,
+                  borderColor: '#34d399',
+                  backgroundColor: 'rgba(52,211,153,0.14)',
+                  fill: true,
+                  tension: 0.22,
                   pointRadius: 2,
+                  pointHoverRadius: 4,
                   borderWidth: 2.2,
                   spanGaps: true
                 },
@@ -1171,27 +1118,15 @@
             ]
           },
           options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            interaction: { mode: 'index', intersect: false },
+            ...chartLineDefaults,
             plugins: {
-              legend: { position: 'top' },
-              tooltip: {
-                backgroundColor: 'rgba(11,18,32,0.92)',
-                borderColor: 'rgba(255,255,255,0.16)',
-                borderWidth: 1,
-                callbacks: {
-                  label: tooltipLabelCurrency
-                }
-              }
+              ...chartLineDefaults.plugins,
+              tooltip: { ...chartLineDefaults.plugins.tooltip, callbacks: { label: tooltipLabelCurrency } },
             },
-            // Visualize forecast horizon as a shaded region starting at the last actual date.
-            // daily.length - 1 is the last actual index (forecast series also has a point there for continuity).
-            plugins: [window.AppChartPlugins?.forecastHorizonShade?.({ startIndex: Math.max(0, daily.length - 1), label: 'Forecast horizon' })].filter(Boolean),
             scales: {
-              x: { ticks: { autoSkip: true, maxTicksLimit: 12, maxRotation: 0 } },
+              ...chartLineDefaults.scales,
               y: {
-                beginAtZero: true,
+                ...chartLineDefaults.scales.y,
                 ticks: {
                   callback: (value) => {
                     const n = Math.round(Number(value));
@@ -1201,7 +1136,8 @@
                 }
               }
             }
-          }
+          },
+          plugins: [window.AppChartPlugins?.forecastHorizonShade?.({ startIndex: Math.max(0, daily.length - 1), label: 'Forecast horizon' })].filter(Boolean),
         });
 
         const costTbody = document.getElementById('costForecastTbody');
@@ -1216,118 +1152,6 @@
             const tr = document.createElement('tr');
             tr.innerHTML = `<td colspan="2" class="muted">Not enough data to forecast (need at least 2 days).</td>`;
             costTbody.appendChild(tr);
-          }
-        }
-
-        // Token forecast
-        const fcIn = forecastNextDaysDOW(dailyTokens, 'estimated_input_tokens', lastDate, { windowDays: 28, horizonDays: 7 }) || [];
-        const fcOut = forecastNextDaysDOW(dailyTokens, 'estimated_output_tokens', lastDate, { windowDays: 28, horizonDays: 7 }) || [];
-        const fcTot = forecastNextDaysDOW(dailyTokens, 'estimated_total_tokens', lastDate, { windowDays: 28, horizonDays: 7 }) || [];
-        try {
-          const q = window.AppForecasting?.forecastQuality?.(dailyTokens, 'estimated_total_tokens', { windowDays: 28 }) || null;
-          _renderForecastQualityBadge(forecastQualityTokensReportEl, q);
-        } catch (e) {}
-        const tokenLabels = dailyTokens.map((p) => p.date).concat(fcTot.map((x) => x.date));
-
-        const tokIn = dailyTokens.map((p) => (p.estimated_input_tokens === null || p.estimated_input_tokens === undefined) ? null : Math.round(Number(p.estimated_input_tokens)));
-        const tokOut = dailyTokens.map((p) => (p.estimated_output_tokens === null || p.estimated_output_tokens === undefined) ? null : Math.round(Number(p.estimated_output_tokens)));
-        const tokTot = dailyTokens.map((p) => (p.estimated_total_tokens === null || p.estimated_total_tokens === undefined) ? null : Math.round(Number(p.estimated_total_tokens)));
-
-        const tokFcIn = tokenLabels.map(() => null);
-        const tokFcOut = tokenLabels.map(() => null);
-        const tokFcTot = tokenLabels.map(() => null);
-        const byIn = new Map(fcIn.map((x) => [x.date, x.value]));
-        const byOut = new Map(fcOut.map((x) => [x.date, x.value]));
-        const byTot = new Map(fcTot.map((x) => [x.date, x.value]));
-        for (let i = dailyTokens.length; i < tokenLabels.length; i++) {
-          const d = tokenLabels[i];
-          if (byIn.has(d)) tokFcIn[i] = byIn.get(d);
-          if (byOut.has(d)) tokFcOut[i] = byOut.get(d);
-          if (byTot.has(d)) tokFcTot[i] = byTot.get(d);
-        }
-        // Connect dashed forecasts to last actual point for each token series.
-        if (dailyTokens.length >= 1) {
-          const li = dailyTokens.length - 1;
-          const lastIn = tokIn[li];
-          const lastOut = tokOut[li];
-          const lastTot = tokTot[li];
-          if (lastIn !== null && lastIn !== undefined && Number.isFinite(Number(lastIn))) tokFcIn[li] = Math.round(Number(lastIn));
-          if (lastOut !== null && lastOut !== undefined && Number.isFinite(Number(lastOut))) tokFcOut[li] = Math.round(Number(lastOut));
-          if (lastTot !== null && lastTot !== undefined && Number.isFinite(Number(lastTot))) tokFcTot[li] = Math.round(Number(lastTot));
-        }
-
-        const tokCtx = document.getElementById('tokenForecastChart').getContext('2d');
-        if (tokenForecastChart) tokenForecastChart.destroy();
-        tokenForecastChart = new Chart(tokCtx, {
-          type: 'line',
-          data: {
-            labels: tokenLabels,
-            datasets: [
-              { label: L.tokenInput || 'Estimated Input Tokens', data: tokIn, borderColor: C.input || '#60a5fa', fill: false, tension: 0.25, pointRadius: 2, borderWidth: 2.2, spanGaps: true, yAxisID: 'yTokens' },
-              { label: L.tokenInputForecast || 'Estimated Input Tokens (Forecast 7d)', data: tokFcIn, borderColor: 'rgba(96,165,250,0.88)', fill: false, tension: 0.25, pointRadius: 2, borderWidth: 2.2, borderDash: [5, 4], spanGaps: true, yAxisID: 'yTokens' },
-              { label: L.tokenOutput || 'Estimated Output Tokens', data: tokOut, borderColor: C.output || '#a78bfa', fill: false, tension: 0.25, pointRadius: 2, borderWidth: 2.2, spanGaps: true, yAxisID: 'yTokens' },
-              { label: L.tokenOutputForecast || 'Estimated Output Tokens (Forecast 7d)', data: tokFcOut, borderColor: 'rgba(167,139,250,0.88)', fill: false, tension: 0.25, pointRadius: 2, borderWidth: 2.2, borderDash: [5, 4], spanGaps: true, yAxisID: 'yTokens' },
-              { label: L.tokenTotal || 'Estimated Total Tokens', data: tokTot, borderColor: C.total || '#f59e0b', fill: false, tension: 0.25, pointRadius: 3, borderWidth: 2.8, spanGaps: true, yAxisID: 'yTokens' },
-              { label: L.tokenTotalForecast || 'Estimated Total Tokens (Forecast 7d)', data: tokFcTot, borderColor: 'rgba(245,158,11,0.92)', fill: false, tension: 0.25, pointRadius: 2, borderWidth: 2.6, borderDash: [4, 4], spanGaps: true, yAxisID: 'yTokens' },
-            ]
-          },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            interaction: { mode: 'index', intersect: false },
-            plugins: {
-              legend: { position: 'top' },
-              tooltip: {
-                backgroundColor: 'rgba(11,18,32,0.92)',
-                borderColor: 'rgba(255,255,255,0.16)',
-                borderWidth: 1,
-                callbacks: {
-                  label: tooltipLabelTokens
-                }
-              }
-            },
-            plugins: [window.AppChartPlugins?.forecastHorizonShade?.({ startIndex: Math.max(0, dailyTokens.length - 1), label: 'Forecast horizon' })].filter(Boolean),
-            scales: {
-              x: { ticks: { autoSkip: true, maxTicksLimit: 12, maxRotation: 0 } },
-              y: { display: false },
-              yTokens: {
-                position: 'right',
-                beginAtZero: true,
-                ticks: {
-                  callback: (value) => {
-                    const n = Math.round(Number(value));
-                    if (!Number.isFinite(n)) return String(value);
-                    return n.toLocaleString(undefined, { maximumFractionDigits: 0 });
-                  }
-                },
-                grid: { drawOnChartArea: false }
-              }
-            }
-          }
-        });
-
-        const tokTbody = document.getElementById('tokenForecastTbody');
-        if (tokTbody) {
-          tokTbody.innerHTML = '';
-          const byFi = new Map(fcIn.map((x) => [x.date, x.value]));
-          const byFo = new Map(fcOut.map((x) => [x.date, x.value]));
-          const byFt = new Map(fcTot.map((x) => [x.date, x.value]));
-          const dates = fcTot.map((x) => x.date);
-          if (dates.length === 0) {
-            const tr = document.createElement('tr');
-            tr.innerHTML = `<td colspan="4" class="muted">Not enough data to forecast (need at least 2 days).</td>`;
-            tokTbody.appendChild(tr);
-          } else {
-            for (const d of dates) {
-              const tr = document.createElement('tr');
-              tr.innerHTML = `
-                <td>${d}</td>
-                <td class="num">${fmtInt(byFi.get(d))}</td>
-                <td class="num">${fmtInt(byFo.get(d))}</td>
-                <td class="num">${fmtInt(byFt.get(d))}</td>
-              `;
-              tokTbody.appendChild(tr);
-            }
           }
         }
       }
@@ -1392,13 +1216,31 @@
         const d = report.daily || {};
         const m = report.monthly || {};
         const t = report.token_estimate || {};
+        const tokenSource = report.token_data_source || 'estimated';
+        const imported = tokenSource === 'imported';
+        const mixed = tokenSource === 'mixed';
+        const rptIn = document.getElementById('rptKeyInputTokens');
+        const rptOut = document.getElementById('rptKeyOutputTokens');
+        const rptProj = document.getElementById('rptKeyProjectsTokens');
+        const rptModel = document.getElementById('rptKeyTokenModel');
+        const rptReg = document.getElementById('rptKeyTokenRegion');
+        if (rptIn) rptIn.textContent = imported || mixed ? 'Input tokens (total)' : 'Estimated input tokens (total)';
+        if (rptOut) rptOut.textContent = imported || mixed ? 'Output tokens (total)' : 'Estimated output tokens (total)';
+        if (rptProj) rptProj.textContent = imported || mixed ? 'Projects with imported tokens' : 'Projects with token estimate';
+        if (rptModel) rptModel.textContent = imported || mixed ? 'Token data source' : 'Token estimate model';
+        if (rptReg) rptReg.textContent = imported || mixed ? 'Token path / region' : 'Token estimate region';
         setText('d_count', d.count_days);
         setText('d_total_actual', d.total_actual);
         setTextInt('d_est_input_tokens', t.estimated_input_tokens_total);
         setTextInt('d_est_output_tokens', t.estimated_output_tokens_total);
         setText('d_est_projects', t.projects_with_estimate);
-        setTextRaw('d_token_model', report.token_estimate_model_display ?? '-');
-        setTextRaw('d_token_region', report.token_estimate_region_display ?? '-');
+        if (imported || mixed) {
+          setTextRaw('d_token_model', mixed ? 'Mixed (imported + estimate)' : 'Imported CSV');
+          setTextRaw('d_token_region', 'bills/<project>/token/');
+        } else {
+          setTextRaw('d_token_model', report.token_estimate_model_display ?? '-');
+          setTextRaw('d_token_region', report.token_estimate_region_display ?? '-');
+        }
         setText('d_avg_actual', d.avg_actual);
         setText('d_median_actual', d.median_actual);
         setText('d_var_actual', d.var_actual);

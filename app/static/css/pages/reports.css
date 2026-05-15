@@ -490,3 +490,196 @@ button,
     grid-template-columns: 1fr;
   }
 }
+
+/* Report page layout refresh */
+.contentArea .container.reportPage,
+.contentArea .container {
+  display: grid;
+  gap: 14px;
+  max-width: 1320px;
+}
+
+.reportPageHeader .pageTitle {
+  font-size: clamp(20px, 2.4vw, 24px);
+  font-weight: 800;
+  margin: 4px 0 0;
+}
+
+.reportPageHeader .pageDesc {
+  margin: 6px 0 0;
+  max-width: 62ch;
+  line-height: 1.45;
+  color: var(--text-subtle, #9fb2c7);
+}
+
+.reportFilters {
+  padding: 14px 16px;
+}
+
+.reportSourceNote {
+  margin: 10px 0 0;
+}
+
+.reportKpis {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.kpiCard {
+  padding: 14px 16px;
+}
+
+.kpiTitle {
+  margin: 0 0 10px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #c8d4e0;
+}
+
+.kpiTokens .statVal {
+  font-size: 13px;
+}
+
+.reportPanel {
+  padding: 14px 16px;
+}
+
+.panelTitle {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 820;
+}
+
+.panelDesc {
+  margin: 4px 0 0;
+}
+
+.reportTableScroll {
+  max-height: 320px;
+}
+
+.reportSection {
+  display: grid;
+  gap: 10px;
+}
+
+.sectionHint {
+  font-size: 12px;
+}
+
+.chartGrid {
+  display: grid;
+  gap: 12px;
+}
+
+.chartGrid2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.chartGrid3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.chartCard {
+  padding: 14px 16px;
+  min-width: 0;
+}
+
+.chartCardWide {
+  margin-top: 0;
+}
+
+.chartCardTitle {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 760;
+  color: #e7edf6;
+}
+
+.chartCardHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.chartCardHead .chartCardTitle {
+  margin: 0;
+}
+
+.chartCanvasHost {
+  position: relative;
+  height: 280px;
+}
+
+.chartCanvasHostShort {
+  height: 220px;
+}
+
+.chartCanvasHost canvas,
+.chartWrap canvas,
+#costForecastChart,
+#dailyTokenRatioChart {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.chartCardForecast .tableScrollCompact {
+  max-height: 160px;
+  margin-top: 10px;
+}
+
+.tableScrollCompact {
+  max-height: 180px;
+}
+
+.ratioKpiLine {
+  margin: 0 0 8px;
+  font-size: 12px;
+}
+
+.reportTableCard {
+  padding: 14px 16px;
+}
+
+.btnLinkQuiet {
+  font-size: 12px;
+  color: #93c5fd;
+  text-decoration: none;
+  border: 1px solid rgba(96, 165, 250, 0.35);
+  border-radius: 8px;
+  padding: 4px 10px;
+  background: rgba(96, 165, 250, 0.08);
+}
+
+.btnLinkQuiet:hover {
+  background: rgba(96, 165, 250, 0.14);
+}
+
+@media (max-width: 1180px) {
+  .chartGrid3 {
+    grid-template-columns: 1fr;
+  }
+
+  .reportKpis {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .kpiTokens {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 900px) {
+  .chartGrid2,
+  .reportKpis {
+    grid-template-columns: 1fr;
+  }
+
+  .kpiTokens {
+    grid-column: auto;
+  }
+}

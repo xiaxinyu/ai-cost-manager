@@ -12,10 +12,26 @@
   const els = {
     projectSelect: document.getElementById("projectSelect"),
     currencySelect: document.getElementById("currencySelect"),
-    startDate: document.getElementById("startDateInput"),
-    endDate: document.getElementById("endDateInput"),
+    currencyField: document.getElementById("currencyField"),
+    startDate: document.getElementById("tokenStartDateInput"),
+    endDate: document.getElementById("tokenEndDateInput"),
     loadBtn: document.getElementById("loadTokensBtn"),
     emptyState: document.getElementById("emptyState"),
+    workspace: document.getElementById("tokenWorkspace"),
+    noImportState: document.getElementById("noImportState"),
+    noImportHint: document.getElementById("noImportHint"),
+    sourceBadge: document.getElementById("tokenSourceBadge"),
+    sourceBadgeText: document.getElementById("tokenSourceBadgeText"),
+    filterHint: document.getElementById("filterHint"),
+    labelInput: document.getElementById("labelInputTokens"),
+    labelOutput: document.getElementById("labelOutputTokens"),
+    labelTotal: document.getElementById("labelTotalTokens"),
+    chartTitleInput: document.getElementById("chartTitleInput"),
+    chartTitleOutput: document.getElementById("chartTitleOutput"),
+    thInput: document.getElementById("thInput"),
+    thOutput: document.getElementById("thOutput"),
+    thTotal: document.getElementById("thTotal"),
+    tableHint: document.getElementById("tableHint"),
     estimatedInput: document.getElementById("estimatedInputTokens"),
     estimatedOutput: document.getElementById("estimatedOutputTokens"),
     estimatedTotal: document.getElementById("estimatedTotalTokens"),
@@ -24,22 +40,49 @@
     totalStats: document.getElementById("totalStats"),
     tokenModel: document.getElementById("tokenModel"),
     tokenRegion: document.getElementById("tokenRegion"),
+    tokenMetaExtra: document.getElementById("tokenMetaExtra"),
     rangeLabel: document.getElementById("rangeLabel"),
     ratioSummary: document.getElementById("ratioSummary"),
-    forecastQuality: document.getElementById("forecastQualityTokens"),
+    modelPanel: document.getElementById("modelBreakdownPanel"),
+    modelTbody: document.getElementById("modelBreakdownTbody"),
+    modelPager: document.getElementById("modelPager"),
+    modelPageSizeSelect: document.getElementById("modelPageSizeSelect"),
+    modelPrevBtn: document.getElementById("modelPrevBtn"),
+    modelNextBtn: document.getElementById("modelNextBtn"),
+    modelPageInfo: document.getElementById("modelPageInfo"),
     rowsTbody: document.getElementById("tokenRowsTbody"),
+    dailyPageSizeSelect: document.getElementById("dailyPageSizeSelect"),
+    dailyPrevBtn: document.getElementById("dailyPrevBtn"),
+    dailyNextBtn: document.getElementById("dailyNextBtn"),
+    dailyPageInfo: document.getElementById("dailyPageInfo"),
     exportBtn: document.getElementById("exportTokensBtn"),
   };
 
-  let tokenActualChart = null;
-  let tokenForecastChart = null;
+  let tokenInputChart = null;
+  let tokenOutputChart = null;
   let tokenRatioChart = null;
   let lastTokenRows = [];
   let lastCurrency = "";
+  let lastSource = "estimated";
+  let projectsWithImportedTokens = [];
+  let dailyPage = 1;
+  let modelPage = 1;
+  let lastModelBreakdown = [];
+  let lastTableMeta = { ratioByDate: new Map(), showCost: false };
+  let chartLabels = {
+    input: "Input tokens",
+    output: "Output tokens",
+    total: "Total tokens",
+  };
 
   function fmtInt(v) {
     if (v === null || v === undefined || !Number.isFinite(Number(v))) return "-";
     return Math.round(Number(v)).toLocaleString();
+  }
+
+  function fmtPct(v) {
+    if (v === null || v === undefined || !Number.isFinite(Number(v))) return "-";
+    return `${Number(v).toFixed(1)}%`;
   }
 
   function fmtCost(v) {
@@ -54,7 +97,7 @@
 
   function setLoading(loading) {
     els.loadBtn.disabled = loading;
-    els.loadBtn.textContent = loading ? "Loading..." : "Load Tokens";
+    els.loadBtn.textContent = loading ? "Loading…" : "Load Tokens";
   }
 
   function seriesStats(points, key) {
@@ -77,6 +120,178 @@
       return;
     }
     el.textContent = `Max: ${fmtInt(stats.max)} · Mean: ${fmtInt(stats.mean)} · Min: ${fmtInt(stats.min)}`;
+  }
+
+  function applySourceUi(source, series, stats) {
+    lastSource = source || "estimated";
+    const imported = lastSource === "imported";
+
+    if (els.sourceBadge) {
+      els.sourceBadge.hidden = false;
+      els.sourceBadge.classList.remove("sourceImported", "sourceEstimated");
+      els.sourceBadge.classList.add(imported ? "sourceImported" : "sourceEstimated");
+      els.sourceBadgeText.textContent = imported ? "Imported CSV" : "Cost estimate";
+    }
+
+    const inputLabel = imported ? "Input tokens (actual)" : "Estimated input";
+    const outputLabel = imported ? "Output tokens (actual)" : "Estimated output";
+    const totalLabel = imported ? "Total tokens (actual)" : "Estimated total";
+
+    if (els.labelInput) els.labelInput.textContent = inputLabel;
+    if (els.labelOutput) els.labelOutput.textContent = outputLabel;
+    if (els.labelTotal) els.labelTotal.textContent = totalLabel;
+    if (els.thInput) els.thInput.textContent = imported ? "Input" : "Est. input";
+    if (els.thOutput) els.thOutput.textContent = imported ? "Output" : "Est. output";
+    if (els.thTotal) els.thTotal.textContent = imported ? "Total" : "Est. total";
+    if (els.chartTitleInput) {
+      els.chartTitleInput.textContent = imported ? "Input tokens (imported)" : "Estimated input tokens";
+    }
+    if (els.chartTitleOutput) {
+      els.chartTitleOutput.textContent = imported ? "Output tokens (imported)" : "Estimated output tokens";
+    }
+    if (els.tableHint) {
+      els.tableHint.textContent = imported
+        ? "Token counts from bills/<project>/token/ CSV. Cost column joins billing when dates overlap."
+        : "Token counts derived from daily CostUSD and model list prices.";
+    }
+
+    chartLabels = {
+      input: imported ? "Input tokens" : L.tokenInput || "Estimated input",
+      output: imported ? "Output tokens" : L.tokenOutput || "Estimated output",
+      total: imported ? "Total tokens" : L.tokenTotal || "Estimated total",
+      inputFc: imported ? "Input forecast (7d)" : L.tokenInputForecast || "Input forecast (7d)",
+      outputFc: imported ? "Output forecast (7d)" : L.tokenOutputForecast || "Output forecast (7d)",
+      totalFc: imported ? "Total forecast (7d)" : L.tokenTotalForecast || "Total forecast (7d)",
+    };
+
+    if (els.currencyField) {
+      els.currencyField.style.opacity = imported ? "0.55" : "1";
+    }
+    if (els.filterHint) {
+      if (imported) {
+        const models = (series.import_meta?.models || []).length;
+        els.filterHint.hidden = false;
+        els.filterHint.textContent = `Currency filter applies to billing join only. ${models} model column(s) in imported data.`;
+      } else {
+        els.filterHint.hidden = true;
+        els.filterHint.textContent = "";
+      }
+    }
+
+    if (els.tokenModel) {
+      if (imported) {
+        const n = (series.import_meta?.models || []).length;
+        els.tokenModel.textContent = n ? `${n} model(s)` : "Imported";
+      } else {
+        els.tokenModel.textContent = series.token_estimate_model || stats.token_estimate_model || "No price match";
+      }
+    }
+    if (els.tokenRegion) {
+      els.tokenRegion.textContent = imported
+        ? "bills/<project>/token/"
+        : `Region: ${series.token_estimate_region || "-"}`;
+    }
+    if (els.tokenMetaExtra) {
+      if (imported && series.import_meta) {
+        const days = series.import_meta.day_count ?? "-";
+        els.tokenMetaExtra.textContent = `${days} day(s) with token data in range`;
+      } else {
+        els.tokenMetaExtra.textContent = "";
+      }
+    }
+
+    if (els.modelPanel) {
+      const breakdown = series.breakdown_by_model || [];
+      els.modelPanel.hidden = !imported || breakdown.length === 0;
+    }
+  }
+
+  function pageSizeFromSelect(selectEl, fallback = 25) {
+    const v = Number(selectEl?.value);
+    return Number.isFinite(v) && v > 0 ? v : fallback;
+  }
+
+  function renderPagedSlice({ items, page, pageSize, renderRow, tbodyEl, pageInfoEl, prevBtn, nextBtn, label }) {
+    const total = items.length;
+    const pageCount = Math.max(1, Math.ceil(total / pageSize));
+    const safePage = Math.max(1, Math.min(pageCount, Math.floor(page)));
+    const offset = (safePage - 1) * pageSize;
+    const slice = items.slice(offset, offset + pageSize);
+
+    if (tbodyEl) tbodyEl.innerHTML = "";
+    if (!total) {
+      if (pageInfoEl) pageInfoEl.textContent = `0 ${label}`;
+      if (prevBtn) prevBtn.disabled = true;
+      if (nextBtn) nextBtn.disabled = true;
+      return safePage;
+    }
+
+    for (const row of slice) renderRow(row);
+    if (prevBtn) prevBtn.disabled = safePage <= 1;
+    if (nextBtn) nextBtn.disabled = safePage >= pageCount;
+    if (pageInfoEl) pageInfoEl.textContent = `${safePage} / ${pageCount} · ${total} ${label}`;
+    return safePage;
+  }
+
+  function appendModelRow(row, maxShare) {
+    const tr = document.createElement("tr");
+    const dir = String(row.token_direction || "").toLowerCase();
+    const share = Number(row.share_pct) || 0;
+    const widthPct = Math.max(2, Math.round((share / maxShare) * 100));
+
+    const tdModel = document.createElement("td");
+    tdModel.textContent = row.model_name || "-";
+    const tdDir = document.createElement("td");
+    const pill = document.createElement("span");
+    pill.className = `dirPill ${dir}`;
+    pill.textContent = dir || "-";
+    tdDir.appendChild(pill);
+    const tdCount = document.createElement("td");
+    tdCount.className = "num";
+    tdCount.textContent = fmtInt(row.token_count);
+    const tdShare = document.createElement("td");
+    tdShare.className = "num";
+    tdShare.textContent = fmtPct(share);
+    const tdBar = document.createElement("td");
+    tdBar.className = "barCell";
+    const barWrap = document.createElement("div");
+    barWrap.className = "shareBar";
+    barWrap.title = fmtPct(share);
+    const barFill = document.createElement("div");
+    barFill.className = `shareBarFill ${dir}`;
+    barFill.style.width = `${widthPct}%`;
+    barWrap.appendChild(barFill);
+    tdBar.appendChild(barWrap);
+
+    tr.append(tdModel, tdDir, tdCount, tdShare, tdBar);
+    els.modelTbody.appendChild(tr);
+  }
+
+  function renderModelBreakdown(breakdown) {
+    if (!els.modelTbody) return;
+    lastModelBreakdown = breakdown || [];
+    if (!lastModelBreakdown.length) {
+      els.modelTbody.innerHTML = "";
+      if (els.modelPager) els.modelPager.hidden = true;
+      return;
+    }
+
+    const pageSize = pageSizeFromSelect(els.modelPageSizeSelect, 25);
+    const needsPager = lastModelBreakdown.length > pageSize;
+    if (els.modelPager) els.modelPager.hidden = !needsPager;
+
+    const maxShare = Math.max(...lastModelBreakdown.map((r) => Number(r.share_pct) || 0), 1);
+    modelPage = renderPagedSlice({
+      items: lastModelBreakdown,
+      page: modelPage,
+      pageSize,
+      tbodyEl: els.modelTbody,
+      pageInfoEl: els.modelPageInfo,
+      prevBtn: els.modelPrevBtn,
+      nextBtn: els.modelNextBtn,
+      label: "rows",
+      renderRow: (row) => appendModelRow(row, maxShare),
+    });
   }
 
   function updateCurrencyOptions(options, selected) {
@@ -102,7 +317,7 @@
       maintainAspectRatio: false,
       interaction: { mode: "index", intersect: false },
       plugins: {
-        legend: { labels: { boxWidth: 10, color: "#d8e5f4" } },
+        legend: { labels: { boxWidth: 10, color: "#d8e5f4", padding: 14 } },
         tooltip: {
           callbacks: {
             label: (ctx) => {
@@ -123,117 +338,65 @@
     };
   }
 
-  function renderActualChart(points) {
-    const ctx = document.getElementById("tokenActualChart").getContext("2d");
-    if (tokenActualChart) tokenActualChart.destroy();
-    tokenActualChart = new Chart(ctx, {
-      type: "line",
-      data: {
-        labels: points.map((p) => p.date),
-        datasets: [
-          {
-            label: L.tokenInput || "Estimated Input Tokens",
-            data: points.map((p) => p.estimated_input_tokens),
-            borderColor: C.input || "#60a5fa",
-            backgroundColor: "rgba(96,165,250,0.16)",
-            fill: true,
-            tension: 0.25,
-            spanGaps: true,
-          },
-          {
-            label: L.tokenOutput || "Estimated Output Tokens",
-            data: points.map((p) => p.estimated_output_tokens),
-            borderColor: C.output || "#a78bfa",
-            backgroundColor: "rgba(167,139,250,0.12)",
-            fill: true,
-            tension: 0.25,
-            spanGaps: true,
-          },
-          {
-            label: L.tokenTotal || "Estimated Total Tokens",
-            data: points.map((p) => p.estimated_total_tokens),
-            borderColor: C.total || "#f59e0b",
-            backgroundColor: "rgba(245,158,11,0.10)",
-            fill: false,
-            tension: 0.25,
-            borderWidth: 2.8,
-            spanGaps: true,
-          },
-        ],
-      },
-      options: chartOptions("tokens"),
-    });
+  function _tokenLineDataset(label, data, color, bg) {
+    return {
+      label,
+      data,
+      borderColor: color,
+      backgroundColor: bg,
+      fill: true,
+      tension: 0.28,
+      spanGaps: true,
+      pointRadius: 2,
+      pointHoverRadius: 4,
+      borderWidth: 2.2,
+    };
   }
 
-  function renderForecastChart(points) {
-    const lastDate = points.length ? F.safeDateStr?.(points[points.length - 1].date) || points[points.length - 1].date : "";
-    const fcInput = F.forecastNextDaysDOW?.(points, "estimated_input_tokens", lastDate, { windowDays: 28, horizonDays: 7 }) || [];
-    const fcOutput = F.forecastNextDaysDOW?.(points, "estimated_output_tokens", lastDate, { windowDays: 28, horizonDays: 7 }) || [];
-    const fcTotal = F.forecastNextDaysDOW?.(points, "estimated_total_tokens", lastDate, { windowDays: 28, horizonDays: 7 }) || [];
-    const horizon = fcTotal.length ? fcTotal : fcInput.length ? fcInput : fcOutput;
-    const labels = points.map((p) => p.date).concat(horizon.map((p) => p.date));
+  function renderTokenUsageCharts(points) {
+    const labels = points.map((p) => p.date);
+    const inputData = points.map((p) => p.estimated_input_tokens);
+    const outputData = points.map((p) => p.estimated_output_tokens);
 
-    const byInput = new Map(fcInput.map((x) => [x.date, x.value]));
-    const byOutput = new Map(fcOutput.map((x) => [x.date, x.value]));
-    const byTotal = new Map(fcTotal.map((x) => [x.date, x.value]));
-
-    function forecastData(byMap, actualKey) {
-      const out = labels.map(() => null);
-      if (points.length) out[points.length - 1] = points[points.length - 1][actualKey];
-      for (let i = points.length; i < labels.length; i += 1) {
-        out[i] = byMap.has(labels[i]) ? byMap.get(labels[i]) : null;
-      }
-      return out;
+    const inputCtx = document.getElementById("tokenInputChart")?.getContext("2d");
+    if (inputCtx) {
+      if (tokenInputChart) tokenInputChart.destroy();
+      tokenInputChart = new Chart(inputCtx, {
+        type: "line",
+        data: {
+          labels,
+          datasets: [
+            _tokenLineDataset(
+              chartLabels.input,
+              inputData,
+              C.input || "#60a5fa",
+              "rgba(96,165,250,0.14)"
+            ),
+          ],
+        },
+        options: chartOptions("tokens"),
+      });
     }
 
-    const q = F.forecastQuality?.(points, "estimated_total_tokens", { windowDays: 28 });
-    renderForecastQuality(q);
-
-    const ctx = document.getElementById("tokenForecastChart").getContext("2d");
-    if (tokenForecastChart) tokenForecastChart.destroy();
-    tokenForecastChart = new Chart(ctx, {
-      type: "line",
-      data: {
-        labels,
-        datasets: [
-          {
-            label: L.tokenInputForecast || "Estimated Input Tokens (Forecast 7d)",
-            data: forecastData(byInput, "estimated_input_tokens"),
-            borderColor: C.input || "#60a5fa",
-            borderDash: [5, 4],
-            tension: 0.25,
-            spanGaps: true,
-          },
-          {
-            label: L.tokenOutputForecast || "Estimated Output Tokens (Forecast 7d)",
-            data: forecastData(byOutput, "estimated_output_tokens"),
-            borderColor: C.output || "#a78bfa",
-            borderDash: [5, 4],
-            tension: 0.25,
-            spanGaps: true,
-          },
-          {
-            label: L.tokenTotalForecast || "Estimated Total Tokens (Forecast 7d)",
-            data: forecastData(byTotal, "estimated_total_tokens"),
-            borderColor: C.total || "#f59e0b",
-            borderDash: [5, 4],
-            borderWidth: 2.6,
-            tension: 0.25,
-            spanGaps: true,
-          },
-        ],
-      },
-      options: chartOptions("tokens"),
-    });
-  }
-
-  function renderForecastQuality(q) {
-    if (!els.forecastQuality) return;
-    const level = q?.level || "low";
-    const label = level.charAt(0).toUpperCase() + level.slice(1);
-    els.forecastQuality.textContent = q ? `Forecast quality: ${label} (${q.valid}/${q.expected})` : "Forecast quality: -";
-    els.forecastQuality.classList.remove("qualityHigh", "qualityMedium", "qualityLow");
-    els.forecastQuality.classList.add(level === "high" ? "qualityHigh" : level === "medium" ? "qualityMedium" : "qualityLow");
+    const outputCtx = document.getElementById("tokenOutputChart")?.getContext("2d");
+    if (outputCtx) {
+      if (tokenOutputChart) tokenOutputChart.destroy();
+      tokenOutputChart = new Chart(outputCtx, {
+        type: "line",
+        data: {
+          labels,
+          datasets: [
+            _tokenLineDataset(
+              chartLabels.output,
+              outputData,
+              C.output || "#a78bfa",
+              "rgba(167,139,250,0.14)"
+            ),
+          ],
+        },
+        options: chartOptions("tokens"),
+      });
+    }
   }
 
   function renderRatioChart(points) {
@@ -253,7 +416,7 @@
         labels: ratioRows.map((p) => p.date),
         datasets: [
           {
-            label: "Output/Input",
+            label: "Output / input",
             data: ratioRows.map((p) => p.ratio),
             borderColor: "#34d399",
             backgroundColor: "rgba(52,211,153,0.12)",
@@ -264,7 +427,7 @@
           {
             label: "Baseline 1.0",
             data: ratioRows.map(() => 1),
-            borderColor: "rgba(226,232,240,0.62)",
+            borderColor: "rgba(226,232,240,0.55)",
             borderDash: [4, 4],
             pointRadius: 0,
           },
@@ -274,46 +437,64 @@
         ...chartOptions("ratio"),
         scales: {
           ...chartOptions("ratio").scales,
-          y: {
-            ...chartOptions("ratio").scales.y,
-            min: bounds.min,
-            max: bounds.max,
-          },
+          y: { ...chartOptions("ratio").scales.y, min: bounds.min, max: bounds.max },
         },
       },
     });
   }
 
   function renderTable(points, currency) {
-    lastTokenRows = points || [];
-    lastCurrency = currency || "";
-    els.rowsTbody.innerHTML = "";
-    if (!points.length) {
+    if (points !== undefined) {
+      lastTokenRows = (points || []).slice().reverse();
+      lastCurrency = currency || "";
+      const ratioRows =
+        F.dailyTokenRatio?.(points, { inputKey: "estimated_input_tokens", outputKey: "estimated_output_tokens" }) || [];
+      lastTableMeta = {
+        ratioByDate: new Map(ratioRows.map((r) => [r.date, r.ratio])),
+        showCost: lastSource !== "imported" || (points || []).some((p) => p.cost_usd != null),
+      };
+    }
+
+    if (!lastTokenRows.length) {
+      els.rowsTbody.innerHTML = "";
       const tr = document.createElement("tr");
       tr.innerHTML = '<td colspan="6" class="muted">No token data in the selected range.</td>';
       els.rowsTbody.appendChild(tr);
+      if (els.dailyPageInfo) els.dailyPageInfo.textContent = "0 days";
+      if (els.dailyPrevBtn) els.dailyPrevBtn.disabled = true;
+      if (els.dailyNextBtn) els.dailyNextBtn.disabled = true;
       return;
     }
 
-    const ratioByDate = new Map(
-      (F.dailyTokenRatio?.(points, { inputKey: "estimated_input_tokens", outputKey: "estimated_output_tokens" }) || []).map((r) => [
-        r.date,
-        r.ratio,
-      ])
-    );
+    const { ratioByDate, showCost } = lastTableMeta;
+    const pageSize = pageSizeFromSelect(els.dailyPageSizeSelect, 25);
 
-    for (const p of points.slice().reverse()) {
-      const tr = document.createElement("tr");
-      tr.innerHTML = `
+    dailyPage = renderPagedSlice({
+      items: lastTokenRows,
+      page: dailyPage,
+      pageSize,
+      tbodyEl: els.rowsTbody,
+      pageInfoEl: els.dailyPageInfo,
+      prevBtn: els.dailyPrevBtn,
+      nextBtn: els.dailyNextBtn,
+      label: "days",
+      renderRow: (p) => {
+        const tr = document.createElement("tr");
+        const costCell =
+          !showCost || p.cost_usd === null || p.cost_usd === undefined
+            ? '<span class="muted">—</span>'
+            : `${fmtCost(p.cost_usd)} ${currency || ""}`.trim();
+        tr.innerHTML = `
         <td>${p.date || ""}</td>
-        <td class="num">${fmtCost(p.cost_usd)} ${currency || ""}</td>
+        <td class="num">${costCell}</td>
         <td class="num">${fmtInt(p.estimated_input_tokens)}</td>
         <td class="num">${fmtInt(p.estimated_output_tokens)}</td>
         <td class="num">${fmtInt(p.estimated_total_tokens)}</td>
         <td class="num">${fmtRatio(ratioByDate.get(p.date))}</td>
       `;
-      els.rowsTbody.appendChild(tr);
-    }
+        els.rowsTbody.appendChild(tr);
+      },
+    });
   }
 
   function csvEscape(v) {
@@ -323,25 +504,28 @@
   }
 
   function exportCsv() {
-    const headers = ["date", "source_cost", "currency", "estimated_input_tokens", "estimated_output_tokens", "estimated_total_tokens"];
+    const headers = ["date", "data_source", "source_cost", "currency", "input_tokens", "output_tokens", "total_tokens"];
     const lines = [headers.join(",")];
     for (const r of lastTokenRows) {
       lines.push(
         [
           r.date,
+          lastSource,
           r.cost_usd ?? "",
           lastCurrency,
           r.estimated_input_tokens ?? "",
           r.estimated_output_tokens ?? "",
           r.estimated_total_tokens ?? "",
-        ].map(csvEscape).join(",")
+        ]
+          .map(csvEscape)
+          .join(",")
       );
     }
     const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "token-estimates.csv";
+    a.download = lastSource === "imported" ? "token-usage-imported.csv" : "token-estimates.csv";
     document.body.appendChild(a);
     a.click();
     a.remove();
@@ -374,20 +558,40 @@
         window.AppHttp.getJson(`/api/projects/${encodeURIComponent(project)}/token-timeseries?${seriesParams.toString()}`),
       ]);
 
+      const source = series.token_data_source || stats.token_data_source || "estimated";
+      const imported = source === "imported";
+      if (els.noImportState) els.noImportState.hidden = imported;
+      if (els.workspace) els.workspace.hidden = !imported;
+      if (!imported) {
+        if (els.sourceBadge) els.sourceBadge.hidden = true;
+        if (els.noImportHint) {
+          const others = projectsWithImportedTokens.filter((p) => p !== project);
+          if (others.length > 0) {
+            els.noImportHint.textContent =
+              `Project "${project}" has no imported token CSVs. Select a project with token data: ${others.join(", ")}.`;
+          } else {
+            els.noImportHint.textContent =
+              `Project "${project}" has no imported token CSVs. Import input/output files under bills/${project}/token/ on the Import page.`;
+          }
+        }
+        return;
+      }
       updateCurrencyOptions(series.available_currencies || [], currency || series.currency || "");
+      applySourceUi(source, series, stats);
+
       const points = series.points || [];
+      dailyPage = 1;
+      modelPage = 1;
       els.estimatedInput.textContent = fmtInt(stats.estimated_input_tokens);
       els.estimatedOutput.textContent = fmtInt(stats.estimated_output_tokens);
       els.estimatedTotal.textContent = fmtInt(stats.estimated_total_tokens);
-      els.tokenModel.textContent = series.token_estimate_model || stats.token_estimate_model || "-";
-      els.tokenRegion.textContent = `Region: ${series.token_estimate_region || "-"}`;
       els.rangeLabel.textContent = `Selected range: ${stats.min_usage_date || "-"} ~ ${stats.max_usage_date || "-"}`;
 
+      renderModelBreakdown(series.breakdown_by_model || []);
       renderStats(els.inputStats, seriesStats(points, "estimated_input_tokens"));
       renderStats(els.outputStats, seriesStats(points, "estimated_output_tokens"));
       renderStats(els.totalStats, seriesStats(points, "estimated_total_tokens"));
-      renderActualChart(points);
-      renderForecastChart(points);
+      renderTokenUsageCharts(points);
       renderRatioChart(points);
       renderTable(points, series.currency || currency);
     } catch (err) {
@@ -398,33 +602,61 @@
     }
   }
 
+  function clearDateFilters() {
+    if (els.startDate) els.startDate.value = "";
+    if (els.endDate) els.endDate.value = "";
+  }
+
   async function init() {
     setLoading(true);
+    clearDateFilters();
     try {
       const data = await window.AppHttp.getJson("/api/projects");
       const projects = data.projects || [];
-      els.emptyState.hidden = projects.length > 0;
+      projectsWithImportedTokens = data.projects_with_imported_tokens || [];
+      const hasProjects = projects.length > 0;
+      els.emptyState.hidden = hasProjects;
+      if (els.workspace) els.workspace.hidden = !hasProjects;
       els.projectSelect.innerHTML = "";
       for (const p of projects) {
         const opt = document.createElement("option");
         opt.value = p;
-        opt.textContent = p;
+        opt.textContent = projectsWithImportedTokens.includes(p) ? `${p} · tokens` : p;
         els.projectSelect.appendChild(opt);
       }
       updateCurrencyOptions([], "");
-
-      if (!projects.length) {
+      if (!hasProjects) {
         els.loadBtn.disabled = true;
         return;
       }
 
-      try {
-        const latest = await window.AppHttp.getJson("/api/projects/latest");
-        if (latest.project_name && projects.includes(latest.project_name)) {
-          els.projectSelect.value = latest.project_name;
+      const tokenSet = new Set(projectsWithImportedTokens);
+      let defaultProject = projectsWithImportedTokens.find((p) => projects.includes(p)) || null;
+      if (!defaultProject) {
+        try {
+          const latestToken = await window.AppHttp.getJson("/api/projects/latest-token");
+          if (latestToken.project_name && projects.includes(latestToken.project_name)) {
+            defaultProject = latestToken.project_name;
+          }
+        } catch (err) {
+          console.warn("Latest token project lookup failed", err);
         }
-      } catch (err) {
-        console.warn("Latest project lookup failed", err);
+      }
+      if (!defaultProject) {
+        try {
+          const latest = await window.AppHttp.getJson("/api/projects/latest");
+          if (latest.project_name && projects.includes(latest.project_name)) {
+            defaultProject = latest.project_name;
+          }
+        } catch (err) {
+          console.warn("Latest project lookup failed", err);
+        }
+      }
+      if (defaultProject) {
+        els.projectSelect.value = defaultProject;
+      } else if (tokenSet.size > 0) {
+        const firstWithTokens = projects.find((p) => tokenSet.has(p));
+        if (firstWithTokens) els.projectSelect.value = firstWithTokens;
       }
       await loadTokenData();
     } catch (err) {
@@ -438,9 +670,47 @@
   els.loadBtn.addEventListener("click", loadTokenData);
   els.projectSelect.addEventListener("change", () => {
     updateCurrencyOptions([], "");
+    clearDateFilters();
     loadTokenData();
   });
   els.exportBtn.addEventListener("click", exportCsv);
+
+  if (els.dailyPrevBtn) {
+    els.dailyPrevBtn.addEventListener("click", () => {
+      dailyPage = Math.max(1, dailyPage - 1);
+      renderTable();
+    });
+  }
+  if (els.dailyNextBtn) {
+    els.dailyNextBtn.addEventListener("click", () => {
+      dailyPage += 1;
+      renderTable();
+    });
+  }
+  if (els.dailyPageSizeSelect) {
+    els.dailyPageSizeSelect.addEventListener("change", () => {
+      dailyPage = 1;
+      renderTable();
+    });
+  }
+  if (els.modelPrevBtn) {
+    els.modelPrevBtn.addEventListener("click", () => {
+      modelPage = Math.max(1, modelPage - 1);
+      renderModelBreakdown(lastModelBreakdown);
+    });
+  }
+  if (els.modelNextBtn) {
+    els.modelNextBtn.addEventListener("click", () => {
+      modelPage += 1;
+      renderModelBreakdown(lastModelBreakdown);
+    });
+  }
+  if (els.modelPageSizeSelect) {
+    els.modelPageSizeSelect.addEventListener("change", () => {
+      modelPage = 1;
+      renderModelBreakdown(lastModelBreakdown);
+    });
+  }
 
   init();
 })();

@@ -13,7 +13,7 @@
       <div class="appNavInner">
         <div class="brand">Models Cost Management</div>
         <div class="navLinks">
-          <a class="navLink" href="/">Dashboard</a>
+          <a class="navLink" href="/">Cost</a>
           <a class="navLink active" href="/tokens">Tokens</a>
           <a class="navLink" href="/reports">Reports</a>
           <a class="navLink" href="/prices">Prices</a>
@@ -30,131 +30,210 @@
     </div>
     <div class="appLayout">
       <main class="contentArea">
-        <div class="container">
-          <div class="pageHeader">
+        <div class="container tokenPage">
+
+          <header class="pageHeader tokenPageHeader">
             <div class="breadcrumb">Home / Tokens</div>
-            <div class="pageTitle">Token Operations</div>
-            <div class="pageDesc">Token estimates, ratios, and short-horizon forecast by project.</div>
-          </div>
+            <div class="tokenTitleRow">
+              <div>
+                <h1 class="pageTitle">Token Operations</h1>
+                <p class="pageDesc">Review imported token usage from Grafana CSV exports (input and output files per project).</p>
+              </div>
+              <div id="tokenSourceBadge" class="sourceBadge sourceEstimated" hidden>
+                <span class="sourceDot" aria-hidden="true"></span>
+                <span id="tokenSourceBadgeText">Estimated</span>
+              </div>
+            </div>
+          </header>
 
-          <div class="header tokenHeader">
-            <div>
-              <div class="title">Token Usage Workspace</div>
-              <div class="subTitle">Separated from financial cost views so token trends can be reviewed independently.</div>
+          <section class="card tokenToolbar" aria-label="Filters">
+            <div class="toolbarGrid">
+              <div class="field projectField">
+                <label for="projectSelect">Project</label>
+                <select id="projectSelect"></select>
+              </div>
+              <div class="field fieldCurrency" id="currencyField">
+                <label for="currencySelect">Currency</label>
+                <select id="currencySelect"></select>
+              </div>
+              <div class="field">
+                <label for="tokenStartDateInput">Start</label>
+                <input id="tokenStartDateInput" type="date" autocomplete="off" />
+              </div>
+              <div class="field">
+                <label for="tokenEndDateInput">End</label>
+                <input id="tokenEndDateInput" type="date" autocomplete="off" />
+              </div>
+              <div class="toolbarActions">
+                <button id="loadTokensBtn" class="btnPrimary" type="button">Load Tokens</button>
+                <a href="/import" class="btnSecondary btnLinkQuiet">Import data</a>
+              </div>
             </div>
-            <div class="headerActions">
-              <a href="/prices" class="btnSecondary">Manage Prices</a>
-              <a href="/reports" class="btnSecondary">Financial Reports</a>
-            </div>
-          </div>
-
-          <section class="card tokenFilters" aria-label="Token filters">
-            <div class="field projectField">
-              <label for="projectSelect">Project</label>
-              <select id="projectSelect"></select>
-            </div>
-            <div class="field">
-              <label for="currencySelect">Currency</label>
-              <select id="currencySelect"></select>
-            </div>
-            <div class="field">
-              <label for="startDateInput">Start</label>
-              <input id="startDateInput" type="date" />
-            </div>
-            <div class="field">
-              <label for="endDateInput">End</label>
-              <input id="endDateInput" type="date" />
-            </div>
-            <button id="loadTokensBtn" class="btnPrimary" type="button">Load Tokens</button>
+            <p id="filterHint" class="filterHint muted" hidden></p>
           </section>
+
+
+          <div id="noImportState" class="card emptyState" hidden>
+            <div class="title">No imported token data</div>
+            <p id="noImportHint" class="muted"></p>
+            <p class="muted">This page shows usage from Grafana token CSV files only. Import input/output files under <code>bills/&lt;project&gt;/token/</code> on the Import page.</p>
+            <div class="emptyActions">
+              <a href="/import" class="btnPrimary">Import token CSVs</a>
+            </div>
+          </div>
 
           <div id="emptyState" class="card emptyState" hidden>
-            <div class="title">No billing projects found</div>
-            <div class="muted">Import billing CSV files first, then return here to review token estimates.</div>
+            <div class="title">No projects yet</div>
+            <p class="muted">Add a project under <code>bills/&lt;project&gt;/token/</code> and import token CSVs from the Import page.</p>
             <div class="emptyActions">
-              <a href="/import" class="btnSecondary">Open Import</a>
+              <a href="/import" class="btnPrimary">Open Import</a>
             </div>
           </div>
 
-          <section class="tokenSummaryGrid" aria-label="Token summary">
-            <div class="card stat">
-              <div class="label">Estimated Input Tokens</div>
-              <div class="value" id="estimatedInputTokens">-</div>
-              <div class="sub" id="inputStats">Max: - · Mean: - · Min: -</div>
-            </div>
-            <div class="card stat">
-              <div class="label">Estimated Output Tokens</div>
-              <div class="value" id="estimatedOutputTokens">-</div>
-              <div class="sub" id="outputStats">Max: - · Mean: - · Min: -</div>
-            </div>
-            <div class="card stat">
-              <div class="label">Estimated Total Tokens</div>
-              <div class="value" id="estimatedTotalTokens">-</div>
-              <div class="sub" id="totalStats">Max: - · Mean: - · Min: -</div>
-            </div>
-            <div class="card stat">
-              <div class="label">Model & Region</div>
-              <div class="value modelValue" id="tokenModel">-</div>
-              <div class="sub" id="tokenRegion">Region: -</div>
-            </div>
-          </section>
+          <div id="tokenWorkspace" hidden>
+            <section class="tokenSummaryGrid" aria-label="Token summary">
+              <article class="card stat statInput">
+                <div class="statHead">
+                  <span class="statIcon" aria-hidden="true">IN</span>
+                  <span class="label" id="labelInputTokens">Input tokens</span>
+                </div>
+                <div class="value" id="estimatedInputTokens">-</div>
+                <div class="sub" id="inputStats">Max · Mean · Min</div>
+              </article>
+              <article class="card stat statOutput">
+                <div class="statHead">
+                  <span class="statIcon" aria-hidden="true">OUT</span>
+                  <span class="label" id="labelOutputTokens">Output tokens</span>
+                </div>
+                <div class="value" id="estimatedOutputTokens">-</div>
+                <div class="sub" id="outputStats">Max · Mean · Min</div>
+              </article>
+              <article class="card stat statTotal">
+                <div class="statHead">
+                  <span class="statIcon" aria-hidden="true">Σ</span>
+                  <span class="label" id="labelTotalTokens">Total tokens</span>
+                </div>
+                <div class="value" id="estimatedTotalTokens">-</div>
+                <div class="sub" id="totalStats">Max · Mean · Min</div>
+              </article>
+              <article class="card stat statMeta">
+                <div class="statHead">
+                  <span class="statIcon" aria-hidden="true">◎</span>
+                  <span class="label">Coverage</span>
+                </div>
+                <div class="value modelValue" id="tokenModel">-</div>
+                <div class="sub" id="tokenRegion">-</div>
+                <div class="sub muted" id="tokenMetaExtra"></div>
+              </article>
+            </section>
 
-          <section class="tokenCharts">
-            <div class="card chartPanel">
-              <div class="chartHeader">
+            <section id="modelBreakdownPanel" class="card modelBreakdownPanel" hidden>
+              <div class="panelHead">
                 <div>
-                  <div class="sectionTitle">Daily Token Estimates</div>
-                  <div class="muted" id="rangeLabel">Selected range: -</div>
+                  <h2 class="sectionTitle">Usage by model</h2>
+                  <p class="muted panelDesc">Summed from imported token CSV (6h buckets rolled up to calendar days).</p>
                 </div>
-                <button id="exportTokensBtn" class="btnSmall" type="button">Export CSV</button>
               </div>
-              <canvas id="tokenActualChart"></canvas>
-            </div>
-            <div class="card chartPanel">
-              <div class="chartHeader">
-                <div>
-                  <div class="sectionTitle">7-Day Token Forecast</div>
-                  <div class="muted">Last 28 days · day-of-week correction</div>
-                </div>
-                <div id="forecastQualityTokens" class="qualityBadge qualityMedium">Forecast quality: -</div>
+              <div class="tableScroll modelTableWrap">
+                <table class="modelTable">
+                  <thead>
+                    <tr>
+                      <th>Model</th>
+                      <th>Direction</th>
+                      <th class="num">Tokens</th>
+                      <th class="num">Share</th>
+                      <th style="width: 38%;">Distribution</th>
+                    </tr>
+                  </thead>
+                  <tbody id="modelBreakdownTbody"></tbody>
+                </table>
               </div>
-              <canvas id="tokenForecastChart"></canvas>
-            </div>
-            <div class="card chartPanel">
-              <div class="chartHeader">
-                <div>
-                  <div class="sectionTitle">Output/Input Ratio</div>
-                  <div class="muted" id="ratioSummary">Valid days: - · &gt;1: - · &lt;1: -</div>
-                </div>
-                <div class="muted">Baseline: 1.0</div>
+              <div id="modelPager" class="pager" hidden>
+                <span class="muted">Page size</span>
+                <select id="modelPageSizeSelect" aria-label="Model table page size">
+                  <option value="10">10</option>
+                  <option value="25" selected>25</option>
+                  <option value="50">50</option>
+                </select>
+                <button id="modelPrevBtn" class="btnSmall" type="button">Prev</button>
+                <button id="modelNextBtn" class="btnSmall" type="button">Next</button>
+                <span id="modelPageInfo" class="pageInfo">-</span>
               </div>
-              <canvas id="tokenRatioChart"></canvas>
-            </div>
-          </section>
+            </section>
 
-          <section class="card tokenTablePanel">
-            <div class="rowsToolbar">
-              <div>
-                <div class="sectionTitle">Daily Token Detail</div>
-                <div class="muted">Cost is shown only as the source used to estimate tokens.</div>
+            <section class="tokenCharts" aria-label="Charts">
+              <article class="card chartPanel chartWide">
+                <div class="chartHeader">
+                  <div>
+                    <h2 class="sectionTitle" id="chartTitleInput">Input tokens (daily)</h2>
+                    <p class="muted" id="rangeLabel">Selected range: -</p>
+                  </div>
+                  <button id="exportTokensBtn" class="btnSmall" type="button">Export CSV</button>
+                </div>
+                <div class="chartCanvasWrap">
+                  <canvas id="tokenInputChart"></canvas>
+                </div>
+              </article>
+              <article class="card chartPanel chartWide">
+                <div class="chartHeader">
+                  <div>
+                    <h2 class="sectionTitle" id="chartTitleOutput">Output tokens (daily)</h2>
+                    <p class="muted chartScaleHint">Own Y-axis scale — output is not drowned out by input volume.</p>
+                  </div>
+                </div>
+                <div class="chartCanvasWrap">
+                  <canvas id="tokenOutputChart"></canvas>
+                </div>
+              </article>
+              <article class="card chartPanel chartWide">
+                <div class="chartHeader">
+                  <div>
+                    <h2 class="sectionTitle">Output / input ratio</h2>
+                    <p class="muted" id="ratioSummary">Valid days: -</p>
+                  </div>
+                  <span class="pill muted">Baseline 1.0</span>
+                </div>
+                <div class="chartCanvasWrap chartCanvasShort">
+                  <canvas id="tokenRatioChart"></canvas>
+                </div>
+              </article>
+            </section>
+
+            <section class="card tokenTablePanel">
+              <div class="rowsToolbar">
+                <div>
+                  <h2 class="sectionTitle">Daily detail</h2>
+                  <p class="muted" id="tableHint">Cost column shown when billing data exists for the same dates.</p>
+                </div>
               </div>
-            </div>
-            <div class="tableScroll">
-              <table>
-                <thead>
-                  <tr>
-                    <th style="width: 150px;">Date</th>
-                    <th class="num">Source Cost</th>
-                    <th class="num">Input Tokens</th>
-                    <th class="num">Output Tokens</th>
-                    <th class="num">Total Tokens</th>
-                    <th class="num">Output/Input</th>
-                  </tr>
-                </thead>
-                <tbody id="tokenRowsTbody"></tbody>
-              </table>
-            </div>
-          </section>
+              <div class="tableScroll">
+                <table>
+                  <thead>
+                    <tr>
+                      <th style="width: 140px;">Date</th>
+                      <th class="num">Source cost</th>
+                      <th class="num" id="thInput">Input</th>
+                      <th class="num" id="thOutput">Output</th>
+                      <th class="num" id="thTotal">Total</th>
+                      <th class="num">Out/In</th>
+                    </tr>
+                  </thead>
+                  <tbody id="tokenRowsTbody"></tbody>
+                </table>
+              </div>
+              <div class="pager" id="dailyPager">
+                <span class="muted">Page size</span>
+                <select id="dailyPageSizeSelect" aria-label="Daily table page size">
+                  <option value="10">10</option>
+                  <option value="25" selected>25</option>
+                  <option value="50">50</option>
+                </select>
+                <button id="dailyPrevBtn" class="btnSmall" type="button">Prev</button>
+                <button id="dailyNextBtn" class="btnSmall" type="button">Next</button>
+                <span id="dailyPageInfo" class="pageInfo">-</span>
+              </div>
+            </section>
+          </div>
         </div>
       </main>
     </div>

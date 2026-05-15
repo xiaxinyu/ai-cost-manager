@@ -7,6 +7,7 @@ from pathlib import Path
 import uvicorn
 
 from .ingest import ingest_all
+from .token_ingest import ingest_token_all
 from .main import create_app
 from .auth import create_user
 from .db import get_connection, init_db
@@ -64,7 +65,11 @@ def main() -> None:
 
     sub = parser.add_subparsers(dest="cmd", required=True)
 
-    ingest_p = sub.add_parser("ingest", parents=[common], help="Ingest bills/*/*.csv into SQLite")
+    ingest_p = sub.add_parser(
+        "ingest",
+        parents=[common],
+        help="Ingest bills/<project>/*.csv and bills/<project>/token/*.csv into SQLite",
+    )
     ingest_p.add_argument("--reimport-changed", action="store_true", help="Re-import files whose checksum changed")
 
     admin_p = sub.add_parser("create-admin", parents=[common], help="Create/Update admin user for login")
@@ -128,8 +133,9 @@ def main() -> None:
     Path(db_path).expanduser().resolve().parent.mkdir(parents=True, exist_ok=True)
 
     if args.cmd == "ingest":
-        r = ingest_all(bills_dir=bills_dir, db_path=db_path, reimport_changed=bool(args.reimport_changed))
-        print(r)
+        billing = ingest_all(bills_dir=bills_dir, db_path=db_path, reimport_changed=bool(args.reimport_changed))
+        token = ingest_token_all(bills_dir=bills_dir, db_path=db_path, reimport_changed=bool(args.reimport_changed))
+        print({"billing": billing, "token": token})
         return
 
     if args.cmd == "create-admin":

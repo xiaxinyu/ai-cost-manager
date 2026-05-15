@@ -1,95 +1,348 @@
-.tokenHeader {
+/* Token workspace — refined operational layout */
+.tokenPage {
+  display: grid;
+  gap: 14px;
+  max-width: 1280px;
+}
+
+.tokenPageHeader {
+  margin-bottom: 0;
+}
+
+.tokenTitleRow {
   display: flex;
-  justify-content: space-between;
   align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+
+.tokenPageHeader .pageTitle {
+  font-size: clamp(20px, 2.4vw, 24px);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+.tokenPageHeader .pageDesc {
+  margin: 6px 0 0;
+  max-width: 52ch;
+  line-height: 1.45;
+  color: var(--text-subtle, #9fb2c7);
+  font-size: 13px;
+}
+
+.sourceBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 650;
+  border: 1px solid rgba(173, 196, 228, 0.28);
+  background: rgba(255, 255, 255, 0.06);
+  white-space: nowrap;
+}
+
+.sourceDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.sourceImported {
+  border-color: rgba(94, 234, 212, 0.45);
+  background: rgba(94, 234, 212, 0.1);
+  color: #b8fff0;
+}
+
+.sourceImported .sourceDot {
+  background: #5eead4;
+  box-shadow: 0 0 10px rgba(94, 234, 212, 0.55);
+}
+
+.sourceEstimated {
+  border-color: rgba(96, 165, 250, 0.4);
+  background: rgba(96, 165, 250, 0.1);
+  color: #cfe4ff;
+}
+
+.sourceEstimated .sourceDot {
+  background: #60a5fa;
+}
+
+.tokenToolbar {
+  padding: 14px 16px;
+}
+
+.toolbarGrid {
+  display: grid;
+  grid-template-columns: minmax(200px, 1.6fr) minmax(100px, 0.7fr) minmax(130px, 0.65fr) minmax(130px, 0.65fr) auto;
+  align-items: end;
   gap: 12px;
 }
 
-.tokenFilters {
-  display: grid;
-  grid-template-columns: minmax(240px, 1.8fr) minmax(120px, 0.8fr) minmax(150px, 0.75fr) minmax(150px, 0.75fr) auto;
-  align-items: end;
-  gap: 10px;
+.toolbarActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.btnLinkQuiet {
+  text-decoration: none;
+  font-size: 12px;
+  padding: 7px 12px;
+}
+
+.filterHint {
+  margin: 10px 0 0;
+  font-size: 12px;
+  line-height: 1.4;
 }
 
 .field {
   display: flex;
-  min-width: 0;
   flex-direction: column;
   gap: 5px;
+  min-width: 0;
+}
+
+.field label {
+  color: var(--text-subtle, #9fb2c7);
+  font-size: 10px;
+  font-weight: 760;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 .field select,
 .field input {
   width: 100%;
-  min-width: 0;
+  min-height: 38px;
+  background: var(--surface-2, rgba(255, 255, 255, 0.06));
+  border: 1px solid var(--border, rgba(173, 196, 228, 0.22));
+  border-radius: 8px;
+  color: #e7edf6;
 }
 
 .tokenSummaryGrid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 10px;
-  margin-top: 10px;
+  gap: 12px;
 }
 
 .stat {
+  position: relative;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
+  padding: 14px 14px 12px 16px;
+  overflow: hidden;
   min-width: 0;
 }
 
-.stat .value {
-  font-size: 18px;
+.stat::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  border-radius: 3px 0 0 3px;
+}
+
+.statInput::before {
+  background: #60a5fa;
+}
+
+.statOutput::before {
+  background: #a78bfa;
+}
+
+.statTotal::before {
+  background: #f59e0b;
+}
+
+.statMeta::before {
+  background: #5eead4;
+}
+
+.statHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.statIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 22px;
+  border-radius: 6px;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  background: rgba(255, 255, 255, 0.08);
+  color: #c5d4e8;
+}
+
+.stat .label {
+  font-size: 10px;
   font-weight: 760;
-  line-height: 1.2;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-subtle, #9fb2c7);
+}
+
+.stat .value {
+  font-size: clamp(18px, 2vw, 24px);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.15;
   overflow-wrap: anywhere;
+}
+
+.stat .sub {
+  font-size: 11px;
+  color: #8fa3ba;
+  line-height: 1.35;
 }
 
 .modelValue {
   font-size: 14px !important;
+  font-weight: 700 !important;
+}
+
+.modelBreakdownPanel {
+  padding: 14px 16px;
+}
+
+.panelHead {
+  margin-bottom: 12px;
+}
+
+.panelDesc {
+  margin: 4px 0 0;
+  font-size: 12px;
+}
+
+.modelTable td {
+  vertical-align: middle;
+}
+
+.modelTable .barCell {
+  padding-right: 8px;
+}
+
+.shareBar {
+  height: 8px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.shareBarFill {
+  height: 100%;
+  border-radius: 4px;
+  min-width: 2px;
+  transition: width 0.25s ease;
+}
+
+.shareBarFill.input {
+  background: linear-gradient(90deg, rgba(96, 165, 250, 0.9), rgba(96, 165, 250, 0.45));
+}
+
+.shareBarFill.output {
+  background: linear-gradient(90deg, rgba(167, 139, 250, 0.9), rgba(167, 139, 250, 0.45));
+}
+
+.dirPill {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.dirPill.input {
+  background: rgba(96, 165, 250, 0.18);
+  color: #93c5fd;
+}
+
+.dirPill.output {
+  background: rgba(167, 139, 250, 0.18);
+  color: #c4b5fd;
 }
 
 .tokenCharts {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-  margin-top: 10px;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+.chartWide {
+  grid-column: 1 / -1;
+}
+
+.chartScaleHint {
+  margin: 4px 0 0;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.tokenCharts.ratioOnlySecond {
+  grid-template-columns: 1fr;
 }
 
 .chartPanel {
+  padding: 14px 16px;
   min-width: 0;
-}
-
-.chartPanel canvas {
-  width: 100% !important;
-  height: 300px !important;
 }
 
 .chartHeader {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 10px;
-  margin-bottom: 8px;
+  gap: 12px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+
+.chartCanvasWrap {
+  position: relative;
+  height: 300px;
+}
+
+.chartCanvasShort {
+  height: 260px;
+}
+
+.chartCanvasWrap canvas {
+  width: 100% !important;
+  height: 100% !important;
 }
 
 .sectionTitle {
-  font-size: 13px;
-  font-weight: 750;
-  color: #e7edf6;
+  margin: 0;
+  font-size: 14px;
+  font-weight: 820;
+  color: var(--text, #e7edf6);
 }
 
 .qualityBadge {
   display: inline-flex;
   align-items: center;
-  border-radius: 999px;
+  border-radius: 6px;
   border: 1px solid rgba(173, 196, 228, 0.26);
-  padding: 3px 8px;
-  color: #d7e4f3;
-  background: rgba(255, 255, 255, 0.06);
+  padding: 4px 10px;
   font-size: 11px;
   white-space: nowrap;
+  background: rgba(255, 255, 255, 0.06);
 }
 
 .qualityHigh {
@@ -99,126 +352,100 @@
 
 .qualityMedium {
   border-color: rgba(250, 204, 21, 0.36);
-  background: rgba(250, 204, 21, 0.10);
+  background: rgba(250, 204, 21, 0.1);
 }
 
 .qualityLow {
   border-color: rgba(248, 113, 113, 0.38);
-  background: rgba(248, 113, 113, 0.10);
+  background: rgba(248, 113, 113, 0.1);
 }
 
 .tokenTablePanel {
+  padding: 14px 16px;
+}
+
+.rowsToolbar {
+  margin-bottom: 10px;
+}
+
+.pager {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+
+.pager .btnSmall {
+  padding: 6px 8px;
+  border-radius: 10px;
+  cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.08);
+  color: #e6edf3;
+  font-weight: 650;
+}
+
+.pager .btnSmall:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pager .pageInfo {
+  color: #9fb2c7;
+  font-size: 12px;
+}
+
+.modelBreakdownPanel .pager {
   margin-top: 10px;
 }
 
 .emptyState {
-  margin-top: 10px;
+  text-align: center;
+  padding: 28px 20px;
 }
 
 .emptyActions {
-  margin-top: 12px;
+  margin-top: 14px;
 }
 
 @media (max-width: 1100px) {
-  .tokenFilters,
-  .tokenSummaryGrid,
-  .tokenCharts {
+  .toolbarGrid {
     grid-template-columns: 1fr 1fr;
   }
 
-  .tokenFilters .projectField {
+  .toolbarGrid .projectField {
     grid-column: 1 / -1;
   }
-}
 
-@media (max-width: 720px) {
-  .tokenHeader,
-  .chartHeader {
-    flex-direction: column;
+  .toolbarActions {
+    grid-column: 1 / -1;
   }
 
-  .tokenFilters,
-  .tokenSummaryGrid,
+  .tokenSummaryGrid {
+    grid-template-columns: 1fr 1fr;
+  }
+
   .tokenCharts {
     grid-template-columns: 1fr;
   }
 
-  .chartPanel canvas {
-    height: 260px !important;
+  .chartWide {
+    grid-column: auto;
   }
 }
 
-/* Tokens: operational MIS view separated from finance cost screens */
-.contentArea .container {
-  display: grid;
-  gap: 12px;
-}
+@media (max-width: 640px) {
+  .toolbarGrid,
+  .tokenSummaryGrid {
+    grid-template-columns: 1fr;
+  }
 
-.tokenHeader {
-  margin-bottom: 0;
-}
+  .tokenTitleRow {
+    flex-direction: column;
+  }
 
-.tokenHeader .title {
-  font-size: 20px;
-  font-weight: 800;
-}
-
-.tokenFilters {
-  margin-top: 0;
-}
-
-.field label {
-  color: var(--text-subtle);
-  font-size: 11px;
-  font-weight: 760;
-  text-transform: uppercase;
-}
-
-.field select,
-.field input {
-  min-height: 38px;
-  background: var(--surface-2);
-  border-color: var(--border);
-}
-
-.stat {
-  position: relative;
-  overflow: hidden;
-}
-
-.stat::before {
-  content: "";
-  position: absolute;
-  inset: 0 auto 0 0;
-  width: 3px;
-  background: var(--token);
-}
-
-.stat .label {
-  color: var(--text-subtle);
-  font-size: 11px;
-  font-weight: 760;
-  text-transform: uppercase;
-}
-
-.stat .value {
-  font-size: 22px;
-  font-weight: 800;
-  font-variant-numeric: tabular-nums;
-}
-
-.chartPanel canvas {
-  height: 320px !important;
-}
-
-.sectionTitle {
-  color: var(--text);
-  font-size: 14px;
-  font-weight: 820;
-}
-
-.qualityBadge {
-  border-radius: 6px;
-  border-color: var(--border);
-  background: var(--surface-2);
+  .chartCanvasWrap {
+    height: 240px;
+  }
 }

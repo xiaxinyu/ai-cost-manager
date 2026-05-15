@@ -113,15 +113,19 @@
     min = Math.max(0, min - span * 0.15);
     max = Math.max(min + 0.1, max + span * 0.15);
 
-    // Ensure baseline 1.0 is visible.
-    min = Math.min(min, 1);
-    max = Math.max(max, 1);
-
-    // Avoid overly tight axis around 1 when very stable.
-    if (max - min < 0.4) {
-      const mid = 1;
-      min = Math.max(0, mid - 0.25);
-      max = mid + 0.25;
+    const dataMax = xs[xs.length - 1];
+    if (dataMax >= 0.25) {
+      // Ensure baseline 1.0 is visible when ratios are near parity.
+      min = Math.min(min, 1);
+      max = Math.max(max, 1);
+      if (max - min < 0.4) {
+        const mid = 1;
+        min = Math.max(0, mid - 0.25);
+        max = mid + 0.25;
+      }
+    } else {
+      max = Math.max(max, dataMax * 1.2, 0.001);
+      min = 0;
     }
 
     return { min, max };

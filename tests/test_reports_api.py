@@ -113,3 +113,20 @@ def test_all_financial_report_stats(tmp_path):
     assert ver_payload["ok"] is True
     assert ver_payload["failed_count"] == 0
 
+
+def test_reports_page_layout_without_token_forecast(tmp_path):
+    bills_dir = tmp_path / "bills"
+    bills_dir.mkdir(parents=True)
+    db_path = tmp_path / "cost_mgmt.sqlite3"
+    app = create_app(db_path=str(db_path), bills_dir=str(bills_dir), auto_ingest=False)
+    client = TestClient(app)
+    _create_admin(str(db_path))
+    client.post("/auth/login", data={"username": "admin", "password": "admin12345"})
+
+    page = client.get("/reports")
+    assert page.status_code == 200
+    assert "tokenForecastChart" not in page.text
+    assert "Token Forecast (7d)" not in page.text
+    assert "chartGrid3" in page.text
+    assert "tokenReportSection" in page.text
+

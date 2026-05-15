@@ -13,7 +13,7 @@
       <div class="appNavInner">
         <div class="brand">Models Cost Management</div>
         <div class="navLinks">
-          <a class="navLink" href="/">Dashboard</a>
+          <a class="navLink" href="/">Cost</a>
           <a class="navLink" href="/tokens">Tokens</a>
           <a class="navLink" href="/reports">Reports</a>
           <a class="navLink" href="/prices">Prices</a>
@@ -33,14 +33,14 @@
         <div class="container">
           <div class="pageHeader">
             <div class="breadcrumb">Home / Data Operations / Import</div>
-            <div class="pageTitle">Billing File Import</div>
-            <div class="pageDesc">Review missing files and ingest selected records into SQLite.</div>
+            <div class="pageTitle">Billing &amp; Token Import</div>
+            <div class="pageDesc">Import billing CSVs under bills/&lt;project&gt;/ and token CSVs under bills/&lt;project&gt;/token/.</div>
           </div>
 
           <div class="header">
         <div>
           <div class="title">Models Cost Management</div>
-          <div class="subTitle">Import missing billing files into SQLite</div>
+          <div class="subTitle">Import missing billing and token CSV files into SQLite</div>
         </div>
         <div class="rowActions">
           <a href="/" id="backToHome" class="btnSecondary">Back</a>
@@ -67,9 +67,10 @@
             <thead>
               <tr>
                 <th style="width:56px; text-align:center;">Pick</th>
-                <th style="width:220px;">Project</th>
+                <th style="width:90px;">Type</th>
+                <th style="width:180px;">Project</th>
                 <th>File</th>
-                <th style="width:220px;">Last Modified</th>
+                <th style="width:200px;">Last Modified</th>
               </tr>
             </thead>
             <tbody id="missingFilesTbody"></tbody>
@@ -101,10 +102,11 @@
             <thead>
               <tr>
                 <th style="width:56px; text-align:center;">Verify</th>
-                <th style="width:220px;">Project</th>
+                <th style="width:90px;">Type</th>
+                <th style="width:180px;">Project</th>
                 <th>File</th>
                 <th style="width:120px; text-align:right;">Rows</th>
-                <th style="width:220px;">IngestedAt</th>
+                <th style="width:200px;">IngestedAt</th>
               </tr>
             </thead>
             <tbody id="ingestedFilesTbody"></tbody>
@@ -132,6 +134,15 @@
       const ingestedCountEl = document.getElementById('ingestedCount');
       const verifyImportedBtn = document.getElementById('verifyImportedBtn');
       const verifyImportedStatus = document.getElementById('verifyImportedStatus');
+
+      function fmtKind(f) {
+        const kind = (f.file_kind || 'billing').toLowerCase();
+        if (kind === 'token') {
+          const dir = f.token_direction ? ` (${f.token_direction})` : '';
+          return `Token${dir}`;
+        }
+        return 'Billing';
+      }
 
       function fmtTs(ts) {
         if (!ts) return '-';
@@ -197,7 +208,9 @@
         const data = await window.AppHttp.getJson('/api/import/missing-files');
         const missing = data.missing_files || [];
 
-        missingCountEl.textContent = String(data.missing_count ?? missing.length);
+        const billingMissing = Number(data.missing_billing_count ?? 0);
+        const tokenMissing = Number(data.missing_token_count ?? 0);
+        missingCountEl.textContent = `${missing.length} (billing ${billingMissing}, token ${tokenMissing})`;
         missingFilesTbody.innerHTML = '';
         for (const f of missing) {
           const tr = document.createElement('tr');
@@ -205,6 +218,7 @@
             <td style="text-align:center;">
               <input type="checkbox" class="filePick" value="${f.file_path_rel}" ${selectedFiles.has(f.file_path_rel) ? 'checked' : ''} />
             </td>
+            <td>${fmtKind(f)}</td>
             <td>${f.project_name}</td>
             <td class="cellFile">${f.file_path_rel}</td>
             <td>${fmtTs(f.source_last_modified)}</td>
@@ -233,7 +247,9 @@
             file_path_rels: chosen,
           });
           if (data?.verification_passed) {
-            importStatus.textContent = `Imported: ${data.files_ingested} file(s), ${data.rows_ingested} row(s). Verified: ${data.files_verified} file(s).`;
+            const billingN = data.billing_files_ingested ?? 0;
+            const tokenN = data.token_files_ingested ?? 0;
+            importStatus.textContent = `Imported: ${data.files_ingested} file(s) (billing ${billingN}, token ${tokenN}), ${data.rows_ingested} row(s). Verified: ${data.files_verified} file(s).`;
           } else {
             const err = data?.import_error ? String(data.import_error) : 'Unknown verification error';
             importStatus.textContent = `Audit failed: ${err}`;
@@ -309,6 +325,7 @@
               <td style="text-align:center;">
                 <input type="checkbox" class="verifyFilePick" value="${f.file_path_rel}" />
               </td>
+              <td>${fmtKind(f)}</td>
               <td>${f.project_name}</td>
               <td class="cellFile">${f.file_path_rel}</td>
               <td style="text-align:right;">${f.row_count}</td>

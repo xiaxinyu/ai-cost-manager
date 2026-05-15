@@ -89,7 +89,11 @@ def test_tokens_page_redirect_and_access(tmp_path):
 
     page = client.get("/tokens")
     assert page.status_code == 200
-    assert "Token Usage Workspace" in page.text
+    assert "Token Operations" in page.text
+    assert "noImportHint" in page.text
+    assert 'id="tokenStartDateInput"' in page.text
+    assert 'id="dailyPageSizeSelect"' in page.text
+    assert 'id="dailyPrevBtn"' in page.text
     assert "/static/js/pages/tokens.js" in page.text
     assert 'href="/tokens"' in page.text
 
@@ -117,11 +121,11 @@ def test_login_to_token_workspace_e2e_smoke(tmp_path):
     assert login.status_code in {200, 303}
 
     for path, marker in (
-        ("/", "Operations Dashboard"),
-        ("/tokens", "Token Usage Workspace"),
+        ("/", "Cost Overview"),
+        ("/tokens", "Token Operations"),
         ("/reports", "Financial Report Center"),
         ("/prices", "Model Price Viewer"),
-        ("/import", "Billing File Import"),
+        ("/import", "Billing &amp; Token Import"),
     ):
         page = client.get(path)
         assert page.status_code == 200
@@ -129,6 +133,7 @@ def test_login_to_token_workspace_e2e_smoke(tmp_path):
         assert 'href="/tokens"' in page.text
 
     stats = client.get("/api/projects/projToken/stats?currency=USD").json()
+    assert stats["token_data_source"] == "estimated"
     assert stats["estimated_input_tokens"] == 1_500_000.0
     assert stats["estimated_output_tokens"] == 750_000.0
     assert stats["estimated_total_tokens"] == 2_250_000.0

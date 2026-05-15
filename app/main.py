@@ -28,18 +28,30 @@ from .db import (
     get_connection,
     get_project_stats,
     get_rows,
+    get_imported_token_breakdown_by_model,
+    get_imported_token_meta,
     get_token_timeseries,
     get_all_token_timeseries,
+    project_has_imported_tokens,
     verify_all_financial_consistency,
+    get_model_implied_usd_per_1m_analysis,
     get_timeseries,
     init_db,
     list_forecast_model_catalog,
     list_price_source_catalog,
     list_projects,
+    list_projects_with_imported_tokens,
     update_price_source_catalog_row,
     upsert_project_model_config,
 )
 from .ingest import ingest_all, ingest_selected, list_ingested_files, list_missing_files, verify_ingested_files
+from .token_ingest import (
+    ingest_token_all,
+    ingest_token_selected,
+    list_ingested_token_files,
+    list_missing_token_files,
+    verify_ingested_token_files,
+)
 from .auth import authenticate_user, require_active_user
 
 
@@ -285,7 +297,29 @@ def create_app(
         conn = get_connection(db_path)
         try:
             projects = list_projects(conn)
-            return JSONResponse({"projects": projects})
+            token_projects = list_projects_with_imported_tokens(conn)
+            return JSONResponse(
+                {
+                    "projects": projects,
+                    "projects_with_imported_tokens": token_projects,
+                }
+            )
+        finally:
+            conn.close()
+
+    @app.get("/api/projects/latest-token")
+    def api_projects_latest_token(_: str = Depends(_auth_dep)) -> JSONResponse:
+        conn = get_connection(db_path)
+        try:
+            row = conn.execute(
+                """
+                SELECT project_name
+                FROM ingested_token_files
+                ORDER BY ingested_at DESC, id DESC
+                LIMIT 1
+                """
+            ).fetchone()
+            return JSONResponse({"project_name": row["project_name"] if row else None})
         finally:
             conn.close()
 
@@ -330,8 +364,30 @@ def create_app(
                     "estimated_output_tokens": stats.estimated_output_tokens,
                     "estimated_total_tokens": stats.estimated_total_tokens,
                     "token_estimate_model": stats.token_estimate_model,
+                    "token_data_source": stats.token_data_source,
                 }
             )
+        finally:
+            conn.close()
+
+    @app.get("/api/projects/{project_name}/model-unit-prices")
+    def api_model_unit_prices(
+        project_name: str,
+        start_date: Optional[str] = Query(default=None, description="YYYY-MM-DD"),
+        end_date: Optional[str] = Query(default=None, description="YYYY-MM-DD"),
+        currency: Optional[str] = Query(default=None, description="Currency code"),
+        _: str = Depends(_auth_dep),
+    ) -> JSONResponse:
+        conn = get_connection(db_path)
+        try:
+            payload = get_model_implied_usd_per_1m_analysis(
+                conn,
+                project_name,
+                start_date=start_date,
+                end_date=end_date,
+                currency=currency,
+            )
+            return JSONResponse(payload)
         finally:
             conn.close()
 
@@ -435,7 +491,7 @@ def create_app(
     ) -> JSONResponse:
         conn = get_connection(db_path)
         try:
-            points, chosen_currency, model_name, token_region = get_token_timeseries(
+            points, chosen_currency, model_name, token_region, token_data_source = get_token_timeseries(
                 conn,
                 project_name,
                 start_date=start_date,
@@ -447,17 +503,31 @@ def create_app(
                 available = get_available_currencies(conn, project_name)
             else:
                 available = [currency]
-            return JSONResponse(
-                {
-                    "project": project_name,
-                    "currency": chosen_currency,
-                    "available_currencies": available,
-                    "granularity": granularity,
-                    "token_estimate_model": model_name,
-                    "token_estimate_region": token_region,
-                    "points": points,
-                }
-            )
+
+            payload: dict[str, object] = {
+                "project": project_name,
+                "currency": chosen_currency,
+                "available_currencies": available,
+                "granularity": granularity,
+                "token_estimate_model": model_name,
+                "token_estimate_region": token_region,
+                "token_data_source": token_data_source,
+                "points": points,
+            }
+            if token_data_source == "imported":
+                payload["import_meta"] = get_imported_token_meta(
+                    conn,
+                    project_name,
+                    start_date=start_date,
+                    end_date=end_date,
+                )
+                payload["breakdown_by_model"] = get_imported_token_breakdown_by_model(
+                    conn,
+                    project_name,
+                    start_date=start_date,
+                    end_date=end_date,
+                )
+            return JSONResponse(payload)
         finally:
             conn.close()
 
@@ -522,8 +592,25 @@ def create_app(
 
     @app.get("/api/import/missing-files")
     def api_missing_files(_: str = Depends(_auth_dep)) -> JSONResponse:
-        missing = list_missing_files(bills_dir=bills_dir, db_path=db_path)
-        return JSONResponse({"missing_count": len(missing), "missing_files": missing})
+        billing = list_missing_files(bills_dir=bills_dir, db_path=db_path)
+        token = list_missing_token_files(bills_dir=bills_dir, db_path=db_path)
+        missing = sorted(
+            [*billing, *token],
+            key=lambda x: float(x.get("source_last_modified") or 0),
+            reverse=True,
+        )
+        return JSONResponse(
+            {
+                "missing_count": len(missing),
+                "missing_billing_count": len(billing),
+                "missing_token_count": len(token),
+                "missing_files": missing,
+            }
+        )
+
+    def _is_token_file_path(file_path_rel: str) -> bool:
+        parts = Path(file_path_rel).parts
+        return len(parts) >= 2 and parts[1].lower() == "token"
 
     @app.post("/api/import/run")
     def api_import_run(
@@ -531,24 +618,50 @@ def create_app(
         _: str = Depends(_auth_dep),
     ) -> JSONResponse:
         try:
+            billing_paths: list[str] | None = None
+            token_paths: list[str] | None = None
+            if req.file_path_rels is not None:
+                billing_paths = [p for p in req.file_path_rels if not _is_token_file_path(p)]
+                token_paths = [p for p in req.file_path_rels if _is_token_file_path(p)]
+
             if req.file_path_rels is None:
-                result = ingest_all(bills_dir=bills_dir, db_path=db_path, reimport_changed=req.reimport_changed)
+                billing_result = ingest_all(
+                    bills_dir=bills_dir, db_path=db_path, reimport_changed=req.reimport_changed
+                )
+                token_result = ingest_token_all(
+                    bills_dir=bills_dir, db_path=db_path, reimport_changed=req.reimport_changed
+                )
             else:
-                result = ingest_selected(
+                billing_result = ingest_selected(
                     bills_dir=bills_dir,
                     db_path=db_path,
-                    file_path_rels=req.file_path_rels,
+                    file_path_rels=billing_paths,
                     reimport_changed=req.reimport_changed,
                 )
+                token_result = ingest_token_selected(
+                    bills_dir=bills_dir,
+                    db_path=db_path,
+                    file_path_rels=token_paths,
+                    reimport_changed=req.reimport_changed,
+                )
+
+            verification_passed = (
+                billing_result.verification_passed and token_result.verification_passed
+            )
             return JSONResponse(
                 {
-                    "projects_discovered": result.projects_discovered,
-                    "files_discovered": result.files_discovered,
-                    "files_skipped": result.files_skipped,
-                    "files_ingested": result.files_ingested,
-                    "rows_ingested": result.rows_ingested,
-                    "files_verified": result.files_verified,
-                    "verification_passed": result.verification_passed,
+                    "projects_discovered": billing_result.projects_discovered
+                    + token_result.projects_discovered,
+                    "files_discovered": billing_result.files_discovered + token_result.files_discovered,
+                    "files_skipped": billing_result.files_skipped + token_result.files_skipped,
+                    "files_ingested": billing_result.files_ingested + token_result.files_ingested,
+                    "rows_ingested": billing_result.rows_ingested + token_result.rows_ingested,
+                    "files_verified": billing_result.files_verified + token_result.files_verified,
+                    "verification_passed": verification_passed,
+                    "billing_files_ingested": billing_result.files_ingested,
+                    "token_files_ingested": token_result.files_ingested,
+                    "billing_rows_ingested": billing_result.rows_ingested,
+                    "token_rows_ingested": token_result.rows_ingested,
                     "price_source_catalog": _price_source_catalog_snapshot(),
                 }
             )
@@ -578,26 +691,58 @@ def create_app(
         _: str = Depends(_auth_dep),
     ) -> JSONResponse:
         try:
-            result = verify_ingested_files(
-                bills_dir=bills_dir,
-                db_path=db_path,
-                limit=limit,
-                file_path_rels=file_path_rels,
-            )
+            billing_paths: list[str] | None = None
+            token_paths: list[str] | None = None
+            if file_path_rels is not None:
+                billing_paths = [p for p in file_path_rels if not _is_token_file_path(p)]
+                token_paths = [p for p in file_path_rels if _is_token_file_path(p)]
+
+            items: list[dict[str, object]] = []
+            pass_count = 0
+            fail_count = 0
+
+            if file_path_rels is None or billing_paths:
+                billing_result = verify_ingested_files(
+                    bills_dir=bills_dir,
+                    db_path=db_path,
+                    limit=limit,
+                    file_path_rels=billing_paths,
+                )
+                pass_count += billing_result.pass_count
+                fail_count += billing_result.fail_count
+                items.extend(
+                    {
+                        "file_path_rel": it.file_path_rel,
+                        "pass": it.pass_check,
+                        "error": it.error,
+                    }
+                    for it in billing_result.items
+                )
+
+            if file_path_rels is None or token_paths:
+                token_result = verify_ingested_token_files(
+                    bills_dir=bills_dir,
+                    db_path=db_path,
+                    limit=limit,
+                    file_path_rels=token_paths,
+                )
+                pass_count += token_result.pass_count
+                fail_count += token_result.fail_count
+                items.extend(
+                    {
+                        "file_path_rel": it.file_path_rel,
+                        "pass": it.pass_check,
+                        "error": it.error,
+                    }
+                    for it in token_result.items
+                )
             return JSONResponse(
                 {
                     "limit": limit,
-                    "ok": result.fail_count == 0,
-                    "pass_count": result.pass_count,
-                    "fail_count": result.fail_count,
-                    "items": [
-                        {
-                            "file_path_rel": it.file_path_rel,
-                            "pass": it.pass_check,
-                            "error": it.error,
-                        }
-                        for it in result.items
-                    ],
+                    "ok": fail_count == 0,
+                    "pass_count": pass_count,
+                    "fail_count": fail_count,
+                    "items": items,
                 }
             )
         except Exception as e:
@@ -617,7 +762,13 @@ def create_app(
         limit: int = Query(default=50, ge=1, le=200),
         _: str = Depends(_auth_dep),
     ) -> JSONResponse:
-        files = list_ingested_files(db_path=db_path, limit=limit)
+        billing = list_ingested_files(db_path=db_path, limit=limit)
+        token = list_ingested_token_files(db_path=db_path, limit=limit)
+        files = sorted(
+            [*billing, *token],
+            key=lambda x: str(x.get("ingested_at") or ""),
+            reverse=True,
+        )[:limit]
         return JSONResponse({"limit": limit, "files": files})
 
     @app.get("/api/reports/all-financial")
@@ -648,7 +799,12 @@ def create_app(
             )
 
             chosen_currency = stats.get("currency")
-            token_daily_points, token_model_display, token_region_display = get_all_token_timeseries(
+            (
+                token_daily_points,
+                token_model_display,
+                token_region_display,
+                token_data_source,
+            ) = get_all_token_timeseries(
                 conn,
                 start_date=start_date,
                 end_date=end_date,
@@ -656,7 +812,7 @@ def create_app(
                 currency=chosen_currency,
                 project_names=project_names,
             )
-            token_monthly_points, _, _ = get_all_token_timeseries(
+            token_monthly_points, _, _, _ = get_all_token_timeseries(
                 conn,
                 start_date=start_date,
                 end_date=end_date,
@@ -672,6 +828,7 @@ def create_app(
                     "token_monthly_points": token_monthly_points,
                     "token_estimate_model_display": token_model_display,
                     "token_estimate_region_display": token_region_display,
+                    "token_data_source": token_data_source,
                 }
             )
         finally:
