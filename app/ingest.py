@@ -689,6 +689,7 @@ def list_missing_files(
                 {
                     "project_name": project_name,
                     "file_path_rel": file_path_rel,
+                    "file_kind": "billing",
                     "source_last_modified": float(csv_path_abs.stat().st_mtime),
                 }
             )
@@ -730,6 +731,7 @@ def list_ingested_files(
             {
                 "project_name": r["project_name"],
                 "file_path_rel": r["file_path"],
+                "file_kind": "billing",
                 "row_count": int(r["row_count"]),
                 "ingested_at": r["ingested_at"],
                 "source_last_modified": r["source_last_modified"],

@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Models Cost Management</title>
+    <title>Cost - Models Cost Management</title>
     <link rel="stylesheet" href="/static/css/app-shell.css" />
     <link rel="stylesheet" href="/static/css/page-common.css" />
     <link rel="stylesheet" href="/static/css/pages/index.css" />
@@ -13,7 +13,7 @@
       <div class="appNavInner">
         <div class="brand">Models Cost Management</div>
         <div class="navLinks">
-          <a class="navLink active" href="/">Dashboard</a>
+          <a class="navLink active" href="/">Cost</a>
           <a class="navLink" href="/tokens">Tokens</a>
           <a class="navLink" href="/reports">Reports</a>
           <a class="navLink" href="/prices">Prices</a>
@@ -32,13 +32,13 @@
       <main class="contentArea">
         <div class="container">
           <div class="pageHeader">
-            <div class="breadcrumb">Home / Dashboard</div>
-            <div class="pageTitle">Operations Dashboard</div>
-            <div class="pageDesc">Project billing trend and latest transaction snapshots.</div>
+            <div class="breadcrumb">Home / Cost</div>
+            <div class="pageTitle">Cost Overview</div>
+            <p class="pageDesc">Daily billing cost (CostUSD), 7-day forecast, and per-model implied $/1M when token CSVs are imported.</p>
           </div>
           <div class="header card">
         <div>
-          <div class="title">Models Cost Management</div>
+          <div class="title">Cost</div>
           <div class="muted">Billed from CSV files in <span class="pill">{{ default_bills_dir }}</span></div>
         </div>
         <div class="controls">
@@ -70,30 +70,6 @@
           <div class="stat">
             <div class="label">Days With Data</div>
             <div class="value" id="daysCount" style="font-size:16px;">-</div>
-          </div>
-        </div>
-        <div class="card">
-          <div class="stat">
-            <div class="label">Estimated Input Tokens</div>
-            <div class="value" id="estInputTokens" style="font-size:16px;">-</div>
-            <div class="sub" id="tokenModelName">Model: -</div>
-            <div class="sub tokenStats" id="tokenStatsInput">Max: - · Mean: - · Min: -</div>
-          </div>
-        </div>
-        <div class="card">
-          <div class="stat">
-            <div class="label">Estimated Output Tokens</div>
-            <div class="value" id="estOutputTokens" style="font-size:16px;">-</div>
-            <div class="sub" id="tokenModelNameOutput">Model: -<br/>Region: -</div>
-            <div class="sub tokenStats" id="tokenStatsOutput">Max: - · Mean: - · Min: -</div>
-          </div>
-        </div>
-        <div class="card">
-          <div class="stat">
-            <div class="label">Estimated Total Tokens</div>
-            <div class="value" id="estTotalTokens" style="font-size:16px;">-</div>
-            <div class="sub" id="tokenModelNameTotal">Model: -<br/>Region: -</div>
-            <div class="sub tokenStats" id="tokenStatsTotal">Max: - · Mean: - · Min: -</div>
           </div>
         </div>
       </div>
@@ -131,72 +107,36 @@
                 </div>
               </div>
             </section>
-            <section>
+
+            <section id="modelUnitPriceSection" class="modelUnitPriceSection" hidden aria-label="Model unit prices">
               <div class="sectionHeaderRow">
-                <div class="sectionTitle">Tokens</div>
-                <div class="muted">Estimated (daily)</div>
+                <div class="sectionTitle">Model price (per 1M tokens)</div>
+                <div class="muted" id="modelUnitPriceHint">Implied from daily cost ÷ tokens</div>
               </div>
-              <div class="chartStack">
-                <div class="card tight">
-                  <div class="chartSectionTitle">Actual tokens (daily)</div>
-                  <canvas id="timeseriesChartTokenActual"></canvas>
-                </div>
-                <div class="card tight">
-                  <div class="chartSectionTitle muted">Forecast tokens (7d)</div>
-                  <canvas id="timeseriesChartTokenForecast"></canvas>
-                  <div class="forecastMetaRow">
-                    <div class="muted">Last 28 days · 7-day horizon · DOW correction</div>
-                    <div id="forecastQualityTokens" class="qualityBadge qualityMedium">Forecast quality: -</div>
-                  </div>
-                  <details class="forecastAssumptions">
-                    <summary>Forecast assumptions (7d)</summary>
-                    <div class="assumptionBody">
-                      Each token series (input/output/total) is forecast independently with the same method.
-                      Output is <b>integer</b> and <b>clamped to ≥ 0</b>.
-                      <ul>
-                        <li><b>Window</b>: 28 samples (clamped to [2, 365])</li>
-                        <li><b>Horizon</b>: 7 days (clamped to [1, 30])</li>
-                        <li><b>Continuity</b>: dashed forecast starts at last actual point</li>
-                      </ul>
-                    </div>
-                  </details>
-                </div>
-                <div class="card tight">
-                  <div class="chartSectionTitle muted">Output/Input ratio (daily)</div>
-                  <div class="forecastMetaRow" style="margin-top: 0;">
-                    <div class="muted" id="ratioKpiSummary">Valid days: - · >1: - · <1: -</div>
-                    <div class="muted">Baseline: 1.0</div>
-                  </div>
-                  <canvas id="timeseriesChartTokenRatio"></canvas>
-                </div>
+              <p class="tableNote modelUnitPriceNote">
+                Daily billing is allocated to each model by its share of imported token usage that day.
+                Statistics (min, max, mean, median) are over days with both cost and token data. 1M = 1,000,000 tokens.
+              </p>
+              <div class="tableScroll modelUnitPriceTableWrap">
+                <table class="modelUnitPriceTable" id="modelUnitPriceTable">
+                  <thead>
+                    <tr>
+                      <th>Model</th>
+                      <th>Metric</th>
+                      <th class="num">Min</th>
+                      <th class="num">Max</th>
+                      <th class="num">Mean</th>
+                      <th class="num">Median</th>
+                      <th class="num">Days</th>
+                      <th class="num">Catalog $/1M</th>
+                    </tr>
+                  </thead>
+                  <tbody id="modelUnitPriceTbody"></tbody>
+                </table>
               </div>
             </section>
           </div>
 
-          <div style="height: 16px;"></div>
-          <div class="card">
-        <div class="rowsToolbar">
-          <div>
-            <div class="muted">Token consumption report (estimated)</div>
-            <div class="muted" id="tokenReportModel" style="margin-top:4px;">Model: -</div>
-          </div>
-        </div>
-        <div class="tableScroll">
-          <table>
-            <thead>
-              <tr>
-                <th style="width:160px;">Date</th>
-                <th class="num">Cost (USD / Currency)</th>
-                <th class="num">Estimated Input Tokens</th>
-                <th class="num">Estimated Output Tokens</th>
-                <th class="num">Estimated Total Tokens</th>
-                <th class="num">Output/Input</th>
-              </tr>
-            </thead>
-            <tbody id="tokenReportTbody"></tbody>
-          </table>
-        </div>
-      </div>
 
           </div>
       </main>
@@ -219,49 +159,83 @@
       const costStatsEl = document.getElementById('costStats');
       const dateRangeEl = document.getElementById('dateRange');
       const daysCountEl = document.getElementById('daysCount');
-      const estInputTokensEl = document.getElementById('estInputTokens');
-      const estOutputTokensEl = document.getElementById('estOutputTokens');
-      const estTotalTokensEl = document.getElementById('estTotalTokens');
-      const tokenModelNameEl = document.getElementById('tokenModelName');
-      const tokenModelNameOutputEl = document.getElementById('tokenModelNameOutput');
-      const tokenModelNameTotalEl = document.getElementById('tokenModelNameTotal');
       const currencyLabelEl = document.getElementById('currencyLabel');
       const startDateInput = document.getElementById('startDateInput');
       const endDateInput = document.getElementById('endDateInput');
       const applyFiltersBtn = document.getElementById('applyFiltersBtn');
-      const tokenReportTbody = document.getElementById('tokenReportTbody');
-      const tokenReportModelEl = document.getElementById('tokenReportModel');
-      const tokenStatsInputEl = document.getElementById('tokenStatsInput');
-      const tokenStatsOutputEl = document.getElementById('tokenStatsOutput');
-      const tokenStatsTotalEl = document.getElementById('tokenStatsTotal');
 
       let chartActual = null;
       let chartCostForecast = null;
-      let chartTokenForecast = null;
-      let chartTokenActual = null;
-      let chartTokenRatio = null;
       let currentProjectName = null;
       let currentCurrency = null;
       let currentStartDate = null;
       let currentEndDate = null;
       const forecastQualityCostEl = document.getElementById('forecastQualityCost');
-      const forecastQualityTokensEl = document.getElementById('forecastQualityTokens');
-      const ratioKpiSummaryEl = document.getElementById('ratioKpiSummary');
+      const modelUnitPriceSection = document.getElementById('modelUnitPriceSection');
+      const modelUnitPriceTbody = document.getElementById('modelUnitPriceTbody');
+      const modelUnitPriceHint = document.getElementById('modelUnitPriceHint');
 
       function fmt2(n) {
         if (n === null || n === undefined || isNaN(n)) return '-';
         return n.toLocaleString(undefined, { maximumFractionDigits: 4, minimumFractionDigits: 0 });
       }
 
-      function fmtInt(n) {
-        if (n === null || n === undefined || isNaN(n)) return '-';
-        const v = Math.round(Number(n));
-        return v.toLocaleString(undefined, { maximumFractionDigits: 0, minimumFractionDigits: 0 });
+      function fmtUsdPer1m(n) {
+        if (n === null || n === undefined || !Number.isFinite(Number(n))) return '-';
+        return Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 });
       }
 
-      function fmtTokens(n) {
+      function renderModelUnitPrices(payload) {
+        if (!modelUnitPriceSection || !modelUnitPriceTbody) return;
+        modelUnitPriceTbody.innerHTML = '';
+        if (!payload?.available) {
+          modelUnitPriceSection.hidden = true;
+          if (modelUnitPriceHint) {
+            modelUnitPriceHint.textContent =
+              payload?.reason === 'no_imported_tokens'
+                ? 'Import token CSVs under bills/<project>/token/'
+                : 'No model price data';
+          }
+          return;
+        }
+        modelUnitPriceSection.hidden = false;
+        if (modelUnitPriceHint) {
+          modelUnitPriceHint.textContent = `Currency: ${payload.currency ?? '-'} · ${payload.unit_label ?? 'USD per 1M tokens'}`;
+        }
+        const metrics = [
+          { key: 'input', label: 'Input', catalogKey: 'catalog_usd_per_1m_input' },
+          { key: 'output', label: 'Output', catalogKey: 'catalog_usd_per_1m_output' },
+          { key: 'blended', label: 'Blended', catalogKey: null },
+        ];
+        for (const model of payload.models || []) {
+          for (const m of metrics) {
+            const st = model.stats?.[m.key];
+            if (!st || !st.count) continue;
+            const tr = document.createElement('tr');
+            const catalog =
+              m.catalogKey && model[m.catalogKey] != null ? fmtUsdPer1m(model[m.catalogKey]) : '—';
+            tr.innerHTML = `
+              <td>${model.model_name || '-'}</td>
+              <td>${m.label}</td>
+              <td class="num">${fmtUsdPer1m(st.min)}</td>
+              <td class="num">${fmtUsdPer1m(st.max)}</td>
+              <td class="num">${fmtUsdPer1m(st.mean)}</td>
+              <td class="num">${fmtUsdPer1m(st.median)}</td>
+              <td class="num">${st.count}</td>
+              <td class="num">${catalog}</td>
+            `;
+            modelUnitPriceTbody.appendChild(tr);
+          }
+        }
+        if (!modelUnitPriceTbody.children.length) {
+          const tr = document.createElement('tr');
+          tr.innerHTML = '<td colspan="8" class="muted">No days with both billing cost and token usage in range.</td>';
+          modelUnitPriceTbody.appendChild(tr);
+        }
+      }
+
+      function fmtInt(n) {
         if (n === null || n === undefined || isNaN(n)) return '-';
-        // Always show full integers for token estimates (no decimals on UI).
         const v = Math.round(Number(n));
         return v.toLocaleString(undefined, { maximumFractionDigits: 0, minimumFractionDigits: 0 });
       }
@@ -323,18 +297,6 @@
         };
       }
 
-      function _renderTokenStats(el, stats) {
-        if (!el) return;
-        if (!stats) {
-          el.textContent = 'Max: - · Mean: - · Min: -';
-          return;
-        }
-        const maxText = `${fmtTokens(stats.max.val)} (${stats.max.date})`;
-        const minText = `${fmtTokens(stats.min.val)} (${stats.min.date})`;
-        const meanText = `${fmtTokens(stats.mean)}`;
-        el.innerHTML = `Max: <span class="mono">${maxText}</span> · Mean: <span class="mono">${meanText}</span> · Min: <span class="mono">${minText}</span>`;
-      }
-
       function _calcSeriesStatsFloat(points, key) {
         const rows = (points || [])
           .map((p) => ({
@@ -355,8 +317,12 @@
           if (r.val < min.val) min = r;
           if (r.val > max.val) max = r;
         }
-        const mean = sum / rows.length;
-        return { min, max, mean, count: rows.length };
+        return {
+          min,
+          max,
+          mean: sum / rows.length,
+          count: rows.length,
+        };
       }
 
       function _renderCostStats(el, stats) {
@@ -369,52 +335,6 @@
         const minText = `${fmtInt(stats.min.val)} (${stats.min.date})`;
         const meanIntText = `${fmtInt(stats.mean)}`;
         el.innerHTML = `Max: <span class="mono">${maxText}</span> · Mean: <span class="mono">${meanIntText}</span> · Min: <span class="mono">${minText}</span>`;
-      }
-
-      function renderTokenReport(data) {
-        const points = (data.points || []).slice().reverse();
-        tokenReportTbody.innerHTML = '';
-        const modelText = data.token_estimate_model
-          ? data.token_estimate_model
-          : '- (no price match)';
-        const regionText = data.token_estimate_region || '-';
-        tokenReportModelEl.innerHTML = `Model: ${modelText}<br/>Region: ${regionText}`;
-        tokenModelNameEl.innerHTML = `Model: ${modelText}<br/>Region: ${regionText}`;
-        if (tokenModelNameOutputEl) {
-          tokenModelNameOutputEl.innerHTML = `Model: ${modelText}<br/>Region: ${regionText}`;
-        }
-        if (tokenModelNameTotalEl) {
-          tokenModelNameTotalEl.innerHTML = `Model: ${modelText}<br/>Region: ${regionText}`;
-        }
-        const currency = data.currency || currentCurrency || '-';
-
-        if (points.length === 0) {
-          const tr = document.createElement('tr');
-          tr.innerHTML = `<td colspan="6" class="muted">No token report data in selected range.</td>`;
-          tokenReportTbody.appendChild(tr);
-          return;
-        }
-
-        for (const p of points) {
-          const inTok = p.estimated_input_tokens;
-          const outTok = p.estimated_output_tokens;
-          const totalTok = p.estimated_total_tokens;
-          const ratio = (inTok !== null && inTok !== undefined && Number.isFinite(Number(inTok)) && Number(inTok) > 0
-            && outTok !== null && outTok !== undefined && Number.isFinite(Number(outTok)))
-            ? Number(outTok) / Number(inTok)
-            : null;
-          const costText = p.cost_usd === null || p.cost_usd === undefined ? '-' : `${fmt2(p.cost_usd)} ${currency}`;
-          const tr = document.createElement('tr');
-          tr.innerHTML = `
-            <td>${p.date ?? ''}</td>
-            <td class="num">${costText}</td>
-            <td class="num">${inTok === null || inTok === undefined ? '-' : fmtTokens(inTok)}</td>
-            <td class="num">${outTok === null || outTok === undefined ? '-' : fmtTokens(outTok)}</td>
-            <td class="num">${totalTok === null || totalTok === undefined ? '-' : fmtTokens(totalTok)}</td>
-            <td class="num">${fmtRatio(ratio)}</td>
-          `;
-          tokenReportTbody.appendChild(tr);
-        }
       }
 
       function tooltipLabelForValue(ctx) {
@@ -460,115 +380,57 @@
         }
       };
 
-      function renderChart(costPoints, tokenPoints, { costForecast, tokenForecast } = {}) {
+      function renderChart(costPoints, { costForecast } = {}) {
         const C = window.AppChartStyle?.colors || {};
         const L = window.AppChartStyle?.labels || {};
-        const labels = (costPoints || []).map(p => p.date);
+        const labels = (costPoints || []).map((p) => p.date);
         const lastLabel = labels.length ? labels[labels.length - 1] : null;
-        const horizonLabels = lastLabel ? Array.from({ length: 7 }, (_, i) => _addDaysYmd(lastLabel, i + 1)).filter(Boolean) : [];
+        const horizonLabels = lastLabel
+          ? Array.from({ length: 7 }, (_, i) => _addDaysYmd(lastLabel, i + 1)).filter(Boolean)
+          : [];
 
-        const costData = (costPoints || []).map(p => {
+        const costData = (costPoints || []).map((p) => {
           const v = p.cost_usd;
-          return v === null || v === undefined ? null : Math.round(Number(v));
-        });
-        const tokenByDate = new Map((tokenPoints || []).map(p => [p.date, p]));
-        const tokenInputData = labels.map((d) => {
-          const v = tokenByDate.get(d)?.estimated_input_tokens;
-          return v === null || v === undefined ? null : Math.round(Number(v));
-        });
-        const tokenOutputData = labels.map((d) => {
-          const v = tokenByDate.get(d)?.estimated_output_tokens;
-          return v === null || v === undefined ? null : Math.round(Number(v));
-        });
-        const tokenTotalData = labels.map((d) => {
-          const v = tokenByDate.get(d)?.estimated_total_tokens;
           return v === null || v === undefined ? null : Math.round(Number(v));
         });
 
         const costFcBy = Array.isArray(costForecast) ? new Map(costForecast.map((x) => [x.date, x.value])) : new Map();
         const costOnlyForecastData = horizonLabels.map((d) => (costFcBy.has(d) ? costFcBy.get(d) : null));
 
-        const tf = tokenForecast || {};
-        const inFcBy = Array.isArray(tf.input) ? new Map(tf.input.map((x) => [x.date, x.value])) : new Map();
-        const outFcBy = Array.isArray(tf.output) ? new Map(tf.output.map((x) => [x.date, x.value])) : new Map();
-        const totFcBy = Array.isArray(tf.total) ? new Map(tf.total.map((x) => [x.date, x.value])) : new Map();
-        const tokenFcInData = horizonLabels.map((d) => (inFcBy.has(d) ? inFcBy.get(d) : null));
-        const tokenFcOutData = horizonLabels.map((d) => (outFcBy.has(d) ? outFcBy.get(d) : null));
-        const tokenFcTotalData = horizonLabels.map((d) => (totFcBy.has(d) ? totFcBy.get(d) : null));
-
-        // Forecast quality hints (UI only).
         try {
           if (forecastQualityCostEl) {
             const q = window.AppForecasting?.forecastQuality?.(costPoints || [], 'cost_usd', { windowDays: 28 }) || null;
             _renderForecastQualityBadge(forecastQualityCostEl, q);
           }
-          if (forecastQualityTokensEl) {
-            const q = window.AppForecasting?.forecastQuality?.(tokenPoints || [], 'estimated_total_tokens', { windowDays: 28 }) || null;
-            _renderForecastQualityBadge(forecastQualityTokensEl, q);
-          }
         } catch (e) {
-          // Keep UI resilient; quality is optional.
+          /* optional */
         }
 
-        // For forecast charts, include the last 1-2 actual points as a solid segment,
-        // then start forecast series from the last actual point so the line visually continues.
         const lastIdx = labels.length - 1;
         const prevIdx = labels.length - 2;
         const hasLast = lastIdx >= 0 && lastLabel;
         const hasPrev = prevIdx >= 0;
-        const costForecastLabels = hasLast ? [hasPrev ? labels[prevIdx] : lastLabel, lastLabel].filter(Boolean).concat(horizonLabels) : horizonLabels;
+        const costForecastLabels = hasLast
+          ? [hasPrev ? labels[prevIdx] : lastLabel, lastLabel].filter(Boolean).concat(horizonLabels)
+          : horizonLabels;
         const costActualTail = hasLast
           ? [hasPrev ? costData[prevIdx] : null, costData[lastIdx]].filter((_, i, arr) => arr.length > 1 || i === 0)
           : [];
-
-        const lastIn = hasLast ? tokenInputData[lastIdx] : null;
-        const lastOut = hasLast ? tokenOutputData[lastIdx] : null;
-        const lastTot = hasLast ? tokenTotalData[lastIdx] : null;
-        const prevIn = hasPrev ? tokenInputData[prevIdx] : null;
-        const prevOut = hasPrev ? tokenOutputData[prevIdx] : null;
-        const prevTot = hasPrev ? tokenTotalData[prevIdx] : null;
-        const tokenForecastLabels = costForecastLabels;
-        const tokenActualTailIn = hasLast ? [hasPrev ? prevIn : null, lastIn].filter((_, i, arr) => arr.length > 1 || i === 0) : [];
-        const tokenActualTailOut = hasLast ? [hasPrev ? prevOut : null, lastOut].filter((_, i, arr) => arr.length > 1 || i === 0) : [];
-        const tokenActualTailTot = hasLast ? [hasPrev ? prevTot : null, lastTot].filter((_, i, arr) => arr.length > 1 || i === 0) : [];
-
         const costForecastDashed = hasLast ? [costData[lastIdx]].concat(costOnlyForecastData) : costOnlyForecastData;
-        const tokenForecastDashedIn = hasLast ? [lastIn].concat(tokenFcInData) : tokenFcInData;
-        const tokenForecastDashedOut = hasLast ? [lastOut].concat(tokenFcOutData) : tokenFcOutData;
-        const tokenForecastDashedTot = hasLast ? [lastTot].concat(tokenFcTotalData) : tokenFcTotalData;
 
         if (chartActual) chartActual.destroy();
         if (chartCostForecast) chartCostForecast.destroy();
-        if (chartTokenForecast) chartTokenForecast.destroy();
-        if (chartTokenActual) chartTokenActual.destroy();
-        if (chartTokenRatio) chartTokenRatio.destroy();
         chartActual = null;
         chartCostForecast = null;
-        chartTokenForecast = null;
-        chartTokenActual = null;
-        chartTokenRatio = null;
 
         const ctxA = document.getElementById('timeseriesChartActual')?.getContext('2d');
         const ctxC = document.getElementById('timeseriesChartCostForecast')?.getContext('2d');
-        const ctxT = document.getElementById('timeseriesChartTokenForecast')?.getContext('2d');
-        const ctxTA = document.getElementById('timeseriesChartTokenActual')?.getContext('2d');
-        const ctxR = document.getElementById('timeseriesChartTokenRatio')?.getContext('2d');
-        if (!ctxA || !ctxC || !ctxT || !ctxTA || !ctxR) return;
+        if (!ctxA || !ctxC) return;
 
         const gradient = ctxA.createLinearGradient(0, 0, 0, 360);
         gradient.addColorStop(0, 'rgba(94,234,212,0.28)');
         gradient.addColorStop(1, 'rgba(94,234,212,0.00)');
-        const tokenGradient = ctxA.createLinearGradient(0, 0, 0, 360);
-        tokenGradient.addColorStop(0, 'rgba(96,165,250,0.22)');
-        tokenGradient.addColorStop(1, 'rgba(96,165,250,0.00)');
-        const tokenOutputGradient = ctxA.createLinearGradient(0, 0, 0, 360);
-        tokenOutputGradient.addColorStop(0, 'rgba(167,139,250,0.22)');
-        tokenOutputGradient.addColorStop(1, 'rgba(167,139,250,0.00)');
-        const tokenTotalGradient = ctxA.createLinearGradient(0, 0, 0, 360);
-        tokenTotalGradient.addColorStop(0, 'rgba(245,158,11,0.22)');
-        tokenTotalGradient.addColorStop(1, 'rgba(245,158,11,0.00)');
 
-        // Cost actual chart (cost only) for clear separation.
         chartActual = new Chart(ctxA, {
           type: 'line',
           data: {
@@ -586,118 +448,8 @@
                 borderWidth: 2.6,
                 spanGaps: true,
                 unitType: 'currency',
-                yAxisID: 'y'
               },
-            ]
-          },
-          options: {
-            ...chartLineDefaults,
-            plugins: {
-              decimation: { enabled: true, algorithm: 'min-max' },
-              legend: {
-                display: true,
-                position: 'top',
-                labels: { color: '#e6edf3', font: { size: 15, weight: '600' } }
-              },
-              tooltip: {
-                enabled: true,
-                backgroundColor: 'rgba(11,18,32,0.92)',
-                borderColor: 'rgba(255,255,255,0.16)',
-                borderWidth: 1,
-                titleFont: { size: 14, weight: '600' },
-                bodyFont: { size: 13 },
-                callbacks: { label: tooltipLabelForValue }
-              }
-            },
-            scales: {
-              x: {
-                ticks: {
-                  color: '#9fb2c7',
-                  font: { size: 12, weight: '500' },
-                  autoSkip: true,
-                  maxTicksLimit: 12,
-                  maxRotation: 0
-                },
-                grid: { color: 'rgba(255,255,255,0.08)' }
-              },
-              y: {
-                ticks: {
-                  color: '#9fb2c7',
-                  font: { size: 12, weight: '500' },
-                  callback: (value) => {
-                    const n = Math.round(Number(value));
-                    if (!Number.isFinite(n)) return String(value);
-                    return n.toLocaleString(undefined, { maximumFractionDigits: 0, minimumFractionDigits: 0 });
-                  }
-                },
-                beginAtZero: true,
-                grid: { color: 'rgba(255,255,255,0.08)' }
-              }
-            }
-          },
-          plugins: [emptyStatePlugin('No data in selected range')]
-        });
-
-        // Token actual chart (tokens only) for clear separation.
-        const tokenGradientA = ctxTA.createLinearGradient(0, 0, 0, 360);
-        tokenGradientA.addColorStop(0, 'rgba(96,165,250,0.22)');
-        tokenGradientA.addColorStop(1, 'rgba(96,165,250,0.00)');
-        const tokenOutputGradientA = ctxTA.createLinearGradient(0, 0, 0, 360);
-        tokenOutputGradientA.addColorStop(0, 'rgba(167,139,250,0.22)');
-        tokenOutputGradientA.addColorStop(1, 'rgba(167,139,250,0.00)');
-        const tokenTotalGradientA = ctxTA.createLinearGradient(0, 0, 0, 360);
-        tokenTotalGradientA.addColorStop(0, 'rgba(245,158,11,0.22)');
-        tokenTotalGradientA.addColorStop(1, 'rgba(245,158,11,0.00)');
-
-        chartTokenActual = new Chart(ctxTA, {
-          type: 'line',
-          data: {
-            labels,
-            datasets: [
-              {
-                label: L.tokenInput || 'Estimated Input Tokens',
-                data: tokenInputData,
-                borderColor: C.input || '#60a5fa',
-                backgroundColor: tokenGradientA,
-                fill: false,
-                tension: 0.25,
-                pointRadius: 2,
-                pointHoverRadius: 3,
-                borderWidth: 2.2,
-                spanGaps: true,
-                unitType: 'tokens',
-                yAxisID: 'y'
-              },
-              {
-                label: L.tokenOutput || 'Estimated Output Tokens',
-                data: tokenOutputData,
-                borderColor: C.output || '#a78bfa',
-                backgroundColor: tokenOutputGradientA,
-                fill: false,
-                tension: 0.25,
-                pointRadius: 2,
-                pointHoverRadius: 3,
-                borderWidth: 2.2,
-                spanGaps: true,
-                unitType: 'tokens',
-                yAxisID: 'y'
-              },
-              {
-                label: L.tokenTotal || 'Estimated Total Tokens',
-                data: tokenTotalData,
-                borderColor: C.total || '#f59e0b',
-                backgroundColor: tokenTotalGradientA,
-                fill: false,
-                tension: 0.25,
-                pointRadius: 2,
-                pointHoverRadius: 3,
-                borderWidth: 2.8,
-                borderDash: [6, 4],
-                spanGaps: true,
-                unitType: 'tokens',
-                yAxisID: 'y'
-              }
-            ]
+            ],
           },
           options: {
             ...chartLineDefaults,
@@ -711,22 +463,15 @@
                 borderWidth: 1,
                 titleFont: { size: 14, weight: '600' },
                 bodyFont: { size: 13 },
-                callbacks: { label: tooltipLabelForValue }
-              }
+                callbacks: { label: tooltipLabelForValue },
+              },
             },
             scales: {
               x: {
-                ticks: {
-                  color: '#9fb2c7',
-                  font: { size: 12, weight: '500' },
-                  autoSkip: true,
-                  maxTicksLimit: 12,
-                  maxRotation: 0
-                },
-                grid: { color: 'rgba(255,255,255,0.08)' }
+                ticks: { color: '#9fb2c7', font: { size: 12, weight: '500' }, autoSkip: true, maxTicksLimit: 12, maxRotation: 0 },
+                grid: { color: 'rgba(255,255,255,0.08)' },
               },
               y: {
-                beginAtZero: true,
                 ticks: {
                   color: '#9fb2c7',
                   font: { size: 12, weight: '500' },
@@ -734,13 +479,14 @@
                     const n = Math.round(Number(value));
                     if (!Number.isFinite(n)) return String(value);
                     return n.toLocaleString(undefined, { maximumFractionDigits: 0, minimumFractionDigits: 0 });
-                  }
+                  },
                 },
-                grid: { color: 'rgba(255,255,255,0.08)' }
-              }
-            }
+                beginAtZero: true,
+                grid: { color: 'rgba(255,255,255,0.08)' },
+              },
+            },
           },
-          plugins: [emptyStatePlugin('No data in selected range')]
+          plugins: [emptyStatePlugin('No data in selected range')],
         });
 
         const horizonShadeCost = window.AppChartPlugins?.forecastHorizonShade?.({ startIndex: 1, label: 'Forecast horizon' }) || null;
@@ -761,12 +507,10 @@
                 borderWidth: 2.2,
                 spanGaps: true,
                 unitType: 'currency',
-                yAxisID: 'y'
               },
               {
                 label: L.costForecast || 'CostUSD (Forecast 7d)',
                 data: costForecastLabels.map((_, i) => {
-                  // Dashed series starts at the last actual point, then continues forecast.
                   const head = hasLast ? 1 : 0;
                   if (i < head) return costForecastDashed[i] ?? null;
                   if (i >= head && i < head + costOnlyForecastData.length) return costForecastDashed[i] ?? null;
@@ -782,9 +526,8 @@
                 borderDash: [5, 4],
                 spanGaps: true,
                 unitType: 'currency',
-                yAxisID: 'y'
-              }
-            ]
+              },
+            ],
           },
           options: {
             ...chartLineDefaults,
@@ -796,8 +539,8 @@
                 labels: {
                   color: '#e6edf3',
                   font: { size: 15, weight: '600' },
-                  filter: (item) => !String(item?.text || '').includes('(Actual, last)')
-                }
+                  filter: (item) => !String(item?.text || '').includes('(Actual, last)'),
+                },
               },
               tooltip: {
                 enabled: true,
@@ -806,19 +549,13 @@
                 borderWidth: 1,
                 titleFont: { size: 14, weight: '600' },
                 bodyFont: { size: 13 },
-                callbacks: { label: tooltipLabelForValue }
-              }
+                callbacks: { label: tooltipLabelForValue },
+              },
             },
             scales: {
               x: {
-                ticks: {
-                  color: '#9fb2c7',
-                  font: { size: 12, weight: '500' },
-                  autoSkip: true,
-                  maxTicksLimit: 12,
-                  maxRotation: 0
-                },
-                grid: { color: 'rgba(255,255,255,0.08)' }
+                ticks: { color: '#9fb2c7', font: { size: 12, weight: '500' }, autoSkip: true, maxTicksLimit: 12, maxRotation: 0 },
+                grid: { color: 'rgba(255,255,255,0.08)' },
               },
               y: {
                 ticks: {
@@ -828,286 +565,14 @@
                     const n = Math.round(Number(value));
                     if (!Number.isFinite(n)) return String(value);
                     return n.toLocaleString(undefined, { maximumFractionDigits: 0, minimumFractionDigits: 0 });
-                  }
+                  },
                 },
                 beginAtZero: true,
-                grid: { color: 'rgba(255,255,255,0.08)' }
-              }
-            }
-          },
-          plugins: [emptyStatePlugin('No forecast (need at least 2 days of history)'), horizonShadeCost].filter(Boolean)
-        });
-
-        const horizonShadeTokens = window.AppChartPlugins?.forecastHorizonShade?.({ startIndex: 1, label: 'Forecast horizon' }) || null;
-        chartTokenForecast = new Chart(ctxT, {
-          type: 'line',
-          data: {
-            labels: tokenForecastLabels,
-            datasets: [
-              {
-                label: 'Estimated Input Tokens (Actual, last)',
-                data: tokenActualTailIn.concat(tokenForecastLabels.slice(tokenActualTailIn.length).map(() => null)),
-                borderColor: C.input || '#60a5fa',
-                backgroundColor: 'rgba(0,0,0,0)',
-                fill: false,
-                tension: 0.25,
-                pointRadius: 2,
-                pointHoverRadius: 3,
-                borderWidth: 2.2,
-                spanGaps: true,
-                unitType: 'tokens',
-                yAxisID: 'y'
+                grid: { color: 'rgba(255,255,255,0.08)' },
               },
-              {
-                label: L.tokenInputForecast || 'Estimated Input Tokens (Forecast 7d)',
-                data: tokenForecastLabels.map((_, i) => {
-                  const head = hasLast ? 1 : 0;
-                  if (i < head) return tokenForecastDashedIn[i] ?? null;
-                  if (i >= head && i < head + tokenFcInData.length) return tokenForecastDashedIn[i] ?? null;
-                  return null;
-                }),
-                borderColor: 'rgba(96,165,250,0.88)',
-                backgroundColor: 'rgba(0,0,0,0)',
-                fill: false,
-                tension: 0.25,
-                pointRadius: 2,
-                pointHoverRadius: 3,
-                borderWidth: 2.2,
-                borderDash: [5, 4],
-                spanGaps: true,
-                unitType: 'tokens',
-                yAxisID: 'y'
-              },
-              {
-                label: 'Estimated Output Tokens (Actual, last)',
-                data: tokenActualTailOut.concat(tokenForecastLabels.slice(tokenActualTailOut.length).map(() => null)),
-                borderColor: C.output || '#a78bfa',
-                backgroundColor: 'rgba(0,0,0,0)',
-                fill: false,
-                tension: 0.25,
-                pointRadius: 2,
-                pointHoverRadius: 3,
-                borderWidth: 2.2,
-                spanGaps: true,
-                unitType: 'tokens',
-                yAxisID: 'y'
-              },
-              {
-                label: L.tokenOutputForecast || 'Estimated Output Tokens (Forecast 7d)',
-                data: tokenForecastLabels.map((_, i) => {
-                  const head = hasLast ? 1 : 0;
-                  if (i < head) return tokenForecastDashedOut[i] ?? null;
-                  if (i >= head && i < head + tokenFcOutData.length) return tokenForecastDashedOut[i] ?? null;
-                  return null;
-                }),
-                borderColor: 'rgba(167,139,250,0.88)',
-                backgroundColor: 'rgba(0,0,0,0)',
-                fill: false,
-                tension: 0.25,
-                pointRadius: 2,
-                pointHoverRadius: 3,
-                borderWidth: 2.2,
-                borderDash: [5, 4],
-                spanGaps: true,
-                unitType: 'tokens',
-                yAxisID: 'y'
-              },
-              {
-                label: 'Estimated Total Tokens (Actual, last)',
-                data: tokenActualTailTot.concat(tokenForecastLabels.slice(tokenActualTailTot.length).map(() => null)),
-                borderColor: C.total || '#f59e0b',
-                backgroundColor: 'rgba(0,0,0,0)',
-                fill: false,
-                tension: 0.25,
-                pointRadius: 2,
-                pointHoverRadius: 3,
-                borderWidth: 2.8,
-                borderDash: [6, 4],
-                spanGaps: true,
-                unitType: 'tokens',
-                yAxisID: 'y'
-              },
-              {
-                label: L.tokenTotalForecast || 'Estimated Total Tokens (Forecast 7d)',
-                data: tokenForecastLabels.map((_, i) => {
-                  const head = hasLast ? 1 : 0;
-                  if (i < head) return tokenForecastDashedTot[i] ?? null;
-                  if (i >= head && i < head + tokenFcTotalData.length) return tokenForecastDashedTot[i] ?? null;
-                  return null;
-                }),
-                borderColor: 'rgba(245,158,11,0.9)',
-                backgroundColor: 'rgba(0,0,0,0)',
-                fill: false,
-                tension: 0.25,
-                pointRadius: 2,
-                pointHoverRadius: 3,
-                borderWidth: 2.8,
-                borderDash: [4, 4],
-                spanGaps: true,
-                unitType: 'tokens',
-                yAxisID: 'y'
-              }
-            ]
-          },
-          options: {
-            ...chartLineDefaults,
-            plugins: {
-              decimation: { enabled: true, algorithm: 'min-max' },
-              legend: {
-                display: true,
-                position: 'top',
-                labels: {
-                  color: '#e6edf3',
-                  font: { size: 15, weight: '600' },
-                  filter: (item) => !String(item?.text || '').includes('(Actual, last)')
-                }
-              },
-              tooltip: {
-                enabled: true,
-                backgroundColor: 'rgba(11,18,32,0.92)',
-                borderColor: 'rgba(255,255,255,0.16)',
-                borderWidth: 1,
-                titleFont: { size: 14, weight: '600' },
-                bodyFont: { size: 13 },
-                callbacks: { label: tooltipLabelForValue }
-              }
             },
-            scales: {
-              x: {
-                ticks: {
-                  color: '#9fb2c7',
-                  font: { size: 12, weight: '500' },
-                  autoSkip: true,
-                  maxTicksLimit: 12,
-                  maxRotation: 0
-                },
-                grid: { color: 'rgba(255,255,255,0.08)' }
-              },
-              y: {
-                position: 'left',
-                ticks: {
-                  color: '#9fb2c7',
-                  font: { size: 12, weight: '500' },
-                  callback: (value) => {
-                    const n = Math.round(Number(value));
-                    if (!Number.isFinite(n)) return String(value);
-                    return n.toLocaleString(undefined, { maximumFractionDigits: 0, minimumFractionDigits: 0 });
-                  }
-                },
-                beginAtZero: true,
-                grid: { color: 'rgba(255,255,255,0.08)' }
-              }
-            }
           },
-          plugins: [emptyStatePlugin('No forecast (need at least 2 days of history)'), horizonShadeTokens].filter(Boolean)
-        });
-
-        // Token ratio chart (Output / Input).
-        const ratioRows = window.AppForecasting?.dailyTokenRatio?.(tokenPoints || [], { inputKey: 'estimated_input_tokens', outputKey: 'estimated_output_tokens' }) || [];
-        const ratioLabels = ratioRows.map((r) => r.date);
-        const ratioData = ratioRows.map((r) => (r.ratio === null || r.ratio === undefined ? null : Number(r.ratio)));
-        const ratioStats = window.AppForecasting?.ratioStats?.(ratioRows) || null;
-        const ratioYBounds = window.AppForecasting?.ratioSuggestedBounds?.(ratioRows) || null;
-        if (ratioKpiSummaryEl && ratioStats) {
-          ratioKpiSummaryEl.textContent = `Valid days: ${ratioStats.valid_days} · >1: ${ratioStats.above_1_days} (${ratioStats.above_1_pct}%) · <1: ${ratioStats.below_1_days} (${ratioStats.below_1_pct}%)`;
-        } else if (ratioKpiSummaryEl) {
-          ratioKpiSummaryEl.textContent = 'Valid days: - · >1: - · <1: -';
-        }
-
-        chartTokenRatio = new Chart(ctxR, {
-          type: 'line',
-          data: {
-            labels: ratioLabels,
-            datasets: [
-              {
-                label: 'Output/Input (daily)',
-                data: ratioData,
-                borderColor: 'rgba(226,232,240,0.88)',
-                backgroundColor: 'rgba(226,232,240,0.0)',
-                fill: false,
-                tension: 0.25,
-                pointRadius: 2,
-                pointHoverRadius: 3,
-                borderWidth: 2.0,
-                spanGaps: true,
-                unitType: 'ratio',
-                yAxisID: 'y'
-              },
-              {
-                label: 'Baseline (1.0)',
-                data: ratioLabels.map(() => 1),
-                borderColor: 'rgba(159,178,199,0.65)',
-                backgroundColor: 'rgba(0,0,0,0)',
-                fill: false,
-                tension: 0,
-                pointRadius: 0,
-                borderWidth: 1.4,
-                borderDash: [3, 4],
-                spanGaps: true,
-                unitType: 'ratio',
-                yAxisID: 'y'
-              }
-            ]
-          },
-          options: {
-            ...chartLineDefaults,
-            plugins: {
-              decimation: { enabled: true, algorithm: 'min-max' },
-              legend: {
-                display: true,
-                position: 'top',
-                labels: {
-                  color: '#e6edf3',
-                  font: { size: 15, weight: '600' },
-                  filter: (item) => !String(item?.text || '').includes('Baseline')
-                }
-              },
-              tooltip: {
-                enabled: true,
-                backgroundColor: 'rgba(11,18,32,0.92)',
-                borderColor: 'rgba(255,255,255,0.16)',
-                borderWidth: 1,
-                titleFont: { size: 14, weight: '600' },
-                bodyFont: { size: 13 },
-                callbacks: {
-                  label: (ctx) => {
-                    const v = ctx.parsed?.y;
-                    if (v === null || v === undefined || Number.isNaN(v)) return `${ctx.dataset.label}: -`;
-                    if (String(ctx.dataset.label || '').includes('Baseline')) return null;
-                    return `${ctx.dataset.label}: ${Number(v).toLocaleString(undefined, { maximumFractionDigits: 3 })}`;
-                  }
-                }
-              }
-            },
-            scales: {
-              x: {
-                ticks: {
-                  color: '#9fb2c7',
-                  font: { size: 12, weight: '500' },
-                  autoSkip: true,
-                  maxTicksLimit: 12,
-                  maxRotation: 0
-                },
-                grid: { color: 'rgba(255,255,255,0.08)' }
-              },
-              y: {
-                beginAtZero: true,
-                suggestedMin: ratioYBounds?.min,
-                suggestedMax: ratioYBounds?.max,
-                ticks: {
-                  color: '#9fb2c7',
-                  font: { size: 12, weight: '500' },
-                  callback: (value) => {
-                    const n = Number(value);
-                    if (!Number.isFinite(n)) return String(value);
-                    return n.toLocaleString(undefined, { maximumFractionDigits: 2 });
-                  }
-                },
-                grid: { color: 'rgba(255,255,255,0.08)' }
-              }
-            }
-          },
-          plugins: [emptyStatePlugin('No data in selected range')]
+          plugins: [emptyStatePlugin('No forecast (need at least 2 days of history)'), horizonShadeCost].filter(Boolean),
         });
       }
 
@@ -1171,13 +636,6 @@
         actualCostEl.textContent = fmt2(stats.actual_cost_usd_total);
         dateRangeEl.textContent = `${stats.min_usage_date ?? '-'} ~ ${stats.max_usage_date ?? '-'}`;
         daysCountEl.textContent = `Days: ${stats.actual_days}`;
-        estInputTokensEl.textContent = fmtTokens(stats.estimated_input_tokens);
-        estOutputTokensEl.textContent = fmtTokens(stats.estimated_output_tokens);
-        if (estTotalTokensEl) {
-          const totalTok = stats.estimated_total_tokens ?? null;
-          estTotalTokensEl.textContent = fmtTokens(totalTok);
-        }
-        tokenModelNameEl.textContent = `Model: ${stats.token_estimate_model ?? '-'}`;
         currencyLabelEl.textContent = `Currency: ${stats.currency ?? '-'}`;
         currentCurrency = stats.currency ?? null;
 
@@ -1191,51 +649,27 @@
           `/api/projects/${encodeURIComponent(projectName)}/timeseries?${tsParams.toString()}`
         );
 
-        const tokenParams = new URLSearchParams();
-        tokenParams.set('granularity', 'day');
-        if (currentStartDate) tokenParams.set('start_date', currentStartDate);
-        if (currentEndDate) tokenParams.set('end_date', currentEndDate);
-        if (currentCurrency) tokenParams.set('currency', currentCurrency);
-        const tokenReport = await window.AppHttp.getJson(
-          `/api/projects/${encodeURIComponent(projectName)}/token-timeseries?${tokenParams.toString()}`
-        );
-
-        // Forecast (7d), training window: last 28 effective samples. Cost and tokens are forecasted independently.
         const costPts = ts.points || [];
-        const tokenPts = tokenReport.points || [];
-        const lastDate =
-          (costPts.length ? _safeDateStr(costPts[costPts.length - 1]?.date) : '') ||
-          (tokenPts.length ? _safeDateStr(tokenPts[tokenPts.length - 1]?.date) : '');
+        const lastDate = costPts.length ? _safeDateStr(costPts[costPts.length - 1]?.date) : '';
         const costForecast = forecastNextDaysDOW(costPts, 'cost_usd', lastDate, { windowDays: 28, horizonDays: 7 }) || [];
-        const tokenForecast = {
-          input: forecastNextDaysDOW(tokenPts, 'estimated_input_tokens', lastDate, { windowDays: 28, horizonDays: 7 }) || [],
-          output: forecastNextDaysDOW(tokenPts, 'estimated_output_tokens', lastDate, { windowDays: 28, horizonDays: 7 }) || [],
-          total: forecastNextDaysDOW(tokenPts, 'estimated_total_tokens', lastDate, { windowDays: 28, horizonDays: 7 }) || [],
-        };
 
-        renderChart(ts.points, tokenReport.points, { costForecast, tokenForecast });
-        renderTokenReport(tokenReport);
+        renderChart(costPts, { costForecast });
 
-        // Actual cost Max/Mean/Min stats (based on daily cost timeseries points).
-        const costStats = _calcSeriesStatsFloat(ts.points || [], 'cost_usd');
+        const costStats = _calcSeriesStatsFloat(costPts, 'cost_usd');
         _renderCostStats(costStatsEl, costStats);
 
-        // Token Max/Mean/Min stats (based on daily token timeseries points).
-        const pts = tokenReport.points || [];
-        const inStats = _calcSeriesStats(pts, 'estimated_input_tokens');
-        const outStats = _calcSeriesStats(pts, 'estimated_output_tokens');
-        const totalStats = _calcSeriesStats(pts, 'estimated_total_tokens');
-        _renderTokenStats(tokenStatsInputEl, inStats);
-        _renderTokenStats(tokenStatsOutputEl, outStats);
-        _renderTokenStats(tokenStatsTotalEl, totalStats);
-
-        // If the backend stats endpoint doesn't provide total tokens, fall back to timeseries sum.
-        if (estTotalTokensEl && (!stats || stats.estimated_total_tokens === null || stats.estimated_total_tokens === undefined)) {
-          const totalSum = (pts || [])
-            .map((p) => p?.estimated_total_tokens)
-            .filter((v) => v !== null && v !== undefined && Number.isFinite(Number(v)))
-            .reduce((acc, v) => acc + Math.round(Number(v)), 0);
-          estTotalTokensEl.textContent = fmtTokens(totalSum);
+        const mpParams = new URLSearchParams();
+        if (currentStartDate) mpParams.set('start_date', currentStartDate);
+        if (currentEndDate) mpParams.set('end_date', currentEndDate);
+        if (currentCurrency) mpParams.set('currency', currentCurrency);
+        try {
+          const mp = await window.AppHttp.getJson(
+            `/api/projects/${encodeURIComponent(projectName)}/model-unit-prices?${mpParams.toString()}`
+          );
+          renderModelUnitPrices(mp);
+        } catch (err) {
+          console.warn('Model unit prices unavailable', err);
+          renderModelUnitPrices({ available: false });
         }
       }
 

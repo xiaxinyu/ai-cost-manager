@@ -37,7 +37,8 @@ def test_import_page_redirect_and_access(tmp_path):
 
     res2 = client.get("/import")
     assert res2.status_code == 200
-    assert "Import missing billing files" in res2.text
+    assert "Billing &amp; Token Import" in res2.text
+    assert "Import missing billing and token CSV files" in res2.text
 
 
 def test_login_wrong_password_shows_themed_page(tmp_path):

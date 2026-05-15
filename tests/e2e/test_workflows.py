@@ -39,8 +39,7 @@ def test_desktop_primary_workflows(page, e2e_server_base_url: str) -> None:
     for cid in [
         "timeseriesChartActual",
         "timeseriesChartCostForecast",
-        "timeseriesChartTokenActual",
-        "timeseriesChartTokenForecast",
+        
     ]:
         n = page.evaluate(_canvas_data_url_len_expr(cid))
         assert n > 2000, f"canvas {cid} looks empty (dataURL len={n})"
@@ -50,7 +49,7 @@ def test_desktop_primary_workflows(page, e2e_server_base_url: str) -> None:
     page.wait_for_selector("#projectSelect")
     page.click("#loadTokensBtn")
     page.wait_for_timeout(500)
-    for cid in ["tokenActualChart", "tokenForecastChart", "tokenRatioChart"]:
+    for cid in ["tokenInputChart", "tokenOutputChart", "tokenRatioChart"]:
         n = page.evaluate(_canvas_data_url_len_expr(cid))
         assert n > 2000, f"canvas {cid} looks empty (dataURL len={n})"
 
@@ -104,7 +103,7 @@ def test_mobile_smoke(page, e2e_server_base_url: str) -> None:
     assert n > 2000
 
     for path, selector in [
-        ("/tokens", "#tokenActualChart"),
+        ("/tokens", "#tokenInputChart"),
         ("/reports", "#dailyChart"),
         ("/prices", "#queryBtn"),
         ("/import", "#importBtn"),

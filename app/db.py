@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any, Iterable
 
 
-SCHEMA_VERSION = 5
+SCHEMA_VERSION = 6
 
 EXPECTED_CSV_COLUMNS = [
     "UsageDate",
@@ -150,6 +150,39 @@ def init_db(conn: sqlite3.Connection) -> None:
             sort_order INTEGER NOT NULL DEFAULT 0,
             updated_at TEXT NOT NULL DEFAULT (datetime('now'))
         );
+
+        CREATE TABLE IF NOT EXISTS ingested_token_files (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            project_name TEXT NOT NULL,
+            file_path TEXT NOT NULL UNIQUE,
+            token_direction TEXT NOT NULL,
+            checksum_sha256 TEXT NOT NULL,
+            schema_version INTEGER NOT NULL,
+            row_count INTEGER NOT NULL,
+            ingested_at TEXT NOT NULL DEFAULT (datetime('now')),
+            source_last_modified REAL,
+            raw_columns TEXT
+        );
+
+        CREATE TABLE IF NOT EXISTS token_usage_points (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            project_name TEXT NOT NULL,
+            recorded_at TEXT NOT NULL,
+            usage_date TEXT NOT NULL,
+            model_name TEXT NOT NULL,
+            token_direction TEXT NOT NULL,
+            token_count REAL NOT NULL,
+            source_file TEXT NOT NULL,
+            source_row_index INTEGER NOT NULL,
+            ingested_at TEXT NOT NULL DEFAULT (datetime('now')),
+            UNIQUE(project_name, source_file, source_row_index, model_name)
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_token_usage_project_date
+            ON token_usage_points(project_name, usage_date);
+
+        CREATE INDEX IF NOT EXISTS idx_ingested_token_files_project_name
+            ON ingested_token_files(project_name);
         """
     )
     conn.execute(
@@ -370,6 +403,7 @@ class ProjectStats:
     estimated_output_tokens: float | None
     estimated_total_tokens: float | None
     token_estimate_model: str | None
+    token_data_source: str | None = None
 
 
 def _safe_float(x: object) -> float:
@@ -378,9 +412,476 @@ def _safe_float(x: object) -> float:
     return float(x)
 
 
+def list_projects_with_imported_tokens(conn: sqlite3.Connection) -> list[str]:
+    rows = conn.execute(
+        """
+        SELECT DISTINCT project_name
+        FROM token_usage_points
+        ORDER BY project_name ASC
+        """
+    ).fetchall()
+    return [r["project_name"] for r in rows]
+
+
 def list_projects(conn: sqlite3.Connection) -> list[str]:
-    rows = conn.execute("SELECT name FROM projects ORDER BY name").fetchall()
-    return [r["name"] for r in rows]
+    rows = conn.execute(
+        """
+        SELECT name AS project_name FROM projects
+        UNION
+        SELECT DISTINCT project_name FROM token_usage_points
+        ORDER BY project_name
+        """
+    ).fetchall()
+    return [r["project_name"] for r in rows]
+
+
+def project_has_imported_tokens(conn: sqlite3.Connection, project_name: str) -> bool:
+    row = conn.execute(
+        """
+        SELECT 1
+        FROM token_usage_points
+        WHERE project_name = ?
+        LIMIT 1
+        """,
+        (project_name,),
+    ).fetchone()
+    return row is not None
+
+
+def get_imported_token_totals(
+    conn: sqlite3.Connection,
+    project_name: str,
+    *,
+    start_date: str | None = None,
+    end_date: str | None = None,
+) -> tuple[float, float]:
+    where = ["project_name = ?"]
+    params: list[object] = [project_name]
+    if start_date:
+        where.append("usage_date >= ?")
+        params.append(start_date)
+    if end_date:
+        where.append("usage_date <= ?")
+        params.append(end_date)
+    where_sql = " AND ".join(where)
+    row = conn.execute(
+        f"""
+        SELECT
+            COALESCE(SUM(CASE WHEN token_direction = 'input' THEN token_count ELSE 0 END), 0) AS input_tokens,
+            COALESCE(SUM(CASE WHEN token_direction = 'output' THEN token_count ELSE 0 END), 0) AS output_tokens
+        FROM token_usage_points
+        WHERE {where_sql}
+        """,
+        tuple(params),
+    ).fetchone()
+    return float(row["input_tokens"]), float(row["output_tokens"])
+
+
+def get_imported_token_timeseries(
+    conn: sqlite3.Connection,
+    project_name: str,
+    *,
+    start_date: str | None = None,
+    end_date: str | None = None,
+    granularity: str = "day",
+) -> list[dict]:
+    if granularity not in {"day", "month"}:
+        raise ValueError("granularity must be 'day' or 'month'")
+    date_expr = "usage_date" if granularity == "day" else "substr(usage_date, 1, 7)"
+    where = ["project_name = ?"]
+    params: list[object] = [project_name]
+    if start_date:
+        where.append("usage_date >= ?")
+        params.append(start_date)
+    if end_date:
+        where.append("usage_date <= ?")
+        params.append(end_date)
+    where_sql = " AND ".join(where)
+    rows = conn.execute(
+        f"""
+        SELECT
+            {date_expr} AS date,
+            COALESCE(SUM(CASE WHEN token_direction = 'input' THEN token_count ELSE 0 END), 0) AS input_tokens,
+            COALESCE(SUM(CASE WHEN token_direction = 'output' THEN token_count ELSE 0 END), 0) AS output_tokens
+        FROM token_usage_points
+        WHERE {where_sql}
+        GROUP BY {date_expr}
+        ORDER BY date ASC
+        """,
+        tuple(params),
+    ).fetchall()
+    out: list[dict] = []
+    for r in rows:
+        in_tok = float(r["input_tokens"])
+        out_tok = float(r["output_tokens"])
+        out.append(
+            {
+                "date": r["date"],
+                "estimated_input_tokens": in_tok,
+                "estimated_output_tokens": out_tok,
+                "estimated_total_tokens": in_tok + out_tok,
+            }
+        )
+    return out
+
+
+def get_imported_token_meta(
+    conn: sqlite3.Connection,
+    project_name: str,
+    *,
+    start_date: str | None = None,
+    end_date: str | None = None,
+) -> dict[str, object]:
+    where = ["project_name = ?"]
+    params: list[object] = [project_name]
+    if start_date:
+        where.append("usage_date >= ?")
+        params.append(start_date)
+    if end_date:
+        where.append("usage_date <= ?")
+        params.append(end_date)
+    where_sql = " AND ".join(where)
+    row = conn.execute(
+        f"""
+        SELECT
+            MIN(usage_date) AS min_usage_date,
+            MAX(usage_date) AS max_usage_date,
+            COUNT(DISTINCT model_name) AS model_count,
+            COUNT(DISTINCT usage_date) AS day_count
+        FROM token_usage_points
+        WHERE {where_sql}
+        """,
+        tuple(params),
+    ).fetchone()
+    models = conn.execute(
+        f"""
+        SELECT DISTINCT model_name
+        FROM token_usage_points
+        WHERE {where_sql}
+        ORDER BY model_name ASC
+        """,
+        tuple(params),
+    ).fetchall()
+    return {
+        "min_usage_date": row["min_usage_date"],
+        "max_usage_date": row["max_usage_date"],
+        "model_count": int(row["model_count"] or 0),
+        "day_count": int(row["day_count"] or 0),
+        "models": [r["model_name"] for r in models],
+    }
+
+
+def get_imported_token_breakdown_by_model(
+    conn: sqlite3.Connection,
+    project_name: str,
+    *,
+    start_date: str | None = None,
+    end_date: str | None = None,
+) -> list[dict]:
+    where = ["project_name = ?"]
+    params: list[object] = [project_name]
+    if start_date:
+        where.append("usage_date >= ?")
+        params.append(start_date)
+    if end_date:
+        where.append("usage_date <= ?")
+        params.append(end_date)
+    where_sql = " AND ".join(where)
+    rows = conn.execute(
+        f"""
+        SELECT
+            model_name,
+            token_direction,
+            COALESCE(SUM(token_count), 0) AS token_count
+        FROM token_usage_points
+        WHERE {where_sql}
+        GROUP BY model_name, token_direction
+        ORDER BY token_count DESC, model_name ASC
+        """,
+        tuple(params),
+    ).fetchall()
+    grand = sum(float(r["token_count"]) for r in rows) or 0.0
+    out: list[dict] = []
+    for r in rows:
+        cnt = float(r["token_count"])
+        out.append(
+            {
+                "model_name": r["model_name"],
+                "token_direction": r["token_direction"],
+                "token_count": cnt,
+                "share_pct": None if grand <= 0 else round(100.0 * cnt / grand, 2),
+            }
+        )
+    return out
+
+
+TOKENS_PER_MILLION = 1_000_000.0
+
+
+def _float_stats(vals: list[float]) -> dict[str, float | int | None]:
+    if not vals:
+        return {"min": None, "max": None, "mean": None, "median": None, "count": 0}
+    return {
+        "min": float(min(vals)),
+        "max": float(max(vals)),
+        "mean": float(_mean(vals)),
+        "median": float(_median(vals)),
+        "count": len(vals),
+    }
+
+
+def _catalog_usd_per_1m_for_model_name(conn: sqlite3.Connection, model_name: str) -> dict[str, float | None]:
+    target = _norm_model_name(model_name)
+    if not target:
+        return {"input": None, "output": None}
+    rows = conn.execute(
+        """
+        SELECT model_name, metric_name, amount
+        FROM model_prices
+        WHERE price_currency = 'USD'
+          AND billing_mode = 'standard'
+          AND metric_name IN ('input', 'output')
+          AND amount > 0
+        """
+    ).fetchall()
+    matches = [
+        r
+        for r in rows
+        if (
+            _norm_model_name(r["model_name"]) == target
+            or target in _norm_model_name(r["model_name"])
+            or _norm_model_name(r["model_name"]) in target
+        )
+    ]
+    input_prices = [float(r["amount"]) for r in matches if r["metric_name"] == "input"]
+    output_prices = [float(r["amount"]) for r in matches if r["metric_name"] == "output"]
+    return {
+        "input": min(input_prices) if input_prices else None,
+        "output": min(output_prices) if output_prices else None,
+    }
+
+
+def get_model_implied_usd_per_1m_analysis(
+    conn: sqlite3.Connection,
+    project_name: str,
+    *,
+    start_date: str | None = None,
+    end_date: str | None = None,
+    currency: str | None = None,
+) -> dict[str, object]:
+    """
+    Implied USD per 1M tokens per model per day: allocate daily billing cost
+    proportionally by each model's share of imported token usage that day.
+    """
+    if not project_has_imported_tokens(conn, project_name):
+        return {
+            "available": False,
+            "reason": "no_imported_tokens",
+            "project": project_name,
+            "currency": currency,
+            "models": [],
+        }
+
+    cost_points, chosen_currency = get_timeseries(
+        conn,
+        project_name,
+        start_date=start_date,
+        end_date=end_date,
+        granularity="day",
+        currency=currency,
+    )
+    cost_by_date = {str(p["date"]): float(p["cost_usd"]) for p in cost_points}
+
+    where = ["project_name = ?"]
+    params: list[object] = [project_name]
+    if start_date:
+        where.append("usage_date >= ?")
+        params.append(start_date)
+    if end_date:
+        where.append("usage_date <= ?")
+        params.append(end_date)
+    where_sql = " AND ".join(where)
+    token_rows = conn.execute(
+        f"""
+        SELECT
+            usage_date,
+            model_name,
+            token_direction,
+            COALESCE(SUM(token_count), 0) AS token_count
+        FROM token_usage_points
+        WHERE {where_sql}
+        GROUP BY usage_date, model_name, token_direction
+        """,
+        tuple(params),
+    ).fetchall()
+
+    by_date_model: dict[str, dict[str, dict[str, float]]] = {}
+    for r in token_rows:
+        d = str(r["usage_date"])
+        model = str(r["model_name"])
+        direction = str(r["token_direction"])
+        by_date_model.setdefault(d, {}).setdefault(model, {"input": 0.0, "output": 0.0})
+        if direction in {"input", "output"}:
+            by_date_model[d][model][direction] = float(r["token_count"])
+
+    model_daily: dict[str, list[dict[str, object]]] = {}
+    models_seen: set[str] = set()
+
+    for usage_date in sorted(set(cost_by_date.keys()) | set(by_date_model.keys())):
+        daily_cost = cost_by_date.get(usage_date, 0.0)
+        day_models = by_date_model.get(usage_date, {})
+        if daily_cost <= 0 or not day_models:
+            continue
+
+        total_tokens = 0.0
+        for tok in day_models.values():
+            total_tokens += tok["input"] + tok["output"]
+        if total_tokens <= 0:
+            continue
+
+        for model_name, tok in day_models.items():
+            in_tok = tok["input"]
+            out_tok = tok["output"]
+            model_total = in_tok + out_tok
+            if model_total <= 0:
+                continue
+
+            models_seen.add(model_name)
+            allocated_cost = daily_cost * (model_total / total_tokens)
+            in_share = in_tok / model_total if model_total > 0 else 0.0
+            out_share = out_tok / model_total if model_total > 0 else 0.0
+
+            usd_per_1m_blended = (allocated_cost / model_total) * TOKENS_PER_MILLION
+            usd_per_1m_input = (
+                (allocated_cost * in_share / in_tok) * TOKENS_PER_MILLION if in_tok > 0 else None
+            )
+            usd_per_1m_output = (
+                (allocated_cost * out_share / out_tok) * TOKENS_PER_MILLION if out_tok > 0 else None
+            )
+
+            model_daily.setdefault(model_name, []).append(
+                {
+                    "date": usage_date,
+                    "cost_usd_allocated": round(allocated_cost, 6),
+                    "input_tokens": in_tok,
+                    "output_tokens": out_tok,
+                    "total_tokens": model_total,
+                    "usd_per_1m_input": usd_per_1m_input,
+                    "usd_per_1m_output": usd_per_1m_output,
+                    "usd_per_1m_blended": usd_per_1m_blended,
+                }
+            )
+
+    models_out: list[dict[str, object]] = []
+    for model_name in sorted(models_seen):
+        daily = model_daily.get(model_name, [])
+        catalog = _catalog_usd_per_1m_for_model_name(conn, model_name)
+        models_out.append(
+            {
+                "model_name": model_name,
+                "catalog_usd_per_1m_input": catalog["input"],
+                "catalog_usd_per_1m_output": catalog["output"],
+                "daily": daily,
+                "stats": {
+                    "input": _float_stats(
+                        [float(d["usd_per_1m_input"]) for d in daily if d["usd_per_1m_input"] is not None]
+                    ),
+                    "output": _float_stats(
+                        [float(d["usd_per_1m_output"]) for d in daily if d["usd_per_1m_output"] is not None]
+                    ),
+                    "blended": _float_stats(
+                        [float(d["usd_per_1m_blended"]) for d in daily if d["usd_per_1m_blended"] is not None]
+                    ),
+                },
+            }
+        )
+
+    return {
+        "available": True,
+        "project": project_name,
+        "currency": chosen_currency,
+        "from_date": start_date,
+        "to_date": end_date,
+        "unit_label": "USD per 1M tokens",
+        "allocation_method": "proportional_by_daily_tokens",
+        "models": models_out,
+    }
+
+
+def _imported_token_periods(
+    conn: sqlite3.Connection,
+    *,
+    project_name: str,
+    granularity: str,
+    start_date: str | None,
+    end_date: str | None,
+) -> list[str]:
+    date_expr = "usage_date" if granularity == "day" else "substr(usage_date, 1, 7)"
+    where = ["project_name = ?"]
+    params: list[object] = [project_name]
+    if start_date:
+        where.append("usage_date >= ?")
+        params.append(start_date)
+    if end_date:
+        where.append("usage_date <= ?")
+        params.append(end_date)
+    where_sql = " AND ".join(where)
+    rows = conn.execute(
+        f"""
+        SELECT DISTINCT {date_expr} AS period
+        FROM token_usage_points
+        WHERE {where_sql}
+        ORDER BY period ASC
+        """,
+        tuple(params),
+    ).fetchall()
+    return [str(r["period"]) for r in rows]
+
+
+def _aggregate_imported_tokens_into_period(
+    conn: sqlite3.Connection,
+    *,
+    project_name: str,
+    granularity: str,
+    start_date: str | None,
+    end_date: str | None,
+    per_period: dict[str, dict[str, object]],
+    period_set: set[str],
+) -> None:
+    date_expr = "usage_date" if granularity == "day" else "substr(usage_date, 1, 7)"
+    where = ["project_name = ?"]
+    params: list[object] = [project_name]
+    if start_date:
+        where.append("usage_date >= ?")
+        params.append(start_date)
+    if end_date:
+        where.append("usage_date <= ?")
+        params.append(end_date)
+    where_sql = " AND ".join(where)
+    rows = conn.execute(
+        f"""
+        SELECT
+            {date_expr} AS period,
+            COALESCE(SUM(CASE WHEN token_direction = 'input' THEN token_count ELSE 0 END), 0) AS input_tokens,
+            COALESCE(SUM(CASE WHEN token_direction = 'output' THEN token_count ELSE 0 END), 0) AS output_tokens
+        FROM token_usage_points
+        WHERE {where_sql}
+        GROUP BY {date_expr}
+        ORDER BY period ASC
+        """,
+        tuple(params),
+    ).fetchall()
+    for r in rows:
+        period = str(r["period"])
+        if period not in period_set:
+            period_set.add(period)
+            per_period[period] = {"input": 0.0, "output": 0.0, "has": False}
+        in_tok = float(r["input_tokens"])
+        out_tok = float(r["output_tokens"])
+        per_period[period]["input"] = _safe_float(per_period[period]["input"]) + in_tok
+        per_period[period]["output"] = _safe_float(per_period[period]["output"]) + out_tok
+        if in_tok > 0 or out_tok > 0:
+            per_period[period]["has"] = True
 
 
 def upsert_project_model_config(
@@ -578,6 +1079,41 @@ def get_project_stats(
     ).fetchone()
 
     total_cost_usd = _safe_float(row["actual_cost_usd_total"])
+
+    if project_has_imported_tokens(conn, project_name):
+        in_tok, out_tok = get_imported_token_totals(
+            conn, project_name, start_date=from_date, end_date=to_date
+        )
+        token_row = conn.execute(
+            """
+            SELECT MIN(usage_date) AS min_usage_date, MAX(usage_date) AS max_usage_date
+            FROM token_usage_points
+            WHERE project_name = ?
+            """
+            + (" AND usage_date >= ?" if from_date else "")
+            + (" AND usage_date <= ?" if to_date else ""),
+            tuple(
+                [project_name]
+                + ([from_date] if from_date else [])
+                + ([to_date] if to_date else [])
+            ),
+        ).fetchone()
+        return ProjectStats(
+            project_name=project_name,
+            from_date=from_date,
+            to_date=to_date,
+            min_usage_date=token_row["min_usage_date"] or row["min_usage_date"],
+            max_usage_date=token_row["max_usage_date"] or row["max_usage_date"],
+            actual_cost_usd_total=total_cost_usd,
+            actual_days=int(row["actual_days"]),
+            currency=currency_filter,
+            estimated_input_tokens=in_tok,
+            estimated_output_tokens=out_tok,
+            estimated_total_tokens=in_tok + out_tok,
+            token_estimate_model=None,
+            token_data_source="imported",
+        )
+
     token_estimate = _estimate_tokens_by_cost(
         conn, project_name=project_name, total_cost_usd=total_cost_usd
     ) or {}
@@ -600,6 +1136,7 @@ def get_project_stats(
             else float(token_estimate["estimated_input_tokens"]) + float(token_estimate["estimated_output_tokens"])
         ),
         token_estimate_model=token_estimate.get("model_name"),
+        token_data_source="estimated" if token_estimate else None,
     )
 
 
@@ -743,7 +1280,37 @@ def get_token_timeseries(
     end_date: str | None = None,
     granularity: str = "day",
     currency: str | None = None,
-) -> tuple[list[dict], str | None, str | None, str | None]:
+) -> tuple[list[dict], str | None, str | None, str | None, str | None]:
+    if project_has_imported_tokens(conn, project_name):
+        points, chosen_currency = get_timeseries(
+            conn,
+            project_name,
+            start_date=start_date,
+            end_date=end_date,
+            granularity=granularity,
+            currency=currency,
+        )
+        cost_by_date = {str(p["date"]): p.get("cost_usd") for p in points}
+        imported = get_imported_token_timeseries(
+            conn,
+            project_name,
+            start_date=start_date,
+            end_date=end_date,
+            granularity=granularity,
+        )
+        rows: list[dict] = []
+        for p in imported:
+            rows.append(
+                {
+                    "date": p["date"],
+                    "cost_usd": cost_by_date.get(str(p["date"])),
+                    "estimated_input_tokens": p["estimated_input_tokens"],
+                    "estimated_output_tokens": p["estimated_output_tokens"],
+                    "estimated_total_tokens": p["estimated_total_tokens"],
+                }
+            )
+        return rows, chosen_currency, None, None, "imported"
+
     points, chosen_currency = get_timeseries(
         conn,
         project_name,
@@ -768,6 +1335,7 @@ def get_token_timeseries(
             chosen_currency,
             None,
             None,
+            "estimated",
         )
 
     input_price = float(price_model["input_price"])
@@ -790,7 +1358,7 @@ def get_token_timeseries(
                 "estimated_total_tokens": None if in_tok is None or out_tok is None else in_tok + out_tok,
             }
         )
-    return rows, chosen_currency, str(price_model["model_name"]), price_model.get("price_region")
+    return rows, chosen_currency, str(price_model["model_name"]), price_model.get("price_region"), "estimated"
 
 
 def _project_where(project_names: list[str] | None) -> tuple[str, list[object]]:
@@ -915,19 +1483,18 @@ def get_all_token_timeseries(
     granularity: str = "day",
     currency: str | None = None,
     project_names: list[str] | None = None,
-) -> tuple[list[dict], str | None, str | None]:
+) -> tuple[list[dict], str | None, str | None, str | None]:
     """
-    Aggregate token estimates (input/output/total) for the same scope as all-financial reports.
+    Aggregate token totals (input/output/total) for the same scope as all-financial reports.
 
-    Token estimates are computed per-project using its linked model prices (Mode Price -> price_region).
-    If no project in scope has a matching token price model, token fields are returned as null.
+    Uses imported token CSV data when available per project; otherwise falls back to
+    cost-based estimates from linked model prices.
     """
     if granularity not in {"day", "month"}:
         raise ValueError("granularity must be 'day' or 'month'")
 
     date_expr = "usage_date" if granularity == "day" else "substr(usage_date, 1, 7)"
 
-    # Use the same period set as financial cost points (ensures charts align on x-axis).
     cost_points, chosen_currency = get_all_timeseries(
         conn,
         start_date=start_date,
@@ -939,22 +1506,54 @@ def get_all_token_timeseries(
     periods = [p["date"] for p in cost_points]
     period_set = set(periods)
 
-    per_period: dict[str, dict[str, object]] = {}
-    for d in periods:
-        per_period[d] = {
-            "input": 0.0,
-            "output": 0.0,
-            "has": False,
-        }
-
     scoped_projects = project_names if project_names else list_projects(conn)
+    for pn in scoped_projects:
+        if not project_has_imported_tokens(conn, pn):
+            continue
+        for period in _imported_token_periods(
+            conn,
+            project_name=pn,
+            granularity=granularity,
+            start_date=start_date,
+            end_date=end_date,
+        ):
+            if period not in period_set:
+                periods.append(period)
+                period_set.add(period)
+    periods.sort()
+
+    per_period: dict[str, dict[str, object]] = {
+        d: {"input": 0.0, "output": 0.0, "has": False} for d in periods
+    }
+
     token_models: set[str] = set()
     token_regions: set[str] = set()
+    imported_projects = 0
+    estimated_projects = 0
 
     for pn in scoped_projects:
+        if project_has_imported_tokens(conn, pn):
+            imported_projects += 1
+            meta = get_imported_token_meta(
+                conn, pn, start_date=start_date, end_date=end_date
+            )
+            for m in meta.get("models") or []:
+                token_models.add(str(m))
+            _aggregate_imported_tokens_into_period(
+                conn,
+                project_name=pn,
+                granularity=granularity,
+                start_date=start_date,
+                end_date=end_date,
+                per_period=per_period,
+                period_set=period_set,
+            )
+            continue
+
         price_model = _get_project_token_price_model(conn, project_name=pn)
         if not price_model:
             continue
+        estimated_projects += 1
 
         model_name = price_model.get("model_name")
         if model_name:
@@ -994,9 +1593,11 @@ def get_all_token_timeseries(
         ).fetchall()
 
         for r in rows:
-            period = r["period"]
+            period = str(r["period"])
             if period not in period_set:
-                continue
+                period_set.add(period)
+                periods.append(period)
+                per_period[period] = {"input": 0.0, "output": 0.0, "has": False}
 
             cost_usd = _safe_float(r["actual_cost_usd_total"])
             token_est = _estimate_tokens_from_price(
@@ -1014,6 +1615,8 @@ def get_all_token_timeseries(
             per_period[period]["output"] = _safe_float(per_period[period]["output"]) + out_tok
             per_period[period]["has"] = True
 
+    periods.sort()
+
     def display_single_or_multiple(vals: set[str]) -> str | None:
         vals = {v for v in vals if v}
         if not vals:
@@ -1024,6 +1627,15 @@ def get_all_token_timeseries(
 
     model_display = display_single_or_multiple(token_models)
     region_display = display_single_or_multiple(token_regions)
+
+    if imported_projects and estimated_projects:
+        token_data_source = "mixed"
+    elif imported_projects:
+        token_data_source = "imported"
+    elif estimated_projects:
+        token_data_source = "estimated"
+    else:
+        token_data_source = None
 
     points: list[dict] = []
     for d in periods:
@@ -1049,7 +1661,7 @@ def get_all_token_timeseries(
                 }
             )
 
-    return points, model_display, region_display
+    return points, model_display, region_display, token_data_source
 
 
 def verify_all_financial_consistency(
@@ -1083,7 +1695,7 @@ def verify_all_financial_consistency(
     daily_points = stats.get("daily_points") or []
     monthly_points = stats.get("monthly_points") or []
 
-    token_daily_points, token_model_display, token_region_display = get_all_token_timeseries(
+    token_daily_points, token_model_display, token_region_display, _ = get_all_token_timeseries(
         conn,
         start_date=start_date,
         end_date=end_date,
@@ -1091,7 +1703,7 @@ def verify_all_financial_consistency(
         currency=chosen_currency,
         project_names=project_names,
     )
-    token_monthly_points, _, _ = get_all_token_timeseries(
+    token_monthly_points, _, _, _ = get_all_token_timeseries(
         conn,
         start_date=start_date,
         end_date=end_date,
@@ -1149,7 +1761,7 @@ def verify_all_financial_consistency(
                 cost_month_sum[p["date"]] += float(p["cost_usd"] or 0.0)
 
         # Token points
-        tp_day, _, _, _ = get_token_timeseries(
+        tp_day, _, _, _, _ = get_token_timeseries(
             conn,
             project_name=pn,
             start_date=start_date,
@@ -1169,7 +1781,7 @@ def verify_all_financial_consistency(
             token_day_input_sum[d] += float(in_tok)
             token_day_output_sum[d] += float(out_tok)
 
-        tp_month, _, _, _ = get_token_timeseries(
+        tp_month, _, _, _, _ = get_token_timeseries(
             conn,
             project_name=pn,
             start_date=start_date,
