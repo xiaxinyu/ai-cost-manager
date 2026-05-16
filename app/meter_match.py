@@ -149,6 +149,68 @@ def _parse_foundry_meter_by_tokens(raw: str) -> ParsedFoundryMeter | None:
     )
 
 
+def _tokenize_meter(meter: str | None) -> list[str]:
+    if not meter:
+        return []
+    return _METER_TOKEN_RE.findall(str(meter).lower())
+
+
+def _model_signature(model_name: str | None) -> tuple[str | None, str | None]:
+    if not model_name:
+        return None, None
+    canonical = canonical_model_name(model_name)
+    if not canonical.startswith("gpt-"):
+        return None, None
+    parts = canonical.split("-")
+    if len(parts) < 2:
+        return None, None
+    version = parts[1] if len(parts) >= 2 else None
+    family = parts[2] if len(parts) >= 3 else None
+    return version, family
+
+
+def meter_matches_model_direction(
+    meter: str | None,
+    *,
+    token_model: str,
+    token_direction: str,
+) -> bool:
+    """
+    Explicit model+direction matcher for billing ``Meter`` text.
+
+    Intended for robust reconciliation when strict parser coverage is uncertain.
+    """
+    tokens = _tokenize_meter(meter)
+    if not tokens:
+        return False
+    version, family = _model_signature(token_model)
+    if not version:
+        return False
+
+    dirs = _DIR_INPUT if token_direction == "input" else _DIR_OUTPUT
+    if not any(tok in dirs for tok in tokens):
+        return False
+
+    has_version = False
+    for i, tok in enumerate(tokens):
+        if tok == version:
+            has_version = True
+            break
+        pref = _MODEL_PREFIXED_VERSION_RE.match(tok)
+        if pref and pref.group(1) == version:
+            has_version = True
+            break
+        if tok == "gpt" and i + 1 < len(tokens) and tokens[i + 1] == version:
+            has_version = True
+            break
+    if not has_version:
+        return False
+
+    if family == "codex":
+        return "codex" in tokens
+    return True
+
+
 def parse_foundry_meter(meter: str | None) -> ParsedFoundryMeter | None:
     if not meter or not str(meter).strip():
         return None

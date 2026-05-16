@@ -5,6 +5,7 @@ import pytest
 from app.meter_match import (
     aggregate_billing_rows,
     canonical_model_name,
+    meter_matches_model_direction,
     parse_foundry_meter,
     token_model_name,
     token_models_match,
@@ -68,6 +69,34 @@ def test_parse_foundry_meter_variant_patterns():
     assert p2 is not None
     assert p2.token_model == "gpt-5.4"
     assert p2.token_direction == "output"
+
+
+def test_meter_matches_model_direction_explicit():
+    assert meter_matches_model_direction(
+        "5.3 codex inp",
+        token_model="gpt-5.3-codex",
+        token_direction="input",
+    )
+    assert meter_matches_model_direction(
+        "5.3 codex opt",
+        token_model="gpt-5.3-codex",
+        token_direction="output",
+    )
+    assert meter_matches_model_direction(
+        "5.4 inp",
+        token_model="gpt-5.4",
+        token_direction="input",
+    )
+    assert meter_matches_model_direction(
+        "5.4 opt",
+        token_model="gpt-5.4",
+        token_direction="output",
+    )
+    assert not meter_matches_model_direction(
+        "5.3 codex opt",
+        token_model="gpt-5.3-codex",
+        token_direction="input",
+    )
 
 
 def test_aggregate_billing_rows_cached_input_rolls_to_input_bucket():

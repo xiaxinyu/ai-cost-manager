@@ -11,6 +11,7 @@ from typing import Any, Iterable
 from .meter_match import (
     aggregate_billing_rows,
     canonical_model_name,
+    meter_matches_model_direction,
     normalize_token_column,
     parse_foundry_meter,
     token_models_match,
@@ -868,20 +869,22 @@ def get_imported_token_daily_cost_by_model(
         currency=currency,
     )
     cost_by_date = {str(p["date"]): float(p["cost_usd"] or 0.0) for p in cost_points}
-    billing_by_date_model = get_meter_billing_by_date_model(
+    bill_rows = _billing_transaction_rows(
         conn,
         project_name,
         start_date=eff_start,
         end_date=eff_end,
         currency=chosen_currency,
     )
+    bill_rows_by_date: dict[str, list[tuple[str, str, float]]] = {}
+    for usage_date, meter, cost in bill_rows:
+        bill_rows_by_date.setdefault(usage_date, []).append((usage_date, meter, float(cost)))
 
     out: list[dict[str, object]] = []
     for d in sorted(by_date_model.keys(), reverse=True):
         daily_cost = float(cost_by_date.get(d, 0.0))
         models = by_date_model.get(d, {})
         total_tokens = sum((v["input"] + v["output"]) for v in models.values())
-        day_billing = billing_by_date_model.get(d, {})
         for model_name in sorted(models.keys()):
             tok = models[model_name]
             in_tok = float(tok["input"])
@@ -890,15 +893,28 @@ def get_imported_token_daily_cost_by_model(
             if model_total <= 0:
                 continue
 
-            bill = day_billing.get(model_name)
-            if bill is None:
-                for bk, bv in day_billing.items():
-                    if token_models_match(bk, model_name):
-                        bill = bv
-                        break
-            bill = bill or {}
-            bill_in = float(bill.get("input", 0.0))
-            bill_out = float(bill.get("output", 0.0))
+            # Ground truth matching rule:
+            # use token model name + date + direction to match raw transaction meter text
+            # and sum costs from matched rows.
+            bill_in = 0.0
+            bill_out = 0.0
+            rows_same_day = bill_rows_by_date.get(d, [])
+            for _, meter, cost in rows_same_day:
+                if cost <= 0:
+                    continue
+                if meter_matches_model_direction(
+                    meter,
+                    token_model=model_name,
+                    token_direction="input",
+                ):
+                    bill_in += float(cost)
+                    continue
+                if meter_matches_model_direction(
+                    meter,
+                    token_model=model_name,
+                    token_direction="output",
+                ):
+                    bill_out += float(cost)
             meter_total = bill_in + bill_out
 
             if meter_total > 0:
