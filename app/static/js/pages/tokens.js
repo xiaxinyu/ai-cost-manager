@@ -40,9 +40,14 @@
     ratioSummary: document.getElementById("ratioSummary"),
     ratioBaselinePill: document.getElementById("ratioBaselinePill"),
     modelPanel: document.getElementById("modelBreakdownPanel"),
-    modelPricePanel: document.getElementById("modelPricePanel"),
-    modelPriceTbody: document.getElementById("modelPriceTbody"),
     modelTbody: document.getElementById("modelBreakdownTbody"),
+    impliedUnitPriceSection: document.getElementById("impliedUnitPriceSection"),
+    impliedUnitPriceHint: document.getElementById("impliedUnitPriceHint"),
+    impliedUnitPriceNote: document.getElementById("impliedUnitPriceNote"),
+    impliedUnitPriceStatsTbody: document.getElementById("impliedUnitPriceStatsTbody"),
+    modelUnitPriceSection: document.getElementById("modelUnitPriceSection"),
+    modelUnitPriceHint: document.getElementById("modelUnitPriceHint"),
+    modelUnitPriceTbody: document.getElementById("modelUnitPriceTbody"),
     modelPager: document.getElementById("modelPager"),
     modelPageSizeSelect: document.getElementById("modelPageSizeSelect"),
     modelPrevBtn: document.getElementById("modelPrevBtn"),
@@ -59,6 +64,40 @@
   let tokenInputChart = null;
   let tokenOutputChart = null;
   let tokenRatioChart = null;
+  let chartImpliedUnit = null;
+
+  const chartLineDefaults = {
+    responsive: true,
+    maintainAspectRatio: false,
+    interaction: { mode: "index", intersect: false },
+    animation: { duration: 450 },
+    elements: {
+      line: { capBezierPoints: true },
+      point: { hitRadius: 12 },
+    },
+  };
+
+  function emptyStatePluginImplied(emptyMessage) {
+    const msg = emptyMessage || "No data in selected range";
+    return {
+      id: "emptyStateImplied",
+      afterDraw: (c) => {
+        const hasData = (c?.data?.datasets || []).some((ds) =>
+          (ds.data || []).some((v) => v !== null && v !== undefined && !Number.isNaN(v))
+        );
+        if (hasData) return;
+        const x = c?.ctx;
+        const chartArea = c?.chartArea;
+        if (!x || !chartArea) return;
+        x.save();
+        x.fillStyle = "rgba(159,178,199,0.85)";
+        x.font = "600 14px system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif";
+        x.textAlign = "center";
+        x.fillText(msg, (chartArea.left + chartArea.right) / 2, (chartArea.top + chartArea.bottom) / 2);
+        x.restore();
+      },
+    };
+  }
   let lastTokenRows = [];
   let lastSource = "estimated";
   let projectsWithImportedTokens = [];
@@ -92,12 +131,249 @@
     return x.toFixed(4);
   }
 
-  function fmtPrice(v) {
-    if (v === null || v === undefined || !Number.isFinite(Number(v))) return "-";
-    return Number(v).toLocaleString(undefined, { maximumFractionDigits: 6 });
+  function fmtUsdPer1m(n) {
+    if (n === null || n === undefined || !Number.isFinite(Number(n))) return "-";
+    return Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 });
+  }
+
+  function clearBillingPricingUi() {
+    if (chartImpliedUnit) {
+      chartImpliedUnit.destroy();
+      chartImpliedUnit = null;
+    }
+    if (els.impliedUnitPriceSection) els.impliedUnitPriceSection.hidden = true;
+    if (els.modelUnitPriceSection) els.modelUnitPriceSection.hidden = true;
+    if (els.impliedUnitPriceStatsTbody) els.impliedUnitPriceStatsTbody.innerHTML = "";
+    if (els.modelUnitPriceTbody) els.modelUnitPriceTbody.innerHTML = "";
+  }
+
+  function renderModelUnitPrices(payload) {
+    if (!els.modelUnitPriceSection || !els.modelUnitPriceTbody) return;
+    els.modelUnitPriceTbody.innerHTML = "";
+    if (!payload?.available) {
+      els.modelUnitPriceSection.hidden = true;
+      if (els.modelUnitPriceHint) {
+        els.modelUnitPriceHint.textContent =
+          payload?.reason === "no_imported_tokens"
+            ? "Import token CSVs under bills/<project>/token/"
+            : "";
+      }
+      return;
+    }
+    els.modelUnitPriceSection.hidden = false;
+    if (els.modelUnitPriceHint) {
+      els.modelUnitPriceHint.textContent = `Currency: ${payload.currency ?? "-"} · ${payload.unit_label ?? "USD per 1M tokens"}`;
+    }
+    const metrics = [
+      { key: "input", label: "Input", catalogKey: "catalog_usd_per_1m_input" },
+      { key: "output", label: "Output", catalogKey: "catalog_usd_per_1m_output" },
+      { key: "blended", label: "Blended", catalogKey: null },
+    ];
+    for (const model of payload.models || []) {
+      for (const m of metrics) {
+        const st = model.stats?.[m.key];
+        if (!st || !st.count) continue;
+        const tr = document.createElement("tr");
+        const catalog =
+          m.catalogKey && model[m.catalogKey] != null ? fmtUsdPer1m(model[m.catalogKey]) : "—";
+        tr.innerHTML = `
+              <td>${model.model_name || "-"}</td>
+              <td>${m.label}</td>
+              <td class="num">${fmtUsdPer1m(st.min)}</td>
+              <td class="num">${fmtUsdPer1m(st.max)}</td>
+              <td class="num">${fmtUsdPer1m(st.mean)}</td>
+              <td class="num">${fmtUsdPer1m(st.median)}</td>
+              <td class="num">${st.count}</td>
+              <td class="num">${catalog}</td>
+            `;
+        els.modelUnitPriceTbody.appendChild(tr);
+      }
+    }
+    if (!els.modelUnitPriceTbody.children.length) {
+      const tr = document.createElement("tr");
+      tr.innerHTML =
+        '<td colspan="8" class="muted">No days with both billing cost and token usage in range.</td>';
+      els.modelUnitPriceTbody.appendChild(tr);
+    }
+  }
+
+  function renderImpliedUnitPrices(payload, billingCurrency) {
+    if (!els.impliedUnitPriceSection || !els.impliedUnitPriceStatsTbody) return;
+    if (chartImpliedUnit) {
+      chartImpliedUnit.destroy();
+      chartImpliedUnit = null;
+    }
+    if (!payload?.available) {
+      els.impliedUnitPriceSection.hidden = true;
+      if (els.impliedUnitPriceHint) {
+        els.impliedUnitPriceHint.textContent =
+          payload?.reason === "no_imported_tokens"
+            ? "Import token CSVs under bills/<project>/token/"
+            : "";
+      }
+      return;
+    }
+
+    els.impliedUnitPriceSection.hidden = false;
+    const ccy = billingCurrency || payload.currency || "";
+    if (els.impliedUnitPriceHint) {
+      els.impliedUnitPriceHint.textContent = `Currency: ${ccy || "-"} · ${payload.unit_label || "per 1M tokens"}`;
+    }
+    if (els.impliedUnitPriceNote) {
+      els.impliedUnitPriceNote.textContent =
+        "Each day: billed cost ÷ (imported tokens in that direction ÷ 1,000,000). Input and output use the same daily bill as numerator, so the two lines are not additive.";
+    }
+
+    els.impliedUnitPriceStatsTbody.innerHTML = "";
+    const statRows = [
+      { label: "Input", st: payload.stats?.input },
+      { label: "Output", st: payload.stats?.output },
+    ];
+    for (const { label, st } of statRows) {
+      const tr = document.createElement("tr");
+      if (!st || !st.count) {
+        tr.innerHTML = `<td>Implied ${label.toLowerCase()}</td><td colspan="5" class="muted">No days with billing and ${label.toLowerCase()} tokens.</td>`;
+      } else {
+        tr.innerHTML = `
+              <td>Implied ${label.toLowerCase()}</td>
+              <td class="num">${fmtUsdPer1m(st.min)}</td>
+              <td class="num">${fmtUsdPer1m(st.max)}</td>
+              <td class="num">${fmtUsdPer1m(st.mean)}</td>
+              <td class="num">${fmtUsdPer1m(st.median)}</td>
+              <td class="num">${st.count}</td>
+            `;
+      }
+      els.impliedUnitPriceStatsTbody.appendChild(tr);
+    }
+
+    const pts = payload.points || [];
+    const labels = pts.map((p) => p.date);
+    const dataIn = pts.map((p) => (p.usd_per_1m_input != null ? Number(p.usd_per_1m_input) : null));
+    const dataOut = pts.map((p) => (p.usd_per_1m_output != null ? Number(p.usd_per_1m_output) : null));
+    const hasIn = dataIn.some((v) => v !== null && Number.isFinite(v));
+    const hasOut = dataOut.some((v) => v !== null && Number.isFinite(v));
+    const useDual = hasIn && hasOut;
+
+    const ctxIU = document.getElementById("impliedUnitPriceChart")?.getContext("2d");
+    if (!ctxIU) return;
+
+    const Ch = window.AppChartStyle?.colors || {};
+    const datasets = [];
+    if (hasIn) {
+      datasets.push({
+        label: ccy ? `Implied (${ccy}/1M input)` : "Implied (per 1M input)",
+        data: dataIn,
+        borderColor: Ch.input || "#60a5fa",
+        backgroundColor: "rgba(96, 165, 250, 0.12)",
+        fill: true,
+        tension: 0.22,
+        pointRadius: 2,
+        pointHoverRadius: 4,
+        borderWidth: 2.2,
+        spanGaps: true,
+        yAxisID: "y",
+      });
+    }
+    if (hasOut) {
+      datasets.push({
+        label: ccy ? `Implied (${ccy}/1M output)` : "Implied (per 1M output)",
+        data: dataOut,
+        borderColor: Ch.output || "#a78bfa",
+        backgroundColor: "rgba(167, 139, 250, 0.12)",
+        fill: true,
+        tension: 0.22,
+        pointRadius: 2,
+        pointHoverRadius: 4,
+        borderWidth: 2.2,
+        spanGaps: true,
+        yAxisID: useDual && hasIn ? "y1" : "y",
+      });
+    }
+
+    if (!datasets.length) {
+      return;
+    }
+
+    const xTicks = {
+      color: "#9fb2c7",
+      font: { size: 11, weight: "500" },
+      autoSkip: true,
+      maxTicksLimit: 12,
+      maxRotation: 0,
+    };
+
+    const yTickFmt = (value) => {
+      const n = Number(value);
+      if (!Number.isFinite(n)) return String(value);
+      return fmtUsdPer1m(n);
+    };
+
+    const scales = {
+      x: { ticks: xTicks, grid: { color: "rgba(255,255,255,0.08)" } },
+      y: {
+        type: "linear",
+        display: true,
+        position: "left",
+        beginAtZero: true,
+        ticks: { color: "#9fb2c7", font: { size: 11, weight: "500" }, callback: yTickFmt },
+        grid: { color: "rgba(255,255,255,0.08)" },
+        title: {
+          display: true,
+          text: useDual ? `${ccy || "Cost"} / 1M input` : `${ccy || "Cost"} / 1M`,
+          color: "#9fb2c7",
+          font: { size: 11 },
+        },
+      },
+    };
+
+    if (useDual) {
+      scales.y1 = {
+        type: "linear",
+        display: true,
+        position: "right",
+        beginAtZero: true,
+        ticks: { color: "#9fb2c7", font: { size: 11, weight: "500" }, callback: yTickFmt },
+        grid: { drawOnChartArea: false },
+        title: {
+          display: true,
+          text: `${ccy || "Cost"} / 1M output`,
+          color: "#9fb2c7",
+          font: { size: 11 },
+        },
+      };
+    }
+
+    chartImpliedUnit = new Chart(ctxIU, {
+      type: "line",
+      data: { labels, datasets },
+      options: {
+        ...chartLineDefaults,
+        plugins: {
+          decimation: { enabled: true, algorithm: "min-max" },
+          legend: { display: true, position: "top", labels: { color: "#e6edf3", font: { size: 12, weight: "600" } } },
+          tooltip: {
+            enabled: true,
+            backgroundColor: "rgba(11,18,32,0.92)",
+            borderColor: "rgba(255,255,255,0.16)",
+            borderWidth: 1,
+            callbacks: {
+              label: (ctx) => {
+                const v = ctx.parsed?.y;
+                if (v === null || v === undefined || !Number.isFinite(Number(v))) return `${ctx.dataset.label}: -`;
+                const u = ccy ? ` ${ccy}` : "";
+                return `${ctx.dataset.label}: ${fmtUsdPer1m(v)}${u}`;
+              },
+            },
+          },
+        },
+        scales,
+      },
+      plugins: [emptyStatePluginImplied("No implied rates (need billing and token rows on the same dates)")],
+    });
   }
 
   function setLoading(loading) {
+    if (!els.loadBtn) return;
     els.loadBtn.disabled = loading;
     els.loadBtn.textContent = loading ? "Loading…" : "Load Tokens";
   }
@@ -285,46 +561,6 @@
       label: "rows",
       renderRow: (row) => appendModelRow(row, maxShare),
     });
-  }
-
-  function renderModelPrices(rows) {
-    if (!els.modelPricePanel || !els.modelPriceTbody) return;
-    const items = Array.isArray(rows) ? rows : [];
-    if (!items.length) {
-      els.modelPricePanel.hidden = true;
-      els.modelPriceTbody.innerHTML = "";
-      return;
-    }
-
-    els.modelPricePanel.hidden = false;
-    els.modelPriceTbody.innerHTML = "";
-    for (const row of items) {
-      const tr = document.createElement("tr");
-      const tdModel = document.createElement("td");
-      tdModel.textContent = row.model_name || "-";
-
-      const tdInTok = document.createElement("td");
-      tdInTok.className = "num";
-      tdInTok.textContent = fmtInt(row.input_tokens);
-
-      const tdOutTok = document.createElement("td");
-      tdOutTok.className = "num";
-      tdOutTok.textContent = fmtInt(row.output_tokens);
-
-      const tdInPrice = document.createElement("td");
-      tdInPrice.className = "num";
-      tdInPrice.textContent = fmtPrice(row.input_price_per_1m);
-
-      const tdOutPrice = document.createElement("td");
-      tdOutPrice.className = "num";
-      tdOutPrice.textContent = fmtPrice(row.output_price_per_1m);
-
-      const tdCur = document.createElement("td");
-      tdCur.textContent = row.price_currency || "-";
-
-      tr.append(tdModel, tdInTok, tdOutTok, tdInPrice, tdOutPrice, tdCur);
-      els.modelPriceTbody.appendChild(tr);
-    }
   }
 
   function chartOptions(unitType = "tokens") {
@@ -635,7 +871,7 @@
       if (els.workspace) els.workspace.hidden = !imported;
       if (!imported) {
         if (els.sourceBadge) els.sourceBadge.hidden = true;
-        if (els.modelPricePanel) els.modelPricePanel.hidden = true;
+        clearBillingPricingUi();
         if (els.noImportHint) {
           const others = projectsWithImportedTokens.filter((p) => p !== project);
           if (others.length > 0) {
@@ -663,11 +899,35 @@
       } catch (e) {
         console.error("renderModelBreakdown failed", e);
       }
+
+      const pricingParams = new URLSearchParams();
+      if (els.startDate.value) pricingParams.set("start_date", els.startDate.value);
+      if (els.endDate.value) pricingParams.set("end_date", els.endDate.value);
+      if (stats.currency) pricingParams.set("currency", stats.currency);
+
+      let mp = { available: false };
       try {
-        renderModelPrices(series.models_with_prices || []);
+        mp = await window.AppHttp.getJson(
+          `/api/projects/${encodeURIComponent(project)}/model-unit-prices?${pricingParams.toString()}`
+        );
       } catch (e) {
-        console.error("renderModelPrices failed", e);
+        console.warn("Model unit prices unavailable", e);
       }
+      let ip = { available: false };
+      try {
+        ip = await window.AppHttp.getJson(
+          `/api/projects/${encodeURIComponent(project)}/implied-unit-prices-timeseries?${pricingParams.toString()}`
+        );
+      } catch (e) {
+        console.warn("Implied unit price series unavailable", e);
+      }
+      try {
+        renderModelUnitPrices(mp);
+        renderImpliedUnitPrices(ip, stats.currency);
+      } catch (e) {
+        console.error("Billing pricing panels failed", e);
+      }
+
       try {
         renderStats(els.inputStats, seriesStats(points, "estimated_input_tokens"));
         renderStats(els.outputStats, seriesStats(points, "estimated_output_tokens"));

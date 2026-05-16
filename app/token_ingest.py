@@ -146,7 +146,7 @@ def _build_expected_from_token_csv(
         reader = csv.DictReader(f)
         fieldnames = reader.fieldnames or []
         model_cols = [_normalize_key(c) for c in fieldnames if _normalize_key(c) != "time"]
-        for row_index, row in enumerate(reader):
+        for _row_index, row in enumerate(reader):
             normalized = {_normalize_key(k): (v if v is not None else "") for k, v in row.items()}
             raw_time = normalized.get("time", "").strip()
             if not raw_time:

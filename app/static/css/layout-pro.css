@@ -1,0 +1,235 @@
+/* layout-pro.css — cross-page density, hierarchy, and chart/table yield */
+
+:root {
+  --lp-section-gap: 10px;
+  --lp-section-gap-lg: 13px;
+  --lp-card-radius: 8px;
+  --lp-chart-h: clamp(188px, 28vh, 272px);
+  --lp-chart-h-sm: clamp(156px, 22vh, 208px);
+}
+
+.appNavInner,
+.appLayout {
+  max-width: min(var(--content-max-width, 1440px), 100%);
+}
+
+/* --- Page chrome: title band (standard pages, not token nested header) --- */
+.contentArea .pageHeader:not(.tokenPageHeader) {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, min(44%, 40ch));
+  grid-template-areas:
+    "crumb crumb"
+    "title desc";
+  column-gap: 14px;
+  row-gap: 6px;
+  align-items: start;
+  min-height: 0;
+  margin-bottom: var(--lp-section-gap);
+  padding: 8px 11px;
+  border-radius: var(--lp-card-radius);
+}
+
+.contentArea .pageHeader:not(.tokenPageHeader) .breadcrumb {
+  grid-area: crumb;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: unset;
+}
+
+.contentArea .pageHeader:not(.tokenPageHeader) .pageTitle {
+  grid-area: title;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: unset;
+  min-width: 0;
+  margin: 0;
+  line-height: 1.25;
+}
+
+.contentArea .pageHeader:not(.tokenPageHeader) .pageDesc {
+  grid-area: desc;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  margin: 0;
+  align-self: start;
+  text-align: right;
+  max-width: none;
+  white-space: normal;
+  overflow: hidden;
+  line-height: 1.45;
+  font-size: 11.5px;
+}
+
+@media (max-width: 760px) {
+  .contentArea .pageHeader:not(.tokenPageHeader) {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "crumb"
+      "title"
+      "desc";
+  }
+
+  .contentArea .pageHeader:not(.tokenPageHeader) .pageDesc {
+    text-align: left;
+  }
+}
+
+/* Tokens: align with system width, slightly denser title row */
+.tokenPage {
+  max-width: min(var(--content-max-width, 1440px), 100%);
+  gap: var(--lp-section-gap-lg);
+}
+
+.tokenPageHeader {
+  padding: 8px 11px;
+  border-radius: var(--lp-card-radius);
+}
+
+.tokenTitleRow {
+  margin-top: 4px;
+  gap: 12px;
+}
+
+.tokenPageHeader .pageDesc {
+  font-size: 12px;
+  max-width: 58ch;
+}
+
+.tokenToolbar {
+  padding: 11px 13px;
+}
+
+.toolbarGrid {
+  gap: 10px;
+}
+
+/* Reports / forecast width rhythm */
+.reportPage {
+  max-width: min(var(--content-max-width, 1440px), 100%) !important;
+}
+
+/* Forecast page `.container` was 1180px; align with app content width */
+.contentArea > .container {
+  max-width: min(var(--content-max-width, 1440px), 100%);
+}
+
+.forecastTopBar {
+  padding: 12px 14px !important;
+  gap: 12px 14px !important;
+  margin-bottom: var(--lp-section-gap-lg) !important;
+}
+
+.reportFilters {
+  padding: 11px 13px !important;
+}
+
+.forecastHero {
+  margin-bottom: var(--lp-section-gap-lg) !important;
+}
+
+/* Cost dashboard */
+.dashSections {
+  gap: var(--lp-section-gap) !important;
+}
+
+.container .grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+@media (max-width: 900px) {
+  .container .grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.header.card {
+  padding: 9px 11px !important;
+}
+
+.chartStack {
+  gap: 9px !important;
+}
+
+.chartStack canvas {
+  height: var(--lp-chart-h) !important;
+  max-height: var(--lp-chart-h);
+}
+
+@media (max-width: 960px) {
+  .chartStack canvas {
+    height: min(var(--lp-chart-h), 300px) !important;
+  }
+}
+
+.card.tight {
+  padding: 11px 12px !important;
+}
+
+.sectionHeaderRow {
+  margin: 0 0 6px !important;
+}
+
+.sectionTitle {
+  font-size: 13px !important;
+}
+
+/* Reports charts */
+.chartCanvasHost {
+  height: var(--lp-chart-h) !important;
+}
+
+.chartCanvasHostShort {
+  height: var(--lp-chart-h-sm) !important;
+}
+
+.reportTableCard {
+  padding: 11px 13px !important;
+}
+
+.chartCardHead {
+  margin-bottom: 6px !important;
+}
+
+/* Token charts */
+.tokenCharts .chartCanvasWrap,
+.impliedUnitPriceChartWrap {
+  height: var(--lp-chart-h) !important;
+}
+
+.tokenCharts .chartCanvasShort {
+  height: var(--lp-chart-h-sm) !important;
+}
+
+/* Tables: more rows per viewport */
+.tableScroll thead th,
+.tableScroll tbody td {
+  padding: 6px 7px !important;
+  font-size: 11.5px;
+}
+
+.tableScrollCompact {
+  max-height: 168px !important;
+}
+
+/* Toolbars & quick actions */
+.quickActions {
+  margin-bottom: 10px !important;
+  gap: 8px !important;
+}
+
+.toolbarRow {
+  gap: 9px !important;
+}
+
+/* Focus rings (keyboard) */
+.navLink:focus-visible,
+button:focus-visible,
+select:focus-visible,
+input:focus-visible,
+a:focus-visible {
+  outline: 2px solid rgba(20, 184, 166, 0.55);
+  outline-offset: 2px;
+}

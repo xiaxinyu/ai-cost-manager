@@ -406,11 +406,6 @@
   background: var(--finance);
 }
 
-#impliedUnitPriceSection .sectionTitle::before,
-#modelUnitPriceSection .sectionTitle::before {
-  background: var(--token);
-}
-
 .chartStack {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -488,67 +483,4 @@ canvas {
   .controls {
     grid-template-columns: 1fr;
   }
-}
-
-.impliedUnitPriceSection {
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 14px 16px;
-  background: rgba(255, 255, 255, 0.02);
-}
-
-.impliedUnitPriceStatsCard {
-  margin-bottom: 10px;
-}
-
-.impliedUnitPriceChartCard canvas {
-  height: 280px !important;
-}
-
-.modelUnitPriceSection {
-  margin-top: 4px;
-}
-
-.modelUnitPriceNote {
-  margin: 0 0 10px;
-  max-width: 72ch;
-  line-height: 1.45;
-  font-size: 12px;
-  color: #9fb2c7;
-}
-
-.modelUnitPriceTableWrap {
-  max-height: 360px;
-  border: 1px solid rgba(173, 196, 228, 0.14);
-  border-radius: 10px;
-}
-
-.modelUnitPriceTable {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-.modelUnitPriceTable th,
-.modelUnitPriceTable td {
-  padding: 8px 10px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  font-size: 12px;
-}
-
-.modelUnitPriceTable th {
-  position: sticky;
-  top: 0;
-  background: rgba(11, 18, 32, 0.98);
-  color: #9fb2c7;
-  font-weight: 650;
-  z-index: 1;
-}
-
-.modelUnitPriceTable .num {
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-}
-
-.modelUnitPriceTable tbody tr:nth-child(odd) {
-  background: rgba(255, 255, 255, 0.02);
 }

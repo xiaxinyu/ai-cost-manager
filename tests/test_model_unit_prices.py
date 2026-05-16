@@ -187,7 +187,7 @@ def test_model_unit_prices_api(tmp_path):
     assert len(ip["points"]) >= 1
     assert ip["stats"]["input"]["count"] == 1
 
-    page = client.get("/")
+    page = client.get("/tokens")
     assert page.status_code == 200
     assert "modelUnitPriceSection" in page.text
     assert "impliedUnitPriceSection" in page.text

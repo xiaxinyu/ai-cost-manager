@@ -554,3 +554,72 @@
     width: 8.5rem;
   }
 }
+
+/* Billing-derived pricing (moved from Cost page) */
+.impliedUnitPriceSection,
+.modelUnitPriceSection {
+  border: 1px solid var(--border, rgba(173, 196, 228, 0.18));
+  border-radius: 12px;
+  padding: 14px 16px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.impliedUnitPriceSection .panelHead,
+.modelUnitPriceSection .panelHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+.impliedUnitPriceStatsCard {
+  margin-bottom: 10px;
+}
+
+.impliedUnitPriceChartWrap {
+  position: relative;
+  height: 280px;
+}
+
+.impliedUnitPriceChartWrap canvas {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.modelUnitPriceTableWrap {
+  max-height: 360px;
+  border: 1px solid rgba(173, 196, 228, 0.14);
+  border-radius: 10px;
+}
+
+.modelUnitPriceTable {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.modelUnitPriceTable th,
+.modelUnitPriceTable td {
+  padding: 8px 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 12px;
+}
+
+.modelUnitPriceTable th {
+  position: sticky;
+  top: 0;
+  background: rgba(11, 18, 32, 0.98);
+  color: #9fb2c7;
+  font-weight: 650;
+  z-index: 1;
+}
+
+.modelUnitPriceTable .num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.modelUnitPriceTable tbody tr:nth-child(odd) {
+  background: rgba(255, 255, 255, 0.02);
+}

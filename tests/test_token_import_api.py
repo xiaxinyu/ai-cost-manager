@@ -3,7 +3,7 @@ from __future__ import annotations
 from fastapi.testclient import TestClient
 
 from app.auth import create_user
-from app.db import init_db, get_connection, get_imported_token_totals
+from app.db import init_db, get_connection
 from app.main import create_app
 
 

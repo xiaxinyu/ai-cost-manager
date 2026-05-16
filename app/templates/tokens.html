@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="/static/css/app-shell.css" />
     <link rel="stylesheet" href="/static/css/page-common.css" />
     <link rel="stylesheet" href="/static/css/pages/tokens.css" />
+    <link rel="stylesheet" href="/static/css/layout-pro.css" />
   </head>
   <body>
     <div class="appNav">
@@ -37,7 +38,7 @@
             <div class="tokenTitleRow">
               <div>
                 <h1 class="pageTitle">Token Operations</h1>
-                <p class="pageDesc">Review imported token usage from Grafana CSV exports (input and output files per project).</p>
+                <p class="pageDesc">Imported token usage, output/input ratio, implied $/1M from billing, and per-model price stats — all in one place.</p>
               </div>
               <div id="tokenSourceBadge" class="sourceBadge sourceEstimated" hidden>
                 <span class="sourceDot" aria-hidden="true"></span>
@@ -157,26 +158,66 @@
               </div>
             </section>
 
-            <section id="modelPricePanel" class="card modelBreakdownPanel" hidden>
+            <section id="impliedUnitPriceSection" class="impliedUnitPriceSection" hidden aria-label="Project implied unit prices">
               <div class="panelHead">
                 <div>
-                  <h2 class="sectionTitle">Models & unit prices</h2>
-                  <p class="muted panelDesc">Models used in selected token range with matched unit prices (per 1M tokens).</p>
+                  <h2 class="sectionTitle">Implied unit price (project)</h2>
+                  <p class="muted panelDesc" id="impliedUnitPriceNote"></p>
+                </div>
+                <div class="muted" id="impliedUnitPriceHint"></div>
+              </div>
+              <div class="impliedUnitPriceStatsCard card tight">
+                <div class="chartSectionTitle">Min · max · mean · median (days with a value)</div>
+                <div class="tableScroll modelUnitPriceTableWrap">
+                  <table class="modelUnitPriceTable" id="impliedUnitPriceStatsTable">
+                    <thead>
+                      <tr>
+                        <th>Direction</th>
+                        <th class="num">Min</th>
+                        <th class="num">Max</th>
+                        <th class="num">Mean</th>
+                        <th class="num">Median</th>
+                        <th class="num">Days</th>
+                      </tr>
+                    </thead>
+                    <tbody id="impliedUnitPriceStatsTbody"></tbody>
+                  </table>
                 </div>
               </div>
-              <div class="tableScroll modelTableWrap">
-                <table class="modelTable">
+              <div class="card tight impliedUnitPriceChartCard">
+                <div class="chartSectionTitle">Daily implied price (per 1M tokens)</div>
+                <div class="chartCanvasWrap impliedUnitPriceChartWrap">
+                  <canvas id="impliedUnitPriceChart"></canvas>
+                </div>
+              </div>
+            </section>
+
+            <section id="modelUnitPriceSection" class="modelUnitPriceSection" hidden aria-label="Model unit prices">
+              <div class="panelHead">
+                <div>
+                  <h2 class="sectionTitle">Model price (per 1M tokens)</h2>
+                  <p class="muted panelDesc">
+                    Daily billing is allocated to each model by its share of imported token usage that day.
+                    Statistics (min, max, mean, median) are over days with both cost and token data. 1M = 1,000,000 tokens.
+                  </p>
+                </div>
+                <div class="muted" id="modelUnitPriceHint"></div>
+              </div>
+              <div class="tableScroll modelUnitPriceTableWrap">
+                <table class="modelUnitPriceTable" id="modelUnitPriceTable">
                   <thead>
                     <tr>
                       <th>Model</th>
-                      <th class="num">Input tokens</th>
-                      <th class="num">Output tokens</th>
-                      <th class="num">Input price</th>
-                      <th class="num">Output price</th>
-                      <th>Currency</th>
+                      <th>Metric</th>
+                      <th class="num">Min</th>
+                      <th class="num">Max</th>
+                      <th class="num">Mean</th>
+                      <th class="num">Median</th>
+                      <th class="num">Days</th>
+                      <th class="num">Catalog $/1M</th>
                     </tr>
                   </thead>
-                  <tbody id="modelPriceTbody"></tbody>
+                  <tbody id="modelUnitPriceTbody"></tbody>
                 </table>
               </div>
             </section>
