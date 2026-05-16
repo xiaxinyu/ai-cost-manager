@@ -18,90 +18,72 @@ class IngestResult:
     files_skipped: int
     files_ingested: int
     rows_ingested: int
+    rows_inserted: int
+    rows_updated: int
     files_verified: int
     verification_passed: bool
 
 
-def _verify_ingestion_for_file(
+def _verify_billing_merge_csv(
     conn,
     *,
     project_name: str,
     file_path_rel: str,
     checksum_sha256: str,
-    expected_by_date: dict[str, dict[str, object]],
+    csv_path_abs: Path,
+    expected_row_count: int,
 ) -> None:
     """
-    Strong correctness audit ("对数") for a single imported file:
-    - compare per-usage_date row counts and cost_usd sums
-    - compare total row count and cost_usd sum
-    - compare ingested_files row_count and checksum_sha256
+    Post-ingest audit for billing CSVs merged by natural key
+    (UsageDate + ResourceGroupName + ServiceTier + Meter within project_name).
+
+    - Every non-empty CSV row must resolve to a DB row with matching cost_usd.
+    - Duplicate keys in the same file: last row wins (must match DB).
+    - ingested_files row_count must match CSV data row count.
     """
     eps = 1e-6
-    expected_dates = set(expected_by_date.keys())
-    expected_total_rows = 0
-    expected_total_cost_usd = 0.0
-    expected_by_db: dict[str, dict[str, object]] = {}
+    last_cost_by_key: dict[tuple[str, str, str, str], float] = {}
+    csv_data_rows = 0
+    with csv_path_abs.open("r", newline="", encoding="utf-8-sig") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            usage_date, normalized_row, cost_usd, _cost = _extract_row(row)
+            if usage_date is None:
+                continue
+            csv_data_rows += 1
+            rg = _coalesce_billing_dim(normalized_row.get("ResourceGroupName"))
+            tier = _coalesce_billing_dim(normalized_row.get("ServiceTier"))
+            meter = _coalesce_billing_dim(normalized_row.get("Meter"))
+            key = (usage_date, rg, tier, meter)
+            c = float(cost_usd) if cost_usd is not None else 0.0
+            last_cost_by_key[key] = c
 
-    for d, agg in expected_by_date.items():
-        cnt = int(agg["count"])
-        cost_sum = float(agg["cost_sum"])
-        expected_total_rows += cnt
-        expected_total_cost_usd += cost_sum
-        expected_by_db[d] = {"count": cnt, "cost_sum": cost_sum}
-
-    rows_by_date = conn.execute(
-        """
-        SELECT
-          usage_date,
-          COUNT(*) AS cnt,
-          COALESCE(SUM(cost_usd), 0) AS sum_cost_usd
-        FROM transactions
-        WHERE source_file = ?
-        GROUP BY usage_date
-        """,
-        (file_path_rel,),
-    ).fetchall()
-
-    db_dates = {r["usage_date"] for r in rows_by_date}
-    if db_dates != expected_dates:
+    if csv_data_rows != expected_row_count:
         raise ValueError(
-            f"Ingest audit date mismatch for {file_path_rel}: db_dates={sorted(db_dates)}, expected={sorted(expected_dates)}"
+            f"Ingest audit CSV row count mismatch for {file_path_rel}: parsed={csv_data_rows}, expected={expected_row_count}"
         )
 
-    for r in rows_by_date:
-        d = r["usage_date"]
-        cnt = int(r["cnt"])
-        sum_cost = float(r["sum_cost_usd"])
-        exp = expected_by_db.get(d)
-        if exp is None:
-            raise ValueError(f"Ingest audit unexpected date in DB for {file_path_rel}: {d}")
-        if cnt != exp["count"]:
+    for (usage_date, rg, tier, meter), exp_c in last_cost_by_key.items():
+        r = conn.execute(
+            """
+            SELECT cost_usd
+            FROM transactions
+            WHERE project_name = ?
+              AND usage_date = ?
+              AND COALESCE(resource_group_name, '') = ?
+              AND COALESCE(service_tier, '') = ?
+              AND COALESCE(meter, '') = ?
+            LIMIT 1
+            """,
+            (project_name, usage_date, rg, tier, meter),
+        ).fetchone()
+        if r is None:
+            raise ValueError(f"Ingest audit missing DB row for natural key after ingest: {file_path_rel} {usage_date!r}")
+        db_c = float(r["cost_usd"] or 0.0)
+        if abs(db_c - exp_c) > eps:
             raise ValueError(
-                f"Ingest audit row_count mismatch for {file_path_rel} date={d}: db={cnt}, expected={exp['count']}"
+                f"Ingest audit cost_usd mismatch for {file_path_rel} key={(usage_date, rg, tier, meter)}: db={db_c}, expected={exp_c}"
             )
-        if abs(sum_cost - exp["cost_sum"]) > eps:
-            raise ValueError(
-                f"Ingest audit cost_usd sum mismatch for {file_path_rel} date={d}: db={sum_cost}, expected={exp['cost_sum']}"
-            )
-
-    total = conn.execute(
-        """
-        SELECT
-          COUNT(*) AS cnt,
-          COALESCE(SUM(cost_usd), 0) AS sum_cost_usd
-        FROM transactions
-        WHERE source_file = ?
-        """,
-        (file_path_rel,),
-    ).fetchone()
-    if int(total["cnt"]) != expected_total_rows:
-        raise ValueError(
-            f"Ingest audit total row_count mismatch for {file_path_rel}: db={int(total['cnt'])}, expected={expected_total_rows}"
-        )
-    if abs(float(total["sum_cost_usd"]) - expected_total_cost_usd) > eps:
-        raise ValueError(
-            f"Ingest audit total cost_usd sum mismatch for {file_path_rel}: db={float(total['sum_cost_usd'])}, expected={expected_total_cost_usd}"
-        )
 
     ing = conn.execute(
         """
@@ -117,33 +99,22 @@ def _verify_ingestion_for_file(
         raise ValueError(
             f"Ingest audit checksum mismatch for {file_path_rel}: db={ing['checksum_sha256']}, expected={checksum_sha256}"
         )
-    if int(ing["row_count"]) != expected_total_rows:
+    if int(ing["row_count"]) != expected_row_count:
         raise ValueError(
-            f"Ingest audit ingested_files row_count mismatch for {file_path_rel}: db={int(ing['row_count'])}, expected={expected_total_rows}"
+            f"Ingest audit ingested_files row_count mismatch for {file_path_rel}: db={int(ing['row_count'])}, expected={expected_row_count}"
         )
 
 
-def _build_expected_by_date_from_csv(csv_path_abs: Path) -> dict[str, dict[str, object]]:
-    """
-    Parse CSV and build expected aggregates:
-      - by UsageDate: {count, cost_sum}
-    Rows with missing UsageDate are ignored (same as ingestion).
-    """
-    expected_by_date: dict[str, dict[str, object]] = {}
+def _count_billing_csv_data_rows(csv_path_abs: Path) -> int:
+    n = 0
     with csv_path_abs.open("r", newline="", encoding="utf-8-sig") as f:
         reader = csv.DictReader(f)
         for row in reader:
-            usage_date, _normalized_row, cost_usd, _cost = _extract_row(row)
+            usage_date, _norm, _c1, _c2 = _extract_row(row)
             if usage_date is None:
                 continue
-
-            if usage_date not in expected_by_date:
-                expected_by_date[usage_date] = {"count": 0, "cost_sum": 0.0}
-            expected_by_date[usage_date]["count"] = int(expected_by_date[usage_date]["count"]) + 1
-            expected_by_date[usage_date]["cost_sum"] = float(expected_by_date[usage_date]["cost_sum"]) + (
-                float(cost_usd) if cost_usd is not None else 0.0
-            )
-    return expected_by_date
+            n += 1
+    return n
 
 
 @dataclass(frozen=True)
@@ -175,8 +146,9 @@ def verify_ingested_files(
     file_path_rels: list[str] | None = None,
 ) -> IngestVerifyResult:
     """
-    Verify that data on disk (CSV) matches what was ingested into SQLite
-    (row counts, cost sums, checksum, row_count in ingested_files).
+    Verify that data on disk (CSV) matches SQLite for each ingested billing file:
+    natural key rows (UsageDate + ResourceGroupName + ServiceTier + Meter per project),
+    checksum, and ingested_files.row_count.
     """
     bills_path = Path(bills_dir).expanduser().resolve()
 
@@ -212,13 +184,14 @@ def verify_ingested_files(
                         raise FileNotFoundError(f"Missing CSV file for {file_path_rel}")
 
                     checksum = _sha256_file(csv_path_abs)
-                    expected_by_date = _build_expected_by_date_from_csv(csv_path_abs)
-                    _verify_ingestion_for_file(
+                    rc = _count_billing_csv_data_rows(csv_path_abs)
+                    _verify_billing_merge_csv(
                         conn,
                         project_name=project_name,
                         file_path_rel=file_path_rel,
                         checksum_sha256=checksum,
-                        expected_by_date=expected_by_date,
+                        csv_path_abs=csv_path_abs,
+                        expected_row_count=rc,
                     )
                     items.append(IngestVerifyResultItem(file_path_rel=file_path_rel, pass_check=True, error=None))
                 except Exception as e:
@@ -249,13 +222,14 @@ def verify_ingested_files(
                     raise FileNotFoundError(f"Missing CSV file for {file_path_rel}")
 
                 checksum = _sha256_file(csv_path_abs)
-                expected_by_date = _build_expected_by_date_from_csv(csv_path_abs)
-                _verify_ingestion_for_file(
+                rc = _count_billing_csv_data_rows(csv_path_abs)
+                _verify_billing_merge_csv(
                     conn,
                     project_name=project_name,
                     file_path_rel=file_path_rel,
                     checksum_sha256=checksum,
-                    expected_by_date=expected_by_date,
+                    csv_path_abs=csv_path_abs,
+                    expected_row_count=rc,
                 )
                 items.append(IngestVerifyResultItem(file_path_rel=file_path_rel, pass_check=True, error=None))
             except Exception as e:
@@ -323,12 +297,142 @@ def _extract_row(
 
     usage_date = normalized_row.get("UsageDate")
     if usage_date is None:
-        return None, normalized_row, None, None, None
+        return None, normalized_row, None, None
 
     cost_usd = _to_float_or_none(normalized_row.get("CostUSD"))
     cost = _to_float_or_none(normalized_row.get("Cost"))
 
     return usage_date, normalized_row, cost_usd, cost
+
+
+_TX_INSERT = """
+INSERT INTO transactions(
+    project_name, usage_date,
+    resource_id, resource_type, resource_location, resource_group_name,
+    service_name, service_tier, meter,
+    cost_usd, cost, currency, forecast_cost,
+    raw_json, source_file, source_row_index
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+"""
+
+_TX_UPDATE = """
+UPDATE transactions SET
+    project_name = ?,
+    usage_date = ?,
+    resource_id = ?,
+    resource_type = ?,
+    resource_location = ?,
+    resource_group_name = ?,
+    service_name = ?,
+    service_tier = ?,
+    meter = ?,
+    cost_usd = ?,
+    cost = ?,
+    currency = ?,
+    forecast_cost = ?,
+    raw_json = ?,
+    source_file = ?,
+    source_row_index = ?,
+    ingested_at = datetime('now')
+WHERE id = ?
+"""
+
+
+def _coalesce_billing_dim(val: Any) -> str:
+    s = _trim_optional_str(val)
+    return s if s is not None else ""
+
+
+def _find_tx_by_natural_key(
+    conn,
+    project_name: str,
+    usage_date: str,
+    rg: str,
+    tier: str,
+    meter: str,
+) -> int | None:
+    row = conn.execute(
+        """
+        SELECT id FROM transactions
+        WHERE project_name = ?
+          AND usage_date = ?
+          AND COALESCE(resource_group_name, '') = ?
+          AND COALESCE(service_tier, '') = ?
+          AND COALESCE(meter, '') = ?
+        LIMIT 1
+        """,
+        (project_name, usage_date, rg, tier, meter),
+    ).fetchone()
+    return int(row["id"]) if row else None
+
+
+def _find_tx_by_file_slot(conn, project_name: str, file_path_rel: str, source_row_index: int) -> int | None:
+    row = conn.execute(
+        """
+        SELECT id FROM transactions
+        WHERE project_name = ? AND source_file = ? AND source_row_index = ?
+        LIMIT 1
+        """,
+        (project_name, file_path_rel, source_row_index),
+    ).fetchone()
+    return int(row["id"]) if row else None
+
+
+def _upsert_one_billing_row(
+    conn,
+    *,
+    project_name: str,
+    file_path_rel: str,
+    source_row_index: int,
+    usage_date: str,
+    normalized_row: dict[str, str | None],
+    cost_usd: float | None,
+    cost: float | None,
+    raw_json: str,
+) -> str:
+    """
+    Upsert by natural key (UsageDate + ResourceGroupName + ServiceTier + Meter) within project;
+    same-file (source_file, source_row_index) wins over stale slots when both collide.
+    Returns 'insert' or 'update'.
+    """
+    rg_k = _coalesce_billing_dim(normalized_row.get("ResourceGroupName"))
+    tier_k = _coalesce_billing_dim(normalized_row.get("ServiceTier"))
+    meter_k = _coalesce_billing_dim(normalized_row.get("Meter"))
+
+    kid = _find_tx_by_natural_key(conn, project_name, usage_date, rg_k, tier_k, meter_k)
+    rid = _find_tx_by_file_slot(conn, project_name, file_path_rel, source_row_index)
+
+    tup = (
+        project_name,
+        usage_date,
+        normalized_row.get("ResourceId"),
+        normalized_row.get("ResourceType"),
+        normalized_row.get("ResourceLocation"),
+        normalized_row.get("ResourceGroupName"),
+        normalized_row.get("ServiceName"),
+        normalized_row.get("ServiceTier"),
+        normalized_row.get("Meter"),
+        cost_usd,
+        cost,
+        normalized_row.get("Currency"),
+        None,
+        raw_json,
+        file_path_rel,
+        source_row_index,
+    )
+
+    if kid is not None and rid is not None and kid != rid:
+        conn.execute("DELETE FROM transactions WHERE id = ?", (rid,))
+        conn.execute(_TX_UPDATE, tup + (kid,))
+        return "update"
+    if kid is not None:
+        conn.execute(_TX_UPDATE, tup + (kid,))
+        return "update"
+    if rid is not None:
+        conn.execute(_TX_UPDATE, tup + (rid,))
+        return "update"
+    conn.execute(_TX_INSERT, tup)
+    return "insert"
 
 
 def discover_csv_files(bills_dir: str | os.PathLike[str]) -> list[tuple[str, Path, str]]:
@@ -369,6 +473,8 @@ def ingest_all(
     files_skipped = 0
     files_ingested = 0
     rows_ingested = 0
+    rows_inserted = 0
+    rows_updated = 0
     files_verified = 0
     verification_passed = True
 
@@ -390,20 +496,18 @@ def ingest_all(
             if str(existing["checksum_sha256"]) == checksum:
                 files_skipped += 1
                 continue
-            # Re-import changed file: remove old rows then ingest again.
+            # Re-import changed file: replace ingested_files metadata; rows merge by natural key.
             conn.execute("SAVEPOINT ingest_file")
-            conn.execute("DELETE FROM transactions WHERE source_file = ?", (file_path_rel,))
             conn.execute("DELETE FROM ingested_files WHERE file_path = ?", (file_path_rel,))
         else:
             checksum = _sha256_file(csv_path_abs)
             conn.execute("SAVEPOINT ingest_file")
 
-        # Parse CSV and insert rows
-        expected_by_date: dict[str, dict[str, object]] = {}
+        file_ins = 0
+        file_upd = 0
         with csv_path_abs.open("r", newline="", encoding="utf-8-sig") as f:
             reader = csv.DictReader(f)
             raw_columns = reader.fieldnames or []
-            to_insert: list[tuple] = []
             row_index = 0
             for row in reader:
                 usage_date, normalized_row, cost_usd, cost = _extract_row(row)
@@ -411,47 +515,25 @@ def ingest_all(
                     row_index += 1
                     continue
 
-                if usage_date not in expected_by_date:
-                    expected_by_date[usage_date] = {"count": 0, "cost_sum": 0.0}
-                expected_by_date[usage_date]["count"] = int(expected_by_date[usage_date]["count"]) + 1
-                expected_by_date[usage_date]["cost_sum"] = float(expected_by_date[usage_date]["cost_sum"]) + (float(cost_usd) if cost_usd is not None else 0.0)
-
                 raw_json = json.dumps(normalized_row, ensure_ascii=False)
-                to_insert.append(
-                    (
-                        project_name,
-                        usage_date,
-                        normalized_row.get("ResourceId"),
-                        normalized_row.get("ResourceType"),
-                        normalized_row.get("ResourceLocation"),
-                        normalized_row.get("ResourceGroupName"),
-                        normalized_row.get("ServiceName"),
-                        normalized_row.get("ServiceTier"),
-                        normalized_row.get("Meter"),
-                        cost_usd,
-                        cost,
-                        normalized_row.get("Currency"),
-                        None,
-                        raw_json,
-                        file_path_rel,
-                        row_index,
-                    )
+                op = _upsert_one_billing_row(
+                    conn,
+                    project_name=project_name,
+                    file_path_rel=file_path_rel,
+                    source_row_index=row_index,
+                    usage_date=usage_date,
+                    normalized_row=normalized_row,
+                    cost_usd=cost_usd,
+                    cost=cost,
+                    raw_json=raw_json,
                 )
+                if op == "insert":
+                    file_ins += 1
+                else:
+                    file_upd += 1
                 row_index += 1
 
-        conn.executemany(
-            """
-            INSERT INTO transactions(
-                project_name, usage_date,
-                resource_id, resource_type, resource_location, resource_group_name,
-                service_name, service_tier, meter,
-                cost_usd, cost, currency, forecast_cost,
-                raw_json, source_file, source_row_index
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            to_insert,
-        )
-
+        data_rows = file_ins + file_upd
         conn.execute(
             """
             INSERT INTO ingested_files(
@@ -464,20 +546,20 @@ def ingest_all(
                 file_path_rel,
                 checksum,
                 SCHEMA_VERSION,
-                len(to_insert),
+                data_rows,
                 csv_path_abs.stat().st_mtime,
                 json.dumps(raw_columns, ensure_ascii=False),
             ),
         )
 
-        # Audit ("对数") verification: parsed CSV totals must match DB rows for this source file.
         try:
-            _verify_ingestion_for_file(
+            _verify_billing_merge_csv(
                 conn,
                 project_name=project_name,
                 file_path_rel=file_path_rel,
                 checksum_sha256=checksum,
-                expected_by_date=expected_by_date,
+                csv_path_abs=csv_path_abs,
+                expected_row_count=data_rows,
             )
             conn.execute("RELEASE ingest_file")
             conn.commit()
@@ -489,7 +571,9 @@ def ingest_all(
             raise
 
         files_ingested += 1
-        rows_ingested += len(to_insert)
+        rows_ingested += data_rows
+        rows_inserted += file_ins
+        rows_updated += file_upd
 
     conn.close()
     return IngestResult(
@@ -498,6 +582,8 @@ def ingest_all(
         files_skipped=files_skipped,
         files_ingested=files_ingested,
         rows_ingested=rows_ingested,
+        rows_inserted=rows_inserted,
+        rows_updated=rows_updated,
         files_verified=files_verified,
         verification_passed=verification_passed,
     )
@@ -525,6 +611,8 @@ def ingest_selected(
     files_skipped = 0
     files_ingested = 0
     rows_ingested = 0
+    rows_inserted = 0
+    rows_updated = 0
     files_verified = 0
     verification_passed = True
 
@@ -548,17 +636,16 @@ def ingest_selected(
                 continue
 
             conn.execute("SAVEPOINT ingest_file")
-            conn.execute("DELETE FROM transactions WHERE source_file = ?", (file_path_rel,))
             conn.execute("DELETE FROM ingested_files WHERE file_path = ?", (file_path_rel,))
         else:
             checksum = _sha256_file(csv_path_abs)
             conn.execute("SAVEPOINT ingest_file")
 
-        expected_by_date: dict[str, dict[str, object]] = {}
+        file_ins = 0
+        file_upd = 0
         with csv_path_abs.open("r", newline="", encoding="utf-8-sig") as f:
             reader = csv.DictReader(f)
             raw_columns = reader.fieldnames or []
-            to_insert: list[tuple] = []
             row_index = 0
             for row in reader:
                 usage_date, normalized_row, cost_usd, cost = _extract_row(row)
@@ -566,49 +653,25 @@ def ingest_selected(
                     row_index += 1
                     continue
 
-                if usage_date not in expected_by_date:
-                    expected_by_date[usage_date] = {"count": 0, "cost_sum": 0.0}
-                expected_by_date[usage_date]["count"] = int(expected_by_date[usage_date]["count"]) + 1
-                expected_by_date[usage_date]["cost_sum"] = float(expected_by_date[usage_date]["cost_sum"]) + (
-                    float(cost_usd) if cost_usd is not None else 0.0
-                )
-
                 raw_json = json.dumps(normalized_row, ensure_ascii=False)
-                to_insert.append(
-                    (
-                        project_name,
-                        usage_date,
-                        normalized_row.get("ResourceId"),
-                        normalized_row.get("ResourceType"),
-                        normalized_row.get("ResourceLocation"),
-                        normalized_row.get("ResourceGroupName"),
-                        normalized_row.get("ServiceName"),
-                        normalized_row.get("ServiceTier"),
-                        normalized_row.get("Meter"),
-                        cost_usd,
-                        cost,
-                        normalized_row.get("Currency"),
-                        None,
-                        raw_json,
-                        file_path_rel,
-                        row_index,
-                    )
+                op = _upsert_one_billing_row(
+                    conn,
+                    project_name=project_name,
+                    file_path_rel=file_path_rel,
+                    source_row_index=row_index,
+                    usage_date=usage_date,
+                    normalized_row=normalized_row,
+                    cost_usd=cost_usd,
+                    cost=cost,
+                    raw_json=raw_json,
                 )
+                if op == "insert":
+                    file_ins += 1
+                else:
+                    file_upd += 1
                 row_index += 1
 
-        conn.executemany(
-            """
-            INSERT INTO transactions(
-                project_name, usage_date,
-                resource_id, resource_type, resource_location, resource_group_name,
-                service_name, service_tier, meter,
-                cost_usd, cost, currency, forecast_cost,
-                raw_json, source_file, source_row_index
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            to_insert,
-        )
-
+        data_rows = file_ins + file_upd
         conn.execute(
             """
             INSERT INTO ingested_files(
@@ -621,18 +684,19 @@ def ingest_selected(
                 file_path_rel,
                 checksum,
                 SCHEMA_VERSION,
-                len(to_insert),
+                data_rows,
                 csv_path_abs.stat().st_mtime,
                 json.dumps(raw_columns, ensure_ascii=False),
             ),
         )
         try:
-            _verify_ingestion_for_file(
+            _verify_billing_merge_csv(
                 conn,
                 project_name=project_name,
                 file_path_rel=file_path_rel,
                 checksum_sha256=checksum,
-                expected_by_date=expected_by_date,
+                csv_path_abs=csv_path_abs,
+                expected_row_count=data_rows,
             )
             conn.execute("RELEASE ingest_file")
             conn.commit()
@@ -644,7 +708,9 @@ def ingest_selected(
             raise
 
         files_ingested += 1
-        rows_ingested += len(to_insert)
+        rows_ingested += data_rows
+        rows_inserted += file_ins
+        rows_updated += file_upd
 
     conn.close()
     return IngestResult(
@@ -653,6 +719,8 @@ def ingest_selected(
         files_skipped=files_skipped,
         files_ingested=files_ingested,
         rows_ingested=rows_ingested,
+        rows_inserted=rows_inserted,
+        rows_updated=rows_updated,
         files_verified=files_verified,
         verification_passed=verification_passed,
     )

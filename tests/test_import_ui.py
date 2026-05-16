@@ -54,6 +54,8 @@ def test_import_missing_files_flow(tmp_path):
     run_data = res.json()
     assert run_data["files_ingested"] == 1
     assert run_data["rows_ingested"] == 2
+    assert run_data["billing_rows_inserted"] == 2
+    assert run_data["billing_rows_updated"] == 0
 
     res = client.get("/api/import/missing-files")
     assert res.status_code == 200
@@ -113,6 +115,8 @@ def test_import_selected_files_flow(tmp_path):
     run_data = res.json()
     assert run_data["files_ingested"] == 1
     assert run_data["rows_ingested"] == 1
+    assert run_data["billing_rows_inserted"] == 1
+    assert run_data["billing_rows_updated"] == 0
 
     res = client.get("/api/import/missing-files")
     assert res.status_code == 200

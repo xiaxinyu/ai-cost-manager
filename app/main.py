@@ -691,6 +691,8 @@ def create_app(
                     "billing_files_ingested": billing_result.files_ingested,
                     "token_files_ingested": token_result.files_ingested,
                     "billing_rows_ingested": billing_result.rows_ingested,
+                    "billing_rows_inserted": billing_result.rows_inserted,
+                    "billing_rows_updated": billing_result.rows_updated,
                     "token_rows_ingested": token_result.rows_ingested,
                     "price_source_catalog": _price_source_catalog_snapshot(),
                 }
@@ -707,6 +709,8 @@ def create_app(
                     "files_verified": 0,
                     "verification_passed": False,
                     "import_error": str(e),
+                    "billing_rows_inserted": 0,
+                    "billing_rows_updated": 0,
                     "price_source_catalog": _price_source_catalog_snapshot(),
                 }
             )

@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any, Iterable
 
 
-SCHEMA_VERSION = 6
+SCHEMA_VERSION = 7
 
 EXPECTED_CSV_COLUMNS = [
     "UsageDate",
@@ -204,6 +204,7 @@ def init_db(conn: sqlite3.Connection) -> None:
     conn.commit()
 
     _migrate_billing_rows_if_needed(conn)
+    _migrate_transactions_dedupe_billing_natural_key(conn)
     _migrate_model_prices_source_detail_json(conn)
     _ensure_price_source_catalog(conn)
 
@@ -280,6 +281,52 @@ def _migrate_billing_rows_if_needed(conn: sqlite3.Connection) -> None:
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         insert_rows,
+    )
+    conn.commit()
+
+
+def _migrate_transactions_dedupe_billing_natural_key(conn: sqlite3.Connection) -> None:
+    """
+    One-time: collapse duplicate billing rows that share the same natural key
+    (project_name, usage_date, resource_group_name, service_tier, meter), keeping the newest id.
+    Enables cross-file upsert semantics (later import replaces earlier for the same meter line).
+    """
+    row = conn.execute("SELECT value FROM meta WHERE key = 'billing_natural_dedupe_v1'").fetchone()
+    if row is not None and str(row["value"]).strip() == "1":
+        return
+    if not _table_exists(conn, "transactions"):
+        return
+    cnt = int(conn.execute("SELECT COUNT(*) AS c FROM transactions").fetchone()["c"])
+    if cnt == 0:
+        conn.execute(
+            """
+            INSERT INTO meta(key, value) VALUES ('billing_natural_dedupe_v1', '1')
+            ON CONFLICT(key) DO UPDATE SET value = excluded.value
+            """
+        )
+        conn.commit()
+        return
+
+    conn.execute(
+        """
+        DELETE FROM transactions
+        WHERE id NOT IN (
+            SELECT MAX(id)
+            FROM transactions
+            GROUP BY
+                project_name,
+                usage_date,
+                COALESCE(resource_group_name, ''),
+                COALESCE(service_tier, ''),
+                COALESCE(meter, '')
+        )
+        """
+    )
+    conn.execute(
+        """
+        INSERT INTO meta(key, value) VALUES ('billing_natural_dedupe_v1', '1')
+        ON CONFLICT(key) DO UPDATE SET value = excluded.value
+        """
     )
     conn.commit()
 
