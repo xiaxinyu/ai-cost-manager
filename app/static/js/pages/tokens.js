@@ -180,13 +180,24 @@
       .map((m) => {
         const cin = m.catalog_usd_per_1m_input != null ? fmtUsdPer1m(m.catalog_usd_per_1m_input, ccy) : "—";
         const cout = m.catalog_usd_per_1m_output != null ? fmtUsdPer1m(m.catalog_usd_per_1m_output, ccy) : "—";
-        return `${m.model_name}: list in ${cin}, out ${cout}`;
+        const daily = m.daily || [];
+        const last = daily.length ? daily[daily.length - 1] : null;
+        let delta = "";
+        if (last) {
+          const pin = pctVsCatalog(last.usd_per_1m_input, m.catalog_usd_per_1m_input);
+          const pout = pctVsCatalog(last.usd_per_1m_output, m.catalog_usd_per_1m_output);
+          const bits = [];
+          if (pin != null) bits.push(`in ${pin >= 0 ? "+" : ""}${pin.toFixed(0)}%`);
+          if (pout != null) bits.push(`out ${pout >= 0 ? "+" : ""}${pout.toFixed(0)}%`);
+          if (bits.length) delta = ` · latest vs list: ${bits.join(", ")}`;
+        }
+        return `${m.model_name}: list in ${cin}, out ${cout}${delta}`;
       });
     if (!parts.length) {
       els.catalogRefLine.hidden = true;
       return;
     }
-    els.catalogRefLine.textContent = `Catalog list price (reference): ${parts.join(" · ")}`;
+    els.catalogRefLine.textContent = `Dashed lines = catalog list (model_prices). ${parts.join(" · ")}`;
     els.catalogRefLine.hidden = false;
   }
 
@@ -246,21 +257,84 @@
     return { available: models.length > 0, models };
   }
 
+  function normalizeModelKey(name) {
+    return String(name || "")
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, "-");
+  }
+
+  function findCatalogModel(modelName, catalogModels) {
+    const target = normalizeModelKey(modelName);
+    if (!target) return null;
+    let exact = null;
+    let fuzzy = null;
+    for (const c of catalogModels || []) {
+      const cn = normalizeModelKey(c.model_name);
+      if (cn === target) {
+        exact = c;
+        break;
+      }
+      if (!fuzzy && (cn.includes(target) || target.includes(cn))) {
+        fuzzy = c;
+      }
+    }
+    return exact || fuzzy;
+  }
+
   function mergeCatalogPrices(tablePayload, catalogPayload) {
-    if (!catalogPayload?.models?.length) return tablePayload;
-    const catBy = new Map(catalogPayload.models.map((m) => [m.model_name, m]));
+    const catalogModels = catalogPayload?.models || [];
+    const tableModels = tablePayload?.models || [];
+    if (!catalogModels.length) return tablePayload;
     return {
       ...tablePayload,
       currency: catalogPayload.currency || tablePayload.currency,
-      models: (tablePayload.models || []).map((m) => {
-        const cat = catBy.get(m.model_name) || {};
+      models: tableModels.map((m) => {
+        const cat = findCatalogModel(m.model_name, catalogModels) || {};
         return {
           ...m,
-          catalog_usd_per_1m_input: cat.catalog_usd_per_1m_input,
-          catalog_usd_per_1m_output: cat.catalog_usd_per_1m_output,
+          catalog_usd_per_1m_input: cat.catalog_usd_per_1m_input ?? m.catalog_usd_per_1m_input,
+          catalog_usd_per_1m_output: cat.catalog_usd_per_1m_output ?? m.catalog_usd_per_1m_output,
         };
       }),
     };
+  }
+
+  /** Horizontal dashed lines: catalog list price (USD/1M) from model_prices. */
+  function catalogReferenceDatasets(labels, models, catalogKey) {
+    const datasets = [];
+    (models || []).forEach((model, idx) => {
+      const raw = model[catalogKey];
+      if (raw == null || !Number.isFinite(Number(raw))) return;
+      const y = Number(raw);
+      const col = MODEL_CHART_COLORS[idx % MODEL_CHART_COLORS.length];
+      const name = model.model_name || "model";
+      datasets.push({
+        label: `${name} (list)`,
+        data: (labels || []).map(() => y),
+        borderColor: col.border,
+        backgroundColor: "transparent",
+        borderDash: [7, 5],
+        borderWidth: 1.6,
+        pointRadius: 0,
+        pointHoverRadius: 0,
+        tension: 0,
+        fill: false,
+        spanGaps: true,
+        order: 0,
+        catalogReference: true,
+      });
+    });
+    return datasets;
+  }
+
+  function pctVsCatalog(actual, catalog) {
+    if (actual == null || catalog == null || !Number.isFinite(Number(actual)) || !Number.isFinite(Number(catalog))) {
+      return null;
+    }
+    const c = Number(catalog);
+    if (c <= 0) return null;
+    return ((Number(actual) - c) / c) * 100;
   }
 
   function modelLineDatasets(labels, models, valueKey) {
@@ -287,6 +361,7 @@
         pointHoverRadius: 4,
         borderWidth: 2,
         spanGaps: true,
+        order: 1,
       });
     });
     return datasets;
@@ -318,7 +393,7 @@
       0
     );
     if (els.unitPriceNote) {
-      els.unitPriceNote.textContent = `$/1M = cost ÷ tokens × 1,000,000 · ${tStart} → ${tEnd} · ${overlapDays} model-days · ${ccy || "USD"}/1M`;
+      els.unitPriceNote.textContent = `Solid = actual (cost ÷ tokens × 1M). Dashed = catalog list price. ${tStart} → ${tEnd} · ${overlapDays} model-days · ${ccy || "USD"}/1M`;
     }
     const labels =
       chartLabels?.length > 0
@@ -327,8 +402,14 @@
     const labelsFromPts = pts.map((p) => p.date);
     const xLabels = labels.length ? labels : labelsFromPts;
     const models = modelPayload?.models || [];
-    let datasetsIn = modelLineDatasets(xLabels, models, "usd_per_1m_input");
-    let datasetsOut = modelLineDatasets(xLabels, models, "usd_per_1m_output");
+    let datasetsIn = [
+      ...catalogReferenceDatasets(xLabels, models, "catalog_usd_per_1m_input"),
+      ...modelLineDatasets(xLabels, models, "usd_per_1m_input"),
+    ];
+    let datasetsOut = [
+      ...catalogReferenceDatasets(xLabels, models, "catalog_usd_per_1m_output"),
+      ...modelLineDatasets(xLabels, models, "usd_per_1m_output"),
+    ];
     const Ch = window.AppChartStyle?.colors || {};
     if (!datasetsIn.length) {
       const dataIn = pts.map((p) => (p.usd_per_1m_input != null ? Number(p.usd_per_1m_input) : null));
@@ -416,7 +497,15 @@
           ...chartLineDefaults,
           plugins: {
             decimation: { enabled: true, algorithm: "min-max" },
-            legend: { display: true, position: "top", labels: { color: "#e6edf3", font: { size: 12, weight: "600" } } },
+            legend: {
+              display: true,
+              position: "top",
+              labels: {
+                color: "#e6edf3",
+                font: { size: 12, weight: "600" },
+                filter: (item) => item.text != null,
+              },
+            },
             tooltip: {
               enabled: true,
               backgroundColor: "rgba(11,18,32,0.92)",
@@ -426,8 +515,24 @@
                 label: (ctx2) => {
                   const v = ctx2.parsed?.y;
                   if (v === null || v === undefined || !Number.isFinite(Number(v))) return `${ctx2.dataset.label}: -`;
-                  const u = ccy ? ` ${ccy}` : "";
-                  return `${ctx2.dataset.label}: ${fmtUsdPer1m(v, ccy)}`;
+                  const isList = ctx2.dataset.catalogReference === true || String(ctx2.dataset.label || "").includes("(list)");
+                  let line = `${ctx2.dataset.label}: ${fmtUsdPer1m(v, ccy)}`;
+                  if (!isList && models.length) {
+                    const modelLabel = String(ctx2.dataset.label || "");
+                    const m = models.find((x) => x.model_name === modelLabel);
+                    if (m) {
+                      const catKey =
+                        ctx2.chart?.canvas?.id === "impliedUnitPriceOutputChart"
+                          ? "catalog_usd_per_1m_output"
+                          : "catalog_usd_per_1m_input";
+                      const cat = m[catKey];
+                      const pct = pctVsCatalog(v, cat);
+                      if (pct != null) {
+                        line += ` (${pct >= 0 ? "+" : ""}${pct.toFixed(0)}% vs list)`;
+                      }
+                    }
+                  }
+                  return line;
                 },
               },
             },
@@ -1184,7 +1289,7 @@
       }
       const mp = mergeCatalogPrices(mpFromTable, mpCatalog);
       try {
-        renderCatalogRefLine(mpCatalog, stats.currency);
+        renderCatalogRefLine(mp, stats.currency);
         renderImpliedUnitPrices(
           { available: true, currency: stats.currency, from_date: tokenRangeStart, to_date: tokenRangeEnd },
           stats.currency,
