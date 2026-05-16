@@ -798,6 +798,12 @@ def get_imported_token_daily_by_model(
         out_raw = c.get("output_cost_usd")
         total_raw = c.get("total_cost_usd")
         has_cost = method != "no_cost_overlap"
+        usd_per_1m_input: float | None = None
+        usd_per_1m_output: float | None = None
+        if has_cost and in_raw is not None and in_tok > 0 and float(in_raw) > 0:
+            usd_per_1m_input = round_cost((float(in_raw) / in_tok) * TOKENS_PER_MILLION)
+        if has_cost and out_raw is not None and out_tok > 0 and float(out_raw) > 0:
+            usd_per_1m_output = round_cost((float(out_raw) / out_tok) * TOKENS_PER_MILLION)
         out.append(
             {
                 "date": d,
@@ -820,6 +826,8 @@ def get_imported_token_daily_by_model(
                     if has_cost and total_raw is not None
                     else None
                 ),
+                "usd_per_1m_input": usd_per_1m_input,
+                "usd_per_1m_output": usd_per_1m_output,
                 "allocation_method": method,
             }
         )

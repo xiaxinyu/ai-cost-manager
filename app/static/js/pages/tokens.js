@@ -173,6 +173,79 @@
     if (els.billingPricingNote) els.billingPricingNote.innerHTML = BILLING_PRICING_NOTE_DEFAULT;
   }
 
+  function moneyStats(vals) {
+    const nums = (vals || []).filter((v) => v != null && Number.isFinite(Number(v))).map(Number);
+    if (!nums.length) return { min: null, max: null, mean: null, median: null, count: 0 };
+    const sorted = [...nums].sort((a, b) => a - b);
+    const sum = nums.reduce((a, b) => a + b, 0);
+    const mid = Math.floor(sorted.length / 2);
+    const median =
+      sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
+    const round = (x) => window.AppMoney?.roundCost(x) ?? Math.round(x * 100) / 100;
+    return {
+      min: round(sorted[0]),
+      max: round(sorted[sorted.length - 1]),
+      mean: round(sum / nums.length),
+      median: round(median),
+      count: nums.length,
+    };
+  }
+
+  /** Unit prices derived from daily detail: cost_usd ÷ tokens × 1M (same as the table). */
+  function modelUnitPricesFromDaily(dailyByModel) {
+    const byModel = new Map();
+    for (const row of dailyByModel || []) {
+      const name = row.model_name || "model";
+      if (!byModel.has(name)) {
+        byModel.set(name, { model_name: name, daily: [] });
+      }
+      byModel.get(name).daily.push({
+        date: row.date,
+        usd_per_1m_input: row.usd_per_1m_input,
+        usd_per_1m_output: row.usd_per_1m_output,
+      });
+    }
+    const models = [...byModel.values()].map((m) => {
+      const inVals = m.daily.map((d) => d.usd_per_1m_input);
+      const outVals = m.daily.map((d) => d.usd_per_1m_output);
+      return {
+        ...m,
+        stats: {
+          input: moneyStats(inVals),
+          output: moneyStats(outVals),
+          blended: moneyStats(
+            m.daily
+              .map((d) => {
+                const a = d.usd_per_1m_input;
+                const b = d.usd_per_1m_output;
+                if (a != null && b != null) return (Number(a) + Number(b)) / 2;
+                return a != null ? a : b;
+              })
+              .filter((v) => v != null)
+          ),
+        },
+      };
+    });
+    return { available: models.length > 0, models };
+  }
+
+  function mergeCatalogPrices(tablePayload, catalogPayload) {
+    if (!catalogPayload?.models?.length) return tablePayload;
+    const catBy = new Map(catalogPayload.models.map((m) => [m.model_name, m]));
+    return {
+      ...tablePayload,
+      currency: catalogPayload.currency || tablePayload.currency,
+      models: (tablePayload.models || []).map((m) => {
+        const cat = catBy.get(m.model_name) || {};
+        return {
+          ...m,
+          catalog_usd_per_1m_input: cat.catalog_usd_per_1m_input,
+          catalog_usd_per_1m_output: cat.catalog_usd_per_1m_output,
+        };
+      }),
+    };
+  }
+
   function renderModelUnitPrices(payload, impliedPayload, billingCurrency) {
     if (!els.modelPricingCol || !els.modelUnitPriceTbody) return;
     els.modelUnitPriceTbody.innerHTML = "";
@@ -213,7 +286,10 @@
           `;
       els.modelUnitPriceTbody.appendChild(tr);
     }
-    const metrics = [{ key: "blended", label: "Blended (allocated)", catalogIn: "catalog_usd_per_1m_input", catalogOut: "catalog_usd_per_1m_output" }];
+    const metrics = [
+      { key: "input", label: "Input (table cost ÷ tokens)", catalogIn: "catalog_usd_per_1m_input", catalogOut: "catalog_usd_per_1m_output" },
+      { key: "output", label: "Output (table cost ÷ tokens)", catalogIn: "catalog_usd_per_1m_input", catalogOut: "catalog_usd_per_1m_output" },
+    ];
     for (const model of payload.models || []) {
       for (const m of metrics) {
         const st = model.stats?.[m.key];
@@ -273,7 +349,7 @@
     return datasets;
   }
 
-  function renderImpliedUnitPrices(payload, billingCurrency, tokenRange, modelPayload) {
+  function renderImpliedUnitPrices(payload, billingCurrency, tokenRange, modelPayload, chartLabels) {
     if (!els.impliedChartsRow) return;
     if (chartImpliedUnitInput) chartImpliedUnitInput.destroy();
     if (chartImpliedUnitOutput) chartImpliedUnitOutput.destroy();
@@ -297,20 +373,28 @@
     const tStart = tokenRange?.start || payload.from_date || "—";
     const tEnd = tokenRange?.end || payload.to_date || "—";
     const pts = payload.points || [];
-    const overlapDays = pts.filter(
-      (p) =>
-        Number.isFinite(Number(p?.usd_per_1m_input)) || Number.isFinite(Number(p?.usd_per_1m_output))
-    ).length;
+    const overlapDays = (modelPayload?.models || []).reduce(
+      (n, m) => n + (m.daily || []).filter(
+        (d) =>
+          Number.isFinite(Number(d?.usd_per_1m_input)) || Number.isFinite(Number(d?.usd_per_1m_output))
+      ).length,
+      0
+    );
     if (els.impliedUnitPriceHint) {
-      els.impliedUnitPriceHint.textContent = `Token window: ${tStart} → ${tEnd} · overlap days: ${overlapDays} · ${ccy || "-"} / 1M`;
+      els.impliedUnitPriceHint.textContent = `From daily table · ${tStart} → ${tEnd} · ${overlapDays} model-days · ${ccy || "-"} / 1M`;
     }
     if (els.billingPricingNote) {
-      els.billingPricingNote.innerHTML = `Imported-token calendar: <strong>${tStart}</strong> → <strong>${tEnd}</strong>. Unified table includes project unit-price rows + model blended rows in the same unit (<strong>${ccy || "USD"}/1M tokens</strong>).`;
+      els.billingPricingNote.innerHTML = `Unit price = table cost ÷ tokens × 1M (<strong>${ccy || "USD"}/1M</strong>). Calendar: <strong>${tStart}</strong> → <strong>${tEnd}</strong>.`;
     }
-    const labels = pts.map((p) => p.date);
+    const labels =
+      chartLabels?.length > 0
+        ? chartLabels
+        : [...new Set((modelPayload?.models || []).flatMap((m) => (m.daily || []).map((d) => d.date)))].sort();
+    const labelsFromPts = pts.map((p) => p.date);
+    const xLabels = labels.length ? labels : labelsFromPts;
     const models = modelPayload?.models || [];
-    let datasetsIn = modelLineDatasets(labels, models, "usd_per_1m_input");
-    let datasetsOut = modelLineDatasets(labels, models, "usd_per_1m_output");
+    let datasetsIn = modelLineDatasets(xLabels, models, "usd_per_1m_input");
+    let datasetsOut = modelLineDatasets(xLabels, models, "usd_per_1m_output");
     const Ch = window.AppChartStyle?.colors || {};
     if (!datasetsIn.length) {
       const dataIn = pts.map((p) => (p.usd_per_1m_input != null ? Number(p.usd_per_1m_input) : null));
@@ -367,7 +451,7 @@
     const yTickFmt = (value) => {
       const n = Number(value);
       if (!Number.isFinite(n)) return String(value);
-      return fmtUsdPer1m(n);
+      return fmtUsdPer1m(n, ccy);
     };
 
     const scales = {
@@ -391,7 +475,7 @@
       new Chart(ctx, {
         type: "line",
         data: {
-          labels,
+          labels: xLabels,
           datasets,
         },
         options: {
@@ -409,7 +493,7 @@
                   const v = ctx2.parsed?.y;
                   if (v === null || v === undefined || !Number.isFinite(Number(v))) return `${ctx2.dataset.label}: -`;
                   const u = ccy ? ` ${ccy}` : "";
-                  return `${ctx2.dataset.label}: ${fmtUsdPer1m(v, currency)}`;
+                  return `${ctx2.dataset.label}: ${fmtUsdPer1m(v, ccy)}`;
                 },
               },
             },
@@ -1130,24 +1214,34 @@
       if (tokenRangeEnd) pricingParams.set("end_date", tokenRangeEnd);
       if (stats.currency) pricingParams.set("currency", stats.currency);
 
-      let mp = { available: false };
+      const dailyForPricing = series.daily_by_model || [];
+      const chartDates = [...new Set(dailyForPricing.map((r) => r.date))].sort();
+      const mpFromTable = modelUnitPricesFromDaily(dailyForPricing);
+      let mpCatalog = { available: false };
       try {
-        mp = await window.AppHttp.getJson(
+        mpCatalog = await window.AppHttp.getJson(
           `/api/projects/${encodeURIComponent(project)}/model-unit-prices?${pricingParams.toString()}`
         );
       } catch (e) {
-        console.warn("Model unit prices unavailable", e);
+        console.warn("Catalog list prices unavailable", e);
       }
+      const mp = mergeCatalogPrices(mpFromTable, mpCatalog);
       let ip = { available: false };
       try {
         ip = await window.AppHttp.getJson(
           `/api/projects/${encodeURIComponent(project)}/implied-unit-prices-timeseries?${pricingParams.toString()}`
         );
       } catch (e) {
-        console.warn("Implied unit price series unavailable", e);
+        console.warn("Project implied unit price series unavailable", e);
       }
       try {
-        renderImpliedUnitPrices(ip, stats.currency, { start: tokenRangeStart, end: tokenRangeEnd }, mp);
+        renderImpliedUnitPrices(
+          { available: true, currency: stats.currency, from_date: tokenRangeStart, to_date: tokenRangeEnd, points: [] },
+          stats.currency,
+          { start: tokenRangeStart, end: tokenRangeEnd },
+          mp,
+          chartDates
+        );
         renderModelUnitPrices(mp, ip, stats.currency);
       } catch (e) {
         console.error("Billing pricing panels failed", e);

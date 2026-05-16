@@ -74,6 +74,8 @@ def test_import_api_billing_and_token_together(tmp_path):
     assert "input_cost_usd" in daily[0]
     assert "output_cost_usd" in daily[0]
     assert "total_cost_usd" in daily[0]
+    assert "usd_per_1m_input" in daily[0]
+    assert "usd_per_1m_output" in daily[0]
     assert daily[0]["allocation_method"] in {
         "meter_matched",
         "proportional_by_daily_tokens",
