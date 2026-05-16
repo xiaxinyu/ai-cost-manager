@@ -67,6 +67,10 @@ def test_import_api_billing_and_token_together(tmp_path):
     assert series["token_data_source"] == "imported"
     assert series["points"][0]["estimated_input_tokens"] == 1_000_000.0
     assert len(series.get("breakdown_by_model") or []) >= 1
+    daily = series.get("daily_by_model") or []
+    assert len(daily) >= 1
+    assert daily[0]["model_name"]
+    assert daily[0]["input_tokens"] > 0
     assert series.get("import_meta", {}).get("model_count") >= 1
 
     report = client.get("/api/reports/all-financial?project_names=rg-techlab-ai-coding").json()

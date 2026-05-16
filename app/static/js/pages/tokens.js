@@ -102,19 +102,27 @@
       },
     };
   }
-  let lastTokenRows = [];
+  let lastDailyModelRows = [];
   let lastSource = "estimated";
   let projectsWithImportedTokens = [];
   let dailyPage = 1;
   let modelPage = 1;
   let lastModelBreakdown = [];
-  let lastTableMeta = { ratioByDate: new Map() };
   let chartLabels = {
     input: "Input tokens",
     output: "Output tokens",
     total: "Total tokens",
   };
-  const DAILY_TABLE_COL_COUNT = 4;
+  const DAILY_TABLE_COL_COUNT = 5;
+
+  const MODEL_CHART_COLORS = [
+    { border: "#60a5fa", fill: "rgba(96, 165, 250, 0.12)" },
+    { border: "#a78bfa", fill: "rgba(167, 139, 250, 0.12)" },
+    { border: "#5eead4", fill: "rgba(94, 234, 212, 0.12)" },
+    { border: "#fbbf24", fill: "rgba(251, 191, 36, 0.12)" },
+    { border: "#f87171", fill: "rgba(248, 113, 113, 0.12)" },
+    { border: "#34d399", fill: "rgba(52, 211, 153, 0.12)" },
+  ];
 
   function fmtInt(v) {
     if (v === null || v === undefined || !Number.isFinite(Number(v))) return "-";
@@ -230,7 +238,36 @@
     syncBillingPricingSection();
   }
 
-  function renderImpliedUnitPrices(payload, billingCurrency, tokenRange) {
+  function modelLineDatasets(labels, models, valueKey) {
+    const datasets = [];
+    (models || []).forEach((model, idx) => {
+      const daily = model.daily || [];
+      if (!daily.length) return;
+      const byDate = new Map(daily.map((d) => [d.date, d]));
+      const series = labels.map((d) => {
+        const row = byDate.get(d);
+        const raw = row?.[valueKey];
+        return raw != null && Number.isFinite(Number(raw)) ? Number(raw) : null;
+      });
+      if (!series.some((v) => v !== null && Number.isFinite(v))) return;
+      const col = MODEL_CHART_COLORS[idx % MODEL_CHART_COLORS.length];
+      datasets.push({
+        label: model.model_name || "model",
+        data: series,
+        borderColor: col.border,
+        backgroundColor: col.fill,
+        fill: false,
+        tension: 0.22,
+        pointRadius: 2,
+        pointHoverRadius: 4,
+        borderWidth: 2,
+        spanGaps: true,
+      });
+    });
+    return datasets;
+  }
+
+  function renderImpliedUnitPrices(payload, billingCurrency, tokenRange, modelPayload) {
     if (!els.impliedChartsRow) return;
     if (chartImpliedUnitInput) chartImpliedUnitInput.destroy();
     if (chartImpliedUnitOutput) chartImpliedUnitOutput.destroy();
@@ -265,10 +302,46 @@
       els.billingPricingNote.innerHTML = `Imported-token calendar: <strong>${tStart}</strong> → <strong>${tEnd}</strong>. Unified table includes project unit-price rows + model blended rows in the same unit (<strong>${ccy || "USD"}/1M tokens</strong>).`;
     }
     const labels = pts.map((p) => p.date);
-    const dataIn = pts.map((p) => (p.usd_per_1m_input != null ? Number(p.usd_per_1m_input) : null));
-    const dataOut = pts.map((p) => (p.usd_per_1m_output != null ? Number(p.usd_per_1m_output) : null));
-    const hasIn = dataIn.some((v) => v !== null && Number.isFinite(v));
-    const hasOut = dataOut.some((v) => v !== null && Number.isFinite(v));
+    const models = modelPayload?.models || [];
+    let datasetsIn = modelLineDatasets(labels, models, "usd_per_1m_input");
+    let datasetsOut = modelLineDatasets(labels, models, "usd_per_1m_output");
+    const Ch = window.AppChartStyle?.colors || {};
+    if (!datasetsIn.length) {
+      const dataIn = pts.map((p) => (p.usd_per_1m_input != null ? Number(p.usd_per_1m_input) : null));
+      datasetsIn = [
+        {
+          label: ccy ? `Project (${ccy}/1M in)` : "Project input",
+          data: dataIn,
+          borderColor: Ch.input || "#60a5fa",
+          backgroundColor: "rgba(96, 165, 250, 0.12)",
+          fill: true,
+          tension: 0.22,
+          pointRadius: 2,
+          pointHoverRadius: 4,
+          borderWidth: 2.2,
+          spanGaps: true,
+        },
+      ];
+    }
+    if (!datasetsOut.length) {
+      const dataOut = pts.map((p) => (p.usd_per_1m_output != null ? Number(p.usd_per_1m_output) : null));
+      datasetsOut = [
+        {
+          label: ccy ? `Project (${ccy}/1M out)` : "Project output",
+          data: dataOut,
+          borderColor: Ch.output || "#a78bfa",
+          backgroundColor: "rgba(167, 139, 250, 0.12)",
+          fill: true,
+          tension: 0.22,
+          pointRadius: 2,
+          pointHoverRadius: 4,
+          borderWidth: 2.2,
+          spanGaps: true,
+        },
+      ];
+    }
+    const hasIn = datasetsIn.some((ds) => (ds.data || []).some((v) => v !== null && Number.isFinite(v)));
+    const hasOut = datasetsOut.some((ds) => (ds.data || []).some((v) => v !== null && Number.isFinite(v)));
 
     const ctxIn = document.getElementById("impliedUnitPriceInputChart")?.getContext("2d");
     const ctxOut = document.getElementById("impliedUnitPriceOutputChart")?.getContext("2d");
@@ -277,7 +350,6 @@
       return;
     }
 
-    const Ch = window.AppChartStyle?.colors || {};
     const xTicks = {
       color: "#9fb2c7",
       font: { size: 11, weight: "500" },
@@ -309,25 +381,12 @@
         },
       },
     };
-    const buildChart = (ctx, series, label, color, bg, emptyMsg) =>
+    const buildChart = (ctx, datasets, emptyMsg) =>
       new Chart(ctx, {
         type: "line",
         data: {
           labels,
-          datasets: [
-            {
-              label,
-              data: series,
-              borderColor: color,
-              backgroundColor: bg,
-              fill: true,
-              tension: 0.22,
-              pointRadius: 2,
-              pointHoverRadius: 4,
-              borderWidth: 2.2,
-              spanGaps: true,
-            },
-          ],
+          datasets,
         },
         options: {
           ...chartLineDefaults,
@@ -354,22 +413,8 @@
         plugins: [emptyStatePluginImplied(emptyMsg)],
       });
 
-    chartImpliedUnitInput = buildChart(
-      ctxIn,
-      dataIn,
-      ccy ? `Input unit price (${ccy}/1M)` : "Input unit price (/1M)",
-      Ch.input || "#60a5fa",
-      "rgba(96, 165, 250, 0.12)",
-      "No input unit-price days with billing overlap"
-    );
-    chartImpliedUnitOutput = buildChart(
-      ctxOut,
-      dataOut,
-      ccy ? `Output unit price (${ccy}/1M)` : "Output unit price (/1M)",
-      Ch.output || "#a78bfa",
-      "rgba(167, 139, 250, 0.12)",
-      "No output unit-price days with billing overlap"
-    );
+    chartImpliedUnitInput = buildChart(ctxIn, datasetsIn, "No input unit-price days with billing overlap");
+    chartImpliedUnitOutput = buildChart(ctxOut, datasetsOut, "No output unit-price days with billing overlap");
 
     if (!hasIn && chartImpliedUnitInput) chartImpliedUnitInput.update();
     if (!hasOut && chartImpliedUnitOutput) chartImpliedUnitOutput.update();
@@ -610,27 +655,53 @@
     };
   }
 
-  function renderTokenUsageCharts(points) {
+  function modelTokenDatasets(labels, dailyByModel, direction) {
+    const modelNames = [
+      ...new Set((dailyByModel || []).map((r) => r.model_name).filter(Boolean)),
+    ].sort();
+    if (!modelNames.length) return null;
+    const byKey = new Map(
+      (dailyByModel || []).map((r) => [`${r.date}\0${r.model_name}`, r])
+    );
+    const key = direction === "output" ? "output_tokens" : "input_tokens";
+    return modelNames.map((name, idx) => {
+      const data = labels.map((d) => {
+        const row = byKey.get(`${d}\0${name}`);
+        const v = row?.[key];
+        return v != null && Number(v) > 0 ? Number(v) : null;
+      });
+      const col = MODEL_CHART_COLORS[idx % MODEL_CHART_COLORS.length];
+      return _tokenLineDataset(name, data, col.border, col.fill);
+    });
+  }
+
+  function renderTokenUsageCharts(points, dailyByModel) {
     const labels = points.map((p) => p.date);
-    const inputData = points.map((p) => p.estimated_input_tokens);
-    const outputData = points.map((p) => p.estimated_output_tokens);
+    const inputDatasets =
+      modelTokenDatasets(labels, dailyByModel, "input") || [
+        _tokenLineDataset(
+          chartLabels.input,
+          points.map((p) => p.estimated_input_tokens),
+          C.input || "#60a5fa",
+          "rgba(96,165,250,0.14)"
+        ),
+      ];
+    const outputDatasets =
+      modelTokenDatasets(labels, dailyByModel, "output") || [
+        _tokenLineDataset(
+          chartLabels.output,
+          points.map((p) => p.estimated_output_tokens),
+          C.output || "#a78bfa",
+          "rgba(167,139,250,0.14)"
+        ),
+      ];
 
     const inputCtx = document.getElementById("tokenInputChart")?.getContext("2d");
     if (inputCtx) {
       if (tokenInputChart) tokenInputChart.destroy();
       tokenInputChart = new Chart(inputCtx, {
         type: "line",
-        data: {
-          labels,
-          datasets: [
-            _tokenLineDataset(
-              chartLabels.input,
-              inputData,
-              C.input || "#60a5fa",
-              "rgba(96,165,250,0.14)"
-            ),
-          ],
-        },
+        data: { labels, datasets: inputDatasets },
         options: chartOptions("tokens"),
       });
     }
@@ -640,17 +711,7 @@
       if (tokenOutputChart) tokenOutputChart.destroy();
       tokenOutputChart = new Chart(outputCtx, {
         type: "line",
-        data: {
-          labels,
-          datasets: [
-            _tokenLineDataset(
-              chartLabels.output,
-              outputData,
-              C.output || "#a78bfa",
-              "rgba(167,139,250,0.14)"
-            ),
-          ],
-        },
+        data: { labels, datasets: outputDatasets },
         options: chartOptions("tokens"),
       });
     }
@@ -739,30 +800,12 @@
     });
   }
 
-  function renderTable(points) {
-    if (points !== undefined) {
-      // Keep table state strictly aligned with visible columns only.
-      lastTokenRows = (points || [])
-        .map((p) => ({
-          date: p?.date || "",
-          input_tokens:
-            p?.estimated_input_tokens === null || p?.estimated_input_tokens === undefined
-              ? null
-              : Number(p.estimated_input_tokens),
-          output_tokens:
-            p?.estimated_output_tokens === null || p?.estimated_output_tokens === undefined
-              ? null
-              : Number(p.estimated_output_tokens),
-        }))
-        .reverse();
-      const ratioRows =
-        F.dailyTokenRatio?.(lastTokenRows, { inputKey: "input_tokens", outputKey: "output_tokens" }) || [];
-      lastTableMeta = {
-        ratioByDate: new Map(ratioRows.map((r) => [r.date, r.ratio])),
-      };
+  function renderTable(dailyByModel) {
+    if (dailyByModel !== undefined) {
+      lastDailyModelRows = (dailyByModel || []).slice();
     }
 
-    if (!lastTokenRows.length) {
+    if (!lastDailyModelRows.length) {
       els.rowsTbody.innerHTML = "";
       const tr = document.createElement("tr");
       const td = document.createElement("td");
@@ -777,39 +820,46 @@
       return;
     }
 
-    const { ratioByDate } = lastTableMeta;
     const pageSize = pageSizeFromSelect(els.dailyPageSizeSelect, 25);
 
     dailyPage = renderPagedSlice({
-      items: lastTokenRows,
+      items: lastDailyModelRows,
       page: dailyPage,
       pageSize,
       tbodyEl: els.rowsTbody,
       pageInfoEl: els.dailyPageInfo,
       prevBtn: els.dailyPrevBtn,
       nextBtn: els.dailyNextBtn,
-      label: "days",
+      label: "rows",
       renderRow: (p) => {
         const tr = document.createElement("tr");
-        const inVal = fmtInt(p.input_tokens);
-        const outVal = fmtInt(p.output_tokens);
         const tdDate = document.createElement("td");
         tdDate.className = "tdDate";
         tdDate.textContent = p.date || "";
 
+        const tdModel = document.createElement("td");
+        tdModel.className = "tdModel";
+        tdModel.textContent = p.model_name || "—";
+
         const tdInput = document.createElement("td");
         tdInput.className = "num tdInput";
-        tdInput.textContent = inVal;
+        tdInput.textContent = fmtInt(p.input_tokens);
 
         const tdOutput = document.createElement("td");
         tdOutput.className = "num tdOutput";
-        tdOutput.textContent = outVal;
+        tdOutput.textContent = fmtInt(p.output_tokens);
 
         const tdRatio = document.createElement("td");
         tdRatio.className = "num tdRatio";
-        tdRatio.textContent = fmtRatio(ratioByDate.get(p.date));
+        const ratio =
+          p.output_input_ratio != null && Number.isFinite(Number(p.output_input_ratio))
+            ? Number(p.output_input_ratio)
+            : p.input_tokens > 0 && p.output_tokens != null
+              ? Number(p.output_tokens) / Number(p.input_tokens)
+              : null;
+        tdRatio.textContent = fmtRatio(ratio);
 
-        tr.append(tdDate, tdInput, tdOutput, tdRatio);
+        tr.append(tdDate, tdModel, tdInput, tdOutput, tdRatio);
         els.rowsTbody.appendChild(tr);
       },
     });
@@ -822,17 +872,17 @@
   }
 
   function exportCsv() {
-    const ratioByDate = lastTableMeta?.ratioByDate || new Map();
-    const headers = ["date", "input_tokens", "output_tokens", "output_input_ratio"];
+    const headers = ["date", "model_name", "input_tokens", "output_tokens", "output_input_ratio"];
     const lines = [headers.join(",")];
-    for (const r of lastTokenRows) {
+    for (const r of lastDailyModelRows) {
+      const ratio =
+        r.output_input_ratio != null
+          ? r.output_input_ratio
+          : r.input_tokens > 0
+            ? Number(r.output_tokens) / Number(r.input_tokens)
+            : "";
       lines.push(
-        [
-          r.date,
-          r.input_tokens ?? "",
-          r.output_tokens ?? "",
-          ratioByDate.get(r.date) ?? "",
-        ]
+        [r.date, r.model_name ?? "", r.input_tokens ?? "", r.output_tokens ?? "", ratio]
           .map(csvEscape)
           .join(",")
       );
@@ -928,7 +978,7 @@
         console.warn("Implied unit price series unavailable", e);
       }
       try {
-        renderImpliedUnitPrices(ip, stats.currency, { start: tokenRangeStart, end: tokenRangeEnd });
+        renderImpliedUnitPrices(ip, stats.currency, { start: tokenRangeStart, end: tokenRangeEnd }, mp);
         renderModelUnitPrices(mp, ip, stats.currency);
       } catch (e) {
         console.error("Billing pricing panels failed", e);
@@ -942,7 +992,7 @@
         console.error("renderStats failed", e);
       }
       try {
-        renderTokenUsageCharts(points);
+        renderTokenUsageCharts(points, series.daily_by_model || []);
       } catch (e) {
         console.error("renderTokenUsageCharts failed", e);
       }
@@ -952,7 +1002,7 @@
         console.error("renderRatioChart failed", e);
       }
       try {
-        renderTable(points);
+        renderTable(series.daily_by_model || []);
       } catch (e) {
         console.error("renderTable failed", e);
       }

@@ -29,6 +29,7 @@ from .db import (
     get_project_stats,
     get_rows,
     get_imported_token_breakdown_by_model,
+    get_imported_token_daily_by_model,
     get_imported_token_models_with_prices,
     get_imported_token_meta,
     get_token_timeseries,
@@ -546,6 +547,12 @@ def create_app(
                     end_date=end_date,
                 )
                 payload["breakdown_by_model"] = get_imported_token_breakdown_by_model(
+                    conn,
+                    project_name,
+                    start_date=start_date,
+                    end_date=end_date,
+                )
+                payload["daily_by_model"] = get_imported_token_daily_by_model(
                     conn,
                     project_name,
                     start_date=start_date,

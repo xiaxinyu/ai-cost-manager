@@ -397,6 +397,19 @@
   white-space: nowrap;
 }
 
+.thModelCol {
+  min-width: 9rem;
+}
+
+.tokenTablePanel .tdModel {
+  font-size: 12px;
+  color: var(--text-subtle, #b8c5d6);
+  max-width: 14rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .thInputCol,
 .thOutputCol {
   width: 10rem;

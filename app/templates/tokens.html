@@ -200,7 +200,7 @@
               <div class="rowsToolbar">
                 <div>
                   <h2 class="sectionTitle">Daily detail</h2>
-                  <p class="muted" id="tableHint">Daily input/output token counts and Output ÷ input ratio.</p>
+                  <p class="muted" id="tableHint">Per model per day: input, output, and output ÷ input ratio.</p>
                 </div>
               </div>
               <div class="tableScroll">
@@ -208,6 +208,7 @@
                   <thead>
                     <tr>
                       <th class="thDateCol" scope="col">Date</th>
+                      <th class="thModelCol" scope="col">Model</th>
                       <th class="num thInputCol" scope="col">Input</th>
                       <th class="num thOutputCol" scope="col">Output</th>
                       <th class="num thRatioCol" scope="col" title="Output tokens divided by input tokens for that day">
@@ -250,7 +251,7 @@
               </div>
               <div class="billingPricingBody">
                 <div id="impliedChartsRow" class="billingPricingChartsRow" hidden>
-                  <h3 class="billingSubhead">Project cost-per-token trend</h3>
+                  <h3 class="billingSubhead">Model cost-per-token trend (one line per model)</h3>
                   <div class="impliedDualCharts">
                     <div class="card tight impliedUnitPriceChartCard">
                       <div class="chartSectionTitle">Input unit price (USD/1M tokens)</div>
@@ -300,6 +301,6 @@
     <script src="/static/js/forecasting.js?v=20260516-4"></script>
     <script src="/static/js/chart-plugins.js"></script>
     <script src="/static/js/chart-style.js"></script>
-    <script src="/static/js/pages/tokens.js?v=20260516-4"></script>
+    <script src="/static/js/pages/tokens.js?v=20260516-6"></script>
   </body>
 </html>

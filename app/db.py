@@ -689,6 +689,56 @@ def get_imported_token_breakdown_by_model(
     return out
 
 
+def get_imported_token_daily_by_model(
+    conn: sqlite3.Connection,
+    project_name: str,
+    *,
+    start_date: str | None = None,
+    end_date: str | None = None,
+) -> list[dict[str, object]]:
+    """Per calendar day and model: input/output token totals (for ratio tables and charts)."""
+    where = ["project_name = ?"]
+    params: list[object] = [project_name]
+    if start_date:
+        where.append("usage_date >= ?")
+        params.append(start_date)
+    if end_date:
+        where.append("usage_date <= ?")
+        params.append(end_date)
+    where_sql = " AND ".join(where)
+    rows = conn.execute(
+        f"""
+        SELECT
+            usage_date AS date,
+            model_name,
+            COALESCE(SUM(CASE WHEN token_direction = 'input' THEN token_count ELSE 0 END), 0) AS input_tokens,
+            COALESCE(SUM(CASE WHEN token_direction = 'output' THEN token_count ELSE 0 END), 0) AS output_tokens
+        FROM token_usage_points
+        WHERE {where_sql}
+        GROUP BY usage_date, model_name
+        ORDER BY usage_date DESC, model_name ASC
+        """,
+        tuple(params),
+    ).fetchall()
+    out: list[dict[str, object]] = []
+    for r in rows:
+        in_tok = float(r["input_tokens"])
+        out_tok = float(r["output_tokens"])
+        if in_tok <= 0 and out_tok <= 0:
+            continue
+        ratio: float | None = (out_tok / in_tok) if in_tok > 0 else None
+        out.append(
+            {
+                "date": str(r["date"]),
+                "model_name": str(r["model_name"]),
+                "input_tokens": in_tok,
+                "output_tokens": out_tok,
+                "output_input_ratio": round(ratio, 6) if ratio is not None else None,
+            }
+        )
+    return out
+
+
 def get_imported_token_models_with_prices(
     conn: sqlite3.Connection,
     project_name: str,
@@ -891,8 +941,7 @@ def get_model_implied_usd_per_1m_analysis(
         if direction in {"input", "output"}:
             by_date_model[d][model][direction] = float(r["token_count"])
 
-    token_dates = sorted(by_date_model.keys())
-    if not token_dates:
+    if not by_date_model:
         return {
             "available": True,
             "project": project_name,
@@ -904,6 +953,27 @@ def get_model_implied_usd_per_1m_analysis(
             "models": [],
         }
 
+    totals_by_date: dict[str, tuple[float, float]] = {}
+    for d, models in by_date_model.items():
+        tin = sum(float(m["input"]) for m in models.values())
+        tout = sum(float(m["output"]) for m in models.values())
+        totals_by_date[d] = (tin, tout)
+    _, billing_max = _transaction_usage_bounds(
+        conn,
+        project_name,
+        from_date=start_date,
+        to_date=end_date,
+        currency=currency,
+    )
+    _extend_token_calendar_with_billing_tail(
+        totals_by_date,
+        billing_max=billing_max,
+        cap_end=end_date,
+    )
+    for d in totals_by_date:
+        by_date_model.setdefault(d, {})
+
+    token_dates = sorted(by_date_model.keys())
     eff_start, eff_end = token_dates[0], token_dates[-1]
     cost_points, chosen_currency = get_timeseries(
         conn,
