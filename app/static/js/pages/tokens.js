@@ -67,6 +67,8 @@
   let tokenInputChart = null;
   let tokenOutputChart = null;
   let tokenRatioChart = null;
+  let tokenInputCostChart = null;
+  let tokenOutputCostChart = null;
   let chartImpliedUnitInput = null;
   let chartImpliedUnitOutput = null;
 
@@ -113,7 +115,8 @@
     output: "Output tokens",
     total: "Total tokens",
   };
-  const DAILY_TABLE_COL_COUNT = 5;
+  const DAILY_TABLE_COL_COUNT = 8;
+  let lastBillingCurrency = "USD";
 
   const MODEL_CHART_COLORS = [
     { border: "#60a5fa", fill: "rgba(96, 165, 250, 0.12)" },
@@ -146,6 +149,16 @@
   function fmtUsdPer1m(n) {
     if (n === null || n === undefined || !Number.isFinite(Number(n))) return "-";
     return Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 });
+  }
+
+  function fmtUsd(n, currency) {
+    if (n === null || n === undefined || !Number.isFinite(Number(n))) return "-";
+    const c = (currency || "").trim();
+    const suffix = c ? ` ${c}` : "";
+    return `${Number(n).toLocaleString(undefined, {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 6,
+    })}${suffix}`;
   }
 
   function syncBillingPricingSection() {
@@ -475,7 +488,7 @@
     }
     if (els.tableHint) {
       els.tableHint.textContent = imported
-        ? "One row per day: input, output, and output/input ratio."
+        ? "One row per model/day: input, output, daily input/output/total cost, and output/input ratio."
         : "Estimated daily input/output and output/input ratio from billing costs.";
     }
 
@@ -612,7 +625,7 @@
     });
   }
 
-  function chartOptions(unitType = "tokens") {
+  function chartOptions(unitType = "tokens", currency = "") {
     return {
       responsive: true,
       maintainAspectRatio: false,
@@ -622,8 +635,9 @@
         tooltip: {
           callbacks: {
             label: (ctx) => {
-              const value =
-                unitType === "ratio" ? fmtRatio(ctx.parsed.y) : fmtInt(ctx.parsed.y);
+              let value = fmtInt(ctx.parsed.y);
+              if (unitType === "ratio") value = fmtRatio(ctx.parsed.y);
+              if (unitType === "usd") value = fmtUsd(ctx.parsed.y, currency);
               return `${ctx.dataset.label}: ${value}`;
             },
           },
@@ -634,7 +648,13 @@
         y: {
           beginAtZero: true,
           grid: { color: "rgba(173,196,228,0.10)" },
-          ticks: { callback: (v) => (unitType === "ratio" ? Number(v).toFixed(1) : fmtInt(v)) },
+          ticks: {
+            callback: (v) => {
+              if (unitType === "ratio") return Number(v).toFixed(1);
+              if (unitType === "usd") return fmtUsd(v, "");
+              return fmtInt(v);
+            },
+          },
         },
       },
     };
@@ -675,6 +695,24 @@
     });
   }
 
+  function modelCostDatasets(labels, dailyByModel, key) {
+    const modelNames = [...new Set((dailyByModel || []).map((r) => r.model_name).filter(Boolean))].sort();
+    if (!modelNames.length) return null;
+    const byKey = new Map((dailyByModel || []).map((r) => [`${r.date}\0${r.model_name}`, r]));
+    return modelNames
+      .map((name, idx) => {
+        const data = labels.map((d) => {
+          const row = byKey.get(`${d}\0${name}`);
+          const v = row?.[key];
+          return v != null && Number.isFinite(Number(v)) && Number(v) > 0 ? Number(v) : null;
+        });
+        if (!data.some((v) => v !== null && Number.isFinite(v))) return null;
+        const col = MODEL_CHART_COLORS[idx % MODEL_CHART_COLORS.length];
+        return _tokenLineDataset(name, data, col.border, col.fill);
+      })
+      .filter(Boolean);
+  }
+
   function renderTokenUsageCharts(points, dailyByModel) {
     const labels = points.map((p) => p.date);
     const inputDatasets =
@@ -713,6 +751,66 @@
         type: "line",
         data: { labels, datasets: outputDatasets },
         options: chartOptions("tokens"),
+      });
+    }
+  }
+
+  function renderTokenCostCharts(points, dailyByModel, currency) {
+    const labels = points.map((p) => p.date);
+    const inByModel = modelCostDatasets(labels, dailyByModel, "input_cost_usd");
+    const outByModel = modelCostDatasets(labels, dailyByModel, "output_cost_usd");
+
+    const inFallback = labels.map((d) =>
+      (dailyByModel || [])
+        .filter((r) => r.date === d)
+        .reduce((acc, r) => acc + (Number(r.input_cost_usd) || 0), 0)
+    );
+    const outFallback = labels.map((d) =>
+      (dailyByModel || [])
+        .filter((r) => r.date === d)
+        .reduce((acc, r) => acc + (Number(r.output_cost_usd) || 0), 0)
+    );
+
+    const inputDatasets =
+      inByModel && inByModel.length
+        ? inByModel
+        : [
+            _tokenLineDataset(
+              `Input cost (${currency || "USD"})`,
+              inFallback.map((v) => (v > 0 ? v : null)),
+              "#60a5fa",
+              "rgba(96,165,250,0.14)"
+            ),
+          ];
+    const outputDatasets =
+      outByModel && outByModel.length
+        ? outByModel
+        : [
+            _tokenLineDataset(
+              `Output cost (${currency || "USD"})`,
+              outFallback.map((v) => (v > 0 ? v : null)),
+              "#a78bfa",
+              "rgba(167,139,250,0.14)"
+            ),
+          ];
+
+    const inputCtx = document.getElementById("tokenInputCostChart")?.getContext("2d");
+    if (inputCtx) {
+      if (tokenInputCostChart) tokenInputCostChart.destroy();
+      tokenInputCostChart = new Chart(inputCtx, {
+        type: "line",
+        data: { labels, datasets: inputDatasets },
+        options: chartOptions("usd", currency),
+      });
+    }
+
+    const outputCtx = document.getElementById("tokenOutputCostChart")?.getContext("2d");
+    if (outputCtx) {
+      if (tokenOutputCostChart) tokenOutputCostChart.destroy();
+      tokenOutputCostChart = new Chart(outputCtx, {
+        type: "line",
+        data: { labels, datasets: outputDatasets },
+        options: chartOptions("usd", currency),
       });
     }
   }
@@ -858,8 +956,22 @@
               ? Number(p.output_tokens) / Number(p.input_tokens)
               : null;
         tdRatio.textContent = fmtRatio(ratio);
+        const tdInputCost = document.createElement("td");
+        tdInputCost.className = "num tdInputCost";
+        tdInputCost.textContent = fmtUsd(p.input_cost_usd, lastBillingCurrency);
+        tdInputCost.title = p.allocation_method ? `allocation: ${p.allocation_method}` : "";
 
-        tr.append(tdDate, tdModel, tdInput, tdOutput, tdRatio);
+        const tdOutputCost = document.createElement("td");
+        tdOutputCost.className = "num tdOutputCost";
+        tdOutputCost.textContent = fmtUsd(p.output_cost_usd, lastBillingCurrency);
+        tdOutputCost.title = p.allocation_method ? `allocation: ${p.allocation_method}` : "";
+
+        const tdTotalCost = document.createElement("td");
+        tdTotalCost.className = "num tdTotalCost";
+        tdTotalCost.textContent = fmtUsd(p.total_cost_usd, lastBillingCurrency);
+        tdTotalCost.title = p.allocation_method ? `allocation: ${p.allocation_method}` : "";
+
+        tr.append(tdDate, tdModel, tdInput, tdOutput, tdInputCost, tdOutputCost, tdTotalCost, tdRatio);
         els.rowsTbody.appendChild(tr);
       },
     });
@@ -872,7 +984,17 @@
   }
 
   function exportCsv() {
-    const headers = ["date", "model_name", "input_tokens", "output_tokens", "output_input_ratio"];
+    const headers = [
+      "date",
+      "model_name",
+      "input_tokens",
+      "output_tokens",
+      "input_cost_usd",
+      "output_cost_usd",
+      "total_cost_usd",
+      "output_input_ratio",
+      "allocation_method",
+    ];
     const lines = [headers.join(",")];
     for (const r of lastDailyModelRows) {
       const ratio =
@@ -882,7 +1004,17 @@
             ? Number(r.output_tokens) / Number(r.input_tokens)
             : "";
       lines.push(
-        [r.date, r.model_name ?? "", r.input_tokens ?? "", r.output_tokens ?? "", ratio]
+        [
+          r.date,
+          r.model_name ?? "",
+          r.input_tokens ?? "",
+          r.output_tokens ?? "",
+          r.input_cost_usd ?? "",
+          r.output_cost_usd ?? "",
+          r.total_cost_usd ?? "",
+          ratio,
+          r.allocation_method ?? "",
+        ]
           .map(csvEscape)
           .join(",")
       );
@@ -920,6 +1052,7 @@
       ]);
 
       const source = series.token_data_source || stats.token_data_source || "estimated";
+      lastBillingCurrency = stats.currency || series.currency || "USD";
       const imported = source === "imported";
       if (els.noImportState) els.noImportState.hidden = imported;
       if (els.workspace) els.workspace.hidden = !imported;
@@ -995,6 +1128,11 @@
         renderTokenUsageCharts(points, series.daily_by_model || []);
       } catch (e) {
         console.error("renderTokenUsageCharts failed", e);
+      }
+      try {
+        renderTokenCostCharts(points, series.daily_by_model || [], lastBillingCurrency);
+      } catch (e) {
+        console.error("renderTokenCostCharts failed", e);
       }
       try {
         renderRatioChart(points);

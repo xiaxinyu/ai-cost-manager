@@ -718,6 +718,7 @@ def get_imported_token_daily_by_model(
     *,
     start_date: str | None = None,
     end_date: str | None = None,
+    currency: str | None = None,
 ) -> list[dict[str, object]]:
     """Per calendar day and model: input/output token totals (for ratio tables and charts)."""
     where = ["project_name = ?"]
@@ -756,6 +757,18 @@ def get_imported_token_daily_by_model(
         cur["input"] += in_tok
         cur["output"] += out_tok
 
+    cost_rows = get_imported_token_daily_cost_by_model(
+        conn,
+        project_name,
+        start_date=start_date,
+        end_date=end_date,
+        currency=currency,
+    )
+    cost_by_key = {
+        (str(r["date"]), str(r["model_name"])): r
+        for r in cost_rows
+    }
+
     out: list[dict[str, object]] = []
     for (d, model_name), vals in sorted(
         merged.items(),
@@ -765,6 +778,10 @@ def get_imported_token_daily_by_model(
         in_tok = float(vals["input"])
         out_tok = float(vals["output"])
         ratio: float | None = (out_tok / in_tok) if in_tok > 0 else None
+        c = cost_by_key.get((d, model_name), {})
+        in_cost = c.get("input_cost_usd", 0.0)
+        out_cost = c.get("output_cost_usd", 0.0)
+        total_cost = c.get("total_cost_usd", (float(in_cost) + float(out_cost)))
         out.append(
             {
                 "date": d,
@@ -772,8 +789,145 @@ def get_imported_token_daily_by_model(
                 "input_tokens": in_tok,
                 "output_tokens": out_tok,
                 "output_input_ratio": round(ratio, 6) if ratio is not None else None,
+                "input_cost_usd": round(float(in_cost), 6),
+                "output_cost_usd": round(float(out_cost), 6),
+                "total_cost_usd": round(float(total_cost), 6),
+                "allocation_method": c.get("allocation_method", "no_cost_overlap"),
             }
         )
+    return out
+
+
+def get_imported_token_daily_cost_by_model(
+    conn: sqlite3.Connection,
+    project_name: str,
+    *,
+    start_date: str | None = None,
+    end_date: str | None = None,
+    currency: str | None = None,
+) -> list[dict[str, object]]:
+    """
+    Per calendar day + model: split daily cost into input/output buckets.
+
+    Priority:
+    1) meter-matched split by direction from billing Meter parse
+    2) proportional fallback by token share within model/day when meter split is unavailable
+    """
+    where = ["project_name = ?"]
+    params: list[object] = [project_name]
+    if start_date:
+        where.append("usage_date >= ?")
+        params.append(start_date)
+    if end_date:
+        where.append("usage_date <= ?")
+        params.append(end_date)
+    where_sql = " AND ".join(where)
+    rows = conn.execute(
+        f"""
+        SELECT
+            usage_date AS date,
+            model_name,
+            COALESCE(SUM(CASE WHEN token_direction = 'input' THEN token_count ELSE 0 END), 0) AS input_tokens,
+            COALESCE(SUM(CASE WHEN token_direction = 'output' THEN token_count ELSE 0 END), 0) AS output_tokens
+        FROM token_usage_points
+        WHERE {where_sql}
+        GROUP BY usage_date, model_name
+        ORDER BY usage_date ASC, model_name ASC
+        """,
+        tuple(params),
+    ).fetchall()
+    if not rows:
+        return []
+
+    by_date_model: dict[str, dict[str, dict[str, float]]] = {}
+    totals_by_date: dict[str, tuple[float, float]] = {}
+    for r in rows:
+        d = str(r["date"])
+        m = canonical_model_name(r["model_name"]) or str(r["model_name"])
+        in_tok = float(r["input_tokens"] or 0.0)
+        out_tok = float(r["output_tokens"] or 0.0)
+        if in_tok <= 0 and out_tok <= 0:
+            continue
+        cur = by_date_model.setdefault(d, {}).setdefault(m, {"input": 0.0, "output": 0.0})
+        cur["input"] += in_tok
+        cur["output"] += out_tok
+        tin, tout = totals_by_date.get(d, (0.0, 0.0))
+        totals_by_date[d] = (tin + in_tok, tout + out_tok)
+
+    if not by_date_model:
+        return []
+
+    token_dates = sorted(by_date_model.keys())
+    eff_start, eff_end = token_dates[0], token_dates[-1]
+    cost_points, chosen_currency = get_timeseries(
+        conn,
+        project_name,
+        start_date=eff_start,
+        end_date=eff_end,
+        granularity="day",
+        currency=currency,
+    )
+    cost_by_date = {str(p["date"]): float(p["cost_usd"] or 0.0) for p in cost_points}
+    billing_by_date_model = get_meter_billing_by_date_model(
+        conn,
+        project_name,
+        start_date=eff_start,
+        end_date=eff_end,
+        currency=chosen_currency,
+    )
+
+    out: list[dict[str, object]] = []
+    for d in sorted(by_date_model.keys(), reverse=True):
+        daily_cost = float(cost_by_date.get(d, 0.0))
+        models = by_date_model.get(d, {})
+        total_tokens = sum((v["input"] + v["output"]) for v in models.values())
+        day_billing = billing_by_date_model.get(d, {})
+        for model_name in sorted(models.keys()):
+            tok = models[model_name]
+            in_tok = float(tok["input"])
+            out_tok = float(tok["output"])
+            model_total = in_tok + out_tok
+            if model_total <= 0:
+                continue
+
+            bill = day_billing.get(model_name)
+            if bill is None:
+                for bk, bv in day_billing.items():
+                    if token_models_match(bk, model_name):
+                        bill = bv
+                        break
+            bill = bill or {}
+            bill_in = float(bill.get("input", 0.0))
+            bill_out = float(bill.get("output", 0.0))
+            meter_total = bill_in + bill_out
+
+            if meter_total > 0:
+                in_cost = bill_in
+                out_cost = bill_out
+                allocation_method = "meter_matched"
+            elif daily_cost > 0 and total_tokens > 0:
+                allocated = daily_cost * (model_total / total_tokens)
+                in_share = (in_tok / model_total) if model_total > 0 else 0.0
+                out_share = (out_tok / model_total) if model_total > 0 else 0.0
+                in_cost = allocated * in_share
+                out_cost = allocated * out_share
+                allocation_method = "proportional_by_daily_tokens"
+            else:
+                in_cost = 0.0
+                out_cost = 0.0
+                allocation_method = "no_cost_overlap"
+
+            total_cost = in_cost + out_cost
+            out.append(
+                {
+                    "date": d,
+                    "model_name": model_name,
+                    "input_cost_usd": round(in_cost, 6),
+                    "output_cost_usd": round(out_cost, 6),
+                    "total_cost_usd": round(total_cost, 6),
+                    "allocation_method": allocation_method,
+                }
+            )
     return out
 
 

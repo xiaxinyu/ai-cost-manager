@@ -579,6 +579,7 @@ def create_app(
                     project_name,
                     start_date=start_date,
                     end_date=end_date,
+                    currency=currency,
                 )
                 payload["models_with_prices"] = get_imported_token_models_with_prices(
                     conn,

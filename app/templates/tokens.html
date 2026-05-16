@@ -185,6 +185,28 @@
               <article class="card chartPanel chartWide">
                 <div class="chartHeader">
                   <div>
+                    <h2 class="sectionTitle">Input cost (daily, by model)</h2>
+                    <p class="muted chartScaleHint">Meter-matched when available; otherwise proportional fallback.</p>
+                  </div>
+                </div>
+                <div class="chartCanvasWrap">
+                  <canvas id="tokenInputCostChart"></canvas>
+                </div>
+              </article>
+              <article class="card chartPanel chartWide">
+                <div class="chartHeader">
+                  <div>
+                    <h2 class="sectionTitle">Output cost (daily, by model)</h2>
+                    <p class="muted chartScaleHint">Unit: billing currency per day.</p>
+                  </div>
+                </div>
+                <div class="chartCanvasWrap">
+                  <canvas id="tokenOutputCostChart"></canvas>
+                </div>
+              </article>
+              <article class="card chartPanel chartWide chartFull">
+                <div class="chartHeader">
+                  <div>
                     <h2 class="sectionTitle">Output / input ratio</h2>
                     <p class="muted" id="ratioSummary">Valid days: -</p>
                   </div>
@@ -211,6 +233,9 @@
                       <th class="thModelCol" scope="col">Model</th>
                       <th class="num thInputCol" scope="col">Input</th>
                       <th class="num thOutputCol" scope="col">Output</th>
+                      <th class="num thInputCostCol" scope="col">Input cost</th>
+                      <th class="num thOutputCostCol" scope="col">Output cost</th>
+                      <th class="num thTotalCostCol" scope="col">Total cost</th>
                       <th class="num thRatioCol" scope="col" title="Output tokens divided by input tokens for that day">
                         <div class="thStack">
                           <span class="thHeadPrimary">Ratio</span>
@@ -301,6 +326,6 @@
     <script src="/static/js/forecasting.js?v=20260516-4"></script>
     <script src="/static/js/chart-plugins.js"></script>
     <script src="/static/js/chart-style.js"></script>
-    <script src="/static/js/pages/tokens.js?v=20260516-7"></script>
+    <script src="/static/js/pages/tokens.js?v=20260516-8"></script>
   </body>
 </html>

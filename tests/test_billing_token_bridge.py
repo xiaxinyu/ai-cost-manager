@@ -99,6 +99,18 @@ def test_billing_token_bridge_and_meter_matched_prices(tmp_path):
         assert abs(g54["cost_usd_allocated"] - 0.07) < 1e-6
         assert abs(g54["usd_per_1m_input"] - 0.05) < 1e-6
         assert abs(g54["usd_per_1m_output"] - 0.4) < 1e-6  # 0.02 / 50K * 1e6
+
+        daily = get_imported_token_daily_by_model(conn, "projBridge", currency="USD")
+        daily_by_key = {(str(r["date"]), str(r["model_name"])): r for r in daily}
+        d_codex = daily_by_key[("2026-05-12", "gpt-5.3-codex")]
+        d_g54 = daily_by_key[("2026-05-12", "gpt-5.4")]
+        assert d_codex["allocation_method"] == "meter_matched"
+        assert abs(float(d_codex["input_cost_usd"]) - 10.0) < 1e-6
+        assert abs(float(d_codex["output_cost_usd"]) - 4.0) < 1e-6
+        assert abs(float(d_codex["total_cost_usd"]) - 14.0) < 1e-6
+        assert d_g54["allocation_method"] == "meter_matched"
+        assert abs(float(d_g54["input_cost_usd"]) - 0.05) < 1e-6
+        assert abs(float(d_g54["output_cost_usd"]) - 0.02) < 1e-6
     finally:
         conn.close()
 
@@ -213,5 +225,51 @@ def test_variant_model_labels_still_bridge_and_daily_rows(tmp_path):
         by_name = {m["model_name"]: m for m in payload["models"]}
         assert "gpt-5.3-codex" in by_name
         assert "gpt-5.4" in by_name
+    finally:
+        conn.close()
+
+
+def test_daily_cost_mapping_for_explicit_53_codex_and_54_inp_opt(tmp_path):
+    bills_dir = tmp_path / "bills"
+    project_dir = bills_dir / "projMap"
+    token_dir = project_dir / "token"
+    token_dir.mkdir(parents=True)
+    _write_foundry_cost(
+        project_dir / "cost.csv",
+        [
+            ("2026-05-12", "5.3 codex inp", 12.0),
+            ("2026-05-12", "5.3 codex opt", 6.0),
+            ("2026-05-12", "5.4 inp", 0.2),
+            ("2026-05-12", "5.4 opt", 0.1),
+        ],
+    )
+    (token_dir / "input-tokens.csv").write_text(
+        '"Time","gpt-5.3-codex","gpt-5.4"\n'
+        "2026-05-12 10:00:00,3 Mil,1 Mil\n",
+        encoding="utf-8",
+    )
+    (token_dir / "output-tokens.csv").write_text(
+        '"Time","gpt-5.3-codex","gpt-5.4"\n'
+        "2026-05-12 10:00:00,300 K,100 K\n",
+        encoding="utf-8",
+    )
+    db_path = tmp_path / "cost_mgmt.sqlite3"
+    ingest_all(bills_dir=bills_dir, db_path=db_path, reimport_changed=False)
+    ingest_token_all(bills_dir=bills_dir, db_path=db_path, reimport_changed=False)
+
+    conn = get_connection(db_path)
+    try:
+        daily = get_imported_token_daily_by_model(conn, "projMap", currency="USD")
+        by_key = {(str(r["date"]), str(r["model_name"])): r for r in daily}
+        d53 = by_key[("2026-05-12", "gpt-5.3-codex")]
+        d54 = by_key[("2026-05-12", "gpt-5.4")]
+        assert d53["allocation_method"] == "meter_matched"
+        assert abs(float(d53["input_cost_usd"]) - 12.0) < 1e-6
+        assert abs(float(d53["output_cost_usd"]) - 6.0) < 1e-6
+        assert abs(float(d53["total_cost_usd"]) - 18.0) < 1e-6
+        assert d54["allocation_method"] == "meter_matched"
+        assert abs(float(d54["input_cost_usd"]) - 0.2) < 1e-6
+        assert abs(float(d54["output_cost_usd"]) - 0.1) < 1e-6
+        assert abs(float(d54["total_cost_usd"]) - 0.3) < 1e-6
     finally:
         conn.close()

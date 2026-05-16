@@ -289,7 +289,7 @@
   grid-column: auto;
 }
 
-.tokenCharts .chartPanel:last-child {
+.chartFull {
   grid-column: 1 / -1;
 }
 
@@ -417,6 +417,14 @@
   white-space: nowrap;
 }
 
+.thInputCostCol,
+.thOutputCostCol,
+.thTotalCostCol {
+  width: 9.5rem;
+  text-align: right;
+  white-space: nowrap;
+}
+
 .thStack {
   display: flex;
   flex-direction: column;
@@ -467,6 +475,24 @@
 
 .tdOutput {
   color: #c4b5fd;
+}
+
+.tdInputCost,
+.tdOutputCost,
+.tdTotalCost {
+  font-variant-numeric: tabular-nums;
+}
+
+.tdInputCost {
+  color: #7dd3fc;
+}
+
+.tdOutputCost {
+  color: #c4b5fd;
+}
+
+.tdTotalCost {
+  color: #f8fafc;
 }
 
 .rowsToolbar {

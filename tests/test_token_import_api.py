@@ -71,6 +71,14 @@ def test_import_api_billing_and_token_together(tmp_path):
     assert len(daily) >= 1
     assert daily[0]["model_name"]
     assert daily[0]["input_tokens"] > 0
+    assert "input_cost_usd" in daily[0]
+    assert "output_cost_usd" in daily[0]
+    assert "total_cost_usd" in daily[0]
+    assert daily[0]["allocation_method"] in {
+        "meter_matched",
+        "proportional_by_daily_tokens",
+        "no_cost_overlap",
+    }
     assert series.get("import_meta", {}).get("model_count") >= 1
 
     report = client.get("/api/reports/all-financial?project_names=rg-techlab-ai-coding").json()
