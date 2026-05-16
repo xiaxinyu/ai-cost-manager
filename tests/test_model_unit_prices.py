@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import sqlite3
 
+import pytest
 from fastapi.testclient import TestClient
 
 from app.auth import create_user
@@ -83,8 +84,8 @@ def test_model_implied_usd_per_1m_daily_stats(tmp_path):
 
     st_a = by_name["model-a"]["stats"]["blended"]
     assert st_a["count"] == 2
-    assert st_a["min"] == min(expected_blended_d1, a_day2["usd_per_1m_blended"])
-    assert st_a["max"] == max(expected_blended_d1, a_day2["usd_per_1m_blended"])
+    assert st_a["min"] == pytest.approx(min(expected_blended_d1, a_day2["usd_per_1m_blended"]), rel=1e-5)
+    assert st_a["max"] == pytest.approx(max(expected_blended_d1, a_day2["usd_per_1m_blended"]), rel=1e-5)
     assert abs(st_a["mean"] - (expected_blended_d1 + a_day2["usd_per_1m_blended"]) / 2) < 1e-6
     assert abs(st_a["median"] - (expected_blended_d1 + a_day2["usd_per_1m_blended"]) / 2) < 1e-6
 

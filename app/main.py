@@ -35,6 +35,7 @@ from .db import (
     get_token_timeseries,
     get_all_token_timeseries,
     verify_all_financial_consistency,
+    get_billing_token_bridge,
     get_model_implied_usd_per_1m_analysis,
     get_project_daily_implied_usd_per_1m_timeseries,
     get_timeseries,
@@ -404,6 +405,27 @@ def create_app(
         conn = get_connection(db_path)
         try:
             payload = get_project_daily_implied_usd_per_1m_timeseries(
+                conn,
+                project_name,
+                start_date=start_date,
+                end_date=end_date,
+                currency=currency,
+            )
+            return JSONResponse(payload)
+        finally:
+            conn.close()
+
+    @app.get("/api/projects/{project_name}/billing-token-bridge")
+    def api_billing_token_bridge(
+        project_name: str,
+        start_date: Optional[str] = Query(default=None, description="YYYY-MM-DD"),
+        end_date: Optional[str] = Query(default=None, description="YYYY-MM-DD"),
+        currency: Optional[str] = Query(default=None, description="Currency code"),
+        _: str = Depends(_auth_dep),
+    ) -> JSONResponse:
+        conn = get_connection(db_path)
+        try:
+            payload = get_billing_token_bridge(
                 conn,
                 project_name,
                 start_date=start_date,

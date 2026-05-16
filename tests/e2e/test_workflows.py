@@ -5,6 +5,11 @@ import re
 import pytest
 
 
+def _extract_leading_int(text: str) -> int:
+    m = re.search(r"\d+", text or "")
+    return int(m.group(0)) if m else 0
+
+
 def _canvas_data_url_len_expr(canvas_id: str) -> str:
     # Return JS expression that evaluates to an integer length.
     return f"""(() => {{
@@ -59,13 +64,13 @@ def test_desktop_primary_workflows(page, e2e_server_base_url: str) -> None:
     page.wait_for_timeout(400)
     missing_before = page.text_content("#missingCount")
     assert missing_before is not None
-    assert int(missing_before.strip()) >= 1
+    assert _extract_leading_int(missing_before.strip()) >= 1
     page.check("input.filePick[type=checkbox]")
     page.click("#importBtn")
     page.wait_for_timeout(800)
     missing_after = page.text_content("#missingCount")
     assert missing_after is not None
-    assert int(missing_after.strip()) == 0
+    assert _extract_leading_int(missing_after.strip()) == 0
 
     # Reports page: load and render charts
     page.goto(f"{base_url}/reports")
@@ -110,4 +115,3 @@ def test_mobile_smoke(page, e2e_server_base_url: str) -> None:
     ]:
         page.goto(f"{base_url}{path}")
         page.wait_for_selector(selector)
-

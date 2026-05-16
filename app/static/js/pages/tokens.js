@@ -62,7 +62,7 @@
   };
 
   const BILLING_PRICING_NOTE_DEFAULT =
-    'Calendar follows imported token dates. Unit is <strong>USD/1M tokens</strong>. Project unit price formula: daily bill ÷ daily input/output tokens. Model blended formula: allocated daily bill ÷ (input + output tokens) by model.';
+    'Calendar follows imported token dates. Billing <strong>Meter</strong> rows (e.g. <code>5.3 codex inp</code>) map to token columns (<code>gpt-5.3-codex</code>). Unit: <strong>USD/1M tokens</strong> = matched meter cost ÷ tokens; unmetered bills fall back to proportional split.';
 
   let tokenInputChart = null;
   let tokenOutputChart = null;
