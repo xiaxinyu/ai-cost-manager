@@ -194,7 +194,7 @@ def test_model_unit_prices_api(tmp_path):
 
 
 def test_implied_timeseries_follows_token_calendar_not_full_billing(tmp_path):
-    """Billing may span months; implied series should only include imported token dates."""
+    """Billing may span months; implied series stays on token days (no March-only billing)."""
     bills_dir = tmp_path / "bills"
     project_dir = bills_dir / "projSpan"
     token_dir = project_dir / "token"
@@ -227,3 +227,41 @@ def test_implied_timeseries_follows_token_calendar_not_full_billing(tmp_path):
     assert payload["from_date"] == "2026-05-01"
     assert payload["to_date"] == "2026-05-02"
     assert "2026-03-01" not in dates
+
+
+def test_implied_timeseries_extends_through_billing_tail_without_tokens(tmp_path):
+    """Trailing billing days after the last token row still appear (cost, null implied $/1M)."""
+    bills_dir = tmp_path / "bills"
+    project_dir = bills_dir / "projTail"
+    token_dir = project_dir / "token"
+    token_dir.mkdir(parents=True)
+    (project_dir / "cost.csv").write_text(
+        '"UsageDate","CostUSD","Cost","ForecastCost","Currency"\n'
+        '"2026-05-01","10.0","10.0","","USD"\n'
+        '"2026-05-02","20.0","20.0","","USD"\n'
+        '"2026-05-03","5.0","5.0","","USD"\n',
+        encoding="utf-8",
+    )
+    (token_dir / "input-tokens.csv").write_text(
+        '"Time","m"\n2026-05-01 10:00:00,1 Mil\n2026-05-02 10:00:00,1 Mil\n',
+        encoding="utf-8",
+    )
+    (token_dir / "output-tokens.csv").write_text(
+        '"Time","m"\n2026-05-01 10:00:00,100 K\n2026-05-02 10:00:00,100 K\n',
+        encoding="utf-8",
+    )
+    db_path = tmp_path / "cost_mgmt.sqlite3"
+    ingest_all(bills_dir=bills_dir, db_path=db_path, reimport_changed=False)
+    ingest_token_all(bills_dir=bills_dir, db_path=db_path, reimport_changed=False)
+    conn = get_connection(db_path)
+    try:
+        payload = get_project_daily_implied_usd_per_1m_timeseries(conn, "projTail", currency="USD")
+    finally:
+        conn.close()
+    dates = [p["date"] for p in payload["points"]]
+    assert dates == ["2026-05-01", "2026-05-02", "2026-05-03"]
+    assert payload["to_date"] == "2026-05-03"
+    d3 = next(p for p in payload["points"] if p["date"] == "2026-05-03")
+    assert d3["usd_per_1m_input"] is None
+    assert d3["usd_per_1m_output"] is None
+    assert d3["cost_usd"] is not None

@@ -45,7 +45,7 @@
     modelUnitPriceHint: document.getElementById("modelUnitPriceHint"),
     modelUnitPriceTbody: document.getElementById("modelUnitPriceTbody"),
     billingPricingSection: document.getElementById("billingPricingSection"),
-    impliedPricingCol: document.getElementById("impliedPricingCol"),
+    impliedChartsRow: document.getElementById("impliedChartsRow"),
     modelPricingCol: document.getElementById("modelPricingCol"),
     billingPricingNote: document.getElementById("billingPricingNote"),
     modelPager: document.getElementById("modelPager"),
@@ -142,7 +142,7 @@
 
   function syncBillingPricingSection() {
     if (!els.billingPricingSection) return;
-    const impH = !els.impliedPricingCol || els.impliedPricingCol.hidden;
+    const impH = !els.impliedChartsRow || els.impliedChartsRow.hidden;
     const modH = !els.modelPricingCol || els.modelPricingCol.hidden;
     els.billingPricingSection.hidden = impH && modH;
   }
@@ -152,7 +152,7 @@
     if (chartImpliedUnitOutput) chartImpliedUnitOutput.destroy();
     chartImpliedUnitInput = null;
     chartImpliedUnitOutput = null;
-    if (els.impliedPricingCol) els.impliedPricingCol.hidden = true;
+    if (els.impliedChartsRow) els.impliedChartsRow.hidden = true;
     if (els.modelPricingCol) els.modelPricingCol.hidden = true;
     if (els.billingPricingSection) els.billingPricingSection.hidden = true;
     if (els.modelUnitPriceTbody) els.modelUnitPriceTbody.innerHTML = "";
@@ -231,13 +231,13 @@
   }
 
   function renderImpliedUnitPrices(payload, billingCurrency, tokenRange) {
-    if (!els.impliedPricingCol) return;
+    if (!els.impliedChartsRow) return;
     if (chartImpliedUnitInput) chartImpliedUnitInput.destroy();
     if (chartImpliedUnitOutput) chartImpliedUnitOutput.destroy();
     chartImpliedUnitInput = null;
     chartImpliedUnitOutput = null;
     if (!payload?.available) {
-      els.impliedPricingCol.hidden = true;
+      els.impliedChartsRow.hidden = true;
       if (els.impliedUnitPriceHint) {
         els.impliedUnitPriceHint.textContent =
           payload?.reason === "no_imported_tokens"
@@ -249,7 +249,7 @@
       return;
     }
 
-    els.impliedPricingCol.hidden = false;
+    els.impliedChartsRow.hidden = false;
     const ccy = billingCurrency || payload.currency || "";
     const tStart = tokenRange?.start || payload.from_date || "—";
     const tEnd = tokenRange?.end || payload.to_date || "—";

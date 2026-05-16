@@ -4,6 +4,7 @@ import json
 import os
 import sqlite3
 from dataclasses import dataclass
+from datetime import date, timedelta
 from pathlib import Path
 from typing import Any, Iterable
 
@@ -557,13 +558,32 @@ def get_imported_token_timeseries(
         """,
         tuple(params),
     ).fetchall()
-    out: list[dict] = []
+    by_date: dict[str, tuple[float, float]] = {}
     for r in rows:
         in_tok = float(r["input_tokens"])
         out_tok = float(r["output_tokens"])
+        by_date[str(r["date"])] = (in_tok, out_tok)
+
+    if granularity == "day" and by_date:
+        _, billing_max = _transaction_usage_bounds(
+            conn,
+            project_name,
+            from_date=start_date,
+            to_date=end_date,
+            currency=None,
+        )
+        _extend_token_calendar_with_billing_tail(
+            by_date,
+            billing_max=billing_max,
+            cap_end=end_date,
+        )
+
+    out: list[dict] = []
+    for d in sorted(by_date.keys()):
+        in_tok, out_tok = by_date[d]
         out.append(
             {
-                "date": r["date"],
+                "date": d,
                 "estimated_input_tokens": in_tok,
                 "estimated_output_tokens": out_tok,
                 "estimated_total_tokens": in_tok + out_tok,
@@ -609,9 +629,16 @@ def get_imported_token_meta(
         """,
         tuple(params),
     ).fetchall()
+    bill_min, bill_max = _transaction_usage_bounds(
+        conn,
+        project_name,
+        from_date=start_date,
+        to_date=end_date,
+        currency=None,
+    )
     return {
-        "min_usage_date": row["min_usage_date"],
-        "max_usage_date": row["max_usage_date"],
+        "min_usage_date": _iso_date_min(row["min_usage_date"], bill_min),
+        "max_usage_date": _iso_date_max(row["max_usage_date"], bill_max),
         "model_count": int(row["model_count"] or 0),
         "day_count": int(row["day_count"] or 0),
         "models": [r["model_name"] for r in models],
@@ -990,9 +1017,11 @@ def get_project_daily_implied_usd_per_1m_timeseries(
     millions (not additive; each series answers "if the whole bill were spread only over
     that direction's volume").
 
-    Returned ``points`` include **only calendar days that appear in imported token usage**
-    (after the same ``start_date`` / ``end_date`` filters as the token aggregate), so charts
-    are not stretched across unrelated billing history.
+    Returned ``points`` are keyed on the **imported token calendar** (same ``start_date`` /
+    ``end_date`` filters as the token aggregate), then extended **forward only** through
+    any later billing days in that window so trailing bills still appear even when token
+    CSVs stop early. Earlier billing-only history before the first token day is still
+    excluded.
     """
     if not project_has_imported_tokens(conn, project_name):
         return {
@@ -1034,6 +1063,19 @@ def get_project_daily_implied_usd_per_1m_timeseries(
         tin = float(r["input_tokens"] or 0.0)
         tout = float(r["output_tokens"] or 0.0)
         tokens_by_date[d] = (tin, tout)
+
+    _, billing_max = _transaction_usage_bounds(
+        conn,
+        project_name,
+        from_date=start_date,
+        to_date=end_date,
+        currency=currency,
+    )
+    _extend_token_calendar_with_billing_tail(
+        tokens_by_date,
+        billing_max=billing_max,
+        cap_end=end_date,
+    )
 
     token_dates_sorted = sorted(tokens_by_date.keys())
     if not token_dates_sorted:
@@ -1349,6 +1391,83 @@ def get_available_currencies(conn: sqlite3.Connection, project_name: str) -> lis
     return [r["currency"] for r in rows]
 
 
+def _iso_date_min(*dates: str | None) -> str | None:
+    vals = [d for d in dates if d]
+    return min(vals) if vals else None
+
+
+def _iso_date_max(*dates: str | None) -> str | None:
+    vals = [d for d in dates if d]
+    return max(vals) if vals else None
+
+
+def _transaction_usage_bounds(
+    conn: sqlite3.Connection,
+    project_name: str,
+    *,
+    from_date: str | None = None,
+    to_date: str | None = None,
+    currency: str | None = None,
+) -> tuple[str | None, str | None]:
+    """Min/max ``usage_date`` in ``transactions`` for the project (optional filters)."""
+    currency_filter = currency
+    if currency_filter is None:
+        currencies = get_available_currencies(conn, project_name)
+        currency_filter = currencies[0] if currencies else None
+    where = ["project_name = ?"]
+    params: list[object] = [project_name]
+    if from_date:
+        where.append("usage_date >= ?")
+        params.append(from_date)
+    if to_date:
+        where.append("usage_date <= ?")
+        params.append(to_date)
+    if currency_filter:
+        where.append("currency = ?")
+        params.append(currency_filter)
+    where_sql = " AND ".join(where)
+    row = conn.execute(
+        f"""
+        SELECT MIN(usage_date) AS mn, MAX(usage_date) AS mx
+        FROM transactions
+        WHERE {where_sql}
+        """,
+        tuple(params),
+    ).fetchone()
+    return row["mn"], row["mx"]
+
+
+def _extend_token_calendar_with_billing_tail(
+    tokens_by_date: dict[str, tuple[float, float]],
+    *,
+    billing_max: str | None,
+    cap_end: str | None = None,
+    max_new_days: int = 366,
+) -> None:
+    """Append zero-token ISO days after the last token day through ``billing_max`` (capped).
+
+    Only extends **forward** from the latest key already in ``tokens_by_date``; does not
+    pull in earlier billing-only history (keeps series anchored on imported usage).
+    """
+    if not tokens_by_date or not billing_max:
+        return
+    last_t = max(tokens_by_date.keys())
+    eff_end = billing_max
+    if cap_end and cap_end < eff_end:
+        eff_end = cap_end
+    if eff_end <= last_t:
+        return
+    d = date.fromisoformat(last_t)
+    end_d = date.fromisoformat(eff_end)
+    added = 0
+    while d < end_d and added < max_new_days:
+        d += timedelta(days=1)
+        ds = d.isoformat()
+        if ds not in tokens_by_date:
+            tokens_by_date[ds] = (0.0, 0.0)
+            added += 1
+
+
 def get_project_stats(
     conn: sqlite3.Connection,
     project_name: str,
@@ -1411,8 +1530,12 @@ def get_project_stats(
             project_name=project_name,
             from_date=from_date,
             to_date=to_date,
-            min_usage_date=token_row["min_usage_date"] or row["min_usage_date"],
-            max_usage_date=token_row["max_usage_date"] or row["max_usage_date"],
+            min_usage_date=_iso_date_min(
+                token_row["min_usage_date"], row["min_usage_date"]
+            ),
+            max_usage_date=_iso_date_max(
+                token_row["max_usage_date"], row["max_usage_date"]
+            ),
             actual_cost_usd_total=total_cost_usd,
             actual_days=int(row["actual_days"]),
             currency=currency_filter,
@@ -1516,8 +1639,6 @@ def get_cost_forecast_baseline(
     Uses the last ``window_days`` calendar days ending at MAX(usage_date) for the project,
     filling missing days with 0. Suitable for "pizza team scale" multipliers on the client.
     """
-    from datetime import date, timedelta
-
     wd = max(7, min(90, int(window_days)))
     cfg_row = get_project_model_config(conn, project_name)
     team_model: dict[str, Any] | None = None

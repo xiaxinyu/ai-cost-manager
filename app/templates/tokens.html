@@ -158,60 +158,6 @@
               </div>
             </section>
 
-            <section id="billingPricingSection" class="billingPricingSection" hidden aria-label="Billing-derived unit prices (USD per 1M tokens)">
-              <div class="panelHead billingPricingHead">
-                <div>
-                  <h2 class="sectionTitle">Billing vs imported tokens (USD / 1M)</h2>
-                  <p class="muted panelDesc" id="billingPricingNote">
-                    Charts and tables follow the <strong>imported token calendar</strong> (same filters as above). Project unit price = daily bill ÷ direction token totals. Model rows show
-                    <strong>blended</strong> allocated cost ÷ (input+output) for that model; list prices are catalog reference by direction.
-                  </p>
-                </div>
-                <div class="billingPricingHints muted">
-                  <div id="impliedUnitPriceHint"></div>
-                  <div id="modelUnitPriceHint"></div>
-                </div>
-              </div>
-              <div class="billingPricingGrid">
-                <div id="impliedPricingCol" class="billingPricingCol impliedPricingCol">
-                  <h3 class="billingSubhead">Project cost-per-token trend</h3>
-                  <div class="card tight impliedUnitPriceChartCard">
-                    <div class="chartSectionTitle">Input unit price (USD/1M tokens)</div>
-                    <div class="chartCanvasWrap impliedUnitPriceChartWrap">
-                      <canvas id="impliedUnitPriceInputChart"></canvas>
-                    </div>
-                  </div>
-                  <div class="card tight impliedUnitPriceChartCard">
-                    <div class="chartSectionTitle">Output unit price (USD/1M tokens)</div>
-                    <div class="chartCanvasWrap impliedUnitPriceChartWrap">
-                      <canvas id="impliedUnitPriceOutputChart"></canvas>
-                    </div>
-                  </div>
-                </div>
-                <div id="modelPricingCol" class="billingPricingCol modelPricingCol">
-                  <h3 class="billingSubhead">Unified unit-price summary (project + model)</h3>
-                  <div class="tableScroll modelUnitPriceTableWrap">
-                    <table class="modelUnitPriceTable" id="modelUnitPriceTable">
-                      <thead>
-                        <tr>
-                          <th>Model</th>
-                          <th>Metric</th>
-                          <th class="num">Min<br /><span class="thUnit">(USD/1M)</span></th>
-                          <th class="num">Max<br /><span class="thUnit">(USD/1M)</span></th>
-                          <th class="num">Mean<br /><span class="thUnit">(USD/1M)</span></th>
-                          <th class="num">Median<br /><span class="thUnit">(USD/1M)</span></th>
-                          <th class="num">Days</th>
-                          <th class="num">List in<br /><span class="thUnit">(USD/1M)</span></th>
-                          <th class="num">List out<br /><span class="thUnit">(USD/1M)</span></th>
-                        </tr>
-                      </thead>
-                      <tbody id="modelUnitPriceTbody"></tbody>
-                    </table>
-                  </div>
-                </div>
-              </div>
-            </section>
-
             <section class="tokenCharts" aria-label="Charts">
               <article class="card chartPanel chartWide">
                 <div class="chartHeader">
@@ -287,6 +233,62 @@
                 <span id="dailyPageInfo" class="pageInfo">-</span>
               </div>
             </section>
+
+            <section id="billingPricingSection" class="billingPricingSection" hidden aria-label="Billing-derived unit prices (USD per 1M tokens)">
+              <div class="panelHead billingPricingHead">
+                <div>
+                  <h2 class="sectionTitle">Billing vs imported tokens (USD / 1M)</h2>
+                  <p class="muted panelDesc" id="billingPricingNote">
+                    Charts and tables follow the <strong>imported token calendar</strong> (same filters as above). Project unit price = daily bill ÷ direction token totals. Model rows show
+                    <strong>blended</strong> allocated cost ÷ (input+output) for that model; list prices are catalog reference by direction.
+                  </p>
+                </div>
+                <div class="billingPricingHints muted">
+                  <div id="impliedUnitPriceHint"></div>
+                  <div id="modelUnitPriceHint"></div>
+                </div>
+              </div>
+              <div class="billingPricingBody">
+                <div id="impliedChartsRow" class="billingPricingChartsRow" hidden>
+                  <h3 class="billingSubhead">Project cost-per-token trend</h3>
+                  <div class="impliedDualCharts">
+                    <div class="card tight impliedUnitPriceChartCard">
+                      <div class="chartSectionTitle">Input unit price (USD/1M tokens)</div>
+                      <div class="chartCanvasWrap impliedUnitPriceChartWrap">
+                        <canvas id="impliedUnitPriceInputChart"></canvas>
+                      </div>
+                    </div>
+                    <div class="card tight impliedUnitPriceChartCard">
+                      <div class="chartSectionTitle">Output unit price (USD/1M tokens)</div>
+                      <div class="chartCanvasWrap impliedUnitPriceChartWrap">
+                        <canvas id="impliedUnitPriceOutputChart"></canvas>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div id="modelPricingCol" class="billingPricingTableBlock" hidden>
+                  <h3 class="billingSubhead">Unified unit-price summary (project + model)</h3>
+                  <div class="tableScroll modelUnitPriceTableWrap">
+                    <table class="modelUnitPriceTable" id="modelUnitPriceTable">
+                      <thead>
+                        <tr>
+                          <th>Model</th>
+                          <th>Metric</th>
+                          <th class="num">Min<br /><span class="thUnit">(USD/1M)</span></th>
+                          <th class="num">Max<br /><span class="thUnit">(USD/1M)</span></th>
+                          <th class="num">Mean<br /><span class="thUnit">(USD/1M)</span></th>
+                          <th class="num">Median<br /><span class="thUnit">(USD/1M)</span></th>
+                          <th class="num">Days</th>
+                          <th class="num">List in<br /><span class="thUnit">(USD/1M)</span></th>
+                          <th class="num">List out<br /><span class="thUnit">(USD/1M)</span></th>
+                        </tr>
+                      </thead>
+                      <tbody id="modelUnitPriceTbody"></tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </section>
           </div>
         </div>
       </main>
@@ -295,9 +297,9 @@
     <script src="/static/js/chart.umd.min.js"></script>
     <script src="/static/js/app-shell.js"></script>
     <script src="/static/js/http.js"></script>
-    <script src="/static/js/forecasting.js?v=20260516-3"></script>
+    <script src="/static/js/forecasting.js?v=20260516-4"></script>
     <script src="/static/js/chart-plugins.js"></script>
     <script src="/static/js/chart-style.js"></script>
-    <script src="/static/js/pages/tokens.js?v=20260516-3"></script>
+    <script src="/static/js/pages/tokens.js?v=20260516-4"></script>
   </body>
 </html>
