@@ -499,6 +499,65 @@
   margin-bottom: 10px;
 }
 
+.rowsToolbarSplit {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.tokenDetailFlow {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.dailyCostCharts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.unitPriceSection {
+  padding: 14px 16px;
+  border: 1px solid rgba(173, 196, 228, 0.16);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.unitPriceHead {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.unitPriceChartsRow {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.catalogRefLine {
+  font-size: 11px;
+  line-height: 1.45;
+  margin: 0;
+}
+
+.thUnitInCol,
+.thUnitOutCol {
+  width: 8rem;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.tdUnitIn,
+.tdUnitOut {
+  font-variant-numeric: tabular-nums;
+  color: #a5f3fc;
+  font-size: 12px;
+}
+
 .pager {
   display: flex;
   align-items: center;
@@ -557,7 +616,9 @@
     grid-template-columns: 1fr 1fr;
   }
 
-  .tokenCharts {
+  .tokenCharts,
+  .dailyCostCharts,
+  .unitPriceChartsRow {
     grid-template-columns: 1fr;
   }
 

@@ -38,7 +38,7 @@
             <div class="tokenTitleRow">
               <div>
                 <h1 class="pageTitle">Token Operations</h1>
-                <p class="pageDesc">Imported token usage, output/input ratio, implied $/1M from billing, and per-model price stats — all in one place.</p>
+                <p class="pageDesc">Daily token usage and meter-matched billing. The detail table is the source of truth; charts below derive from those rows.</p>
               </div>
               <div id="tokenSourceBadge" class="sourceBadge sourceEstimated" hidden>
                 <span class="sourceDot" aria-hidden="true"></span>
@@ -158,14 +158,13 @@
               </div>
             </section>
 
-            <section class="tokenCharts" aria-label="Charts">
+            <section class="tokenCharts" aria-label="Token volume charts">
               <article class="card chartPanel chartWide">
                 <div class="chartHeader">
                   <div>
                     <h2 class="sectionTitle" id="chartTitleInput">Input tokens (daily)</h2>
                     <p class="muted" id="rangeLabel">Selected range: -</p>
                   </div>
-                  <button id="exportTokensBtn" class="btnSmall" type="button">Export CSV</button>
                 </div>
                 <div class="chartCanvasWrap">
                   <canvas id="tokenInputChart"></canvas>
@@ -182,28 +181,6 @@
                   <canvas id="tokenOutputChart"></canvas>
                 </div>
               </article>
-              <article class="card chartPanel chartWide">
-                <div class="chartHeader">
-                  <div>
-                    <h2 class="sectionTitle">Input cost (daily, by model)</h2>
-                    <p class="muted chartScaleHint">Meter-matched when available; otherwise proportional fallback.</p>
-                  </div>
-                </div>
-                <div class="chartCanvasWrap">
-                  <canvas id="tokenInputCostChart"></canvas>
-                </div>
-              </article>
-              <article class="card chartPanel chartWide">
-                <div class="chartHeader">
-                  <div>
-                    <h2 class="sectionTitle">Output cost (daily, by model)</h2>
-                    <p class="muted chartScaleHint">Unit: billing currency per day.</p>
-                  </div>
-                </div>
-                <div class="chartCanvasWrap">
-                  <canvas id="tokenOutputCostChart"></canvas>
-                </div>
-              </article>
               <article class="card chartPanel chartWide chartFull">
                 <div class="chartHeader">
                   <div>
@@ -218,12 +195,14 @@
               </article>
             </section>
 
+            <section class="tokenDetailFlow" aria-label="Daily detail and derived charts">
             <section class="card tokenTablePanel">
-              <div class="rowsToolbar">
+              <div class="rowsToolbar rowsToolbarSplit">
                 <div>
                   <h2 class="sectionTitle">Daily detail</h2>
-                  <p class="muted" id="tableHint">Per model per day: tokens plus input/output/total cost from matched billing meters.</p>
+                  <p class="muted" id="tableHint">Source of truth: meter-matched billing per model/day. Unit price = cost ÷ tokens × 1M.</p>
                 </div>
+                <button id="exportTokensBtn" class="btnSmall" type="button">Export CSV</button>
               </div>
               <div class="tableScroll">
                 <table>
@@ -235,11 +214,13 @@
                       <th class="num thOutputCol" scope="col">Output</th>
                       <th class="num thInputCostCol" scope="col">Input cost</th>
                       <th class="num thOutputCostCol" scope="col">Output cost</th>
-                      <th class="num thTotalCostCol" scope="col">Total cost</th>
-                      <th class="num thRatioCol" scope="col" title="Output tokens divided by input tokens for that day">
+                      <th class="num thTotalCostCol" scope="col">Total</th>
+                      <th class="num thUnitInCol" scope="col" title="Input cost ÷ input tokens × 1M">$/1M in</th>
+                      <th class="num thUnitOutCol" scope="col" title="Output cost ÷ output tokens × 1M">$/1M out</th>
+                      <th class="num thRatioCol" scope="col" title="Output tokens ÷ input tokens">
                         <div class="thStack">
                           <span class="thHeadPrimary">Ratio</span>
-                          <span class="thHeadSecondary muted">Output ÷ input</span>
+                          <span class="thHeadSecondary muted">Out ÷ in</span>
                         </div>
                       </th>
                     </tr>
@@ -260,60 +241,54 @@
               </div>
             </section>
 
-            <section id="billingPricingSection" class="billingPricingSection" hidden aria-label="Billing-derived unit prices (USD per 1M tokens)">
-              <div class="panelHead billingPricingHead">
+            <section class="dailyCostCharts" aria-label="Daily billing cost">
+              <article class="card chartPanel chartWide">
+                <div class="chartHeader">
+                  <div>
+                    <h2 class="sectionTitle">Input cost (daily, by model)</h2>
+                    <p class="muted chartScaleHint">Same rows as the table — meter-matched billing.</p>
+                  </div>
+                </div>
+                <div class="chartCanvasWrap">
+                  <canvas id="tokenInputCostChart"></canvas>
+                </div>
+              </article>
+              <article class="card chartPanel chartWide">
+                <div class="chartHeader">
+                  <div>
+                    <h2 class="sectionTitle">Output cost (daily, by model)</h2>
+                    <p class="muted chartScaleHint">Billing currency per calendar day.</p>
+                  </div>
+                </div>
+                <div class="chartCanvasWrap">
+                  <canvas id="tokenOutputCostChart"></canvas>
+                </div>
+              </article>
+            </section>
+
+            <section id="unitPriceSection" class="unitPriceSection card" hidden aria-label="Unit price trends">
+              <div class="unitPriceHead">
                 <div>
-                  <h2 class="sectionTitle">Billing vs imported tokens (USD / 1M)</h2>
-                  <p class="muted panelDesc" id="billingPricingNote">
-                    Charts and tables follow the <strong>imported token calendar</strong> (same filters as above). Project unit price = daily bill ÷ direction token totals. Model rows show
-                    <strong>blended</strong> allocated cost ÷ (input+output) for that model; list prices are catalog reference by direction.
-                  </p>
+                  <h2 class="sectionTitle">Unit price trends</h2>
+                  <p class="muted panelDesc" id="unitPriceNote">$/1M = table cost ÷ tokens × 1,000,000. One line per model.</p>
                 </div>
-                <div class="billingPricingHints muted">
-                  <div id="impliedUnitPriceHint"></div>
-                  <div id="modelUnitPriceHint"></div>
-                </div>
+                <p id="catalogRefLine" class="catalogRefLine muted" hidden></p>
               </div>
-              <div class="billingPricingBody">
-                <div id="impliedChartsRow" class="billingPricingChartsRow" hidden>
-                  <h3 class="billingSubhead">Model cost-per-token trend (one line per model)</h3>
-                  <div class="impliedDualCharts">
-                    <div class="card tight impliedUnitPriceChartCard">
-                      <div class="chartSectionTitle">Input unit price (USD/1M tokens)</div>
-                      <div class="chartCanvasWrap impliedUnitPriceChartWrap">
-                        <canvas id="impliedUnitPriceInputChart"></canvas>
-                      </div>
-                    </div>
-                    <div class="card tight impliedUnitPriceChartCard">
-                      <div class="chartSectionTitle">Output unit price (USD/1M tokens)</div>
-                      <div class="chartCanvasWrap impliedUnitPriceChartWrap">
-                        <canvas id="impliedUnitPriceOutputChart"></canvas>
-                      </div>
-                    </div>
+              <div id="impliedChartsRow" class="unitPriceChartsRow" hidden>
+                <article class="chartPanel chartWide impliedUnitPriceChartCard">
+                  <div class="chartSectionTitle">Input · USD/1M</div>
+                  <div class="chartCanvasWrap impliedUnitPriceChartWrap">
+                    <canvas id="impliedUnitPriceInputChart"></canvas>
                   </div>
-                </div>
-                <div id="modelPricingCol" class="billingPricingTableBlock" hidden>
-                  <h3 class="billingSubhead">Unified unit-price summary (project + model)</h3>
-                  <div class="tableScroll modelUnitPriceTableWrap">
-                    <table class="modelUnitPriceTable" id="modelUnitPriceTable">
-                      <thead>
-                        <tr>
-                          <th>Model</th>
-                          <th>Metric</th>
-                          <th class="num">Min<br /><span class="thUnit">(USD/1M)</span></th>
-                          <th class="num">Max<br /><span class="thUnit">(USD/1M)</span></th>
-                          <th class="num">Mean<br /><span class="thUnit">(USD/1M)</span></th>
-                          <th class="num">Median<br /><span class="thUnit">(USD/1M)</span></th>
-                          <th class="num">Days</th>
-                          <th class="num">List in<br /><span class="thUnit">(USD/1M)</span></th>
-                          <th class="num">List out<br /><span class="thUnit">(USD/1M)</span></th>
-                        </tr>
-                      </thead>
-                      <tbody id="modelUnitPriceTbody"></tbody>
-                    </table>
+                </article>
+                <article class="chartPanel chartWide impliedUnitPriceChartCard">
+                  <div class="chartSectionTitle">Output · USD/1M</div>
+                  <div class="chartCanvasWrap impliedUnitPriceChartWrap">
+                    <canvas id="impliedUnitPriceOutputChart"></canvas>
                   </div>
-                </div>
+                </article>
               </div>
+            </section>
             </section>
           </div>
         </div>
@@ -327,6 +302,6 @@
     <script src="/static/js/forecasting.js?v=20260516-4"></script>
     <script src="/static/js/chart-plugins.js"></script>
     <script src="/static/js/chart-style.js"></script>
-    <script src="/static/js/pages/tokens.js?v=20260517-4"></script>
+    <script src="/static/js/pages/tokens.js?v=20260517-5"></script>
   </body>
 </html>

@@ -41,13 +41,10 @@
     ratioBaselinePill: document.getElementById("ratioBaselinePill"),
     modelPanel: document.getElementById("modelBreakdownPanel"),
     modelTbody: document.getElementById("modelBreakdownTbody"),
-    impliedUnitPriceHint: document.getElementById("impliedUnitPriceHint"),
-    modelUnitPriceHint: document.getElementById("modelUnitPriceHint"),
-    modelUnitPriceTbody: document.getElementById("modelUnitPriceTbody"),
-    billingPricingSection: document.getElementById("billingPricingSection"),
+    unitPriceSection: document.getElementById("unitPriceSection"),
+    unitPriceNote: document.getElementById("unitPriceNote"),
+    catalogRefLine: document.getElementById("catalogRefLine"),
     impliedChartsRow: document.getElementById("impliedChartsRow"),
-    modelPricingCol: document.getElementById("modelPricingCol"),
-    billingPricingNote: document.getElementById("billingPricingNote"),
     modelPager: document.getElementById("modelPager"),
     modelPageSizeSelect: document.getElementById("modelPageSizeSelect"),
     modelPrevBtn: document.getElementById("modelPrevBtn"),
@@ -60,9 +57,6 @@
     dailyPageInfo: document.getElementById("dailyPageInfo"),
     exportBtn: document.getElementById("exportTokensBtn"),
   };
-
-  const BILLING_PRICING_NOTE_DEFAULT =
-    'Calendar follows imported token dates. Billing <strong>Meter</strong> rows (e.g. <code>5.3 codex inp</code>) map to token columns (<code>gpt-5.3-codex</code>). Unit: <strong>USD/1M tokens</strong> = matched meter cost ÷ tokens; unmetered bills fall back to proportional split.';
 
   let tokenInputChart = null;
   let tokenOutputChart = null;
@@ -115,7 +109,7 @@
     output: "Output tokens",
     total: "Total tokens",
   };
-  const DAILY_TABLE_COL_COUNT = 8;
+  const DAILY_TABLE_COL_COUNT = 10;
   let lastBillingCurrency = "USD";
 
   const MODEL_CHART_COLORS = [
@@ -154,23 +148,46 @@
     return window.AppMoney?.fmtCost(n, currency || lastBillingCurrency) ?? "—";
   }
 
-  function syncBillingPricingSection() {
-    if (!els.billingPricingSection) return;
-    const impH = !els.impliedChartsRow || els.impliedChartsRow.hidden;
-    const modH = !els.modelPricingCol || els.modelPricingCol.hidden;
-    els.billingPricingSection.hidden = impH && modH;
+  function syncUnitPriceSection() {
+    if (!els.unitPriceSection) return;
+    const chartsHidden = !els.impliedChartsRow || els.impliedChartsRow.hidden;
+    els.unitPriceSection.hidden = chartsHidden;
   }
 
-  function clearBillingPricingUi() {
+  function clearUnitPriceUi() {
     if (chartImpliedUnitInput) chartImpliedUnitInput.destroy();
     if (chartImpliedUnitOutput) chartImpliedUnitOutput.destroy();
     chartImpliedUnitInput = null;
     chartImpliedUnitOutput = null;
     if (els.impliedChartsRow) els.impliedChartsRow.hidden = true;
-    if (els.modelPricingCol) els.modelPricingCol.hidden = true;
-    if (els.billingPricingSection) els.billingPricingSection.hidden = true;
-    if (els.modelUnitPriceTbody) els.modelUnitPriceTbody.innerHTML = "";
-    if (els.billingPricingNote) els.billingPricingNote.innerHTML = BILLING_PRICING_NOTE_DEFAULT;
+    if (els.unitPriceSection) els.unitPriceSection.hidden = true;
+    if (els.catalogRefLine) {
+      els.catalogRefLine.hidden = true;
+      els.catalogRefLine.textContent = "";
+    }
+  }
+
+  function renderCatalogRefLine(catalogPayload, currency) {
+    if (!els.catalogRefLine) return;
+    const models = catalogPayload?.models || [];
+    if (!models.length) {
+      els.catalogRefLine.hidden = true;
+      return;
+    }
+    const ccy = currency || catalogPayload.currency || "USD";
+    const parts = models
+      .filter((m) => m.catalog_usd_per_1m_input != null || m.catalog_usd_per_1m_output != null)
+      .map((m) => {
+        const cin = m.catalog_usd_per_1m_input != null ? fmtUsdPer1m(m.catalog_usd_per_1m_input, ccy) : "—";
+        const cout = m.catalog_usd_per_1m_output != null ? fmtUsdPer1m(m.catalog_usd_per_1m_output, ccy) : "—";
+        return `${m.model_name}: list in ${cin}, out ${cout}`;
+      });
+    if (!parts.length) {
+      els.catalogRefLine.hidden = true;
+      return;
+    }
+    els.catalogRefLine.textContent = `Catalog list price (reference): ${parts.join(" · ")}`;
+    els.catalogRefLine.hidden = false;
   }
 
   function moneyStats(vals) {
@@ -246,80 +263,6 @@
     };
   }
 
-  function renderModelUnitPrices(payload, impliedPayload, billingCurrency) {
-    if (!els.modelPricingCol || !els.modelUnitPriceTbody) return;
-    els.modelUnitPriceTbody.innerHTML = "";
-    if (!payload?.available) {
-      els.modelPricingCol.hidden = true;
-      if (els.modelUnitPriceHint) {
-        els.modelUnitPriceHint.textContent =
-          payload?.reason === "no_imported_tokens"
-            ? "Import token CSVs under bills/<project>/token/"
-            : "";
-      }
-      syncBillingPricingSection();
-      return;
-    }
-    els.modelPricingCol.hidden = false;
-    const ccy = billingCurrency || payload.currency || impliedPayload?.currency || "USD";
-    const unitLabel = `${ccy}/1M tokens`;
-    if (els.modelUnitPriceHint) {
-      els.modelUnitPriceHint.textContent = `Table unit: ${unitLabel}`;
-    }
-    const impliedRows = [
-      { label: "Project unit price (input)", st: impliedPayload?.stats?.input },
-      { label: "Project unit price (output)", st: impliedPayload?.stats?.output },
-    ];
-    for (const row of impliedRows) {
-      if (!row.st || !row.st.count) continue;
-      const tr = document.createElement("tr");
-      tr.innerHTML = `
-            <td>(Project total)</td>
-            <td>${row.label}</td>
-            <td class="num">${fmtUsdPer1m(row.st.min)}</td>
-            <td class="num">${fmtUsdPer1m(row.st.max)}</td>
-            <td class="num">${fmtUsdPer1m(row.st.mean)}</td>
-            <td class="num">${fmtUsdPer1m(row.st.median)}</td>
-            <td class="num">${row.st.count}</td>
-            <td class="num">—</td>
-            <td class="num">—</td>
-          `;
-      els.modelUnitPriceTbody.appendChild(tr);
-    }
-    const metrics = [
-      { key: "input", label: "Input (table cost ÷ tokens)", catalogIn: "catalog_usd_per_1m_input", catalogOut: "catalog_usd_per_1m_output" },
-      { key: "output", label: "Output (table cost ÷ tokens)", catalogIn: "catalog_usd_per_1m_input", catalogOut: "catalog_usd_per_1m_output" },
-    ];
-    for (const model of payload.models || []) {
-      for (const m of metrics) {
-        const st = model.stats?.[m.key];
-        const tr = document.createElement("tr");
-        const cin = model[m.catalogIn] != null ? fmtUsdPer1m(model[m.catalogIn]) : "—";
-        const cout = model[m.catalogOut] != null ? fmtUsdPer1m(model[m.catalogOut]) : "—";
-        const hasOverlap = !!(st && st.count);
-        tr.innerHTML = `
-              <td>${model.model_name || "-"}</td>
-              <td>${hasOverlap ? m.label : `${m.label} (no billing overlap)`}</td>
-              <td class="num">${hasOverlap ? fmtUsdPer1m(st.min) : "—"}</td>
-              <td class="num">${hasOverlap ? fmtUsdPer1m(st.max) : "—"}</td>
-              <td class="num">${hasOverlap ? fmtUsdPer1m(st.mean) : "—"}</td>
-              <td class="num">${hasOverlap ? fmtUsdPer1m(st.median) : "—"}</td>
-              <td class="num">${hasOverlap ? st.count : 0}</td>
-              <td class="num">${cin}</td>
-              <td class="num">${cout}</td>
-            `;
-        els.modelUnitPriceTbody.appendChild(tr);
-      }
-    }
-    if (!els.modelUnitPriceTbody.children.length) {
-      const tr = document.createElement("tr");
-      tr.innerHTML =
-        '<td colspan="9" class="muted">No token data in selected window.</td>';
-      els.modelUnitPriceTbody.appendChild(tr);
-    }
-    syncBillingPricingSection();
-  }
-
   function modelLineDatasets(labels, models, valueKey) {
     const datasets = [];
     (models || []).forEach((model, idx) => {
@@ -355,20 +298,14 @@
     if (chartImpliedUnitOutput) chartImpliedUnitOutput.destroy();
     chartImpliedUnitInput = null;
     chartImpliedUnitOutput = null;
-    if (!payload?.available) {
+    if (!modelPayload?.models?.length) {
       els.impliedChartsRow.hidden = true;
-      if (els.impliedUnitPriceHint) {
-        els.impliedUnitPriceHint.textContent =
-          payload?.reason === "no_imported_tokens"
-            ? "Import token CSVs under bills/<project>/token/"
-            : "";
-      }
-      if (els.billingPricingNote) els.billingPricingNote.innerHTML = BILLING_PRICING_NOTE_DEFAULT;
-      syncBillingPricingSection();
+      syncUnitPriceSection();
       return;
     }
 
     els.impliedChartsRow.hidden = false;
+    if (els.unitPriceSection) els.unitPriceSection.hidden = false;
     const ccy = billingCurrency || payload.currency || "";
     const tStart = tokenRange?.start || payload.from_date || "—";
     const tEnd = tokenRange?.end || payload.to_date || "—";
@@ -380,11 +317,8 @@
       ).length,
       0
     );
-    if (els.impliedUnitPriceHint) {
-      els.impliedUnitPriceHint.textContent = `From daily table · ${tStart} → ${tEnd} · ${overlapDays} model-days · ${ccy || "-"} / 1M`;
-    }
-    if (els.billingPricingNote) {
-      els.billingPricingNote.innerHTML = `Unit price = table cost ÷ tokens × 1M (<strong>${ccy || "USD"}/1M</strong>). Calendar: <strong>${tStart}</strong> → <strong>${tEnd}</strong>.`;
+    if (els.unitPriceNote) {
+      els.unitPriceNote.textContent = `$/1M = cost ÷ tokens × 1,000,000 · ${tStart} → ${tEnd} · ${overlapDays} model-days · ${ccy || "USD"}/1M`;
     }
     const labels =
       chartLabels?.length > 0
@@ -436,7 +370,7 @@
     const ctxIn = document.getElementById("impliedUnitPriceInputChart")?.getContext("2d");
     const ctxOut = document.getElementById("impliedUnitPriceOutputChart")?.getContext("2d");
     if (!ctxIn || !ctxOut) {
-      syncBillingPricingSection();
+      syncUnitPriceSection();
       return;
     }
 
@@ -508,7 +442,7 @@
 
     if (!hasIn && chartImpliedUnitInput) chartImpliedUnitInput.update();
     if (!hasOut && chartImpliedUnitOutput) chartImpliedUnitOutput.update();
-    syncBillingPricingSection();
+    syncUnitPriceSection();
   }
 
   function setLoading(loading) {
@@ -1048,7 +982,26 @@
         tdTotalCost.textContent = fmtUsd(p.total_cost_usd, lastBillingCurrency);
         tdTotalCost.title = p.allocation_method ? `allocation: ${p.allocation_method}` : "";
 
-        tr.append(tdDate, tdModel, tdInput, tdOutput, tdInputCost, tdOutputCost, tdTotalCost, tdRatio);
+        const tdUnitIn = document.createElement("td");
+        tdUnitIn.className = "num tdUnitIn";
+        tdUnitIn.textContent = fmtUsdPer1m(p.usd_per_1m_input, lastBillingCurrency);
+
+        const tdUnitOut = document.createElement("td");
+        tdUnitOut.className = "num tdUnitOut";
+        tdUnitOut.textContent = fmtUsdPer1m(p.usd_per_1m_output, lastBillingCurrency);
+
+        tr.append(
+          tdDate,
+          tdModel,
+          tdInput,
+          tdOutput,
+          tdInputCost,
+          tdOutputCost,
+          tdTotalCost,
+          tdUnitIn,
+          tdUnitOut,
+          tdRatio
+        );
         els.rowsTbody.appendChild(tr);
       },
     });
@@ -1069,6 +1022,8 @@
       "input_cost_usd",
       "output_cost_usd",
       "total_cost_usd",
+      "usd_per_1m_input",
+      "usd_per_1m_output",
       "output_input_ratio",
       "allocation_method",
     ];
@@ -1089,6 +1044,8 @@
           r.input_cost_usd ?? "",
           r.output_cost_usd ?? "",
           r.total_cost_usd ?? "",
+          r.usd_per_1m_input ?? "",
+          r.usd_per_1m_output ?? "",
           ratio,
           r.allocation_method ?? "",
         ]
@@ -1178,7 +1135,7 @@
       if (els.workspace) els.workspace.hidden = !imported;
       if (!imported) {
         if (els.sourceBadge) els.sourceBadge.hidden = true;
-        clearBillingPricingUi();
+        clearUnitPriceUi();
         if (els.noImportHint) {
           const others = projectsWithImportedTokens.filter((p) => p !== project);
           if (others.length > 0) {
@@ -1226,25 +1183,23 @@
         console.warn("Catalog list prices unavailable", e);
       }
       const mp = mergeCatalogPrices(mpFromTable, mpCatalog);
-      let ip = { available: false };
       try {
-        ip = await window.AppHttp.getJson(
-          `/api/projects/${encodeURIComponent(project)}/implied-unit-prices-timeseries?${pricingParams.toString()}`
-        );
-      } catch (e) {
-        console.warn("Project implied unit price series unavailable", e);
-      }
-      try {
+        renderCatalogRefLine(mpCatalog, stats.currency);
         renderImpliedUnitPrices(
-          { available: true, currency: stats.currency, from_date: tokenRangeStart, to_date: tokenRangeEnd, points: [] },
+          { available: true, currency: stats.currency, from_date: tokenRangeStart, to_date: tokenRangeEnd },
           stats.currency,
           { start: tokenRangeStart, end: tokenRangeEnd },
           mp,
           chartDates
         );
-        renderModelUnitPrices(mp, ip, stats.currency);
       } catch (e) {
-        console.error("Billing pricing panels failed", e);
+        console.error("Unit price charts failed", e);
+      }
+
+      try {
+        renderTable(series.daily_by_model || []);
+      } catch (e) {
+        console.error("renderTable failed", e);
       }
 
       try {
@@ -1268,11 +1223,6 @@
         renderRatioChart(points);
       } catch (e) {
         console.error("renderRatioChart failed", e);
-      }
-      try {
-        renderTable(series.daily_by_model || []);
-      } catch (e) {
-        console.error("renderTable failed", e);
       }
     } catch (err) {
       console.error(err);
