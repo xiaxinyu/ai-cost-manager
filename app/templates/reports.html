@@ -873,6 +873,8 @@
         const ratioData = ratioRows.map((r) => (r.ratio === null || r.ratio === undefined ? null : Number(r.ratio)));
         const ratioStats = window.AppForecasting?.ratioStats?.(ratioRows) || null;
         const ratioYBounds = window.AppForecasting?.ratioSuggestedBounds?.(ratioRows) || null;
+        const ratioYTickDec = window.AppForecasting?.ratioYTickDecimals?.(ratioYBounds) ?? 3;
+        const showRatioParity = ratioYBounds && Number.isFinite(ratioYBounds.max) && ratioYBounds.max >= 0.55;
         if (ratioKpiSummaryReportEl && ratioStats) {
           ratioKpiSummaryReportEl.textContent = `Valid days: ${ratioStats.valid_days} · >1: ${ratioStats.above_1_days} (${ratioStats.above_1_pct}%) · <1: ${ratioStats.below_1_days} (${ratioStats.below_1_pct}%)`;
         } else if (ratioKpiSummaryReportEl) {
@@ -881,36 +883,39 @@
         const ratioCtx = document.getElementById('dailyTokenRatioChart')?.getContext('2d');
         if (ratioCtx) {
           if (dailyTokenRatioChart) dailyTokenRatioChart.destroy();
+          const ratioDatasets = [
+            {
+              label: 'Output / input',
+              data: ratioData,
+              borderColor: '#34d399',
+              backgroundColor: 'rgba(52,211,153,0.14)',
+              fill: true,
+              tension: 0.22,
+              pointRadius: 2,
+              pointHoverRadius: 4,
+              borderWidth: 2.2,
+              spanGaps: true
+            }
+          ];
+          if (showRatioParity) {
+            ratioDatasets.push({
+              label: 'Baseline (1.0)',
+              data: ratioLabels.map(() => 1),
+              borderColor: 'rgba(159,178,199,0.65)',
+              backgroundColor: 'rgba(0,0,0,0)',
+              fill: false,
+              tension: 0,
+              pointRadius: 0,
+              borderWidth: 1.4,
+              borderDash: [3, 4],
+              spanGaps: true
+            });
+          }
           dailyTokenRatioChart = new Chart(ratioCtx, {
             type: 'line',
             data: {
               labels: ratioLabels,
-              datasets: [
-                {
-                  label: 'Output / input',
-                  data: ratioData,
-                  borderColor: '#34d399',
-                  backgroundColor: 'rgba(52,211,153,0.14)',
-                  fill: true,
-                  tension: 0.22,
-                  pointRadius: 2,
-                  pointHoverRadius: 4,
-                  borderWidth: 2.2,
-                  spanGaps: true
-                },
-                {
-                  label: 'Baseline (1.0)',
-                  data: ratioLabels.map(() => 1),
-                  borderColor: 'rgba(159,178,199,0.65)',
-                  backgroundColor: 'rgba(0,0,0,0)',
-                  fill: false,
-                  tension: 0,
-                  pointRadius: 0,
-                  borderWidth: 1.4,
-                  borderDash: [3, 4],
-                  spanGaps: true
-                }
-              ]
+              datasets: ratioDatasets
             },
             options: {
               responsive: true,
@@ -932,14 +937,19 @@
               scales: {
                 x: { ticks: { autoSkip: true, maxTicksLimit: 12, maxRotation: 0 } },
                 y: {
-                  beginAtZero: true,
-                  suggestedMin: ratioYBounds?.min,
-                  suggestedMax: ratioYBounds?.max,
-                  ticks: { callback: (value) => {
-                    const n = Number(value);
-                    if (!Number.isFinite(n)) return String(value);
-                    return n.toLocaleString(undefined, { maximumFractionDigits: 2 });
-                  } }
+                  beginAtZero: false,
+                  min: ratioYBounds && Number.isFinite(ratioYBounds.min) ? ratioYBounds.min : undefined,
+                  max: ratioYBounds && Number.isFinite(ratioYBounds.max) ? ratioYBounds.max : undefined,
+                  grace: '0%',
+                  ticks: {
+                    maxTicksLimit: 7,
+                    autoSkip: true,
+                    callback: (value) => {
+                      const n = Number(value);
+                      if (!Number.isFinite(n)) return String(value);
+                      return n.toFixed(ratioYTickDec);
+                    }
+                  }
                 }
               }
             }

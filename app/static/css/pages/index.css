@@ -406,7 +406,8 @@
   background: var(--finance);
 }
 
-.dashSections section:nth-child(2) .sectionTitle::before {
+#impliedUnitPriceSection .sectionTitle::before,
+#modelUnitPriceSection .sectionTitle::before {
   background: var(--token);
 }
 
@@ -487,6 +488,21 @@ canvas {
   .controls {
     grid-template-columns: 1fr;
   }
+}
+
+.impliedUnitPriceSection {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px 16px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.impliedUnitPriceStatsCard {
+  margin-bottom: 10px;
+}
+
+.impliedUnitPriceChartCard canvas {
+  height: 280px !important;
 }
 
 .modelUnitPriceSection {

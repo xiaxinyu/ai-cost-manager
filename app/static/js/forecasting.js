@@ -94,7 +94,8 @@
     return sorted[base] + rest * (sorted[base + 1] - sorted[base]);
   }
 
-  // Suggested y-range for ratio chart. Robust to outliers and always includes baseline 1.0.
+  // Y-range for output/input ratio: tight around the data so small day-to-day changes stay visible.
+  // (Older logic forced max ≥ 1 whenever max(data) ≥ 0.25, which flattened typical low ratios.)
   function ratioSuggestedBounds(ratioRows) {
     const xs = (ratioRows || [])
       .map((r) => r?.ratio)
@@ -103,33 +104,67 @@
       .sort((a, b) => a - b);
     if (!xs.length) return { min: 0, max: 2 };
 
-    const p10 = _quantile(xs, 0.10);
-    const p90 = _quantile(xs, 0.90);
-    let min = p10 ?? xs[0];
-    let max = p90 ?? xs[xs.length - 1];
-
-    // Add padding and clamp.
-    const span = Math.max(0.05, max - min);
-    min = Math.max(0, min - span * 0.15);
-    max = Math.max(min + 0.1, max + span * 0.15);
-
-    const dataMax = xs[xs.length - 1];
-    if (dataMax >= 0.25) {
-      // Ensure baseline 1.0 is visible when ratios are near parity.
-      min = Math.min(min, 1);
-      max = Math.max(max, 1);
-      if (max - min < 0.4) {
-        const mid = 1;
-        min = Math.max(0, mid - 0.25);
-        max = mid + 0.25;
-      }
-    } else {
-      max = Math.max(max, dataMax * 1.2, 0.001);
-      min = 0;
+    const n = xs.length;
+    const rawMin = xs[0];
+    const rawMax = xs[n - 1];
+    let lo = n < 5 ? rawMin : _quantile(xs, 0.1);
+    let hi = n < 5 ? rawMax : _quantile(xs, 0.9);
+    if (lo == null || hi == null || !Number.isFinite(lo) || !Number.isFinite(hi)) {
+      lo = rawMin;
+      hi = rawMax;
+    }
+    if (lo > hi) {
+      const t = lo;
+      lo = hi;
+      hi = t;
     }
 
-    return { min, max };
+    // Robustly clip long tails so a single spike does not flatten the curve.
+    if (n >= 6) {
+      const q1 = _quantile(xs, 0.25);
+      const q3 = _quantile(xs, 0.75);
+      if (q1 != null && q3 != null && Number.isFinite(q1) && Number.isFinite(q3) && q3 >= q1) {
+        const iqr = q3 - q1;
+        if (iqr > 0) {
+          const guardLo = Math.max(rawMin, q1 - 1.5 * iqr);
+          const guardHi = Math.min(rawMax, q3 + 1.5 * iqr);
+          lo = Math.max(lo, guardLo);
+          hi = Math.min(hi, guardHi);
+          if (lo > hi) {
+            lo = Math.min(guardLo, guardHi);
+            hi = Math.max(guardLo, guardHi);
+          }
+        }
+      }
+    }
+
+    const spread = Math.max(hi - lo, 0);
+    const anchor = Math.max(Math.abs((hi + lo) / 2), hi, 1e-12);
+    let pad = Math.max(spread * 0.22, anchor * 0.03, 1e-9);
+    if (spread === 0) pad = Math.max(anchor * 0.12, 0.0005);
+
+    let minV = Math.max(0, lo - pad);
+    let maxV = hi + pad;
+    if (maxV <= minV) maxV = minV + Math.max(anchor * 0.15, 0.001);
+
+    // Only pull in parity (1.0) when the series already approaches parity.
+    if (hi >= 0.8) {
+      maxV = Math.max(maxV, 1.0);
+      minV = Math.min(minV, 1.0);
+      minV = Math.max(0, minV);
+    }
+
+    return { min: minV, max: maxV };
   }
+
+  function ratioYTickDecimals(bounds) {
+    if (!bounds || !Number.isFinite(bounds.min) || !Number.isFinite(bounds.max)) return 3;
+    const span = Math.max(bounds.max - bounds.min, 1e-15);
+    if (span < 0.015) return 4;
+    if (span < 0.08) return 3;
+    return 2;
+  }
+
   function safeDateStr(s) {
     if (!s) return '';
     const t = String(s).trim();
@@ -220,6 +255,6 @@
     dailyTokenRatio,
     ratioStats,
     ratioSuggestedBounds,
+    ratioYTickDecimals,
   };
 })();
-

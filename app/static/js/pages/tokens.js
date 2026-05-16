@@ -11,8 +11,6 @@
 
   const els = {
     projectSelect: document.getElementById("projectSelect"),
-    currencySelect: document.getElementById("currencySelect"),
-    currencyField: document.getElementById("currencyField"),
     startDate: document.getElementById("tokenStartDateInput"),
     endDate: document.getElementById("tokenEndDateInput"),
     loadBtn: document.getElementById("loadTokensBtn"),
@@ -28,9 +26,6 @@
     labelTotal: document.getElementById("labelTotalTokens"),
     chartTitleInput: document.getElementById("chartTitleInput"),
     chartTitleOutput: document.getElementById("chartTitleOutput"),
-    thInput: document.getElementById("thInput"),
-    thOutput: document.getElementById("thOutput"),
-    thTotal: document.getElementById("thTotal"),
     tableHint: document.getElementById("tableHint"),
     estimatedInput: document.getElementById("estimatedInputTokens"),
     estimatedOutput: document.getElementById("estimatedOutputTokens"),
@@ -43,7 +38,10 @@
     tokenMetaExtra: document.getElementById("tokenMetaExtra"),
     rangeLabel: document.getElementById("rangeLabel"),
     ratioSummary: document.getElementById("ratioSummary"),
+    ratioBaselinePill: document.getElementById("ratioBaselinePill"),
     modelPanel: document.getElementById("modelBreakdownPanel"),
+    modelPricePanel: document.getElementById("modelPricePanel"),
+    modelPriceTbody: document.getElementById("modelPriceTbody"),
     modelTbody: document.getElementById("modelBreakdownTbody"),
     modelPager: document.getElementById("modelPager"),
     modelPageSizeSelect: document.getElementById("modelPageSizeSelect"),
@@ -62,18 +60,18 @@
   let tokenOutputChart = null;
   let tokenRatioChart = null;
   let lastTokenRows = [];
-  let lastCurrency = "";
   let lastSource = "estimated";
   let projectsWithImportedTokens = [];
   let dailyPage = 1;
   let modelPage = 1;
   let lastModelBreakdown = [];
-  let lastTableMeta = { ratioByDate: new Map(), showCost: false };
+  let lastTableMeta = { ratioByDate: new Map() };
   let chartLabels = {
     input: "Input tokens",
     output: "Output tokens",
     total: "Total tokens",
   };
+  const DAILY_TABLE_COL_COUNT = 4;
 
   function fmtInt(v) {
     if (v === null || v === undefined || !Number.isFinite(Number(v))) return "-";
@@ -85,14 +83,18 @@
     return `${Number(v).toFixed(1)}%`;
   }
 
-  function fmtCost(v) {
-    if (v === null || v === undefined || !Number.isFinite(Number(v))) return "-";
-    return Number(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  }
-
   function fmtRatio(v) {
     if (v === null || v === undefined || !Number.isFinite(Number(v))) return "-";
-    return Number(v).toFixed(3);
+    const x = Number(v);
+    const ax = Math.abs(x);
+    if (ax === 0) return "0.000";
+    if (ax >= 0.2) return x.toFixed(3);
+    return x.toFixed(4);
+  }
+
+  function fmtPrice(v) {
+    if (v === null || v === undefined || !Number.isFinite(Number(v))) return "-";
+    return Number(v).toLocaleString(undefined, { maximumFractionDigits: 6 });
   }
 
   function setLoading(loading) {
@@ -140,9 +142,6 @@
     if (els.labelInput) els.labelInput.textContent = inputLabel;
     if (els.labelOutput) els.labelOutput.textContent = outputLabel;
     if (els.labelTotal) els.labelTotal.textContent = totalLabel;
-    if (els.thInput) els.thInput.textContent = imported ? "Input" : "Est. input";
-    if (els.thOutput) els.thOutput.textContent = imported ? "Output" : "Est. output";
-    if (els.thTotal) els.thTotal.textContent = imported ? "Total" : "Est. total";
     if (els.chartTitleInput) {
       els.chartTitleInput.textContent = imported ? "Input tokens (imported)" : "Estimated input tokens";
     }
@@ -151,8 +150,8 @@
     }
     if (els.tableHint) {
       els.tableHint.textContent = imported
-        ? "Token counts from bills/<project>/token/ CSV. Cost column joins billing when dates overlap."
-        : "Token counts derived from daily CostUSD and model list prices.";
+        ? "One row per day: input, output, and output/input ratio."
+        : "Estimated daily input/output and output/input ratio from billing costs.";
     }
 
     chartLabels = {
@@ -164,18 +163,12 @@
       totalFc: imported ? "Total forecast (7d)" : L.tokenTotalForecast || "Total forecast (7d)",
     };
 
-    if (els.currencyField) {
-      els.currencyField.style.opacity = imported ? "0.55" : "1";
-    }
     if (els.filterHint) {
-      if (imported) {
-        const models = (series.import_meta?.models || []).length;
-        els.filterHint.hidden = false;
-        els.filterHint.textContent = `Currency filter applies to billing join only. ${models} model column(s) in imported data.`;
-      } else {
-        els.filterHint.hidden = true;
-        els.filterHint.textContent = "";
-      }
+      els.filterHint.hidden = false;
+      const models = (series.import_meta?.models || []).length;
+      els.filterHint.textContent = imported
+        ? `Token-only view from bills/<project>/token/. ${models} model column(s) in imported data.`
+        : "Token-only estimates from pricing model (input/output ratio view).";
     }
 
     if (els.tokenModel) {
@@ -294,21 +287,44 @@
     });
   }
 
-  function updateCurrencyOptions(options, selected) {
-    const values = Array.from(new Set((options || []).filter(Boolean)));
-    if (selected && !values.includes(selected)) values.unshift(selected);
-    els.currencySelect.innerHTML = "";
-    const auto = document.createElement("option");
-    auto.value = "";
-    auto.textContent = values.length ? "Auto" : "No currency";
-    els.currencySelect.appendChild(auto);
-    for (const c of values) {
-      const opt = document.createElement("option");
-      opt.value = c;
-      opt.textContent = c;
-      els.currencySelect.appendChild(opt);
+  function renderModelPrices(rows) {
+    if (!els.modelPricePanel || !els.modelPriceTbody) return;
+    const items = Array.isArray(rows) ? rows : [];
+    if (!items.length) {
+      els.modelPricePanel.hidden = true;
+      els.modelPriceTbody.innerHTML = "";
+      return;
     }
-    els.currencySelect.value = selected || "";
+
+    els.modelPricePanel.hidden = false;
+    els.modelPriceTbody.innerHTML = "";
+    for (const row of items) {
+      const tr = document.createElement("tr");
+      const tdModel = document.createElement("td");
+      tdModel.textContent = row.model_name || "-";
+
+      const tdInTok = document.createElement("td");
+      tdInTok.className = "num";
+      tdInTok.textContent = fmtInt(row.input_tokens);
+
+      const tdOutTok = document.createElement("td");
+      tdOutTok.className = "num";
+      tdOutTok.textContent = fmtInt(row.output_tokens);
+
+      const tdInPrice = document.createElement("td");
+      tdInPrice.className = "num";
+      tdInPrice.textContent = fmtPrice(row.input_price_per_1m);
+
+      const tdOutPrice = document.createElement("td");
+      tdOutPrice.className = "num";
+      tdOutPrice.textContent = fmtPrice(row.output_price_per_1m);
+
+      const tdCur = document.createElement("td");
+      tdCur.textContent = row.price_currency || "-";
+
+      tr.append(tdModel, tdInTok, tdOutTok, tdInPrice, tdOutPrice, tdCur);
+      els.modelPriceTbody.appendChild(tr);
+    }
   }
 
   function chartOptions(unitType = "tokens") {
@@ -321,7 +337,8 @@
         tooltip: {
           callbacks: {
             label: (ctx) => {
-              const value = unitType === "ratio" ? fmtRatio(ctx.parsed.y) : fmtInt(ctx.parsed.y);
+              const value =
+                unitType === "ratio" ? fmtRatio(ctx.parsed.y) : fmtInt(ctx.parsed.y);
               return `${ctx.dataset.label}: ${value}`;
             },
           },
@@ -405,60 +422,114 @@
       outputKey: "estimated_output_tokens",
     }) || [];
     const stats = F.ratioStats?.(ratioRows) || { valid_days: 0, above_1_days: 0, below_1_days: 0 };
-    els.ratioSummary.textContent = `Valid days: ${stats.valid_days} · >1: ${stats.above_1_days} · <1: ${stats.below_1_days}`;
+    const finiteRatios = ratioRows
+      .map((r) => r?.ratio)
+      .filter((v) => v !== null && v !== undefined && Number.isFinite(Number(v)))
+      .map(Number);
+    let rangeText = "";
+    if (finiteRatios.length) {
+      const rLo = Math.min(...finiteRatios);
+      const rHi = Math.max(...finiteRatios);
+      const span = rHi - rLo;
+      const p = span < 0.02 ? 4 : 3;
+      rangeText = ` · Values: ${rLo.toFixed(p)}–${rHi.toFixed(p)}`;
+    }
+    if (els.ratioSummary) {
+      els.ratioSummary.textContent = `Valid days: ${stats.valid_days} · >1: ${stats.above_1_days} · <1: ${stats.below_1_days}${rangeText}`;
+    }
     const bounds = F.ratioSuggestedBounds?.(ratioRows) || { min: 0, max: 2 };
+    const tickDec = F.ratioYTickDecimals?.(bounds) ?? 3;
+    const showParityLine = bounds.max >= 0.55;
+    if (els.ratioBaselinePill) els.ratioBaselinePill.hidden = !showParityLine;
 
     const ctx = document.getElementById("tokenRatioChart").getContext("2d");
     if (tokenRatioChart) tokenRatioChart.destroy();
+    const datasets = [
+      {
+        label: "Output / input",
+        data: ratioRows.map((p) => p.ratio),
+        borderColor: "#34d399",
+        backgroundColor: "rgba(52,211,153,0.12)",
+        fill: true,
+        tension: 0.22,
+        spanGaps: true,
+        pointRadius: 2,
+        pointHoverRadius: 4,
+        borderWidth: 2.2,
+      },
+    ];
+    if (showParityLine) {
+      datasets.push({
+        label: "Baseline 1.0",
+        data: ratioRows.map(() => 1),
+        borderColor: "rgba(226,232,240,0.55)",
+        borderDash: [4, 4],
+        pointRadius: 0,
+      });
+    }
+
     tokenRatioChart = new Chart(ctx, {
       type: "line",
       data: {
         labels: ratioRows.map((p) => p.date),
-        datasets: [
-          {
-            label: "Output / input",
-            data: ratioRows.map((p) => p.ratio),
-            borderColor: "#34d399",
-            backgroundColor: "rgba(52,211,153,0.12)",
-            fill: true,
-            tension: 0.22,
-            spanGaps: true,
-          },
-          {
-            label: "Baseline 1.0",
-            data: ratioRows.map(() => 1),
-            borderColor: "rgba(226,232,240,0.55)",
-            borderDash: [4, 4],
-            pointRadius: 0,
-          },
-        ],
+        datasets,
       },
       options: {
         ...chartOptions("ratio"),
         scales: {
           ...chartOptions("ratio").scales,
-          y: { ...chartOptions("ratio").scales.y, min: bounds.min, max: bounds.max },
+          y: {
+            ...chartOptions("ratio").scales.y,
+            beginAtZero: false,
+            min: bounds.min,
+            max: bounds.max,
+            grace: "0%",
+            ticks: {
+              maxTicksLimit: 7,
+              autoSkip: true,
+              callback: (value) => {
+                const n = Number(value);
+                if (!Number.isFinite(n)) return "";
+                return n.toFixed(tickDec);
+              },
+            },
+          },
         },
       },
     });
   }
 
-  function renderTable(points, currency) {
+  function renderTable(points) {
     if (points !== undefined) {
-      lastTokenRows = (points || []).slice().reverse();
-      lastCurrency = currency || "";
+      // Keep table state strictly aligned with visible columns only.
+      lastTokenRows = (points || [])
+        .map((p) => ({
+          date: p?.date || "",
+          input_tokens:
+            p?.estimated_input_tokens === null || p?.estimated_input_tokens === undefined
+              ? null
+              : Number(p.estimated_input_tokens),
+          output_tokens:
+            p?.estimated_output_tokens === null || p?.estimated_output_tokens === undefined
+              ? null
+              : Number(p.estimated_output_tokens),
+        }))
+        .reverse();
       const ratioRows =
-        F.dailyTokenRatio?.(points, { inputKey: "estimated_input_tokens", outputKey: "estimated_output_tokens" }) || [];
+        F.dailyTokenRatio?.(lastTokenRows, { inputKey: "input_tokens", outputKey: "output_tokens" }) || [];
       lastTableMeta = {
         ratioByDate: new Map(ratioRows.map((r) => [r.date, r.ratio])),
-        showCost: lastSource !== "imported" || (points || []).some((p) => p.cost_usd != null),
       };
     }
 
     if (!lastTokenRows.length) {
       els.rowsTbody.innerHTML = "";
       const tr = document.createElement("tr");
-      tr.innerHTML = '<td colspan="6" class="muted">No token data in the selected range.</td>';
+      const td = document.createElement("td");
+      td.colSpan = DAILY_TABLE_COL_COUNT;
+      td.className = "muted";
+      td.textContent = "No token data in the selected range.";
+      tr.appendChild(td);
       els.rowsTbody.appendChild(tr);
       if (els.dailyPageInfo) els.dailyPageInfo.textContent = "0 days";
       if (els.dailyPrevBtn) els.dailyPrevBtn.disabled = true;
@@ -466,7 +537,7 @@
       return;
     }
 
-    const { ratioByDate, showCost } = lastTableMeta;
+    const { ratioByDate } = lastTableMeta;
     const pageSize = pageSizeFromSelect(els.dailyPageSizeSelect, 25);
 
     dailyPage = renderPagedSlice({
@@ -480,18 +551,25 @@
       label: "days",
       renderRow: (p) => {
         const tr = document.createElement("tr");
-        const costCell =
-          !showCost || p.cost_usd === null || p.cost_usd === undefined
-            ? '<span class="muted">—</span>'
-            : `${fmtCost(p.cost_usd)} ${currency || ""}`.trim();
-        tr.innerHTML = `
-        <td>${p.date || ""}</td>
-        <td class="num">${costCell}</td>
-        <td class="num">${fmtInt(p.estimated_input_tokens)}</td>
-        <td class="num">${fmtInt(p.estimated_output_tokens)}</td>
-        <td class="num">${fmtInt(p.estimated_total_tokens)}</td>
-        <td class="num">${fmtRatio(ratioByDate.get(p.date))}</td>
-      `;
+        const inVal = fmtInt(p.input_tokens);
+        const outVal = fmtInt(p.output_tokens);
+        const tdDate = document.createElement("td");
+        tdDate.className = "tdDate";
+        tdDate.textContent = p.date || "";
+
+        const tdInput = document.createElement("td");
+        tdInput.className = "num tdInput";
+        tdInput.textContent = inVal;
+
+        const tdOutput = document.createElement("td");
+        tdOutput.className = "num tdOutput";
+        tdOutput.textContent = outVal;
+
+        const tdRatio = document.createElement("td");
+        tdRatio.className = "num tdRatio";
+        tdRatio.textContent = fmtRatio(ratioByDate.get(p.date));
+
+        tr.append(tdDate, tdInput, tdOutput, tdRatio);
         els.rowsTbody.appendChild(tr);
       },
     });
@@ -504,18 +582,16 @@
   }
 
   function exportCsv() {
-    const headers = ["date", "data_source", "source_cost", "currency", "input_tokens", "output_tokens", "total_tokens"];
+    const ratioByDate = lastTableMeta?.ratioByDate || new Map();
+    const headers = ["date", "input_tokens", "output_tokens", "output_input_ratio"];
     const lines = [headers.join(",")];
     for (const r of lastTokenRows) {
       lines.push(
         [
           r.date,
-          lastSource,
-          r.cost_usd ?? "",
-          lastCurrency,
-          r.estimated_input_tokens ?? "",
-          r.estimated_output_tokens ?? "",
-          r.estimated_total_tokens ?? "",
+          r.input_tokens ?? "",
+          r.output_tokens ?? "",
+          ratioByDate.get(r.date) ?? "",
         ]
           .map(csvEscape)
           .join(",")
@@ -537,7 +613,6 @@
     if (!project) return;
     setLoading(true);
     try {
-      const currency = els.currencySelect.value;
       const statsParams = new URLSearchParams();
       const seriesParams = new URLSearchParams({ granularity: "day" });
       if (els.startDate.value) {
@@ -547,10 +622,6 @@
       if (els.endDate.value) {
         statsParams.set("to_date", els.endDate.value);
         seriesParams.set("end_date", els.endDate.value);
-      }
-      if (currency) {
-        statsParams.set("currency", currency);
-        seriesParams.set("currency", currency);
       }
 
       const [stats, series] = await Promise.all([
@@ -564,6 +635,7 @@
       if (els.workspace) els.workspace.hidden = !imported;
       if (!imported) {
         if (els.sourceBadge) els.sourceBadge.hidden = true;
+        if (els.modelPricePanel) els.modelPricePanel.hidden = true;
         if (els.noImportHint) {
           const others = projectsWithImportedTokens.filter((p) => p !== project);
           if (others.length > 0) {
@@ -576,7 +648,6 @@
         }
         return;
       }
-      updateCurrencyOptions(series.available_currencies || [], currency || series.currency || "");
       applySourceUi(source, series, stats);
 
       const points = series.points || [];
@@ -587,16 +658,41 @@
       els.estimatedTotal.textContent = fmtInt(stats.estimated_total_tokens);
       els.rangeLabel.textContent = `Selected range: ${stats.min_usage_date || "-"} ~ ${stats.max_usage_date || "-"}`;
 
-      renderModelBreakdown(series.breakdown_by_model || []);
-      renderStats(els.inputStats, seriesStats(points, "estimated_input_tokens"));
-      renderStats(els.outputStats, seriesStats(points, "estimated_output_tokens"));
-      renderStats(els.totalStats, seriesStats(points, "estimated_total_tokens"));
-      renderTokenUsageCharts(points);
-      renderRatioChart(points);
-      renderTable(points, series.currency || currency);
+      try {
+        renderModelBreakdown(series.breakdown_by_model || []);
+      } catch (e) {
+        console.error("renderModelBreakdown failed", e);
+      }
+      try {
+        renderModelPrices(series.models_with_prices || []);
+      } catch (e) {
+        console.error("renderModelPrices failed", e);
+      }
+      try {
+        renderStats(els.inputStats, seriesStats(points, "estimated_input_tokens"));
+        renderStats(els.outputStats, seriesStats(points, "estimated_output_tokens"));
+        renderStats(els.totalStats, seriesStats(points, "estimated_total_tokens"));
+      } catch (e) {
+        console.error("renderStats failed", e);
+      }
+      try {
+        renderTokenUsageCharts(points);
+      } catch (e) {
+        console.error("renderTokenUsageCharts failed", e);
+      }
+      try {
+        renderRatioChart(points);
+      } catch (e) {
+        console.error("renderRatioChart failed", e);
+      }
+      try {
+        renderTable(points);
+      } catch (e) {
+        console.error("renderTable failed", e);
+      }
     } catch (err) {
       console.error(err);
-      window.AppShell?.toast?.("Failed to load token data", "error", 4200);
+      window.AppShell?.toast?.(`Failed to load token data: ${err?.message || "unknown error"}`, "error", 5200);
     } finally {
       setLoading(false);
     }
@@ -624,7 +720,6 @@
         opt.textContent = projectsWithImportedTokens.includes(p) ? `${p} · tokens` : p;
         els.projectSelect.appendChild(opt);
       }
-      updateCurrencyOptions([], "");
       if (!hasProjects) {
         els.loadBtn.disabled = true;
         return;
@@ -669,7 +764,6 @@
 
   els.loadBtn.addEventListener("click", loadTokenData);
   els.projectSelect.addEventListener("change", () => {
-    updateCurrencyOptions([], "");
     clearDateFilters();
     loadTokenData();
   });

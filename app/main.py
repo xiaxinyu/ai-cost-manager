@@ -29,12 +29,14 @@ from .db import (
     get_project_stats,
     get_rows,
     get_imported_token_breakdown_by_model,
+    get_imported_token_models_with_prices,
     get_imported_token_meta,
     get_token_timeseries,
     get_all_token_timeseries,
     project_has_imported_tokens,
     verify_all_financial_consistency,
     get_model_implied_usd_per_1m_analysis,
+    get_project_daily_implied_usd_per_1m_timeseries,
     get_timeseries,
     init_db,
     list_forecast_model_catalog,
@@ -391,6 +393,27 @@ def create_app(
         finally:
             conn.close()
 
+    @app.get("/api/projects/{project_name}/implied-unit-prices-timeseries")
+    def api_implied_unit_prices_timeseries(
+        project_name: str,
+        start_date: Optional[str] = Query(default=None, description="YYYY-MM-DD"),
+        end_date: Optional[str] = Query(default=None, description="YYYY-MM-DD"),
+        currency: Optional[str] = Query(default=None, description="Currency code"),
+        _: str = Depends(_auth_dep),
+    ) -> JSONResponse:
+        conn = get_connection(db_path)
+        try:
+            payload = get_project_daily_implied_usd_per_1m_timeseries(
+                conn,
+                project_name,
+                start_date=start_date,
+                end_date=end_date,
+                currency=currency,
+            )
+            return JSONResponse(payload)
+        finally:
+            conn.close()
+
     @app.get("/api/projects/{project_name}/timeseries")
     def api_timeseries(
         project_name: str,
@@ -499,7 +522,9 @@ def create_app(
                 granularity=granularity,
                 currency=currency,
             )
-            if currency is None:
+            if token_data_source == "imported":
+                available = []
+            elif currency is None:
                 available = get_available_currencies(conn, project_name)
             else:
                 available = [currency]
@@ -522,6 +547,12 @@ def create_app(
                     end_date=end_date,
                 )
                 payload["breakdown_by_model"] = get_imported_token_breakdown_by_model(
+                    conn,
+                    project_name,
+                    start_date=start_date,
+                    end_date=end_date,
+                )
+                payload["models_with_prices"] = get_imported_token_models_with_prices(
                     conn,
                     project_name,
                     start_date=start_date,

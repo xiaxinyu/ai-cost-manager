@@ -52,10 +52,6 @@
                 <label for="projectSelect">Project</label>
                 <select id="projectSelect"></select>
               </div>
-              <div class="field fieldCurrency" id="currencyField">
-                <label for="currencySelect">Currency</label>
-                <select id="currencySelect"></select>
-              </div>
               <div class="field">
                 <label for="tokenStartDateInput">Start</label>
                 <input id="tokenStartDateInput" type="date" autocomplete="off" />
@@ -161,6 +157,30 @@
               </div>
             </section>
 
+            <section id="modelPricePanel" class="card modelBreakdownPanel" hidden>
+              <div class="panelHead">
+                <div>
+                  <h2 class="sectionTitle">Models & unit prices</h2>
+                  <p class="muted panelDesc">Models used in selected token range with matched unit prices (per 1M tokens).</p>
+                </div>
+              </div>
+              <div class="tableScroll modelTableWrap">
+                <table class="modelTable">
+                  <thead>
+                    <tr>
+                      <th>Model</th>
+                      <th class="num">Input tokens</th>
+                      <th class="num">Output tokens</th>
+                      <th class="num">Input price</th>
+                      <th class="num">Output price</th>
+                      <th>Currency</th>
+                    </tr>
+                  </thead>
+                  <tbody id="modelPriceTbody"></tbody>
+                </table>
+              </div>
+            </section>
+
             <section class="tokenCharts" aria-label="Charts">
               <article class="card chartPanel chartWide">
                 <div class="chartHeader">
@@ -191,7 +211,7 @@
                     <h2 class="sectionTitle">Output / input ratio</h2>
                     <p class="muted" id="ratioSummary">Valid days: -</p>
                   </div>
-                  <span class="pill muted">Baseline 1.0</span>
+                  <span id="ratioBaselinePill" class="pill muted">Baseline 1.0</span>
                 </div>
                 <div class="chartCanvasWrap chartCanvasShort">
                   <canvas id="tokenRatioChart"></canvas>
@@ -203,19 +223,22 @@
               <div class="rowsToolbar">
                 <div>
                   <h2 class="sectionTitle">Daily detail</h2>
-                  <p class="muted" id="tableHint">Cost column shown when billing data exists for the same dates.</p>
+                  <p class="muted" id="tableHint">Daily input/output token counts and Output ÷ input ratio.</p>
                 </div>
               </div>
               <div class="tableScroll">
                 <table>
                   <thead>
                     <tr>
-                      <th style="width: 140px;">Date</th>
-                      <th class="num">Source cost</th>
-                      <th class="num" id="thInput">Input</th>
-                      <th class="num" id="thOutput">Output</th>
-                      <th class="num" id="thTotal">Total</th>
-                      <th class="num">Out/In</th>
+                      <th class="thDateCol" scope="col">Date</th>
+                      <th class="num thInputCol" scope="col">Input</th>
+                      <th class="num thOutputCol" scope="col">Output</th>
+                      <th class="num thRatioCol" scope="col" title="Output tokens divided by input tokens for that day">
+                        <div class="thStack">
+                          <span class="thHeadPrimary">Ratio</span>
+                          <span class="thHeadSecondary muted">Output ÷ input</span>
+                        </div>
+                      </th>
                     </tr>
                   </thead>
                   <tbody id="tokenRowsTbody"></tbody>
@@ -241,9 +264,9 @@
     <script src="/static/js/chart.umd.min.js"></script>
     <script src="/static/js/app-shell.js"></script>
     <script src="/static/js/http.js"></script>
-    <script src="/static/js/forecasting.js"></script>
+    <script src="/static/js/forecasting.js?v=20260516-3"></script>
     <script src="/static/js/chart-plugins.js"></script>
     <script src="/static/js/chart-style.js"></script>
-    <script src="/static/js/pages/tokens.js"></script>
+    <script src="/static/js/pages/tokens.js?v=20260516-3"></script>
   </body>
 </html>

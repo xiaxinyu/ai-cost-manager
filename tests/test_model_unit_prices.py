@@ -5,7 +5,12 @@ import sqlite3
 from fastapi.testclient import TestClient
 
 from app.auth import create_user
-from app.db import get_connection, get_model_implied_usd_per_1m_analysis, init_db
+from app.db import (
+    get_connection,
+    get_model_implied_usd_per_1m_analysis,
+    get_project_daily_implied_usd_per_1m_timeseries,
+    init_db,
+)
 from app.ingest import ingest_all
 from app.main import create_app
 from app.token_ingest import ingest_token_all
@@ -84,6 +89,62 @@ def test_model_implied_usd_per_1m_daily_stats(tmp_path):
     assert abs(st_a["median"] - (expected_blended_d1 + a_day2["usd_per_1m_blended"]) / 2) < 1e-6
 
 
+def test_project_daily_implied_usd_per_1m_timeseries(tmp_path):
+    bills_dir = tmp_path / "bills"
+    project_dir = bills_dir / "projM"
+    token_dir = project_dir / "token"
+    token_dir.mkdir(parents=True)
+
+    (project_dir / "cost.csv").write_text(
+        '"UsageDate","CostUSD","Cost","ForecastCost","Currency"\n'
+        '"2026-05-01","10.0","10.0","","USD"\n'
+        '"2026-05-02","30.0","30.0","","USD"\n',
+        encoding="utf-8",
+    )
+    (token_dir / "input-tokens.csv").write_text(
+        '"Time","model-a","model-b"\n'
+        "2026-05-01 10:00:00,1 Mil,0\n"
+        "2026-05-02 10:00:00,2 Mil,1 Mil\n",
+        encoding="utf-8",
+    )
+    (token_dir / "output-tokens.csv").write_text(
+        '"Time","model-a","model-b"\n'
+        "2026-05-01 10:00:00,100 K,0\n"
+        "2026-05-02 10:00:00,200 K,50 K\n",
+        encoding="utf-8",
+    )
+
+    db_path = tmp_path / "cost_mgmt.sqlite3"
+    ingest_all(bills_dir=bills_dir, db_path=db_path, reimport_changed=False)
+    ingest_token_all(bills_dir=bills_dir, db_path=db_path, reimport_changed=False)
+
+    conn = get_connection(db_path)
+    try:
+        payload = get_project_daily_implied_usd_per_1m_timeseries(conn, "projM", currency="USD")
+    finally:
+        conn.close()
+
+    assert payload["available"] is True
+    by_date = {p["date"]: p for p in payload["points"]}
+    d1 = by_date["2026-05-01"]
+    assert abs(float(d1["usd_per_1m_input"]) - 10.0) < 1e-6
+    assert abs(float(d1["usd_per_1m_output"]) - 100.0) < 1e-6
+    d2 = by_date["2026-05-02"]
+    assert abs(float(d2["usd_per_1m_input"]) - 10.0) < 1e-6
+    assert abs(float(d2["usd_per_1m_output"]) - 120.0) < 1e-6
+
+    st_in = payload["stats"]["input"]
+    assert st_in["count"] == 2
+    assert abs(st_in["min"] - 10.0) < 1e-9
+    assert abs(st_in["max"] - 10.0) < 1e-9
+    st_out = payload["stats"]["output"]
+    assert st_out["count"] == 2
+    assert abs(st_out["min"] - 100.0) < 1e-6
+    assert abs(st_out["max"] - 120.0) < 1e-6
+    assert abs(st_out["mean"] - 110.0) < 1e-6
+    assert abs(st_out["median"] - 110.0) < 1e-6
+
+
 def test_model_unit_prices_api(tmp_path):
     bills_dir = tmp_path / "bills"
     project_dir = bills_dir / "projM"
@@ -119,6 +180,14 @@ def test_model_unit_prices_api(tmp_path):
     assert len(data["models"]) == 1
     assert data["models"][0]["stats"]["blended"]["count"] == 1
 
+    res_ip = client.get("/api/projects/projM/implied-unit-prices-timeseries?currency=USD")
+    assert res_ip.status_code == 200
+    ip = res_ip.json()
+    assert ip["available"] is True
+    assert len(ip["points"]) >= 1
+    assert ip["stats"]["input"]["count"] == 1
+
     page = client.get("/")
     assert page.status_code == 200
     assert "modelUnitPriceSection" in page.text
+    assert "impliedUnitPriceSection" in page.text
