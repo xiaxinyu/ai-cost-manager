@@ -283,6 +283,30 @@ def list_known_meter_patterns() -> list[dict[str, str]]:
     ]
 
 
+def sum_meter_costs(
+    meter_cost_rows: Iterable[tuple[str, float]],
+    *,
+    token_model: str,
+    token_direction: str,
+) -> float:
+    """
+    Sum ``CostUSD`` for transaction rows whose ``Meter`` matches
+    ``token_model`` + ``token_direction`` (input includes cached inp).
+    """
+    total = 0.0
+    for meter, cost_usd in meter_cost_rows:
+        cost = float(cost_usd or 0.0)
+        if cost <= 0:
+            continue
+        if meter_matches_model_direction(
+            meter,
+            token_model=token_model,
+            token_direction=token_direction,
+        ):
+            total += cost
+    return total
+
+
 def aggregate_billing_rows(
     rows: Iterable[tuple[str, str, float]],
 ) -> dict[str, dict[str, dict[str, float]]]:

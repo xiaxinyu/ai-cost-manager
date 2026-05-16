@@ -36,6 +36,7 @@ from .db import (
     get_all_token_timeseries,
     verify_all_financial_consistency,
     get_billing_token_bridge,
+    trace_transaction_cost_match,
     get_model_implied_usd_per_1m_analysis,
     get_project_daily_implied_usd_per_1m_timeseries,
     get_timeseries,
@@ -56,6 +57,7 @@ from .token_ingest import (
     verify_ingested_token_files,
 )
 from .auth import authenticate_user, require_active_user
+from .cost_pipeline import COST_PIPELINE_VERSION, cost_debug_enabled, summarize_daily_cost_rows
 
 
 class ImportRunRequest(BaseModel):
@@ -532,6 +534,10 @@ def create_app(
         end_date: Optional[str] = Query(default=None, description="YYYY-MM-DD"),
         granularity: str = Query(default="day", description="day|month"),
         currency: Optional[str] = Query(default=None, description="Currency code"),
+        cost_debug: bool = Query(
+            default=False,
+            description="Include per-day meter match trace (also set COST_DEBUG=1 on server)",
+        ),
         _: str = Depends(_auth_dep),
     ) -> JSONResponse:
         conn = get_connection(db_path)
@@ -574,13 +580,26 @@ def create_app(
                     start_date=start_date,
                     end_date=end_date,
                 )
-                payload["daily_by_model"] = get_imported_token_daily_by_model(
+                daily_by_model = get_imported_token_daily_by_model(
                     conn,
                     project_name,
                     start_date=start_date,
                     end_date=end_date,
                     currency=currency,
                 )
+                payload["daily_by_model"] = daily_by_model
+                payload["cost_pipeline_version"] = COST_PIPELINE_VERSION
+                payload["_cost_meta"] = summarize_daily_cost_rows(daily_by_model)
+                if cost_debug or cost_debug_enabled():
+                    sample = daily_by_model[0] if daily_by_model else None
+                    if sample:
+                        payload["_cost_trace_sample"] = trace_transaction_cost_match(
+                            conn,
+                            project_name,
+                            usage_date=str(sample["date"]),
+                            token_model=str(sample["model_name"]),
+                            currency=currency,
+                        )
                 payload["models_with_prices"] = get_imported_token_models_with_prices(
                     conn,
                     project_name,

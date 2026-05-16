@@ -80,6 +80,16 @@ def main() -> None:
     serve_p = sub.add_parser("serve", parents=[common], help="Start web server")
     serve_p.add_argument("--host", default="127.0.0.1")
     serve_p.add_argument("--port", type=int, default=8000)
+    serve_p.add_argument(
+        "--reload",
+        action="store_true",
+        help="Auto-reload Python code on change (dev)",
+    )
+    serve_p.add_argument(
+        "--log-level",
+        default=os.environ.get("UVICORN_LOG_LEVEL", "info"),
+        help="Uvicorn log level (use info + COST_DEBUG=1 for cost matching logs)",
+    )
 
     sync_p = sub.add_parser(
         "sync-bill",
@@ -156,7 +166,13 @@ def main() -> None:
     if args.cmd == "serve":
         # Data should already be ingested; we keep auto_ingest off to avoid surprises.
         app = create_app(db_path=db_path, bills_dir=bills_dir, auto_ingest=False)
-        uvicorn.run(app, host=args.host, port=args.port, log_level="warning")
+        uvicorn.run(
+            app,
+            host=args.host,
+            port=args.port,
+            log_level=str(args.log_level).lower(),
+            reload=bool(args.reload),
+        )
         return
 
     if args.cmd == "sync-bill":

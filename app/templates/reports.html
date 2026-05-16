@@ -271,6 +271,7 @@
 
     <script src="/static/js/chart.umd.min.js"></script>
     <script src="/static/js/app-shell.js"></script>
+    <script src="/static/js/money.js"></script>
     <script src="/static/js/http.js"></script>
     <script src="/static/js/forecasting.js"></script>
     <script src="/static/js/chart-plugins.js"></script>
@@ -344,9 +345,11 @@
       function tooltipLabelCurrency(ctx) {
         const v = ctx.parsed?.y;
         if (v === null || v === undefined || Number.isNaN(v)) return `${ctx.dataset.label}: -`;
-        const cur = _currency();
-        const unit = cur ? ` ${cur}` : '';
-        return `${ctx.dataset.label}: ${Number(v).toLocaleString(undefined, { maximumFractionDigits: 4 })}${unit}`;
+        return `${ctx.dataset.label}: ${window.AppMoney?.fmtCost(v, _currency()) ?? '-'}`;
+      }
+
+      function fmtCost(n) {
+        return window.AppMoney?.fmtCost(n, _currency()) ?? '-';
       }
 
       function tooltipLabelTokens(ctx) {
@@ -471,7 +474,7 @@
               : '');
           tr.innerHTML = `
             <td>${escapeHtml(r.project_name || '')}</td>
-            <td class="num">${fmt(r.actual_cost_usd_total)}</td>
+            <td class="num">${fmtCost(r.actual_cost_usd_total)}</td>
             <td class="num">${fmt(r.actual_days)}</td>
             <td class="mono" style="max-width:220px; word-break:break-word;">${modelHtml}</td>
             <td class="num">${inTok == null ? '—' : fmtInt(inTok)}</td>
@@ -727,11 +730,7 @@
               y: {
                 ...chartLineDefaults.scales.y,
                 ticks: {
-                  callback: (value) => {
-                    const n = Number(value);
-                    if (!Number.isFinite(n)) return String(value);
-                    return n.toLocaleString(undefined, { maximumFractionDigits: 4 });
-                  }
+                  callback: (value) => window.AppMoney?.fmtCost(value, _currency()) ?? String(value),
                 }
               }
             }
@@ -770,11 +769,7 @@
               y: {
                 ...chartLineDefaults.scales.y,
                 ticks: {
-                  callback: (value) => {
-                    const n = Number(value);
-                    if (!Number.isFinite(n)) return String(value);
-                    return n.toLocaleString(undefined, { maximumFractionDigits: 4 });
-                  }
+                  callback: (value) => window.AppMoney?.fmtCost(value, _currency()) ?? String(value),
                 }
               }
             }
@@ -1081,7 +1076,7 @@
           _renderForecastQualityBadge(forecastQualityCostReportEl, q);
         } catch (e) {}
         const costLabels = daily.map((p) => p.date).concat(costFc.map((x) => x.date));
-        const costActual = daily.map((p) => (p.cost_usd === null || p.cost_usd === undefined) ? null : Math.round(Number(p.cost_usd)));
+        const costActual = daily.map((p) => (p.cost_usd === null || p.cost_usd === undefined) ? null : window.AppMoney?.roundCost(p.cost_usd));
         const costFcData = costLabels.map(() => null);
         const costBy = new Map(costFc.map((x) => [x.date, x.value]));
         for (let i = daily.length; i < costLabels.length; i++) {
@@ -1092,7 +1087,7 @@
         if (daily.length >= 1) {
           const lastActual = costActual[daily.length - 1];
           if (lastActual !== null && lastActual !== undefined && Number.isFinite(Number(lastActual))) {
-            costFcData[daily.length - 1] = Math.round(Number(lastActual));
+            costFcData[daily.length - 1] = window.AppMoney?.roundCost(lastActual);
           }
         }
 
@@ -1139,11 +1134,7 @@
               y: {
                 ...chartLineDefaults.scales.y,
                 ticks: {
-                  callback: (value) => {
-                    const n = Math.round(Number(value));
-                    if (!Number.isFinite(n)) return String(value);
-                    return n.toLocaleString(undefined, { maximumFractionDigits: 0 });
-                  }
+                  callback: (value) => window.AppMoney?.fmtCost(value, _currency()) ?? String(value),
                 }
               }
             }
@@ -1156,7 +1147,7 @@
           costTbody.innerHTML = '';
           for (const x of costFc) {
             const tr = document.createElement('tr');
-            tr.innerHTML = `<td>${x.date}</td><td class="num">${fmtInt(x.value)}</td>`;
+            tr.innerHTML = `<td>${x.date}</td><td class="num">${fmtCost(x.value)}</td>`;
             costTbody.appendChild(tr);
           }
           if (costFc.length === 0) {
@@ -1177,7 +1168,7 @@
         tbodyEl.innerHTML = '';
         for (const p of slice) {
           const tr = document.createElement('tr');
-          tr.innerHTML = `<td>${p.date ?? ''}</td><td class="num">${fmt(p.cost_usd)}</td>`;
+          tr.innerHTML = `<td>${p.date ?? ''}</td><td class="num">${fmtCost(p.cost_usd)}</td>`;
           tbodyEl.appendChild(tr);
         }
 

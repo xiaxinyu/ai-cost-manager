@@ -49,14 +49,7 @@
   }
 
   function fmtMoney(n, currency) {
-    const x = Number(n);
-    const cur = (currency || "USD").trim() || "USD";
-    if (!Number.isFinite(x)) return "—";
-    try {
-      return x.toLocaleString(undefined, { style: "currency", currency: cur, maximumFractionDigits: 2 });
-    } catch {
-      return `${x.toFixed(4)} ${cur}`;
-    }
+    return window.AppMoney?.fmtCost(n, currency) ?? "—";
   }
 
   function esc(s) {

@@ -146,19 +146,12 @@
     return x.toFixed(4);
   }
 
-  function fmtUsdPer1m(n) {
-    if (n === null || n === undefined || !Number.isFinite(Number(n))) return "-";
-    return Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 });
+  function fmtUsdPer1m(n, currency) {
+    return window.AppMoney?.fmtCostPer1m(n, currency || lastBillingCurrency) ?? "—";
   }
 
   function fmtUsd(n, currency) {
-    if (n === null || n === undefined || !Number.isFinite(Number(n))) return "-";
-    const c = (currency || "").trim();
-    const suffix = c ? ` ${c}` : "";
-    return `${Number(n).toLocaleString(undefined, {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 6,
-    })}${suffix}`;
+    return window.AppMoney?.fmtCost(n, currency || lastBillingCurrency) ?? "—";
   }
 
   function syncBillingPricingSection() {
@@ -416,7 +409,7 @@
                   const v = ctx2.parsed?.y;
                   if (v === null || v === undefined || !Number.isFinite(Number(v))) return `${ctx2.dataset.label}: -`;
                   const u = ccy ? ` ${ccy}` : "";
-                  return `${ctx2.dataset.label}: ${fmtUsdPer1m(v)}${u}`;
+                  return `${ctx2.dataset.label}: ${fmtUsdPer1m(v, currency)}`;
                 },
               },
             },
@@ -651,7 +644,7 @@
           ticks: {
             callback: (v) => {
               if (unitType === "ratio") return Number(v).toFixed(1);
-              if (unitType === "usd") return fmtUsd(v, "");
+              if (unitType === "usd") return fmtUsd(v, currency);
               return fmtInt(v);
             },
           },
@@ -1030,6 +1023,40 @@
     URL.revokeObjectURL(url);
   }
 
+  function auditCostPipeline(series, dailyRows) {
+    const meta = series._cost_meta || {};
+    const rows = dailyRows || series.daily_by_model || [];
+    const withCost = rows.filter(
+      (r) => r.input_cost_usd != null || r.output_cost_usd != null
+    ).length;
+    console.group("[tokens] cost pipeline");
+    console.info("cost_pipeline_version", series.cost_pipeline_version || "(missing — restart serve)");
+    console.info("_cost_meta", meta);
+    console.info(`rows=${rows.length} with_cost=${withCost}`);
+    if (series._cost_trace_sample) {
+      console.info("_cost_trace_sample", series._cost_trace_sample);
+    }
+    rows.slice(0, 5).forEach((r, i) => {
+      console.info(`row[${i}]`, r.date, r.model_name, {
+        input_cost_usd: r.input_cost_usd,
+        output_cost_usd: r.output_cost_usd,
+        total_cost_usd: r.total_cost_usd,
+        allocation_method: r.allocation_method,
+      });
+    });
+    if (rows.length > 0 && withCost === 0) {
+      console.warn(
+        "All daily costs are null. Restart: COST_DEBUG=1 .venv/bin/python -m app.cli serve --reload --log-level info"
+      );
+      window.AppShell?.toast?.(
+        "Daily costs missing — server may be running old code. Restart serve with latest code; check browser console.",
+        "warn",
+        9000
+      );
+    }
+    console.groupEnd();
+  }
+
   async function loadTokenData() {
     const project = els.projectSelect.value;
     if (!project) return;
@@ -1046,13 +1073,22 @@
         seriesParams.set("end_date", els.endDate.value);
       }
 
-      const [stats, series] = await Promise.all([
-        window.AppHttp.getJson(`/api/projects/${encodeURIComponent(project)}/stats?${statsParams.toString()}`),
-        window.AppHttp.getJson(`/api/projects/${encodeURIComponent(project)}/token-timeseries?${seriesParams.toString()}`),
-      ]);
+      const stats = await window.AppHttp.getJson(
+        `/api/projects/${encodeURIComponent(project)}/stats?${statsParams.toString()}`
+      );
+      lastBillingCurrency = stats.currency || "USD";
+      if (stats.currency) seriesParams.set("currency", stats.currency);
+      if (new URLSearchParams(window.location.search).get("cost_debug") === "1") {
+        seriesParams.set("cost_debug", "1");
+      }
+
+      const series = await window.AppHttp.getJson(
+        `/api/projects/${encodeURIComponent(project)}/token-timeseries?${seriesParams.toString()}`
+      );
+      auditCostPipeline(series, series.daily_by_model || []);
 
       const source = series.token_data_source || stats.token_data_source || "estimated";
-      lastBillingCurrency = stats.currency || series.currency || "USD";
+      if (!stats.currency && series.currency) lastBillingCurrency = series.currency;
       const imported = source === "imported";
       if (els.noImportState) els.noImportState.hidden = imported;
       if (els.workspace) els.workspace.hidden = !imported;

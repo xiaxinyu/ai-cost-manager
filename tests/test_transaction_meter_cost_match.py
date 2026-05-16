@@ -3,7 +3,12 @@ from __future__ import annotations
 from fastapi.testclient import TestClient
 
 from app.auth import create_user
-from app.db import get_connection, get_imported_token_daily_by_model, init_db
+from app.db import (
+    get_connection,
+    get_imported_token_daily_by_model,
+    init_db,
+    sum_transaction_cost_usd_for_model_day,
+)
 from app.main import create_app
 
 
@@ -15,6 +20,7 @@ def _seed_token_day(
     model: str,
     input_tokens: float,
     output_tokens: float,
+    row_base: int = 1,
 ) -> None:
     conn.execute(
         """
@@ -23,7 +29,15 @@ def _seed_token_day(
             token_count, source_file, source_row_index
         ) VALUES (?, ?, ?, ?, 'input', ?, ?, ?)
         """,
-        (project, f"{usage_date} 10:00:00", usage_date, model, input_tokens, "token/input.csv", 1),
+        (
+            project,
+            f"{usage_date} 10:00:00",
+            usage_date,
+            model,
+            input_tokens,
+            f"token/input-{usage_date}-{model}.csv",
+            row_base,
+        ),
     )
     conn.execute(
         """
@@ -32,7 +46,15 @@ def _seed_token_day(
             token_count, source_file, source_row_index
         ) VALUES (?, ?, ?, ?, 'output', ?, ?, ?)
         """,
-        (project, f"{usage_date} 10:00:00", usage_date, model, output_tokens, "token/output.csv", 1),
+        (
+            project,
+            f"{usage_date} 10:00:00",
+            usage_date,
+            model,
+            output_tokens,
+            f"token/output-{usage_date}-{model}.csv",
+            row_base,
+        ),
     )
 
 
@@ -77,6 +99,14 @@ def test_transaction_meter_matching_sums_cost_by_model_date_direction(tmp_path):
             input_tokens=1_000_000.0,
             output_tokens=50_000.0,
         )
+        _seed_token_day(
+            conn,
+            project="projTx",
+            usage_date="2026-05-07",
+            model="gpt-5.3-codex",
+            input_tokens=41_210_000.0,
+            output_tokens=259_300.0,
+        )
         # gpt-5.3-codex
         _seed_tx(conn, project="projTx", usage_date="2026-05-12", meter="5.3 codex inp Gl 1M Tokens", cost_usd=10.0, row_index=1)
         _seed_tx(conn, project="projTx", usage_date="2026-05-12", meter="5.3 codex cd inp Gl 1M Tokens", cost_usd=5.0, row_index=2)
@@ -84,7 +114,54 @@ def test_transaction_meter_matching_sums_cost_by_model_date_direction(tmp_path):
         # gpt-5.4
         _seed_tx(conn, project="projTx", usage_date="2026-05-12", meter="5.4 inp Gl 1M Tokens", cost_usd=0.05, row_index=4)
         _seed_tx(conn, project="projTx", usage_date="2026-05-12", meter="5.4 opt Gl 1M Tokens", cost_usd=0.02, row_index=5)
+        _seed_tx(
+            conn,
+            project="projTx",
+            usage_date="2026-05-07",
+            meter="5.3 codex inp Gl 1M Tokens",
+            cost_usd=10.077865,
+            row_index=6,
+        )
+        _seed_tx(
+            conn,
+            project="projTx",
+            usage_date="2026-05-07",
+            meter="5.3 codex cd inp Gl 1M Tokens",
+            cost_usd=5.05283072,
+            row_index=7,
+        )
+        _seed_tx(
+            conn,
+            project="projTx",
+            usage_date="2026-05-07",
+            meter="5.3 codex opt Gl 1M Tokens",
+            cost_usd=3.294704,
+            row_index=8,
+        )
         conn.commit()
+
+        assert abs(
+            sum_transaction_cost_usd_for_model_day(
+                conn,
+                "projTx",
+                usage_date="2026-05-07",
+                token_model="gpt-5.3-codex",
+                token_direction="input",
+                currency="USD",
+            )
+            - 15.13069572
+        ) < 1e-4
+        assert abs(
+            sum_transaction_cost_usd_for_model_day(
+                conn,
+                "projTx",
+                usage_date="2026-05-07",
+                token_model="gpt-5.3-codex",
+                token_direction="output",
+                currency="USD",
+            )
+            - 3.294704
+        ) < 1e-4
 
         out = get_imported_token_daily_by_model(conn, "projTx", currency="USD")
         by_key = {(str(r["date"]), str(r["model_name"])): r for r in out}
@@ -98,6 +175,10 @@ def test_transaction_meter_matching_sums_cost_by_model_date_direction(tmp_path):
         assert abs(float(c54["input_cost_usd"]) - 0.05) < 1e-6
         assert abs(float(c54["output_cost_usd"]) - 0.02) < 1e-6
         assert abs(float(c54["total_cost_usd"]) - 0.07) < 1e-6
+        d57 = by_key[("2026-05-07", "gpt-5.3-codex")]
+        assert d57["allocation_method"] == "meter_matched"
+        assert float(d57["input_cost_usd"]) == 15.13
+        assert float(d57["output_cost_usd"]) == 3.29
     finally:
         conn.close()
 

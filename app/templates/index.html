@@ -115,6 +115,7 @@
 
     <script src="/static/js/chart.umd.min.js"></script>
     <script src="/static/js/app-shell.js"></script>
+    <script src="/static/js/money.js"></script>
     <script src="/static/js/http.js"></script>
     <script src="/static/js/forecasting.js"></script>
     <script src="/static/js/chart-plugins.js"></script>
@@ -144,8 +145,7 @@
       const forecastQualityCostEl = document.getElementById('forecastQualityCost');
 
       function fmt2(n) {
-        if (n === null || n === undefined || isNaN(n)) return '-';
-        return n.toLocaleString(undefined, { maximumFractionDigits: 4, minimumFractionDigits: 0 });
+        return window.AppMoney?.fmtCost(n, currentCurrency) ?? '-';
       }
 
       function fmtInt(n) {
@@ -258,8 +258,7 @@
         if (unitType === 'tokens') {
           return `${ctx.dataset.label}: ${Math.round(Number(v)).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
         }
-        const unit = currentCurrency ? ` ${currentCurrency}` : '';
-        return `${ctx.dataset.label}: ${Math.round(Number(v)).toLocaleString(undefined, { maximumFractionDigits: 0 })}${unit}`;
+        return `${ctx.dataset.label}: ${window.AppMoney?.fmtCost(v, currentCurrency) ?? '-'}`;
       }
 
       function emptyStatePlugin(emptyMessage) {
@@ -305,7 +304,7 @@
 
         const costData = (costPoints || []).map((p) => {
           const v = p.cost_usd;
-          return v === null || v === undefined ? null : Math.round(Number(v));
+          return v === null || v === undefined ? null : window.AppMoney?.roundCost(v);
         });
 
         const costFcBy = Array.isArray(costForecast) ? new Map(costForecast.map((x) => [x.date, x.value])) : new Map();
@@ -389,11 +388,7 @@
                 ticks: {
                   color: '#9fb2c7',
                   font: { size: 12, weight: '500' },
-                  callback: (value) => {
-                    const n = Math.round(Number(value));
-                    if (!Number.isFinite(n)) return String(value);
-                    return n.toLocaleString(undefined, { maximumFractionDigits: 0, minimumFractionDigits: 0 });
-                  },
+                  callback: (value) => window.AppMoney?.fmtCost(value, currentCurrency) ?? String(value),
                 },
                 beginAtZero: true,
                 grid: { color: 'rgba(255,255,255,0.08)' },

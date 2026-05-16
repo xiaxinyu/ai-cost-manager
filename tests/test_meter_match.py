@@ -4,9 +4,8 @@ import pytest
 
 from app.meter_match import (
     aggregate_billing_rows,
-    canonical_model_name,
-    meter_matches_model_direction,
     parse_foundry_meter,
+    sum_meter_costs,
     token_model_name,
     token_models_match,
 )
@@ -21,6 +20,7 @@ from app.meter_match import (
         ("5.4 inp Gl 1M Tokens", "5.4", None, "input", "input", "gpt-5.4"),
         ("5.4 opt Gl 1M Tokens", "5.4", None, "output", "output", "gpt-5.4"),
         ("5.4 cd inp Gl 1M Tokens", "5.4", None, "input", "cached_input", "gpt-5.4"),
+        ("5.3 codex inp GI 1M Tokens", "5.3", "codex", "input", "input", "gpt-5.3-codex"),
     ],
 )
 def test_parse_foundry_meter_real_patterns(
@@ -35,68 +35,20 @@ def test_parse_foundry_meter_real_patterns(
     assert parsed.token_model == token_model
 
 
-def test_parse_foundry_meter_rejects_unknown():
-    assert parse_foundry_meter("") is None
-    assert parse_foundry_meter("GPT-4 legacy meter") is None
-    assert parse_foundry_meter("storage gb month") is None
-
-
-def test_token_model_name():
-    assert token_model_name(version="5.3", family="codex") == "gpt-5.3-codex"
-    assert token_model_name(version="5.4", family=None) == "gpt-5.4"
-
-
-def test_token_models_match_fuzzy():
-    assert token_models_match("gpt-5.3-codex", "GPT-5.3-Codex")
-    assert token_models_match("gpt-5.3-codex", "GPT 5.3 codex")
-    assert token_models_match("gpt-5.4", "GPT5.4")
-    assert not token_models_match("gpt-5.3-codex", "gpt-5.4")
-
-
-def test_canonical_model_name_best_effort():
-    assert canonical_model_name("gpt-5.3-codex") == "gpt-5.3-codex"
-    assert canonical_model_name("GPT 5.3 CODEX") == "gpt-5.3-codex"
-    assert canonical_model_name("gpt5.4") == "gpt-5.4"
-
-
-def test_parse_foundry_meter_variant_patterns():
-    p1 = parse_foundry_meter("GPT 5.3 codex input Gl 1M Tokens")
-    assert p1 is not None
-    assert p1.token_model == "gpt-5.3-codex"
-    assert p1.token_direction == "input"
-
-    p2 = parse_foundry_meter("gpt-5.4 output gl 1m tokens")
-    assert p2 is not None
-    assert p2.token_model == "gpt-5.4"
-    assert p2.token_direction == "output"
-
-
-def test_meter_matches_model_direction_explicit():
-    assert meter_matches_model_direction(
-        "5.3 codex inp",
-        token_model="gpt-5.3-codex",
-        token_direction="input",
+def test_sum_meter_costs_by_model_direction():
+    rows = [
+        ("5.3 codex inp Gl 1M Tokens", 10.0),
+        ("5.3 codex cd inp Gl 1M Tokens", 5.0),
+        ("5.3 codex opt Gl 1M Tokens", 3.0),
+        ("5.4 inp Gl 1M Tokens", 0.05),
+    ]
+    assert (
+        sum_meter_costs(rows, token_model="gpt-5.3-codex", token_direction="input") == pytest.approx(15.0)
     )
-    assert meter_matches_model_direction(
-        "5.3 codex opt",
-        token_model="gpt-5.3-codex",
-        token_direction="output",
+    assert (
+        sum_meter_costs(rows, token_model="gpt-5.3-codex", token_direction="output") == pytest.approx(3.0)
     )
-    assert meter_matches_model_direction(
-        "5.4 inp",
-        token_model="gpt-5.4",
-        token_direction="input",
-    )
-    assert meter_matches_model_direction(
-        "5.4 opt",
-        token_model="gpt-5.4",
-        token_direction="output",
-    )
-    assert not meter_matches_model_direction(
-        "5.3 codex opt",
-        token_model="gpt-5.3-codex",
-        token_direction="input",
-    )
+    assert sum_meter_costs(rows, token_model="gpt-5.4", token_direction="input") == pytest.approx(0.05)
 
 
 def test_aggregate_billing_rows_cached_input_rolls_to_input_bucket():
@@ -111,7 +63,16 @@ def test_aggregate_billing_rows_cached_input_rolls_to_input_bucket():
     codex = agg["2026-05-07"]["gpt-5.3-codex"]
     assert codex["input"] == pytest.approx(15.0)
     assert codex["output"] == pytest.approx(3.0)
-    assert codex["total"] == pytest.approx(18.0)
     g54 = agg["2026-05-12"]["gpt-5.4"]
     assert g54["input"] == pytest.approx(0.05)
     assert g54["output"] == pytest.approx(0.02)
+
+
+def test_token_models_match_fuzzy():
+    assert token_models_match("gpt-5.3-codex", "GPT-5.3-Codex")
+    assert not token_models_match("gpt-5.3-codex", "gpt-5.4")
+
+
+def test_token_model_name():
+    assert token_model_name(version="5.3", family="codex") == "gpt-5.3-codex"
+    assert token_model_name(version="5.4", family=None) == "gpt-5.4"

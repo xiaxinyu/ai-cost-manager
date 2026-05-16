@@ -6,6 +6,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.auth import create_user
+from app.money import round_cost
 from app.db import (
     get_connection,
     get_model_implied_usd_per_1m_analysis,
@@ -68,26 +69,26 @@ def test_model_implied_usd_per_1m_daily_stats(tmp_path):
 
     # Day1: cost 10, model-a 1M in + 100K out (only model with tokens) => $10 / 1.1M tokens
     a_day1 = next(d for d in by_name["model-a"]["daily"] if d["date"] == "2026-05-01")
-    expected_blended_d1 = 10.0 / 1_100_000 * 1_000_000
-    assert abs(a_day1["usd_per_1m_blended"] - expected_blended_d1) < 1e-6
-    assert abs(a_day1["usd_per_1m_input"] - expected_blended_d1) < 1e-6
-    assert abs(a_day1["usd_per_1m_output"] - expected_blended_d1) < 1e-6
+    expected_blended_d1 = round_cost(10.0 / 1_100_000 * 1_000_000)
+    assert a_day1["usd_per_1m_blended"] == expected_blended_d1
+    assert a_day1["usd_per_1m_input"] == expected_blended_d1
+    assert a_day1["usd_per_1m_output"] == expected_blended_d1
 
     # Day2: cost 30, model-a 2.2M tokens, model-b 1.05M tokens
     a_day2 = next(d for d in by_name["model-a"]["daily"] if d["date"] == "2026-05-02")
     b_day2 = next(d for d in by_name["model-b"]["daily"] if d["date"] == "2026-05-02")
     a_alloc_d2 = 30.0 * (2_200_000 / 3_250_000)
     b_alloc_d2 = 30.0 * (1_050_000 / 3_250_000)
-    assert abs(a_day2["cost_usd_allocated"] - a_alloc_d2) < 1e-4
-    assert abs(b_day2["cost_usd_allocated"] - b_alloc_d2) < 1e-4
-    assert abs(a_day2["usd_per_1m_blended"] - (a_alloc_d2 / 2_200_000 * 1_000_000)) < 1e-6
+    assert a_day2["cost_usd_allocated"] == round_cost(a_alloc_d2)
+    assert b_day2["cost_usd_allocated"] == round_cost(b_alloc_d2)
+    assert a_day2["usd_per_1m_blended"] == round_cost(a_alloc_d2 / 2_200_000 * 1_000_000)
 
     st_a = by_name["model-a"]["stats"]["blended"]
     assert st_a["count"] == 2
-    assert st_a["min"] == pytest.approx(min(expected_blended_d1, a_day2["usd_per_1m_blended"]), rel=1e-5)
-    assert st_a["max"] == pytest.approx(max(expected_blended_d1, a_day2["usd_per_1m_blended"]), rel=1e-5)
-    assert abs(st_a["mean"] - (expected_blended_d1 + a_day2["usd_per_1m_blended"]) / 2) < 1e-6
-    assert abs(st_a["median"] - (expected_blended_d1 + a_day2["usd_per_1m_blended"]) / 2) < 1e-6
+    assert st_a["min"] == min(expected_blended_d1, a_day2["usd_per_1m_blended"])
+    assert st_a["max"] == max(expected_blended_d1, a_day2["usd_per_1m_blended"])
+    assert st_a["mean"] == round_cost((expected_blended_d1 + a_day2["usd_per_1m_blended"]) / 2)
+    assert st_a["median"] == round_cost((expected_blended_d1 + a_day2["usd_per_1m_blended"]) / 2)
 
 
 def test_project_daily_implied_usd_per_1m_timeseries(tmp_path):
