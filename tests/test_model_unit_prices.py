@@ -191,8 +191,8 @@ def test_model_unit_prices_api(tmp_path):
 
     page = client.get("/tokens")
     assert page.status_code == 200
-    assert "billingPricingSection" in page.text
-    assert "modelUnitPriceTbody" in page.text
+    assert "unitPriceSection" in page.text
+    assert "impliedUnitPriceInputChart" in page.text
 
 
 def test_implied_timeseries_follows_token_calendar_not_full_billing(tmp_path):

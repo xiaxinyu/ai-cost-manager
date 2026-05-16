@@ -25,6 +25,20 @@ _TOKEN_QTY_RE = re.compile(
     re.IGNORECASE,
 )
 
+_TOKEN_UPSERT_SQL = """
+INSERT INTO token_usage_points(
+    project_name, recorded_at, usage_date, model_name, token_direction,
+    token_count, source_file, source_row_index
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+ON CONFLICT(project_name, token_direction, recorded_at, model_name)
+DO UPDATE SET
+    usage_date = excluded.usage_date,
+    token_count = excluded.token_count,
+    source_file = excluded.source_file,
+    source_row_index = excluded.source_row_index,
+    ingested_at = datetime('now')
+"""
+
 
 @dataclass(frozen=True)
 class TokenIngestResult:
@@ -33,8 +47,30 @@ class TokenIngestResult:
     files_skipped: int
     files_ingested: int
     rows_ingested: int
+    rows_replaced: int
     files_verified: int
     verification_passed: bool
+
+
+@dataclass(frozen=True)
+class TokenNaturalKey:
+    project_name: str
+    token_direction: str
+    recorded_at: str
+    model_name: str
+
+    def as_tuple(self) -> tuple[str, str, str, str]:
+        return (self.project_name, self.token_direction, self.recorded_at, self.model_name)
+
+
+@dataclass(frozen=True)
+class TokenCsvDuplicateReport:
+    file_a: str
+    file_b: str
+    token_direction: str
+    exact_overlap_count: int
+    calendar_date_overlap: list[str]
+    sample_overlaps: list[tuple[str, str]]
 
 
 @dataclass(frozen=True)
@@ -100,12 +136,17 @@ def _normalize_key(k: str) -> str:
     return k.strip().strip("\ufeff").strip('"').strip("'").lower().replace(" ", "_")
 
 
+def _normalize_model_name(raw: str) -> str:
+    return raw.strip().strip('"').strip("'")
+
+
 def _parse_recorded_at(raw_time: str) -> tuple[str, str]:
     s = raw_time.strip().strip('"')
     for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S"):
         try:
             dt = datetime.strptime(s, fmt)
-            return s, dt.date().isoformat()
+            recorded_at = dt.strftime("%Y-%m-%d %H:%M:%S")
+            return recorded_at, dt.date().isoformat()
         except ValueError:
             continue
     if len(s) >= 10 and s[4] == "-" and s[7] == "-":
@@ -113,9 +154,19 @@ def _parse_recorded_at(raw_time: str) -> tuple[str, str]:
     raise ValueError(f"Cannot parse Time value: {raw_time!r}")
 
 
+def _file_sort_key(csv_path: Path) -> tuple[float, str]:
+    """Older files first so newer imports win on natural-key conflicts."""
+    try:
+        mtime = float(csv_path.stat().st_mtime)
+    except OSError:
+        mtime = 0.0
+    return (mtime, csv_path.name)
+
+
 def discover_token_csv_files(bills_dir: str | os.PathLike[str]) -> list[tuple[str, Path, str]]:
     """
-    Returns list of (project_name, csv_path_abs, file_path_rel).
+    Returns list of (project_name, csv_path_abs, file_path_rel), oldest file first.
+
     file_path_rel format: <project>/token/<filename>.csv
     """
     bills_path = Path(bills_dir).expanduser().resolve()
@@ -132,37 +183,112 @@ def discover_token_csv_files(bills_dir: str | os.PathLike[str]) -> list[tuple[st
         token_dir = project_dir / "token"
         if not token_dir.is_dir():
             continue
-        for csv_path in sorted(token_dir.glob("*.csv")):
+        for csv_path in sorted(token_dir.glob("*.csv"), key=_file_sort_key):
             rel_path = str(csv_path.relative_to(bills_path))
             results.append((project_name, csv_path, rel_path))
     return results
 
 
-def _build_expected_from_token_csv(
-    csv_path_abs: Path, *, token_direction: str
-) -> dict[str, dict[str, object]]:
-    expected_by_date: dict[str, dict[str, object]] = {}
+def iter_token_csv_points(
+    csv_path_abs: Path, *, project_name: str, file_path_rel: str
+) -> tuple[str, list[dict[str, object]], list[str]]:
+    """
+    Parse a Grafana token CSV into point dicts.
+
+    Natural identity: (Time, model column) per file direction (input/output).
+    """
+    token_direction = infer_token_direction(csv_path_abs.name)
+    points: list[dict[str, object]] = []
     with csv_path_abs.open("r", newline="", encoding="utf-8-sig") as f:
         reader = csv.DictReader(f)
-        fieldnames = reader.fieldnames or []
-        model_cols = [_normalize_key(c) for c in fieldnames if _normalize_key(c) != "time"]
-        for _row_index, row in enumerate(reader):
+        raw_columns = reader.fieldnames or []
+        model_cols = [c for c in raw_columns if _normalize_key(c) != "time"]
+
+        for row_index, row in enumerate(reader):
             normalized = {_normalize_key(k): (v if v is not None else "") for k, v in row.items()}
             raw_time = normalized.get("time", "").strip()
             if not raw_time:
                 continue
-            _, usage_date = _parse_recorded_at(raw_time)
-            row_total = 0.0
+
+            recorded_at, usage_date = _parse_recorded_at(raw_time)
             for col in model_cols:
-                raw_val = normalized.get(col, "")
+                col_key = _normalize_key(col)
+                raw_val = normalized.get(col_key, "")
                 if raw_val is None or str(raw_val).strip() == "":
                     continue
-                row_total += parse_token_quantity(raw_val)
-            if usage_date not in expected_by_date:
-                expected_by_date[usage_date] = {"count": 0, "token_sum": 0.0}
-            expected_by_date[usage_date]["count"] = int(expected_by_date[usage_date]["count"]) + 1
-            expected_by_date[usage_date]["token_sum"] = float(expected_by_date[usage_date]["token_sum"]) + row_total
+                model_name = _normalize_model_name(col)
+                token_count = parse_token_quantity(raw_val)
+                points.append(
+                    {
+                        "project_name": project_name,
+                        "recorded_at": recorded_at,
+                        "usage_date": usage_date,
+                        "model_name": model_name,
+                        "token_direction": token_direction,
+                        "token_count": token_count,
+                        "source_file": file_path_rel,
+                        "source_row_index": row_index,
+                        "natural_key": TokenNaturalKey(
+                            project_name, token_direction, recorded_at, model_name
+                        ),
+                    }
+                )
+    return token_direction, points, list(raw_columns)
+
+
+def compare_token_csv_natural_keys(
+    csv_path_a: Path,
+    csv_path_b: Path,
+    *,
+    project_name: str = "project",
+) -> TokenCsvDuplicateReport:
+    """Report exact (Time, model) overlaps and shared calendar dates between two CSVs."""
+    dir_a = infer_token_direction(csv_path_a.name)
+    dir_b = infer_token_direction(csv_path_b.name)
+    if dir_a != dir_b:
+        raise ValueError(f"Token direction mismatch: {csv_path_a.name} ({dir_a}) vs {csv_path_b.name} ({dir_b})")
+
+    _, points_a, _ = iter_token_csv_points(
+        csv_path_a, project_name=project_name, file_path_rel=csv_path_a.name
+    )
+    _, points_b, _ = iter_token_csv_points(
+        csv_path_b, project_name=project_name, file_path_rel=csv_path_b.name
+    )
+    keys_a = {(p["recorded_at"], p["model_name"]) for p in points_a}
+    keys_b = {(p["recorded_at"], p["model_name"]) for p in points_b}
+    overlap = sorted(keys_a & keys_b)
+    dates_a = {str(p["usage_date"]) for p in points_a}
+    dates_b = {str(p["usage_date"]) for p in points_b}
+    return TokenCsvDuplicateReport(
+        file_a=csv_path_a.name,
+        file_b=csv_path_b.name,
+        token_direction=dir_a,
+        exact_overlap_count=len(overlap),
+        calendar_date_overlap=sorted(dates_a & dates_b),
+        sample_overlaps=overlap[:20],
+    )
+
+
+def _build_expected_from_points(points: list[dict[str, object]]) -> dict[str, dict[str, object]]:
+    expected_by_date: dict[str, dict[str, object]] = {}
+    for p in points:
+        usage_date = str(p["usage_date"])
+        if usage_date not in expected_by_date:
+            expected_by_date[usage_date] = {"count": 0, "token_sum": 0.0}
+        expected_by_date[usage_date]["count"] = int(expected_by_date[usage_date]["count"]) + 1
+        expected_by_date[usage_date]["token_sum"] = float(expected_by_date[usage_date]["token_sum"]) + float(
+            p["token_count"]
+        )
     return expected_by_date
+
+
+def _build_expected_from_token_csv(
+    csv_path_abs: Path, *, token_direction: str
+) -> dict[str, dict[str, object]]:
+    _, points, _ = iter_token_csv_points(
+        csv_path_abs, project_name="", file_path_rel=csv_path_abs.name
+    )
+    return _build_expected_from_points(points)
 
 
 def _verify_token_ingestion_for_file(
@@ -172,17 +298,47 @@ def _verify_token_ingestion_for_file(
     checksum_sha256: str,
     token_direction: str,
     expected_by_date: dict[str, dict[str, object]],
+    expected_points: list[dict[str, object]],
 ) -> None:
     eps = 1e-3
     expected_dates = set(expected_by_date.keys())
-    expected_total_rows = sum(int(v["count"]) for v in expected_by_date.values())
-    expected_total_tokens = sum(float(v["token_sum"]) for v in expected_by_date.values())
+    expected_total_rows = len(expected_points)
+    expected_total_tokens = sum(float(p["token_count"]) for p in expected_points)
+
+    for p in expected_points:
+        row = conn.execute(
+            """
+            SELECT token_count, source_file
+            FROM token_usage_points
+            WHERE project_name = ?
+              AND token_direction = ?
+              AND recorded_at = ?
+              AND model_name = ?
+            """,
+            (
+                p["project_name"],
+                p["token_direction"],
+                p["recorded_at"],
+                p["model_name"],
+            ),
+        ).fetchone()
+        if row is None:
+            raise ValueError(
+                f"Token ingest audit missing natural key for {file_path_rel}: "
+                f"time={p['recorded_at']!r} model={p['model_name']!r}"
+            )
+        if abs(float(row["token_count"]) - float(p["token_count"])) > eps:
+            raise ValueError(
+                f"Token ingest audit token_count mismatch for {file_path_rel} "
+                f"time={p['recorded_at']!r} model={p['model_name']!r}: "
+                f"db={float(row['token_count'])}, expected={float(p['token_count'])}"
+            )
 
     rows_by_date = conn.execute(
         """
         SELECT
           usage_date,
-          COUNT(DISTINCT source_row_index) AS cnt,
+          COUNT(*) AS cnt,
           COALESCE(SUM(token_count), 0) AS sum_tokens
         FROM token_usage_points
         WHERE source_file = ? AND token_direction = ?
@@ -214,7 +370,7 @@ def _verify_token_ingestion_for_file(
     total = conn.execute(
         """
         SELECT
-          COUNT(DISTINCT source_row_index) AS cnt,
+          COUNT(*) AS cnt,
           COALESCE(SUM(token_count), 0) AS sum_tokens
         FROM token_usage_points
         WHERE source_file = ? AND token_direction = ?
@@ -244,10 +400,50 @@ def _verify_token_ingestion_for_file(
         raise ValueError(
             f"Token ingest audit checksum mismatch for {file_path_rel}: db={ing['checksum_sha256']}, expected={checksum_sha256}"
         )
-    if int(ing["row_count"]) != expected_total_rows:
+    if int(ing["row_count"]) != len({int(p["source_row_index"]) for p in expected_points}):
         raise ValueError(
-            f"Token ingest audit ingested_token_files row_count mismatch for {file_path_rel}: db={int(ing['row_count'])}, expected={expected_total_rows}"
+            f"Token ingest audit ingested_token_files row_count mismatch for {file_path_rel}: "
+            f"db={int(ing['row_count'])}, expected={len({int(p['source_row_index']) for p in expected_points})}"
         )
+
+
+def _delete_stale_keys_for_source_file(
+    conn,
+    *,
+    file_path_rel: str,
+    new_keys: set[tuple[str, str, str, str]],
+) -> int:
+    """Remove natural keys that belonged to this file but are absent in the new CSV."""
+    old_rows = conn.execute(
+        """
+        SELECT project_name, token_direction, recorded_at, model_name
+        FROM token_usage_points
+        WHERE source_file = ?
+        """,
+        (file_path_rel,),
+    ).fetchall()
+    removed = 0
+    for r in old_rows:
+        key = (
+            str(r["project_name"]),
+            str(r["token_direction"]),
+            str(r["recorded_at"]),
+            str(r["model_name"]),
+        )
+        if key in new_keys:
+            continue
+        conn.execute(
+            """
+            DELETE FROM token_usage_points
+            WHERE project_name = ?
+              AND token_direction = ?
+              AND recorded_at = ?
+              AND model_name = ?
+            """,
+            key,
+        )
+        removed += 1
+    return removed
 
 
 def _ingest_one_token_file(
@@ -257,81 +453,76 @@ def _ingest_one_token_file(
     csv_path_abs: Path,
     file_path_rel: str,
     reimport_changed: bool,
-) -> tuple[int, bool]:
-    token_direction = infer_token_direction(csv_path_abs.name)
+) -> tuple[int, int, bool]:
+    token_direction, points, raw_columns = iter_token_csv_points(
+        csv_path_abs, project_name=project_name, file_path_rel=file_path_rel
+    )
     existing = conn.execute(
         "SELECT checksum_sha256 FROM ingested_token_files WHERE file_path = ?",
         (file_path_rel,),
     ).fetchone()
 
+    checksum = _sha256_file(csv_path_abs)
     if existing is not None:
         if not reimport_changed:
-            return 0, False
-        checksum = _sha256_file(csv_path_abs)
+            return 0, 0, False
         if str(existing["checksum_sha256"]) == checksum:
-            return 0, False
-        conn.execute("SAVEPOINT ingest_token_file")
-        conn.execute(
-            "DELETE FROM token_usage_points WHERE source_file = ?",
-            (file_path_rel,),
+            return 0, 0, False
+
+    conn.execute("SAVEPOINT ingest_token_file")
+
+    new_keys = {
+        (
+            str(p["project_name"]),
+            str(p["token_direction"]),
+            str(p["recorded_at"]),
+            str(p["model_name"]),
         )
+        for p in points
+    }
+    if existing is not None:
+        _delete_stale_keys_for_source_file(conn, file_path_rel=file_path_rel, new_keys=new_keys)
         conn.execute("DELETE FROM ingested_token_files WHERE file_path = ?", (file_path_rel,))
-    else:
-        checksum = _sha256_file(csv_path_abs)
-        conn.execute("SAVEPOINT ingest_token_file")
 
-    expected_by_date: dict[str, dict[str, object]] = {}
+    replaced = 0
     to_insert: list[tuple] = []
-    data_row_count = 0
+    for p in points:
+        key = (
+            str(p["project_name"]),
+            str(p["token_direction"]),
+            str(p["recorded_at"]),
+            str(p["model_name"]),
+        )
+        prev = conn.execute(
+            """
+            SELECT id, source_file, token_count
+            FROM token_usage_points
+            WHERE project_name = ? AND token_direction = ? AND recorded_at = ? AND model_name = ?
+            """,
+            key,
+        ).fetchone()
+        if prev is not None and (
+            str(prev["source_file"]) != file_path_rel
+            or abs(float(prev["token_count"]) - float(p["token_count"])) > 1e-9
+        ):
+            replaced += 1
+        to_insert.append(
+            (
+                p["project_name"],
+                p["recorded_at"],
+                p["usage_date"],
+                p["model_name"],
+                p["token_direction"],
+                p["token_count"],
+                p["source_file"],
+                p["source_row_index"],
+            )
+        )
 
-    with csv_path_abs.open("r", newline="", encoding="utf-8-sig") as f:
-        reader = csv.DictReader(f)
-        raw_columns = reader.fieldnames or []
-        model_cols = [c for c in raw_columns if _normalize_key(c) != "time"]
+    conn.executemany(_TOKEN_UPSERT_SQL, to_insert)
 
-        for row_index, row in enumerate(reader):
-            normalized = {_normalize_key(k): (v if v is not None else "") for k, v in row.items()}
-            raw_time = normalized.get("time", "").strip()
-            if not raw_time:
-                continue
-
-            recorded_at, usage_date = _parse_recorded_at(raw_time)
-            row_total = 0.0
-            for col in model_cols:
-                col_key = _normalize_key(col)
-                raw_val = normalized.get(col_key, "")
-                if raw_val is None or str(raw_val).strip() == "":
-                    continue
-                token_count = parse_token_quantity(raw_val)
-                row_total += token_count
-                to_insert.append(
-                    (
-                        project_name,
-                        recorded_at,
-                        usage_date,
-                        col.strip().strip('"'),
-                        token_direction,
-                        token_count,
-                        file_path_rel,
-                        row_index,
-                    )
-                )
-
-            if usage_date not in expected_by_date:
-                expected_by_date[usage_date] = {"count": 0, "token_sum": 0.0}
-            expected_by_date[usage_date]["count"] = int(expected_by_date[usage_date]["count"]) + 1
-            expected_by_date[usage_date]["token_sum"] = float(expected_by_date[usage_date]["token_sum"]) + row_total
-            data_row_count += 1
-
-    conn.executemany(
-        """
-        INSERT INTO token_usage_points(
-            project_name, recorded_at, usage_date, model_name, token_direction,
-            token_count, source_file, source_row_index
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        """,
-        to_insert,
-    )
+    expected_by_date = _build_expected_from_points(points)
+    data_row_count = len({int(p["source_row_index"]) for p in points})
 
     conn.execute(
         """
@@ -359,6 +550,7 @@ def _ingest_one_token_file(
             checksum_sha256=checksum,
             token_direction=token_direction,
             expected_by_date=expected_by_date,
+            expected_points=points,
         )
         conn.execute("RELEASE ingest_token_file")
         conn.commit()
@@ -367,7 +559,7 @@ def _ingest_one_token_file(
         conn.execute("RELEASE ingest_token_file")
         raise
 
-    return len(to_insert), True
+    return len(to_insert), replaced, True
 
 
 def ingest_token_all(
@@ -404,6 +596,7 @@ def ingest_token_selected(
     files_skipped = 0
     files_ingested = 0
     rows_ingested = 0
+    rows_replaced = 0
     files_verified = 0
     verification_passed = True
     projects: set[str] = set()
@@ -426,7 +619,7 @@ def ingest_token_selected(
                 continue
 
         try:
-            row_count, ingested = _ingest_one_token_file(
+            row_count, replaced, ingested = _ingest_one_token_file(
                 conn,
                 project_name=project_name,
                 csv_path_abs=csv_path_abs,
@@ -443,6 +636,7 @@ def ingest_token_selected(
 
         files_ingested += 1
         rows_ingested += row_count
+        rows_replaced += replaced
         files_verified += 1
 
     conn.close()
@@ -452,6 +646,7 @@ def ingest_token_selected(
         files_skipped=files_skipped,
         files_ingested=files_ingested,
         rows_ingested=rows_ingested,
+        rows_replaced=rows_replaced,
         files_verified=files_verified,
         verification_passed=verification_passed,
     )
@@ -570,15 +765,19 @@ def verify_ingested_token_files(
                     if not csv_path_abs.exists():
                         raise FileNotFoundError(f"Missing CSV file for {file_path_rel}")
                     checksum = _sha256_file(csv_path_abs)
-                    expected_by_date = _build_expected_from_token_csv(
-                        csv_path_abs, token_direction=str(ing["token_direction"])
+                    _, points, _ = iter_token_csv_points(
+                        csv_path_abs,
+                        project_name=str(ing["project_name"]),
+                        file_path_rel=file_path_rel,
                     )
+                    expected_by_date = _build_expected_from_points(points)
                     _verify_token_ingestion_for_file(
                         conn,
                         file_path_rel=file_path_rel,
                         checksum_sha256=checksum,
                         token_direction=str(ing["token_direction"]),
                         expected_by_date=expected_by_date,
+                        expected_points=points,
                     )
                     items.append(TokenIngestVerifyResultItem(file_path_rel=file_path_rel, pass_check=True, error=None))
                 except Exception as e:
@@ -606,15 +805,19 @@ def verify_ingested_token_files(
                 if not csv_path_abs.exists():
                     raise FileNotFoundError(f"Missing CSV file for {file_path_rel}")
                 checksum = _sha256_file(csv_path_abs)
-                expected_by_date = _build_expected_from_token_csv(
-                    csv_path_abs, token_direction=str(r["token_direction"])
+                _, points, _ = iter_token_csv_points(
+                    csv_path_abs,
+                    project_name=str(r["project_name"]),
+                    file_path_rel=file_path_rel,
                 )
+                expected_by_date = _build_expected_from_points(points)
                 _verify_token_ingestion_for_file(
                     conn,
                     file_path_rel=file_path_rel,
                     checksum_sha256=checksum,
                     token_direction=str(r["token_direction"]),
                     expected_by_date=expected_by_date,
+                    expected_points=points,
                 )
                 items.append(TokenIngestVerifyResultItem(file_path_rel=file_path_rel, pass_check=True, error=None))
             except Exception as e:

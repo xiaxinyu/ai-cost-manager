@@ -21,7 +21,7 @@ from .meter_match import (
 )
 
 
-SCHEMA_VERSION = 7
+SCHEMA_VERSION = 8
 
 EXPECTED_CSV_COLUMNS = [
     "UsageDate",
@@ -188,11 +188,14 @@ def init_db(conn: sqlite3.Connection) -> None:
             source_file TEXT NOT NULL,
             source_row_index INTEGER NOT NULL,
             ingested_at TEXT NOT NULL DEFAULT (datetime('now')),
-            UNIQUE(project_name, source_file, source_row_index, model_name)
+            UNIQUE(project_name, token_direction, recorded_at, model_name)
         );
 
         CREATE INDEX IF NOT EXISTS idx_token_usage_project_date
             ON token_usage_points(project_name, usage_date);
+
+        CREATE INDEX IF NOT EXISTS idx_token_usage_natural
+            ON token_usage_points(project_name, token_direction, recorded_at, model_name);
 
         CREATE INDEX IF NOT EXISTS idx_ingested_token_files_project_name
             ON ingested_token_files(project_name);
@@ -218,6 +221,7 @@ def init_db(conn: sqlite3.Connection) -> None:
 
     _migrate_billing_rows_if_needed(conn)
     _migrate_transactions_dedupe_billing_natural_key(conn)
+    _migrate_token_usage_natural_key(conn)
     _migrate_model_prices_source_detail_json(conn)
     _ensure_price_source_catalog(conn)
 
@@ -338,6 +342,72 @@ def _migrate_transactions_dedupe_billing_natural_key(conn: sqlite3.Connection) -
     conn.execute(
         """
         INSERT INTO meta(key, value) VALUES ('billing_natural_dedupe_v1', '1')
+        ON CONFLICT(key) DO UPDATE SET value = excluded.value
+        """
+    )
+    conn.commit()
+
+
+def _migrate_token_usage_natural_key(conn: sqlite3.Connection) -> None:
+    """
+    One-time: dedupe token rows by (project, direction, recorded_at, model) and replace
+    the old per-file row index unique constraint with a natural key for cross-file upsert.
+    """
+    row = conn.execute("SELECT value FROM meta WHERE key = 'token_natural_key_v1'").fetchone()
+    if row is not None and str(row["value"]).strip() == "1":
+        return
+    if not _table_exists(conn, "token_usage_points"):
+        conn.execute(
+            """
+            INSERT INTO meta(key, value) VALUES ('token_natural_key_v1', '1')
+            ON CONFLICT(key) DO UPDATE SET value = excluded.value
+            """
+        )
+        conn.commit()
+        return
+
+    conn.executescript(
+        """
+        CREATE TABLE token_usage_points_new (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            project_name TEXT NOT NULL,
+            recorded_at TEXT NOT NULL,
+            usage_date TEXT NOT NULL,
+            model_name TEXT NOT NULL,
+            token_direction TEXT NOT NULL,
+            token_count REAL NOT NULL,
+            source_file TEXT NOT NULL,
+            source_row_index INTEGER NOT NULL,
+            ingested_at TEXT NOT NULL DEFAULT (datetime('now')),
+            UNIQUE(project_name, token_direction, recorded_at, model_name)
+        );
+
+        INSERT INTO token_usage_points_new(
+            project_name, recorded_at, usage_date, model_name, token_direction,
+            token_count, source_file, source_row_index, ingested_at
+        )
+        SELECT
+            project_name, recorded_at, usage_date, model_name, token_direction,
+            token_count, source_file, source_row_index, ingested_at
+        FROM token_usage_points
+        WHERE id IN (
+            SELECT MAX(id)
+            FROM token_usage_points
+            GROUP BY project_name, token_direction, recorded_at, model_name
+        );
+
+        DROP TABLE token_usage_points;
+        ALTER TABLE token_usage_points_new RENAME TO token_usage_points;
+
+        CREATE INDEX IF NOT EXISTS idx_token_usage_project_date
+            ON token_usage_points(project_name, usage_date);
+        CREATE INDEX IF NOT EXISTS idx_token_usage_natural
+            ON token_usage_points(project_name, token_direction, recorded_at, model_name);
+        """
+    )
+    conn.execute(
+        """
+        INSERT INTO meta(key, value) VALUES ('token_natural_key_v1', '1')
         ON CONFLICT(key) DO UPDATE SET value = excluded.value
         """
     )
