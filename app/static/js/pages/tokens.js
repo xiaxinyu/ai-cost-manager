@@ -41,13 +41,13 @@
     ratioBaselinePill: document.getElementById("ratioBaselinePill"),
     modelPanel: document.getElementById("modelBreakdownPanel"),
     modelTbody: document.getElementById("modelBreakdownTbody"),
-    impliedUnitPriceSection: document.getElementById("impliedUnitPriceSection"),
     impliedUnitPriceHint: document.getElementById("impliedUnitPriceHint"),
-    impliedUnitPriceNote: document.getElementById("impliedUnitPriceNote"),
-    impliedUnitPriceStatsTbody: document.getElementById("impliedUnitPriceStatsTbody"),
-    modelUnitPriceSection: document.getElementById("modelUnitPriceSection"),
     modelUnitPriceHint: document.getElementById("modelUnitPriceHint"),
     modelUnitPriceTbody: document.getElementById("modelUnitPriceTbody"),
+    billingPricingSection: document.getElementById("billingPricingSection"),
+    impliedPricingCol: document.getElementById("impliedPricingCol"),
+    modelPricingCol: document.getElementById("modelPricingCol"),
+    billingPricingNote: document.getElementById("billingPricingNote"),
     modelPager: document.getElementById("modelPager"),
     modelPageSizeSelect: document.getElementById("modelPageSizeSelect"),
     modelPrevBtn: document.getElementById("modelPrevBtn"),
@@ -61,10 +61,14 @@
     exportBtn: document.getElementById("exportTokensBtn"),
   };
 
+  const BILLING_PRICING_NOTE_DEFAULT =
+    'Calendar follows imported token dates. Unit is <strong>USD/1M tokens</strong>. Project unit price formula: daily bill ÷ daily input/output tokens. Model blended formula: allocated daily bill ÷ (input + output tokens) by model.';
+
   let tokenInputChart = null;
   let tokenOutputChart = null;
   let tokenRatioChart = null;
-  let chartImpliedUnit = null;
+  let chartImpliedUnitInput = null;
+  let chartImpliedUnitOutput = null;
 
   const chartLineDefaults = {
     responsive: true,
@@ -136,55 +140,83 @@
     return Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 });
   }
 
-  function clearBillingPricingUi() {
-    if (chartImpliedUnit) {
-      chartImpliedUnit.destroy();
-      chartImpliedUnit = null;
-    }
-    if (els.impliedUnitPriceSection) els.impliedUnitPriceSection.hidden = true;
-    if (els.modelUnitPriceSection) els.modelUnitPriceSection.hidden = true;
-    if (els.impliedUnitPriceStatsTbody) els.impliedUnitPriceStatsTbody.innerHTML = "";
-    if (els.modelUnitPriceTbody) els.modelUnitPriceTbody.innerHTML = "";
+  function syncBillingPricingSection() {
+    if (!els.billingPricingSection) return;
+    const impH = !els.impliedPricingCol || els.impliedPricingCol.hidden;
+    const modH = !els.modelPricingCol || els.modelPricingCol.hidden;
+    els.billingPricingSection.hidden = impH && modH;
   }
 
-  function renderModelUnitPrices(payload) {
-    if (!els.modelUnitPriceSection || !els.modelUnitPriceTbody) return;
+  function clearBillingPricingUi() {
+    if (chartImpliedUnitInput) chartImpliedUnitInput.destroy();
+    if (chartImpliedUnitOutput) chartImpliedUnitOutput.destroy();
+    chartImpliedUnitInput = null;
+    chartImpliedUnitOutput = null;
+    if (els.impliedPricingCol) els.impliedPricingCol.hidden = true;
+    if (els.modelPricingCol) els.modelPricingCol.hidden = true;
+    if (els.billingPricingSection) els.billingPricingSection.hidden = true;
+    if (els.modelUnitPriceTbody) els.modelUnitPriceTbody.innerHTML = "";
+    if (els.billingPricingNote) els.billingPricingNote.innerHTML = BILLING_PRICING_NOTE_DEFAULT;
+  }
+
+  function renderModelUnitPrices(payload, impliedPayload, billingCurrency) {
+    if (!els.modelPricingCol || !els.modelUnitPriceTbody) return;
     els.modelUnitPriceTbody.innerHTML = "";
     if (!payload?.available) {
-      els.modelUnitPriceSection.hidden = true;
+      els.modelPricingCol.hidden = true;
       if (els.modelUnitPriceHint) {
         els.modelUnitPriceHint.textContent =
           payload?.reason === "no_imported_tokens"
             ? "Import token CSVs under bills/<project>/token/"
             : "";
       }
+      syncBillingPricingSection();
       return;
     }
-    els.modelUnitPriceSection.hidden = false;
+    els.modelPricingCol.hidden = false;
+    const ccy = billingCurrency || payload.currency || impliedPayload?.currency || "USD";
+    const unitLabel = `${ccy}/1M tokens`;
     if (els.modelUnitPriceHint) {
-      els.modelUnitPriceHint.textContent = `Currency: ${payload.currency ?? "-"} · ${payload.unit_label ?? "USD per 1M tokens"}`;
+      els.modelUnitPriceHint.textContent = `Table unit: ${unitLabel}`;
     }
-    const metrics = [
-      { key: "input", label: "Input", catalogKey: "catalog_usd_per_1m_input" },
-      { key: "output", label: "Output", catalogKey: "catalog_usd_per_1m_output" },
-      { key: "blended", label: "Blended", catalogKey: null },
+    const impliedRows = [
+      { label: "Project unit price (input)", st: impliedPayload?.stats?.input },
+      { label: "Project unit price (output)", st: impliedPayload?.stats?.output },
     ];
+    for (const row of impliedRows) {
+      if (!row.st || !row.st.count) continue;
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+            <td>(Project total)</td>
+            <td>${row.label}</td>
+            <td class="num">${fmtUsdPer1m(row.st.min)}</td>
+            <td class="num">${fmtUsdPer1m(row.st.max)}</td>
+            <td class="num">${fmtUsdPer1m(row.st.mean)}</td>
+            <td class="num">${fmtUsdPer1m(row.st.median)}</td>
+            <td class="num">${row.st.count}</td>
+            <td class="num">—</td>
+            <td class="num">—</td>
+          `;
+      els.modelUnitPriceTbody.appendChild(tr);
+    }
+    const metrics = [{ key: "blended", label: "Blended (allocated)", catalogIn: "catalog_usd_per_1m_input", catalogOut: "catalog_usd_per_1m_output" }];
     for (const model of payload.models || []) {
       for (const m of metrics) {
         const st = model.stats?.[m.key];
-        if (!st || !st.count) continue;
         const tr = document.createElement("tr");
-        const catalog =
-          m.catalogKey && model[m.catalogKey] != null ? fmtUsdPer1m(model[m.catalogKey]) : "—";
+        const cin = model[m.catalogIn] != null ? fmtUsdPer1m(model[m.catalogIn]) : "—";
+        const cout = model[m.catalogOut] != null ? fmtUsdPer1m(model[m.catalogOut]) : "—";
+        const hasOverlap = !!(st && st.count);
         tr.innerHTML = `
               <td>${model.model_name || "-"}</td>
-              <td>${m.label}</td>
-              <td class="num">${fmtUsdPer1m(st.min)}</td>
-              <td class="num">${fmtUsdPer1m(st.max)}</td>
-              <td class="num">${fmtUsdPer1m(st.mean)}</td>
-              <td class="num">${fmtUsdPer1m(st.median)}</td>
-              <td class="num">${st.count}</td>
-              <td class="num">${catalog}</td>
+              <td>${hasOverlap ? m.label : `${m.label} (no billing overlap)`}</td>
+              <td class="num">${hasOverlap ? fmtUsdPer1m(st.min) : "—"}</td>
+              <td class="num">${hasOverlap ? fmtUsdPer1m(st.max) : "—"}</td>
+              <td class="num">${hasOverlap ? fmtUsdPer1m(st.mean) : "—"}</td>
+              <td class="num">${hasOverlap ? fmtUsdPer1m(st.median) : "—"}</td>
+              <td class="num">${hasOverlap ? st.count : 0}</td>
+              <td class="num">${cin}</td>
+              <td class="num">${cout}</td>
             `;
         els.modelUnitPriceTbody.appendChild(tr);
       }
@@ -192,108 +224,60 @@
     if (!els.modelUnitPriceTbody.children.length) {
       const tr = document.createElement("tr");
       tr.innerHTML =
-        '<td colspan="8" class="muted">No days with both billing cost and token usage in range.</td>';
+        '<td colspan="9" class="muted">No token data in selected window.</td>';
       els.modelUnitPriceTbody.appendChild(tr);
     }
+    syncBillingPricingSection();
   }
 
-  function renderImpliedUnitPrices(payload, billingCurrency) {
-    if (!els.impliedUnitPriceSection || !els.impliedUnitPriceStatsTbody) return;
-    if (chartImpliedUnit) {
-      chartImpliedUnit.destroy();
-      chartImpliedUnit = null;
-    }
+  function renderImpliedUnitPrices(payload, billingCurrency, tokenRange) {
+    if (!els.impliedPricingCol) return;
+    if (chartImpliedUnitInput) chartImpliedUnitInput.destroy();
+    if (chartImpliedUnitOutput) chartImpliedUnitOutput.destroy();
+    chartImpliedUnitInput = null;
+    chartImpliedUnitOutput = null;
     if (!payload?.available) {
-      els.impliedUnitPriceSection.hidden = true;
+      els.impliedPricingCol.hidden = true;
       if (els.impliedUnitPriceHint) {
         els.impliedUnitPriceHint.textContent =
           payload?.reason === "no_imported_tokens"
             ? "Import token CSVs under bills/<project>/token/"
             : "";
       }
+      if (els.billingPricingNote) els.billingPricingNote.innerHTML = BILLING_PRICING_NOTE_DEFAULT;
+      syncBillingPricingSection();
       return;
     }
 
-    els.impliedUnitPriceSection.hidden = false;
+    els.impliedPricingCol.hidden = false;
     const ccy = billingCurrency || payload.currency || "";
-    if (els.impliedUnitPriceHint) {
-      els.impliedUnitPriceHint.textContent = `Currency: ${ccy || "-"} · ${payload.unit_label || "per 1M tokens"}`;
-    }
-    if (els.impliedUnitPriceNote) {
-      els.impliedUnitPriceNote.textContent =
-        "Each day: billed cost ÷ (imported tokens in that direction ÷ 1,000,000). Input and output use the same daily bill as numerator, so the two lines are not additive.";
-    }
-
-    els.impliedUnitPriceStatsTbody.innerHTML = "";
-    const statRows = [
-      { label: "Input", st: payload.stats?.input },
-      { label: "Output", st: payload.stats?.output },
-    ];
-    for (const { label, st } of statRows) {
-      const tr = document.createElement("tr");
-      if (!st || !st.count) {
-        tr.innerHTML = `<td>Implied ${label.toLowerCase()}</td><td colspan="5" class="muted">No days with billing and ${label.toLowerCase()} tokens.</td>`;
-      } else {
-        tr.innerHTML = `
-              <td>Implied ${label.toLowerCase()}</td>
-              <td class="num">${fmtUsdPer1m(st.min)}</td>
-              <td class="num">${fmtUsdPer1m(st.max)}</td>
-              <td class="num">${fmtUsdPer1m(st.mean)}</td>
-              <td class="num">${fmtUsdPer1m(st.median)}</td>
-              <td class="num">${st.count}</td>
-            `;
-      }
-      els.impliedUnitPriceStatsTbody.appendChild(tr);
-    }
-
+    const tStart = tokenRange?.start || payload.from_date || "—";
+    const tEnd = tokenRange?.end || payload.to_date || "—";
     const pts = payload.points || [];
+    const overlapDays = pts.filter(
+      (p) =>
+        Number.isFinite(Number(p?.usd_per_1m_input)) || Number.isFinite(Number(p?.usd_per_1m_output))
+    ).length;
+    if (els.impliedUnitPriceHint) {
+      els.impliedUnitPriceHint.textContent = `Token window: ${tStart} → ${tEnd} · overlap days: ${overlapDays} · ${ccy || "-"} / 1M`;
+    }
+    if (els.billingPricingNote) {
+      els.billingPricingNote.innerHTML = `Imported-token calendar: <strong>${tStart}</strong> → <strong>${tEnd}</strong>. Unified table includes project unit-price rows + model blended rows in the same unit (<strong>${ccy || "USD"}/1M tokens</strong>).`;
+    }
     const labels = pts.map((p) => p.date);
     const dataIn = pts.map((p) => (p.usd_per_1m_input != null ? Number(p.usd_per_1m_input) : null));
     const dataOut = pts.map((p) => (p.usd_per_1m_output != null ? Number(p.usd_per_1m_output) : null));
     const hasIn = dataIn.some((v) => v !== null && Number.isFinite(v));
     const hasOut = dataOut.some((v) => v !== null && Number.isFinite(v));
-    const useDual = hasIn && hasOut;
 
-    const ctxIU = document.getElementById("impliedUnitPriceChart")?.getContext("2d");
-    if (!ctxIU) return;
-
-    const Ch = window.AppChartStyle?.colors || {};
-    const datasets = [];
-    if (hasIn) {
-      datasets.push({
-        label: ccy ? `Implied (${ccy}/1M input)` : "Implied (per 1M input)",
-        data: dataIn,
-        borderColor: Ch.input || "#60a5fa",
-        backgroundColor: "rgba(96, 165, 250, 0.12)",
-        fill: true,
-        tension: 0.22,
-        pointRadius: 2,
-        pointHoverRadius: 4,
-        borderWidth: 2.2,
-        spanGaps: true,
-        yAxisID: "y",
-      });
-    }
-    if (hasOut) {
-      datasets.push({
-        label: ccy ? `Implied (${ccy}/1M output)` : "Implied (per 1M output)",
-        data: dataOut,
-        borderColor: Ch.output || "#a78bfa",
-        backgroundColor: "rgba(167, 139, 250, 0.12)",
-        fill: true,
-        tension: 0.22,
-        pointRadius: 2,
-        pointHoverRadius: 4,
-        borderWidth: 2.2,
-        spanGaps: true,
-        yAxisID: useDual && hasIn ? "y1" : "y",
-      });
-    }
-
-    if (!datasets.length) {
+    const ctxIn = document.getElementById("impliedUnitPriceInputChart")?.getContext("2d");
+    const ctxOut = document.getElementById("impliedUnitPriceOutputChart")?.getContext("2d");
+    if (!ctxIn || !ctxOut) {
+      syncBillingPricingSection();
       return;
     }
 
+    const Ch = window.AppChartStyle?.colors || {};
     const xTicks = {
       color: "#9fb2c7",
       font: { size: 11, weight: "500" },
@@ -319,57 +303,77 @@
         grid: { color: "rgba(255,255,255,0.08)" },
         title: {
           display: true,
-          text: useDual ? `${ccy || "Cost"} / 1M input` : `${ccy || "Cost"} / 1M`,
+          text: `${ccy || "Cost"} / 1M`,
           color: "#9fb2c7",
           font: { size: 11 },
         },
       },
     };
-
-    if (useDual) {
-      scales.y1 = {
-        type: "linear",
-        display: true,
-        position: "right",
-        beginAtZero: true,
-        ticks: { color: "#9fb2c7", font: { size: 11, weight: "500" }, callback: yTickFmt },
-        grid: { drawOnChartArea: false },
-        title: {
-          display: true,
-          text: `${ccy || "Cost"} / 1M output`,
-          color: "#9fb2c7",
-          font: { size: 11 },
+    const buildChart = (ctx, series, label, color, bg, emptyMsg) =>
+      new Chart(ctx, {
+        type: "line",
+        data: {
+          labels,
+          datasets: [
+            {
+              label,
+              data: series,
+              borderColor: color,
+              backgroundColor: bg,
+              fill: true,
+              tension: 0.22,
+              pointRadius: 2,
+              pointHoverRadius: 4,
+              borderWidth: 2.2,
+              spanGaps: true,
+            },
+          ],
         },
-      };
-    }
-
-    chartImpliedUnit = new Chart(ctxIU, {
-      type: "line",
-      data: { labels, datasets },
-      options: {
-        ...chartLineDefaults,
-        plugins: {
-          decimation: { enabled: true, algorithm: "min-max" },
-          legend: { display: true, position: "top", labels: { color: "#e6edf3", font: { size: 12, weight: "600" } } },
-          tooltip: {
-            enabled: true,
-            backgroundColor: "rgba(11,18,32,0.92)",
-            borderColor: "rgba(255,255,255,0.16)",
-            borderWidth: 1,
-            callbacks: {
-              label: (ctx) => {
-                const v = ctx.parsed?.y;
-                if (v === null || v === undefined || !Number.isFinite(Number(v))) return `${ctx.dataset.label}: -`;
-                const u = ccy ? ` ${ccy}` : "";
-                return `${ctx.dataset.label}: ${fmtUsdPer1m(v)}${u}`;
+        options: {
+          ...chartLineDefaults,
+          plugins: {
+            decimation: { enabled: true, algorithm: "min-max" },
+            legend: { display: true, position: "top", labels: { color: "#e6edf3", font: { size: 12, weight: "600" } } },
+            tooltip: {
+              enabled: true,
+              backgroundColor: "rgba(11,18,32,0.92)",
+              borderColor: "rgba(255,255,255,0.16)",
+              borderWidth: 1,
+              callbacks: {
+                label: (ctx2) => {
+                  const v = ctx2.parsed?.y;
+                  if (v === null || v === undefined || !Number.isFinite(Number(v))) return `${ctx2.dataset.label}: -`;
+                  const u = ccy ? ` ${ccy}` : "";
+                  return `${ctx2.dataset.label}: ${fmtUsdPer1m(v)}${u}`;
+                },
               },
             },
           },
+          scales,
         },
-        scales,
-      },
-      plugins: [emptyStatePluginImplied("No implied rates (need billing and token rows on the same dates)")],
-    });
+        plugins: [emptyStatePluginImplied(emptyMsg)],
+      });
+
+    chartImpliedUnitInput = buildChart(
+      ctxIn,
+      dataIn,
+      ccy ? `Input unit price (${ccy}/1M)` : "Input unit price (/1M)",
+      Ch.input || "#60a5fa",
+      "rgba(96, 165, 250, 0.12)",
+      "No input unit-price days with billing overlap"
+    );
+    chartImpliedUnitOutput = buildChart(
+      ctxOut,
+      dataOut,
+      ccy ? `Output unit price (${ccy}/1M)` : "Output unit price (/1M)",
+      Ch.output || "#a78bfa",
+      "rgba(167, 139, 250, 0.12)",
+      "No output unit-price days with billing overlap"
+    );
+
+    if (!hasIn && chartImpliedUnitInput) chartImpliedUnitInput.update();
+    if (!hasOut && chartImpliedUnitOutput) chartImpliedUnitOutput.update();
+    syncBillingPricingSection();
   }
 
   function setLoading(loading) {
@@ -901,8 +905,10 @@
       }
 
       const pricingParams = new URLSearchParams();
-      if (els.startDate.value) pricingParams.set("start_date", els.startDate.value);
-      if (els.endDate.value) pricingParams.set("end_date", els.endDate.value);
+      const tokenRangeStart = stats.min_usage_date || els.startDate.value || "";
+      const tokenRangeEnd = stats.max_usage_date || els.endDate.value || "";
+      if (tokenRangeStart) pricingParams.set("start_date", tokenRangeStart);
+      if (tokenRangeEnd) pricingParams.set("end_date", tokenRangeEnd);
       if (stats.currency) pricingParams.set("currency", stats.currency);
 
       let mp = { available: false };
@@ -922,8 +928,8 @@
         console.warn("Implied unit price series unavailable", e);
       }
       try {
-        renderModelUnitPrices(mp);
-        renderImpliedUnitPrices(ip, stats.currency);
+        renderImpliedUnitPrices(ip, stats.currency, { start: tokenRangeStart, end: tokenRangeEnd });
+        renderModelUnitPrices(mp, ip, stats.currency);
       } catch (e) {
         console.error("Billing pricing panels failed", e);
       }

@@ -785,16 +785,6 @@ def get_model_implied_usd_per_1m_analysis(
             "models": [],
         }
 
-    cost_points, chosen_currency = get_timeseries(
-        conn,
-        project_name,
-        start_date=start_date,
-        end_date=end_date,
-        granularity="day",
-        currency=currency,
-    )
-    cost_by_date = {str(p["date"]): float(p["cost_usd"]) for p in cost_points}
-
     where = ["project_name = ?"]
     params: list[object] = [project_name]
     if start_date:
@@ -827,10 +817,37 @@ def get_model_implied_usd_per_1m_analysis(
         if direction in {"input", "output"}:
             by_date_model[d][model][direction] = float(r["token_count"])
 
+    token_dates = sorted(by_date_model.keys())
+    if not token_dates:
+        return {
+            "available": True,
+            "project": project_name,
+            "currency": currency,
+            "from_date": start_date,
+            "to_date": end_date,
+            "unit_label": "USD per 1M tokens",
+            "allocation_method": "proportional_by_daily_tokens",
+            "models": [],
+        }
+
+    eff_start, eff_end = token_dates[0], token_dates[-1]
+    cost_points, chosen_currency = get_timeseries(
+        conn,
+        project_name,
+        start_date=eff_start,
+        end_date=eff_end,
+        granularity="day",
+        currency=currency,
+    )
+    cost_by_date = {str(p["date"]): float(p["cost_usd"]) for p in cost_points}
+
     model_daily: dict[str, list[dict[str, object]]] = {}
     models_seen: set[str] = set()
+    for _d, models in by_date_model.items():
+        for mn in models.keys():
+            models_seen.add(mn)
 
-    for usage_date in sorted(set(cost_by_date.keys()) | set(by_date_model.keys())):
+    for usage_date in token_dates:
         daily_cost = cost_by_date.get(usage_date, 0.0)
         day_models = by_date_model.get(usage_date, {})
         if daily_cost <= 0 or not day_models:
@@ -849,7 +866,6 @@ def get_model_implied_usd_per_1m_analysis(
             if model_total <= 0:
                 continue
 
-            models_seen.add(model_name)
             allocated_cost = daily_cost * (model_total / total_tokens)
             in_share = in_tok / model_total if model_total > 0 else 0.0
             out_share = out_tok / model_total if model_total > 0 else 0.0
@@ -903,8 +919,8 @@ def get_model_implied_usd_per_1m_analysis(
         "available": True,
         "project": project_name,
         "currency": chosen_currency,
-        "from_date": start_date,
-        "to_date": end_date,
+        "from_date": eff_start,
+        "to_date": eff_end,
         "unit_label": "USD per 1M tokens",
         "allocation_method": "proportional_by_daily_tokens",
         "models": models_out,
@@ -926,6 +942,10 @@ def get_project_daily_implied_usd_per_1m_timeseries(
     Same calendar-day billing row is compared against total input millions and total output
     millions (not additive; each series answers "if the whole bill were spread only over
     that direction's volume").
+
+    Returned ``points`` include **only calendar days that appear in imported token usage**
+    (after the same ``start_date`` / ``end_date`` filters as the token aggregate), so charts
+    are not stretched across unrelated billing history.
     """
     if not project_has_imported_tokens(conn, project_name):
         return {
@@ -939,15 +959,6 @@ def get_project_daily_implied_usd_per_1m_timeseries(
                 "output": _float_stats([]),
             },
         }
-
-    cost_points, chosen_currency = get_timeseries(
-        conn,
-        project_name,
-        start_date=start_date,
-        end_date=end_date,
-        granularity="day",
-        currency=currency,
-    )
 
     where = ["project_name = ?"]
     params: list[object] = [project_name]
@@ -977,13 +988,45 @@ def get_project_daily_implied_usd_per_1m_timeseries(
         tout = float(r["output_tokens"] or 0.0)
         tokens_by_date[d] = (tin, tout)
 
+    token_dates_sorted = sorted(tokens_by_date.keys())
+    if not token_dates_sorted:
+        cur = currency or "USD"
+        return {
+            "available": True,
+            "project": project_name,
+            "currency": currency,
+            "from_date": start_date,
+            "to_date": end_date,
+            "unit_label": f"{cur} per 1M tokens",
+            "definition": "daily_cost / (sum_imported_tokens_in_direction / 1_000_000)",
+            "points": [],
+            "stats": {
+                "input": _float_stats([]),
+                "output": _float_stats([]),
+            },
+        }
+
+    eff_start, eff_end = token_dates_sorted[0], token_dates_sorted[-1]
+    cost_points, chosen_currency = get_timeseries(
+        conn,
+        project_name,
+        start_date=eff_start,
+        end_date=eff_end,
+        granularity="day",
+        currency=currency,
+    )
+    cost_by_date: dict[str, float | None] = {}
+    for p in cost_points:
+        d = str(p["date"])
+        raw = p.get("cost_usd")
+        cost_by_date[d] = float(raw) if raw is not None else None
+
     points: list[dict[str, object]] = []
     input_vals: list[float] = []
     output_vals: list[float] = []
 
-    for p in cost_points:
-        d = str(p["date"])
-        raw_cost = p.get("cost_usd")
+    for d in token_dates_sorted:
+        raw_cost = cost_by_date.get(d)
         cost = float(raw_cost) if raw_cost is not None else None
 
         tin, tout = tokens_by_date.get(d, (0.0, 0.0))
@@ -1015,8 +1058,8 @@ def get_project_daily_implied_usd_per_1m_timeseries(
         "available": True,
         "project": project_name,
         "currency": chosen_currency,
-        "from_date": start_date,
-        "to_date": end_date,
+        "from_date": eff_start,
+        "to_date": eff_end,
         "unit_label": f"{cur} per 1M tokens",
         "definition": "daily_cost / (sum_imported_tokens_in_direction / 1_000_000)",
         "points": points,

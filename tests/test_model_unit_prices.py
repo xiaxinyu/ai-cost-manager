@@ -189,5 +189,41 @@ def test_model_unit_prices_api(tmp_path):
 
     page = client.get("/tokens")
     assert page.status_code == 200
-    assert "modelUnitPriceSection" in page.text
-    assert "impliedUnitPriceSection" in page.text
+    assert "billingPricingSection" in page.text
+    assert "modelUnitPriceTbody" in page.text
+
+
+def test_implied_timeseries_follows_token_calendar_not_full_billing(tmp_path):
+    """Billing may span months; implied series should only include imported token dates."""
+    bills_dir = tmp_path / "bills"
+    project_dir = bills_dir / "projSpan"
+    token_dir = project_dir / "token"
+    token_dir.mkdir(parents=True)
+    (project_dir / "cost.csv").write_text(
+        '"UsageDate","CostUSD","Cost","ForecastCost","Currency"\n'
+        '"2026-03-01","1.0","1.0","","USD"\n'
+        '"2026-05-01","10.0","10.0","","USD"\n'
+        '"2026-05-02","20.0","20.0","","USD"\n',
+        encoding="utf-8",
+    )
+    (token_dir / "input-tokens.csv").write_text(
+        '"Time","m"\n2026-05-01 10:00:00,1 Mil\n2026-05-02 10:00:00,1 Mil\n',
+        encoding="utf-8",
+    )
+    (token_dir / "output-tokens.csv").write_text(
+        '"Time","m"\n2026-05-01 10:00:00,100 K\n2026-05-02 10:00:00,100 K\n',
+        encoding="utf-8",
+    )
+    db_path = tmp_path / "cost_mgmt.sqlite3"
+    ingest_all(bills_dir=bills_dir, db_path=db_path, reimport_changed=False)
+    ingest_token_all(bills_dir=bills_dir, db_path=db_path, reimport_changed=False)
+    conn = get_connection(db_path)
+    try:
+        payload = get_project_daily_implied_usd_per_1m_timeseries(conn, "projSpan", currency="USD")
+    finally:
+        conn.close()
+    dates = [p["date"] for p in payload["points"]]
+    assert dates == ["2026-05-01", "2026-05-02"]
+    assert payload["from_date"] == "2026-05-01"
+    assert payload["to_date"] == "2026-05-02"
+    assert "2026-03-01" not in dates

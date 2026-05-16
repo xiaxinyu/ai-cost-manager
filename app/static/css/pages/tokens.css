@@ -555,23 +555,60 @@
   }
 }
 
-/* Billing-derived pricing (moved from Cost page) */
-.impliedUnitPriceSection,
-.modelUnitPriceSection {
+/* Billing-derived pricing (merged panel) */
+.billingPricingSection {
   border: 1px solid var(--border, rgba(173, 196, 228, 0.18));
   border-radius: 12px;
   padding: 14px 16px;
   background: rgba(255, 255, 255, 0.02);
 }
 
-.impliedUnitPriceSection .panelHead,
-.modelUnitPriceSection .panelHead {
+.billingPricingHead {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
   flex-wrap: wrap;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
+}
+
+.billingPricingHints {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-align: right;
+  font-size: 11px;
+  max-width: min(100%, 28rem);
+}
+
+.billingPricingGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+  gap: 14px;
+  align-items: start;
+}
+
+@media (max-width: 1020px) {
+  .billingPricingGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.billingSubhead {
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-weight: 750;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-subtle, #9fb2c7);
+}
+
+.modelUnitPriceTable .thUnit {
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 10px;
+  color: #8b98a8;
 }
 
 .impliedUnitPriceStatsCard {
