@@ -2506,6 +2506,11 @@ def get_cost_forecast_baseline(
         "baseline_usd_per_day": round_cost(baseline),
         "team_model": team_model,
         "method": f"sum(daily_cost_usd)/{wd}_calendar_days_inclusive",
+        "notes": (
+            "Extrapolation = daily baseline × days × team scale. Baseline comes from billed CostUSD, not unit-price math. "
+            "Primary model is configured on Tokens; compare catalog on Model Prices. "
+            "Team scale is a linear multiplier (1 ≈ baseline, 2 ≈ 2×). Planning estimate only — not a financial commitment."
+        ),
         "notes_zh": (
             "外推金额 = 上表「日均基线」× 时间天数 × 披萨倍率；基线来自账单 CostUSD，不是单价公式。"
             "主力模型在 Tokens 页配置，便于在 Model Prices 对照目录价做 sanity check。"
@@ -3747,6 +3752,7 @@ def get_forecast_model_unit_prices(
         return {
             "ok": False,
             "reason": "missing_model",
+            "notes": "Provide vendor, platform, model_series, and model_name.",
             "notes_zh": "请提供 vendor、platform、model_series 与 model_name。",
         }
 
@@ -3802,6 +3808,10 @@ def get_forecast_model_unit_prices(
             "platform": pl,
             "model_series": ms,
             "model_name": mn,
+            "notes": (
+                "No matching catalog row. Check vendor, platform, region, deployment scope, and billing mode "
+                "in Model Prices, or use Any region."
+            ),
             "notes_zh": "目录中没有匹配的单价行。请在 Model Prices 核对 vendor/平台/区域/部署范围/计费模式，或改用「任意区域」。",
         }
 
@@ -3830,6 +3840,12 @@ def get_forecast_model_unit_prices(
         },
         "per_token": {k: float(v["per_token"]) for k, v in picked.items()},
         "missing_metrics": [m for m in _FORECAST_METRICS if m not in picked],
+        "notes": (
+            "Rates from Model Prices (vendor, platform, region, deployment, billing mode). "
+            "Usage on Forecast is in millions of tokens (1M). "
+            "Total = Σ(daily tokens × rate) × team size × days. Missing meters count as 0. "
+            "Internal estimate only — billing and contract prevail."
+        ),
         "notes_zh": (
             "单价来自 Model Prices 全表（所选 vendor / 平台 / 区域 / 部署 / 计费模式）。"
             "Forecast 页「每日用量」以百万 tokens（1M）为单位填写；总成本 = Σ(实际日 token × 单价) × 团队倍率 × 天数。"

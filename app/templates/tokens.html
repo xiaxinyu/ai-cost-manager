@@ -38,7 +38,7 @@
             <div class="tokenTitleRow">
               <div>
                 <h1 class="pageTitle">Token Operations</h1>
-                <p class="pageDesc">Daily token usage and meter-matched billing. The detail table is the source of truth; charts below derive from those rows.</p>
+                <p class="pageDesc">Meter-matched billing by model and day. Charts follow the detail table.</p>
               </div>
               <div id="tokenSourceBadge" class="sourceBadge sourceEstimated" hidden>
                 <span class="sourceDot" aria-hidden="true"></span>
@@ -69,6 +69,7 @@
             <p id="filterHint" class="filterHint muted" hidden></p>
           </section>
 
+          <div id="dataStatusBar" class="dataStatusBar" hidden aria-live="polite" aria-label="Load summary"></div>
 
           <div id="noImportState" class="card emptyState" hidden>
             <div class="title">No imported token data</div>
@@ -158,7 +159,8 @@
               </div>
             </section>
 
-            <section class="tokenCharts" aria-label="Token volume charts">
+            <section class="tokenCharts flowSection" aria-label="Token volume charts">
+              <p class="flowStep" aria-hidden="true"><span class="flowStepNum">1</span> Volume</p>
               <article class="card chartPanel chartWide">
                 <div class="chartHeader">
                   <div>
@@ -196,13 +198,17 @@
             </section>
 
             <section class="tokenDetailFlow" aria-label="Daily detail and derived charts">
-            <section class="card tokenTablePanel">
+            <section class="card tokenTablePanel flowSection">
+              <p class="flowStep" aria-hidden="true"><span class="flowStepNum">2</span> Billing detail</p>
               <div class="rowsToolbar rowsToolbarSplit">
                 <div>
                   <h2 class="sectionTitle">Daily detail</h2>
-                  <p class="muted" id="tableHint">Source of truth: meter-matched billing per model/day. Unit price = cost ÷ tokens × 1M.</p>
+                  <p class="muted" id="tableHint">One row per model/day. Unit price = cost ÷ tokens × 1M.</p>
                 </div>
-                <button id="exportTokensBtn" class="btnSmall" type="button">Export CSV</button>
+                <div class="tableToolbarRight">
+                  <span id="tableRowBadge" class="tableRowBadge muted" hidden></span>
+                  <button id="exportTokensBtn" class="btnSmall" type="button">Export CSV</button>
+                </div>
               </div>
               <div class="tableScroll">
                 <table>
@@ -241,7 +247,8 @@
               </div>
             </section>
 
-            <section class="dailyCostCharts" aria-label="Daily billing cost">
+            <section class="dailyCostCharts flowSection" aria-label="Daily billing cost">
+              <p class="flowStep" aria-hidden="true"><span class="flowStepNum">3</span> Cost</p>
               <article class="card chartPanel chartWide">
                 <div class="chartHeader">
                   <div>
@@ -266,13 +273,18 @@
               </article>
             </section>
 
-            <section id="unitPriceSection" class="unitPriceSection card" hidden aria-label="Unit price trends">
+            <section id="unitPriceSection" class="unitPriceSection card flowSection" hidden aria-label="Unit price trends">
+              <p class="flowStep" aria-hidden="true"><span class="flowStepNum">4</span> Unit price</p>
               <div class="unitPriceHead">
                 <div>
                   <h2 class="sectionTitle">Unit price trends</h2>
-                  <p class="muted panelDesc" id="unitPriceNote">Solid = actual · dashed = catalog list (model_prices).</p>
+                  <p class="muted panelDesc" id="unitPriceNote">Solid = actual · dashed = catalog list.</p>
+                  <div class="chartLegendKey" aria-hidden="true">
+                    <span class="legendKeyItem"><span class="legendKeyLine legendKeySolid"></span> Actual</span>
+                    <span class="legendKeyItem"><span class="legendKeyLine legendKeyDashed"></span> List price</span>
+                  </div>
                 </div>
-                <p id="catalogRefLine" class="catalogRefLine muted" hidden></p>
+                <div id="catalogRefLine" class="catalogRefLine" hidden role="region" aria-label="Catalog reference"></div>
               </div>
               <div id="impliedChartsRow" class="unitPriceChartsRow" hidden>
                 <article class="chartPanel chartWide impliedUnitPriceChartCard">
@@ -302,6 +314,6 @@
     <script src="/static/js/forecasting.js?v=20260516-4"></script>
     <script src="/static/js/chart-plugins.js"></script>
     <script src="/static/js/chart-style.js"></script>
-    <script src="/static/js/pages/tokens.js?v=20260517-6"></script>
+    <script src="/static/js/pages/tokens.js?v=20260517-7"></script>
   </body>
 </html>

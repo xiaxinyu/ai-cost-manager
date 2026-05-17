@@ -73,7 +73,8 @@ def test_api_project_flow(tmp_path):
     assert fb["window_days"] == 28
     assert fb["currency"] == "USD"
     assert fb["baseline_usd_per_day"] > 0
-    assert "notes_zh" in fb
+    assert "notes" in fb
+    assert fb["notes"]
     assert "team_model" in fb
 
     res = client.get("/api/projects/projB/rows?page=1&page_size=10")

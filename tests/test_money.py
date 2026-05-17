@@ -7,3 +7,11 @@ def test_round_cost_two_decimals() -> None:
     assert round_cost(15.13069572) == 15.13
     assert round_cost(0.004) == 0.0
     assert round_cost(None) is None
+
+
+def test_round_cost_preserves_two_dp_display_values() -> None:
+    """Values shown in UI/API should already be 2dp after round_cost."""
+    for raw in (1.755, 14.004, 0.199):
+        rounded = round_cost(raw)
+        assert rounded is not None
+        assert rounded == round(raw, 2)

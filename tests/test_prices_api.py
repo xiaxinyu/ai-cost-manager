@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sqlite3
 from pathlib import Path
 
 from fastapi.testclient import TestClient
@@ -84,6 +85,30 @@ def test_prices_filters_and_query(tmp_path):
 
     bad = client.post("/api/prices/sync-retail", json={"series": "not-a-real-key"})
     assert bad.status_code == 400
+
+
+def test_forecast_page_english(tmp_path):
+    bills_dir = tmp_path / "bills"
+    bills_dir.mkdir(parents=True, exist_ok=True)
+    db_path = tmp_path / "cost_mgmt.sqlite3"
+    from app.db import init_db
+
+    app = create_app(db_path=str(db_path), bills_dir=str(bills_dir), auto_ingest=False)
+    client = TestClient(app)
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    try:
+        init_db(conn)
+        create_user(conn, username="admin", password="admin12345", is_active=True)
+    finally:
+        conn.close()
+    client.post("/auth/login", data={"username": "admin", "password": "admin12345"})
+    page = client.get("/forecast")
+    assert page.status_code == 200
+    assert 'lang="en"' in page.text
+    assert "Cost forecast by model" in page.text
+    assert "Recalculate" in page.text
+    assert "模型成本预测" not in page.text
 
 
 def test_forecast_model_catalog_and_unit_prices(tmp_path):

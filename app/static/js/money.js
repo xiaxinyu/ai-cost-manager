@@ -50,10 +50,21 @@
     return `${num} ${cur}/1M`;
   }
 
+  /** Chart axis: 2 decimals, no currency suffix (keeps Y-axis readable). */
+  function fmtCostAxis(n) {
+    const x = roundCost(n);
+    if (x === null) return "";
+    return x.toLocaleString(undefined, {
+      minimumFractionDigits: COST_DECIMALS,
+      maximumFractionDigits: COST_DECIMALS,
+    });
+  }
+
   window.AppMoney = {
     COST_DECIMALS,
     roundCost,
     fmtCost,
     fmtCostPer1m,
+    fmtCostAxis,
   };
 })();

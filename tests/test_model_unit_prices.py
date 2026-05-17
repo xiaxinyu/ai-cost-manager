@@ -195,6 +195,150 @@ def test_model_unit_prices_api(tmp_path):
     assert "impliedUnitPriceInputChart" in page.text
 
 
+def test_catalog_prices_fuzzy_match_normalized_model_name(tmp_path):
+    """Token CSV model keys like gpt-5.3-codex should match catalog GPT-5.3 Codex."""
+    bills_dir = tmp_path / "bills"
+    project_dir = bills_dir / "projCat"
+    token_dir = project_dir / "token"
+    token_dir.mkdir(parents=True)
+    (project_dir / "cost.csv").write_text(
+        '"UsageDate","CostUSD","Cost","ForecastCost","Currency"\n'
+        '"2026-05-01","10.0","10.0","","USD"\n',
+        encoding="utf-8",
+    )
+    (token_dir / "input-tokens.csv").write_text(
+        '"Time","gpt-5.3-codex"\n2026-05-01 10:00:00,1 Mil\n',
+        encoding="utf-8",
+    )
+    (token_dir / "output-tokens.csv").write_text(
+        '"Time","gpt-5.3-codex"\n2026-05-01 10:00:00,100 K\n',
+        encoding="utf-8",
+    )
+
+    db_path = tmp_path / "cost_mgmt.sqlite3"
+    ingest_all(bills_dir=bills_dir, db_path=db_path, reimport_changed=False)
+    ingest_token_all(bills_dir=bills_dir, db_path=db_path, reimport_changed=False)
+
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    try:
+        init_db(conn)
+        conn.execute(
+            """
+            INSERT INTO model_prices(
+                source_id, source_url, effective_date, retrieved_at_utc,
+                vendor, platform, price_region, price_currency,
+                model_series, model_name, context_bucket, deployment_scope,
+                billing_mode, metric_name, amount,
+                unit_quantity, unit_name, unit_expression, notes, source_detail_json
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                "src",
+                "https://example.com",
+                "2026-04-29",
+                "2026-04-29T00:00:00Z",
+                "Microsoft",
+                "azure-openai",
+                "East US",
+                "USD",
+                "GPT-5.3",
+                "GPT-5.3 Codex",
+                None,
+                "global",
+                "standard",
+                "input",
+                1.75,
+                1_000_000,
+                "tokens",
+                "USD/1M tokens",
+                None,
+                None,
+            ),
+        )
+        conn.execute(
+            """
+            INSERT INTO model_prices(
+                source_id, source_url, effective_date, retrieved_at_utc,
+                vendor, platform, price_region, price_currency,
+                model_series, model_name, context_bucket, deployment_scope,
+                billing_mode, metric_name, amount,
+                unit_quantity, unit_name, unit_expression, notes, source_detail_json
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                "src",
+                "https://example.com",
+                "2026-04-29",
+                "2026-04-29T00:00:00Z",
+                "Microsoft",
+                "azure-openai",
+                "East US",
+                "USD",
+                "GPT-5.3",
+                "GPT-5.3 Codex",
+                None,
+                "global",
+                "standard",
+                "output",
+                14.0,
+                1_000_000,
+                "tokens",
+                "USD/1M tokens",
+                None,
+                None,
+            ),
+        )
+        conn.commit()
+        payload = get_model_implied_usd_per_1m_analysis(conn, "projCat", currency="USD")
+    finally:
+        conn.close()
+
+    assert payload["available"] is True
+    model = next(m for m in payload["models"] if "codex" in m["model_name"].lower())
+    assert model["catalog_usd_per_1m_input"] == 1.75
+    assert model["catalog_usd_per_1m_output"] == 14.0
+
+
+def test_imported_daily_by_model_money_fields_two_decimals(tmp_path):
+    bills_dir = tmp_path / "bills"
+    project_dir = bills_dir / "projDaily"
+    token_dir = project_dir / "token"
+    token_dir.mkdir(parents=True)
+    (project_dir / "cost.csv").write_text(
+        '"UsageDate","CostUSD","Cost","ForecastCost","Currency"\n'
+        '"2026-05-01","10.0","10.0","","USD"\n',
+        encoding="utf-8",
+    )
+    (token_dir / "input-tokens.csv").write_text(
+        '"Time","model-a"\n2026-05-01 10:00:00,1 Mil\n',
+        encoding="utf-8",
+    )
+    (token_dir / "output-tokens.csv").write_text(
+        '"Time","model-a"\n2026-05-01 10:00:00,100 K\n',
+        encoding="utf-8",
+    )
+
+    db_path = tmp_path / "cost_mgmt.sqlite3"
+    ingest_all(bills_dir=bills_dir, db_path=db_path, reimport_changed=False)
+    ingest_token_all(bills_dir=bills_dir, db_path=db_path, reimport_changed=False)
+
+    conn = get_connection(db_path)
+    try:
+        from app.db import get_imported_token_daily_by_model
+
+        rows = get_imported_token_daily_by_model(conn, "projDaily", currency="USD")
+    finally:
+        conn.close()
+
+    assert len(rows) >= 1
+    row = rows[0]
+    for key in ("input_cost_usd", "output_cost_usd", "total_cost_usd", "usd_per_1m_input", "usd_per_1m_output"):
+        val = row.get(key)
+        if val is not None:
+            assert val == round_cost(val), f"{key} not 2dp: {val}"
+
+
 def test_implied_timeseries_follows_token_calendar_not_full_billing(tmp_path):
     """Billing may span months; implied series stays on token days (no March-only billing)."""
     bills_dir = tmp_path / "bills"

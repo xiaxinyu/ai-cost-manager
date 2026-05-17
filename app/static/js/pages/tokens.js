@@ -21,6 +21,8 @@
     sourceBadge: document.getElementById("tokenSourceBadge"),
     sourceBadgeText: document.getElementById("tokenSourceBadgeText"),
     filterHint: document.getElementById("filterHint"),
+    dataStatusBar: document.getElementById("dataStatusBar"),
+    tableRowBadge: document.getElementById("tableRowBadge"),
     labelInput: document.getElementById("labelInputTokens"),
     labelOutput: document.getElementById("labelOutputTokens"),
     labelTotal: document.getElementById("labelTotalTokens"),
@@ -148,6 +150,14 @@
     return window.AppMoney?.fmtCost(n, currency || lastBillingCurrency) ?? "—";
   }
 
+  function roundMoney(n) {
+    return window.AppMoney?.roundCost(n);
+  }
+
+  function fmtUsdAxis(n) {
+    return window.AppMoney?.fmtCostAxis(n) ?? "";
+  }
+
   function syncUnitPriceSection() {
     if (!els.unitPriceSection) return;
     const chartsHidden = !els.impliedChartsRow || els.impliedChartsRow.hidden;
@@ -169,36 +179,93 @@
 
   function renderCatalogRefLine(catalogPayload, currency) {
     if (!els.catalogRefLine) return;
-    const models = catalogPayload?.models || [];
+    const models = (catalogPayload?.models || []).filter(
+      (m) => m.catalog_usd_per_1m_input != null || m.catalog_usd_per_1m_output != null
+    );
     if (!models.length) {
       els.catalogRefLine.hidden = true;
+      els.catalogRefLine.innerHTML = "";
       return;
     }
     const ccy = currency || catalogPayload.currency || "USD";
-    const parts = models
-      .filter((m) => m.catalog_usd_per_1m_input != null || m.catalog_usd_per_1m_output != null)
-      .map((m) => {
-        const cin = m.catalog_usd_per_1m_input != null ? fmtUsdPer1m(m.catalog_usd_per_1m_input, ccy) : "—";
-        const cout = m.catalog_usd_per_1m_output != null ? fmtUsdPer1m(m.catalog_usd_per_1m_output, ccy) : "—";
-        const daily = m.daily || [];
-        const last = daily.length ? daily[daily.length - 1] : null;
-        let delta = "";
-        if (last) {
-          const pin = pctVsCatalog(last.usd_per_1m_input, m.catalog_usd_per_1m_input);
-          const pout = pctVsCatalog(last.usd_per_1m_output, m.catalog_usd_per_1m_output);
-          const bits = [];
-          if (pin != null) bits.push(`in ${pin >= 0 ? "+" : ""}${pin.toFixed(0)}%`);
-          if (pout != null) bits.push(`out ${pout >= 0 ? "+" : ""}${pout.toFixed(0)}%`);
-          if (bits.length) delta = ` · latest vs list: ${bits.join(", ")}`;
+    const grid = document.createElement("div");
+    grid.className = "catalogRefGrid";
+    for (const m of models) {
+      const cin = m.catalog_usd_per_1m_input != null ? fmtUsdPer1m(m.catalog_usd_per_1m_input, ccy) : "—";
+      const cout = m.catalog_usd_per_1m_output != null ? fmtUsdPer1m(m.catalog_usd_per_1m_output, ccy) : "—";
+      const daily = m.daily || [];
+      const last = daily.length ? daily[daily.length - 1] : null;
+      const item = document.createElement("div");
+      item.className = "catalogRefItem";
+      const title = document.createElement("div");
+      title.className = "catalogRefModel";
+      title.textContent = m.model_name || "model";
+      const prices = document.createElement("div");
+      prices.className = "catalogRefPrices";
+      prices.textContent = `List: in ${cin} · out ${cout}`;
+      item.append(title, prices);
+      if (last) {
+        const pin = pctVsCatalog(last.usd_per_1m_input, m.catalog_usd_per_1m_input);
+        const pout = pctVsCatalog(last.usd_per_1m_output, m.catalog_usd_per_1m_output);
+        const bits = [];
+        if (pin != null) bits.push(`in ${pin >= 0 ? "+" : ""}${pin.toFixed(0)}%`);
+        if (pout != null) bits.push(`out ${pout >= 0 ? "+" : ""}${pout.toFixed(0)}%`);
+        if (bits.length) {
+          const delta = document.createElement("div");
+          delta.className = "catalogRefDelta";
+          delta.textContent = `Latest vs list: ${bits.join(", ")}`;
+          item.appendChild(delta);
         }
-        return `${m.model_name}: list in ${cin}, out ${cout}${delta}`;
-      });
-    if (!parts.length) {
-      els.catalogRefLine.hidden = true;
+      }
+      grid.appendChild(item);
+    }
+    els.catalogRefLine.innerHTML = "";
+    els.catalogRefLine.appendChild(grid);
+    els.catalogRefLine.hidden = false;
+  }
+
+  function updateDataStatusBar(project, stats, series) {
+    if (!els.dataStatusBar) return;
+    const rows = series?.daily_by_model || [];
+    const withCost = rows.filter(
+      (r) => r.input_cost_usd != null || r.output_cost_usd != null
+    ).length;
+    const models = new Set(rows.map((r) => r.model_name).filter(Boolean)).size;
+    const rangeStart = stats?.min_usage_date || els.startDate?.value || "—";
+    const rangeEnd = stats?.max_usage_date || els.endDate?.value || "—";
+    const ccy = stats?.currency || series?.currency || lastBillingCurrency || "USD";
+    const pipeline = series?.cost_pipeline_version || "—";
+    const source = series?.token_data_source || stats?.token_data_source || "—";
+
+    const pill = (label, value) => {
+      const span = document.createElement("span");
+      span.className = "statusPill";
+      span.innerHTML = `${label}: <strong>${value}</strong>`;
+      return span;
+    };
+
+    els.dataStatusBar.innerHTML = "";
+    els.dataStatusBar.append(
+      pill("Project", project || "—"),
+      pill("Range", `${rangeStart} → ${rangeEnd}`),
+      pill("Rows", String(rows.length)),
+      pill("Models", String(models)),
+      pill("With cost", `${withCost}/${rows.length || 0}`),
+      pill("Currency", ccy),
+      pill("Source", source),
+      pill("Pipeline", pipeline)
+    );
+    els.dataStatusBar.hidden = false;
+  }
+
+  function updateTableRowBadge(totalRows, withCostRows) {
+    if (!els.tableRowBadge) return;
+    if (!totalRows) {
+      els.tableRowBadge.hidden = true;
       return;
     }
-    els.catalogRefLine.textContent = `Dashed lines = catalog list (model_prices). ${parts.join(" · ")}`;
-    els.catalogRefLine.hidden = false;
+    els.tableRowBadge.hidden = false;
+    els.tableRowBadge.textContent = `${totalRows} rows · ${withCostRows} with billing cost`;
   }
 
   function moneyStats(vals) {
@@ -393,7 +460,7 @@
       0
     );
     if (els.unitPriceNote) {
-      els.unitPriceNote.textContent = `Solid = actual (cost ÷ tokens × 1M). Dashed = catalog list price. ${tStart} → ${tEnd} · ${overlapDays} model-days · ${ccy || "USD"}/1M`;
+      els.unitPriceNote.textContent = `Actual vs catalog · ${tStart} → ${tEnd} · ${overlapDays} model-days · ${ccy || "USD"}/1M`;
     }
     const labels =
       chartLabels?.length > 0
@@ -466,7 +533,8 @@
     const yTickFmt = (value) => {
       const n = Number(value);
       if (!Number.isFinite(n)) return String(value);
-      return fmtUsdPer1m(n, ccy);
+      const num = fmtUsdAxis(n);
+      return ccy ? `${num} ${ccy}` : num;
     };
 
     const scales = {
@@ -604,8 +672,8 @@
     }
     if (els.tableHint) {
       els.tableHint.textContent = imported
-        ? "One row per model/day: input, output, daily input/output/total cost, and output/input ratio."
-        : "Estimated daily input/output and output/input ratio from billing costs.";
+        ? "One row per model/day — tokens, costs, unit $/1M, and out÷in ratio."
+        : "Estimated tokens and out÷in ratio from billing.";
     }
 
     chartLabels = {
@@ -621,8 +689,8 @@
       els.filterHint.hidden = false;
       const models = (series.import_meta?.models || []).length;
       els.filterHint.textContent = imported
-        ? `Token-only view from bills/<project>/token/. ${models} model column(s) in imported data.`
-        : "Token-only estimates from pricing model (input/output ratio view).";
+        ? `Imported CSV · ${models} model column(s) · bills/<project>/token/`
+        : "Estimated from pricing model (no token CSV).";
     }
 
     if (els.tokenModel) {
@@ -767,7 +835,10 @@
           ticks: {
             callback: (v) => {
               if (unitType === "ratio") return Number(v).toFixed(1);
-              if (unitType === "usd") return fmtUsd(v, currency);
+              if (unitType === "usd") {
+                const n = fmtUsdAxis(v);
+                return currency ? `${n} ${currency}` : n;
+              }
               return fmtInt(v);
             },
           },
@@ -1031,8 +1102,14 @@
       if (els.dailyPageInfo) els.dailyPageInfo.textContent = "0 days";
       if (els.dailyPrevBtn) els.dailyPrevBtn.disabled = true;
       if (els.dailyNextBtn) els.dailyNextBtn.disabled = true;
+      updateTableRowBadge(0, 0);
       return;
     }
+
+    const withCostRows = lastDailyModelRows.filter(
+      (r) => r.input_cost_usd != null || r.output_cost_usd != null
+    ).length;
+    updateTableRowBadge(lastDailyModelRows.length, withCostRows);
 
     const pageSize = pageSizeFromSelect(els.dailyPageSizeSelect, 25);
 
@@ -1140,17 +1217,22 @@
           : r.input_tokens > 0
             ? Number(r.output_tokens) / Number(r.input_tokens)
             : "";
+      const costIn = roundMoney(r.input_cost_usd);
+      const costOut = roundMoney(r.output_cost_usd);
+      const costTotal = roundMoney(r.total_cost_usd);
+      const unitIn = roundMoney(r.usd_per_1m_input);
+      const unitOut = roundMoney(r.usd_per_1m_output);
       lines.push(
         [
           r.date,
           r.model_name ?? "",
           r.input_tokens ?? "",
           r.output_tokens ?? "",
-          r.input_cost_usd ?? "",
-          r.output_cost_usd ?? "",
-          r.total_cost_usd ?? "",
-          r.usd_per_1m_input ?? "",
-          r.usd_per_1m_output ?? "",
+          costIn ?? "",
+          costOut ?? "",
+          costTotal ?? "",
+          unitIn ?? "",
+          unitOut ?? "",
           ratio,
           r.allocation_method ?? "",
         ]
@@ -1240,6 +1322,7 @@
       if (els.workspace) els.workspace.hidden = !imported;
       if (!imported) {
         if (els.sourceBadge) els.sourceBadge.hidden = true;
+        if (els.dataStatusBar) els.dataStatusBar.hidden = true;
         clearUnitPriceUi();
         if (els.noImportHint) {
           const others = projectsWithImportedTokens.filter((p) => p !== project);
@@ -1254,6 +1337,7 @@
         return;
       }
       applySourceUi(source, series, stats);
+      updateDataStatusBar(project, stats, series);
 
       const points = series.points || [];
       dailyPage = 1;
@@ -1406,6 +1490,14 @@
     clearDateFilters();
     loadTokenData();
   });
+  for (const input of [els.startDate, els.endDate]) {
+    input?.addEventListener("keydown", (ev) => {
+      if (ev.key === "Enter") {
+        ev.preventDefault();
+        loadTokenData();
+      }
+    });
+  }
   els.exportBtn.addEventListener("click", exportCsv);
 
   if (els.dailyPrevBtn) {

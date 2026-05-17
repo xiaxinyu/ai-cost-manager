@@ -20,10 +20,10 @@
   const tokOut = document.getElementById("tokOut");
 
   const HORIZONS = [
-    { days: 1, label: "1 天" },
-    { days: 7, label: "1 周" },
-    { days: 15, label: "半个月" },
-    { days: 30, label: "1 个月" },
+    { days: 1, label: "1 day" },
+    { days: 7, label: "1 week" },
+    { days: 15, label: "15 days" },
+    { days: 30, label: "30 days" },
   ];
 
   /** Step 3 inputs are in millions of tokens (e.g. 0.5 → 500k tokens). */
@@ -60,6 +60,10 @@
       .replaceAll('"', "&quot;");
   }
 
+  function apiNotes(data) {
+    return (data && (data.notes || data.notes_zh)) || "No matching catalog unit price.";
+  }
+
   function teamSizeValue() {
     const people = Number(teamSize && teamSize.value);
     return Number.isFinite(people) && people > 0 ? Math.round(people) : 1;
@@ -67,7 +71,7 @@
 
   function teamScaleSummary() {
     const p = teamSizeValue();
-    return { short: `${p} 人`, people: p };
+    return { short: `${p} people`, people: p };
   }
 
   function deploymentScope() {
@@ -87,7 +91,6 @@
     return { vendor, platform, model_series: s, model_name: n };
   }
 
-  /** Tokens per day from step 3 fields (values are in 1M-token units). */
   function tokensPerDay(key) {
     const el = key === "in" ? tokIn : key === "cached" ? tokCached : tokOut;
     const v = Number(el && el.value);
@@ -120,8 +123,12 @@
     setKpiText(kpiDailyPizza, "—");
     setKpiText(kpiDailyTeam, "—");
     setKpiText(kpiMonthTeam, "—");
-    if (costMixRows) costMixRows.innerHTML = '<div class="muted">计算后显示 Input / Cached / Output 成本占比。</div>';
-    if (horizonBars) horizonBars.innerHTML = '<div class="muted">计算后显示各周期对比。</div>';
+    if (costMixRows) {
+      costMixRows.innerHTML = '<div class="muted">Recalculate to show Input / Cached / Output share.</div>';
+    }
+    if (horizonBars) {
+      horizonBars.innerHTML = '<div class="muted">Recalculate to compare horizons.</div>';
+    }
   }
 
   function renderKpis(dailyPerPerson, currency) {
@@ -140,7 +147,7 @@
   function renderCostMix(perToken, currency) {
     if (!costMixRows) return;
     if (!perToken) {
-      costMixRows.innerHTML = '<div class="muted">计算后显示 Input / Cached / Output 成本占比。</div>';
+      costMixRows.innerHTML = '<div class="muted">Recalculate to show Input / Cached / Output share.</div>';
       return;
     }
     const people = teamSizeValue();
@@ -169,7 +176,7 @@
     ];
     const total = items.reduce((acc, x) => acc + x.cost, 0);
     if (!(total > 0)) {
-      costMixRows.innerHTML = '<div class="muted">当前日用量或单价为 0，暂无可视化占比。</div>';
+      costMixRows.innerHTML = '<div class="muted">Usage or unit price is zero — no mix chart.</div>';
       return;
     }
     costMixRows.innerHTML = items
@@ -179,7 +186,7 @@
           <div class="mixRow">
             <div class="mixHead">
               <span class="mixName">${esc(it.label)}</span>
-              <span class="mixMeta">${esc(it.unit.toFixed(2).replace(/\.?0+$/, ""))}M / 人 / 天 · ${esc(fmtMoney(it.cost, currency))} / 团队 / 天</span>
+              <span class="mixMeta">${esc(it.unit.toFixed(2).replace(/\.?0+$/, ""))}M / person / day · ${esc(fmtMoney(it.cost, currency))} / team / day</span>
             </div>
             <div class="mixTrack"><div class="mixBar ${esc(it.cls)}" style="width:${Math.max(0, Math.min(100, pct)).toFixed(2)}%"></div></div>
           </div>
@@ -191,12 +198,12 @@
   function renderHorizonBars(rows, currency) {
     if (!horizonBars) return;
     if (!Array.isArray(rows) || rows.length === 0) {
-      horizonBars.innerHTML = '<div class="muted">计算后显示各周期对比。</div>';
+      horizonBars.innerHTML = '<div class="muted">Recalculate to compare horizons.</div>';
       return;
     }
     const max = Math.max(...rows.map((x) => Number(x.total) || 0), 0);
     if (!(max > 0)) {
-      horizonBars.innerHTML = '<div class="muted">当前周期总成本均为 0。</div>';
+      horizonBars.innerHTML = '<div class="muted">All horizon totals are zero.</div>';
       return;
     }
     horizonBars.innerHTML = rows
@@ -205,7 +212,7 @@
         return `
           <div class="hBarRow">
             <div class="hBarHead">
-              <span class="hBarLabel">${esc(r.label)}（${r.days} 天）</span>
+              <span class="hBarLabel">${esc(r.label)} (${r.days}d)</span>
               <span class="hBarVal">${esc(fmtMoney(r.total, currency))}</span>
             </div>
             <div class="hBarTrack"><div class="hBarFill" style="width:${Math.max(0, Math.min(100, pct)).toFixed(2)}%"></div></div>
@@ -219,7 +226,7 @@
     if (!tbody) return;
     const rowsData = forecastRows(dailyPerPerson);
     if (!rowsData.length) {
-      tbody.innerHTML = `<tr><td colspan="4" class="muted">无法计算（缺少单价或用量全为 0）。</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="4" class="muted">Cannot compute — missing rates or zero usage.</td></tr>`;
       return;
     }
     const rows = rowsData.map(
@@ -248,7 +255,7 @@
       return;
     }
     const s = teamScaleSummary();
-    forecastHint.textContent = `当前团队：${s.short} · 总成本 = 单人日成本 × 团队人数 × 天数。`;
+    forecastHint.textContent = `Team: ${s.short} · Total = per-person daily × people × days.`;
   }
 
   function clearForecastHint() {
@@ -270,20 +277,20 @@
     if (!rateBox) return;
     rateBox.classList.remove("muted", "baselineBoxEmpty");
     rateBox.classList.add("forecastPriceBox");
-    const head = (data && data.notes_zh) || "无法匹配目录单价。";
+    const head = apiNotes(data);
     const line =
       m && m.vendor
         ? `${esc(m.vendor)} · ${esc(m.platform)} — ${esc(m.model_series)} — ${esc(m.model_name)}`
-        : "（未选择模型）";
+        : "(no model selected)";
     rateBox.innerHTML = `
-      <div class="priceErrorTitle">未匹配到可用于预测的单价行</div>
+      <div class="priceErrorTitle">No catalog rate for forecast</div>
       <div class="priceErrorMeta">${line}</div>
       <p class="priceErrorDetail">${esc(head)}</p>
       <ul class="priceErrorList muted">
-        <li>区域选「任意（自动匹配）」，让系统按生效日期取最新一行</li>
-        <li>切换部署范围 Global / Data zone，与价格表 deployment 列一致</li>
-        <li>切换计费 standard / batch</li>
-        <li>在 <a href="/prices">Model Prices</a> 中确认该模型是否存在 <strong>input</strong> 或 <strong>output</strong> 计量</li>
+        <li>Region: choose <strong>Any (auto)</strong> for the latest effective row</li>
+        <li>Deployment: match Global / Data zone to Model Prices</li>
+        <li>Billing: try standard vs batch</li>
+        <li>Confirm <strong>input</strong> or <strong>output</strong> meters exist in <a href="/prices">Model Prices</a></li>
       </ul>
     `;
   }
@@ -315,7 +322,7 @@
       regionSelect.innerHTML = "";
       const anyOpt = document.createElement("option");
       anyOpt.value = "";
-      anyOpt.textContent = "任意（自动匹配）";
+      anyOpt.textContent = "Any (auto)";
       regionSelect.appendChild(anyOpt);
       for (const r of [...regs].map((x) => String(x || "").trim()).filter(Boolean).sort()) {
         const opt = document.createElement("option");
@@ -326,7 +333,7 @@
       regionSelect.value = "";
     } catch {
       regionSelect.innerHTML =
-        '<option value="">任意（自动匹配）</option><option value="eastus2">eastus2</option><option value="East US">East US</option>';
+        '<option value="">Any (auto)</option><option value="eastus2">eastus2</option><option value="East US">East US</option>';
       regionSelect.value = "";
     }
   }
@@ -338,10 +345,10 @@
       const data = await fetchJsonQuiet("/api/forecast/model-catalog");
       const opts = data.options || [];
       if (opts.length === 0) {
-        modelSelect.innerHTML = '<option value="">（价格表无模型行）</option>';
+        modelSelect.innerHTML = '<option value="">(no models in catalog)</option>';
         if (catalogHint) {
           catalogHint.innerHTML =
-            '价格表为空。请打开 <a href="/prices">Model Prices</a> 执行 <strong>Sync prices</strong> 或导入 CSV。';
+            'Catalog is empty. Open <a href="/prices">Model Prices</a> and run <strong>Sync prices</strong> or import CSV.';
         }
         return;
       }
@@ -356,17 +363,17 @@
         modelSelect.appendChild(opt);
       }
       if (catalogHint) {
-        catalogHint.textContent = `共 ${opts.length} 条模型（来自价格表去重）。`;
+        catalogHint.textContent = `${opts.length} model(s) from catalog.`;
       }
     } catch (e) {
       console.error(e);
-      modelSelect.innerHTML = '<option value="">（加载失败）</option>';
+      modelSelect.innerHTML = '<option value="">(load failed)</option>';
       const st = Number(e && e.status) || 0;
       if (catalogHint) {
         if (st === 401) {
-          catalogHint.textContent = "未登录或会话已过期，请刷新页面并重新登录。";
+          catalogHint.textContent = "Session expired — refresh and sign in again.";
         } else {
-          catalogHint.textContent = `无法加载模型列表（${st || "网络错误"}）。若已登录仍失败，请检查 /api/forecast/model-catalog。`;
+          catalogHint.textContent = `Could not load models (${st || "network error"}). Check /api/forecast/model-catalog.`;
         }
       }
     }
@@ -376,8 +383,8 @@
     const m = selectedModel();
     clearForecastHint();
     if (!m || !regionSelect) {
-      setCalcStatus("请先在下拉框中选择模型。");
-      setRateEmpty("请选择模型后点击「重新计算」。");
+      setCalcStatus("Select a model first.");
+      setRateEmpty("Select a model, then click Recalculate.");
       lastRates = null;
       renderTable(NaN, "USD");
       resetVisuals();
@@ -386,8 +393,8 @@
     const reg = regionSelect.value.trim();
     const dep = deploymentScope();
     const bm = (billingModeSelect && billingModeSelect.value) || "standard";
-    setCalcStatus("正在匹配 Model Prices 目录…");
-    setRateEmpty("加载目录单价…");
+    setCalcStatus("Matching Model Prices catalog…");
+    setRateEmpty("Loading catalog rates…");
     if (warnBox) {
       warnBox.style.display = "none";
       warnBox.textContent = "";
@@ -406,14 +413,14 @@
       lastRates = data;
       if (!data.ok) {
         renderRatesError(data, m);
-        setCalcStatus("未匹配到单价：请按下方提示调整区域 / 部署 / 计费，或核对 Model Prices。");
+        setCalcStatus("No match — adjust region, deployment, billing, or check Model Prices.");
         renderTable(NaN, "USD");
         resetVisuals();
         clearForecastHint();
         if (warnBox && data.reason === "no_prices") {
           warnBox.style.display = "block";
           warnBox.textContent =
-            "提示：可尝试「任意区域」、切换部署范围 / 计费模式（standard vs batch），或与 Model Prices 表格逐列对照。";
+            "Tip: try Any region, switch deployment or billing mode, or compare columns in Model Prices.";
         }
         return;
       }
@@ -425,19 +432,19 @@
       };
       const daily = dailyUsdPerPerson(per);
       renderRatesOk(data, cur);
-      const regLabel = data.price_region || "任意匹配";
-      setCalcStatus(`已匹配目录单价 · 区域 ${regLabel} · ${data.deployment_scope || dep} · ${data.billing_mode || bm}`);
+      const regLabel = data.price_region || "any match";
+      setCalcStatus(`Matched · ${regLabel} · ${data.deployment_scope || dep} · ${data.billing_mode || bm}`);
       if (warnBox && daily === 0) {
         warnBox.style.display = "block";
-        warnBox.textContent = "当前假设日用量为 0 或缺少 input/output 单价，总成本为 0。";
+        warnBox.textContent = "Assumed usage is zero or input/output rates are missing — total is 0.";
       }
       renderTable(daily, cur);
       renderVisuals(daily, cur, per);
       renderHint(daily, cur);
     } catch (e) {
       console.error(e);
-      setCalcStatus("请求失败：请检查网络或重新登录。");
-      setRateEmpty("请求失败（会话过期或网络错误）。", true);
+      setCalcStatus("Request failed — check network or sign in again.");
+      setRateEmpty("Request failed (session or network).", true);
       lastRates = null;
       renderTable(NaN, "USD");
       resetVisuals();

@@ -94,8 +94,14 @@ def test_tokens_page_redirect_and_access(tmp_path):
     assert 'id="tokenStartDateInput"' in page.text
     assert 'id="dailyPageSizeSelect"' in page.text
     assert 'id="dailyPrevBtn"' in page.text
+    assert 'id="dataStatusBar"' in page.text
+    assert 'id="tableRowBadge"' in page.text
+    assert "/static/js/money.js" in page.text
     assert "/static/js/pages/tokens.js" in page.text
+    assert "tokens.js?v=20260517-7" in page.text
     assert 'href="/tokens"' in page.text
+    assert "flowStep" in page.text
+    assert "chartLegendKey" in page.text
 
 
 def test_login_to_token_workspace_e2e_smoke(tmp_path):

@@ -1,8 +1,113 @@
 /* Token workspace — refined operational layout */
 .tokenPage {
+  --token-gap: 16px;
+  --token-gap-sm: 12px;
   display: grid;
-  gap: 14px;
-  max-width: 1280px;
+  gap: var(--token-gap);
+  max-width: 1320px;
+}
+
+.dataStatusBar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(173, 196, 228, 0.18);
+  background: rgba(255, 255, 255, 0.03);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.statusPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(173, 196, 228, 0.2);
+  background: rgba(255, 255, 255, 0.05);
+  color: #d4e0ef;
+  font-variant-numeric: tabular-nums;
+}
+
+.statusPill strong {
+  font-weight: 750;
+  color: #f1f5f9;
+}
+
+.flowSection {
+  position: relative;
+}
+
+.flowStep {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 10px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #7f93ab;
+}
+
+.flowStepNum {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 800;
+  color: #e2e8f0;
+  background: rgba(96, 165, 250, 0.2);
+  border: 1px solid rgba(96, 165, 250, 0.35);
+}
+
+.tableToolbarRight {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.tableRowBadge {
+  font-size: 11px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(173, 196, 228, 0.16);
+  background: rgba(255, 255, 255, 0.04);
+  white-space: nowrap;
+}
+
+.chartLegendKey {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 16px;
+  margin-top: 8px;
+}
+
+.legendKeyItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11px;
+  color: #9fb2c7;
+}
+
+.legendKeyLine {
+  display: inline-block;
+  width: 22px;
+  height: 0;
+  border-top: 2px solid #60a5fa;
+}
+
+.legendKeyDashed {
+  border-top-style: dashed;
+  opacity: 0.85;
 }
 
 .tokenPageHeader {
@@ -132,7 +237,7 @@
 .tokenSummaryGrid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
+  gap: var(--token-gap-sm);
 }
 
 .stat {
@@ -282,7 +387,7 @@
 .tokenCharts {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  gap: var(--token-gap-sm);
 }
 
 .chartWide {
@@ -304,7 +409,7 @@
 }
 
 .chartPanel {
-  padding: 12px 14px;
+  padding: 14px 16px;
   min-width: 0;
 }
 
@@ -319,7 +424,7 @@
 
 .chartCanvasWrap {
   position: relative;
-  height: 220px;
+  height: 232px;
 }
 
 .chartCanvasShort {
@@ -370,9 +475,10 @@
 
 .tokenTablePanel .tableScroll {
   overflow: auto;
-  max-height: 460px;
+  max-height: min(52vh, 480px);
   border: 1px solid rgba(173, 196, 228, 0.16);
   border-radius: 10px;
+  margin-top: 4px;
 }
 
 .tokenTablePanel table {
@@ -389,7 +495,22 @@
   position: sticky;
   top: 0;
   z-index: 1;
-  background: rgba(15, 23, 36, 0.96);
+  background: rgba(15, 23, 36, 0.98);
+  box-shadow: 0 1px 0 rgba(173, 196, 228, 0.12);
+}
+
+.tokenTablePanel tbody tr:nth-child(even) {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.tokenTablePanel tbody tr:hover {
+  background: rgba(96, 165, 250, 0.06);
+}
+
+.tokenTablePanel tbody td {
+  padding: 9px 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  font-size: 12px;
 }
 
 .thDateCol {
@@ -510,13 +631,14 @@
 .tokenDetailFlow {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--token-gap);
+  margin-top: 4px;
 }
 
 .dailyCostCharts {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  gap: var(--token-gap-sm);
 }
 
 .unitPriceSection {
@@ -535,17 +657,46 @@
 .unitPriceChartsRow {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  gap: var(--token-gap-sm);
+  margin-top: 4px;
 }
 
 .catalogRefLine {
   font-size: 11px;
   line-height: 1.45;
   margin: 0;
-  padding: 8px 10px;
+  padding: 10px 12px;
   border-radius: 8px;
   border: 1px solid rgba(173, 196, 228, 0.14);
   background: rgba(255, 255, 255, 0.03);
+  min-width: min(100%, 22rem);
+}
+
+.catalogRefGrid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.catalogRefItem {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.catalogRefModel {
+  font-weight: 700;
+  color: #e2e8f0;
+  font-size: 12px;
+}
+
+.catalogRefPrices {
+  color: #9fb2c7;
+}
+
+.catalogRefDelta {
+  color: #7dd3fc;
+  font-size: 10px;
 }
 
 .thUnitInCol,
@@ -739,9 +890,13 @@
   margin-bottom: 10px;
 }
 
+.impliedUnitPriceChartCard {
+  padding: 12px 14px 14px;
+}
+
 .impliedUnitPriceChartWrap {
   position: relative;
-  height: 280px;
+  height: 268px;
 }
 
 .impliedUnitPriceChartWrap canvas {

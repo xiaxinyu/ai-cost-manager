@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="zh-Hans">
+<html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>模型成本预测 - Models Cost Management</title>
+    <title>Cost Forecast - Models Cost Management</title>
     <link rel="stylesheet" href="/static/css/app-shell.css" />
     <link rel="stylesheet" href="/static/css/page-common.css" />
     <link rel="stylesheet" href="/static/css/pages/forecast.css" />
@@ -33,16 +33,16 @@
       <main class="contentArea">
         <div class="container">
           <header class="forecastHero">
-            <div class="breadcrumb">Home / Pricing / 模型成本预测</div>
-            <h1 class="pageTitle">按模型与团队规模预测成本</h1>
-            <p class="pageLead">选择模型单价，输入团队人数与每人日用量，快速查看总成本。</p>
+            <div class="breadcrumb">Home / Pricing / Forecast</div>
+            <h1 class="pageTitle">Cost forecast by model</h1>
+            <p class="pageLead">Pick catalog unit prices, set team size and per-person daily usage, then view totals by horizon.</p>
           </header>
 
-          <div class="forecastTopBar" aria-label="快速计算">
-            <button id="calcBtn" class="btn btnPrimary btnCalcTop" type="button">重新计算</button>
+          <div class="forecastTopBar" aria-label="Calculate">
+            <button id="calcBtn" class="btn btnPrimary btnCalcTop" type="button">Recalculate</button>
             <div class="forecastTopBarText">
-              <p id="calcStatus" class="calcStatus muted">就绪：在下方选好模型与区域后点击，拉取目录单价并刷新预测表。</p>
-              <p class="forecastTopBarHint muted">未匹配时：先试「任意区域」，再切换 Global / Data zone 与 standard / batch。</p>
+              <p id="calcStatus" class="calcStatus muted">Ready — select a model and region, then recalculate to load catalog rates.</p>
+              <p class="forecastTopBarHint muted">No match? Try Any region, then switch Global / Data zone and standard / batch.</p>
             </div>
           </div>
 
@@ -50,28 +50,28 @@
             <div class="cardHead">
               <span class="stepBadge">1</span>
               <div>
-                <h2 id="step1h" class="cardTitle">模型与目录条件</h2>
-                <p class="cardSub">选择模型、区域、计费模式后，系统匹配目录单价。</p>
+                <h2 id="step1h" class="cardTitle">Model &amp; catalog filters</h2>
+                <p class="cardSub">Match list prices from Model Prices by model, region, deployment, and billing mode.</p>
               </div>
             </div>
             <div class="gridModel">
               <div class="field fieldGrow">
-                <label class="muted" for="modelSelect">模型（价格表）</label>
+                <label class="muted" for="modelSelect">Model (catalog)</label>
                 <select id="modelSelect" class="controlWide"></select>
               </div>
               <div class="field">
-                <label class="muted" for="regionSelect">区域</label>
+                <label class="muted" for="regionSelect">Region</label>
                 <select id="regionSelect"></select>
               </div>
               <div class="field">
-                <label class="muted" for="billingModeSelect">计费模式</label>
+                <label class="muted" for="billingModeSelect">Billing mode</label>
                 <select id="billingModeSelect">
                   <option value="standard" selected>standard</option>
                   <option value="batch">batch</option>
                 </select>
               </div>
               <div class="field fieldScope">
-                <span class="muted" id="depLegend">部署范围</span>
+                <span class="muted" id="depLegend">Deployment scope</span>
                 <div class="inlineRadios" role="radiogroup" aria-labelledby="depLegend">
                   <label><input type="radio" name="deployment" value="global" checked /> Global</label>
                   <label><input type="radio" name="deployment" value="data_zone" /> Data zone</label>
@@ -79,8 +79,8 @@
               </div>
             </div>
             <p id="catalogHint" class="catalogHint muted"></p>
-            <h3 class="forecastPriceHeading">当前模型的目录单价（匹配结果）</h3>
-            <div id="rateBox" class="forecastPriceBox baselineBox baselineBoxEmpty muted">请选择模型后点击顶部「重新计算」。</div>
+            <h3 class="forecastPriceHeading">Matched catalog rates</h3>
+            <div id="rateBox" class="forecastPriceBox baselineBox baselineBoxEmpty muted">Select a model, then click Recalculate.</div>
             <p id="warnBox" class="warn forecastWarn" style="display: none"></p>
           </section>
 
@@ -88,16 +88,16 @@
             <div class="cardHead">
               <span class="stepBadge">2</span>
               <div>
-                <h2 id="step2h" class="cardTitle">团队规模</h2>
-                <p class="cardSub">输入团队人数，按人数线性计算总成本。</p>
+                <h2 id="step2h" class="cardTitle">Team size</h2>
+                <p class="cardSub">Total cost scales linearly with headcount.</p>
               </div>
             </div>
             <div class="teamSizeRow">
               <div class="field">
-                <label class="muted" for="teamSize">团队人数</label>
+                <label class="muted" for="teamSize">People</label>
                 <input id="teamSize" type="number" min="1" step="1" value="7" />
               </div>
-              <p class="teamScaleMiniHint muted">总成本按人数线性放大</p>
+              <p class="teamScaleMiniHint muted">Total = per-person daily cost × people × days</p>
             </div>
           </section>
 
@@ -105,21 +105,21 @@
             <div class="cardHead">
               <span class="stepBadge">3</span>
               <div>
-                <h2 id="stepTokh" class="cardTitle">假设用量（每人 / 天）</h2>
-                <p class="cardSub">单位：1M tokens。默认 Input 10，Output 1。</p>
+                <h2 id="stepTokh" class="cardTitle">Assumed usage (per person / day)</h2>
+                <p class="cardSub">Values in millions of tokens (1M). Defaults: Input 10, Output 1.</p>
               </div>
             </div>
             <div class="tokenGrid">
               <div class="field">
-                <label class="muted" for="tokIn">Input（1M tokens / 人 / 天）</label>
+                <label class="muted" for="tokIn">Input (1M tokens / person / day)</label>
                 <input id="tokIn" type="number" min="0" step="any" value="10" />
               </div>
               <div class="field">
-                <label class="muted" for="tokCached">Cached input（1M / 人 / 天）</label>
+                <label class="muted" for="tokCached">Cached input (1M / person / day)</label>
                 <input id="tokCached" type="number" min="0" step="any" value="0" />
               </div>
               <div class="field">
-                <label class="muted" for="tokOut">Output（1M tokens / 人 / 天）</label>
+                <label class="muted" for="tokOut">Output (1M tokens / person / day)</label>
                 <input id="tokOut" type="number" min="0" step="any" value="1" />
               </div>
             </div>
@@ -129,41 +129,41 @@
             <div class="cardHead">
               <span class="stepBadge">4</span>
               <div>
-                <h2 id="step4h" class="cardTitle">不同时间尺度的总成本</h2>
-                <p class="cardSub">总成本 = 单人日成本 × 团队人数 × 天数</p>
+                <h2 id="step4h" class="cardTitle">Totals by horizon</h2>
+                <p class="cardSub">Total = per-person daily cost × team size × days</p>
               </div>
             </div>
             <p id="forecastHint" class="forecastHint muted"></p>
             <div class="forecastVizGrid">
-              <section class="vizPanel" aria-label="关键指标">
-                <h3 class="vizTitle">关键指标</h3>
+              <section class="vizPanel" aria-label="Key metrics">
+                <h3 class="vizTitle">Key metrics</h3>
                 <div class="kpiGrid">
                   <article class="kpiCard">
-                    <div class="kpiLabel">单人日成本</div>
+                    <div class="kpiLabel">Per-person daily cost</div>
                     <div id="kpiDailyPizza" class="kpiValue">—</div>
                   </article>
                   <article class="kpiCard">
-                    <div class="kpiLabel">当前团队周成本（7 天）</div>
+                    <div class="kpiLabel">Team weekly (7 days)</div>
                     <div id="kpiDailyTeam" class="kpiValue">—</div>
                   </article>
                   <article class="kpiCard kpiCardAccent">
-                    <div class="kpiLabel">当前团队月成本（30 天）</div>
+                    <div class="kpiLabel">Team monthly (30 days)</div>
                     <div id="kpiMonthTeam" class="kpiValue">—</div>
                   </article>
                 </div>
               </section>
 
-              <section class="vizPanel" aria-label="成本构成">
-                <h3 class="vizTitle">日成本构成（当前用量）</h3>
+              <section class="vizPanel" aria-label="Daily cost mix">
+                <h3 class="vizTitle">Daily cost mix</h3>
                 <div id="costMixRows" class="mixRows">
-                  <div class="muted">计算后显示 Input / Cached / Output 成本占比。</div>
+                  <div class="muted">Recalculate to show Input / Cached / Output share.</div>
                 </div>
               </section>
 
-              <section class="vizPanel vizPanelWide" aria-label="周期总成本对比">
-                <h3 class="vizTitle">周期总成本对比（当前团队规模）</h3>
+              <section class="vizPanel vizPanelWide" aria-label="Horizon comparison">
+                <h3 class="vizTitle">Horizon comparison</h3>
                 <div id="horizonBars" class="horizonBars">
-                  <div class="muted">计算后显示各周期对比。</div>
+                  <div class="muted">Recalculate to compare horizons.</div>
                 </div>
               </section>
             </div>
@@ -172,14 +172,14 @@
                 <thead>
                   <tr>
                     <th class="num colIdx" scope="col">#</th>
-                    <th scope="col">时间范围</th>
-                    <th class="num" scope="col">天数</th>
-                    <th class="num" scope="col">预计总成本</th>
+                    <th scope="col">Horizon</th>
+                    <th class="num" scope="col">Days</th>
+                    <th class="num" scope="col">Est. total</th>
                   </tr>
                 </thead>
                 <tbody id="forecastTbody">
                   <tr>
-                    <td colspan="4" class="muted">计算后将显示 1 天 / 1 周 / 半个月 / 1 个月。</td>
+                    <td colspan="4" class="muted">Shows 1 day, 1 week, 15 days, and 30 days after recalculate.</td>
                   </tr>
                 </tbody>
               </table>
@@ -192,6 +192,6 @@
     <script src="/static/js/app-shell.js"></script>
     <script src="/static/js/money.js"></script>
     <script src="/static/js/http.js"></script>
-    <script src="/static/js/pages/forecast.js"></script>
+    <script src="/static/js/pages/forecast.js?v=20260517-1"></script>
   </body>
 </html>
