@@ -38,51 +38,63 @@
             <p class="pageDesc">Cost trends, billing forecast, and token usage for the selected scope. Token forecasts are on the Forecast page.</p>
           </header>
 
-          <section class="card reportFilters">
-        <div class="controlsRow">
-          <div style="min-width: 320px;">
-            <label>Project Scope</label>
-            <div class="dropdownWrap" id="projectDropdownWrap">
-              <button id="projectDropdownBtn" type="button" class="dropdownBtn">
-                <span class="dropdownBtnText" id="projectDropdownBtnText">All projects</span>
-                <span style="color:#9fb2c7; font-size:12px;">▾</span>
-              </button>
-              <div id="projectDropdownMenu" class="dropdownMenu" role="menu" aria-label="Project scope">
-                <label class="dropdownItem" title="Clear filtering and include all projects">
-                  <input type="checkbox" id="projectAllChk" checked />
-                  <span>All projects</span>
-                </label>
-                <div class="dropdownDivider"></div>
-                <div id="projectCheckboxList" style="display:flex; flex-direction:column; gap:2px;"></div>
+          <section class="card reportFilters filterCard" aria-label="Filters">
+            <div class="filterCardHead">
+              <h2 class="filterCardTitle">Report scope</h2>
+              <p class="filterCardHint muted">Projects, currency, and dates · press Enter to load</p>
+            </div>
+            <div class="controlsRow toolbarGrid reportToolbarGrid">
+              <div class="field fieldProject">
+                <label for="projectDropdownBtn">Projects</label>
+                <div class="dropdownWrap" id="projectDropdownWrap">
+                  <button id="projectDropdownBtn" type="button" class="dropdownBtn control">
+                    <span class="dropdownBtnText" id="projectDropdownBtnText">All projects</span>
+                    <span class="dropdownChevron" aria-hidden="true"></span>
+                  </button>
+                  <div id="projectDropdownMenu" class="dropdownMenu" role="menu" aria-label="Project scope">
+                    <label class="dropdownItem" title="Include all projects">
+                      <input type="checkbox" id="projectAllChk" checked />
+                      <span>All projects</span>
+                    </label>
+                    <div class="dropdownDivider"></div>
+                    <div id="projectCheckboxList" class="projectCheckboxList"></div>
+                  </div>
+                </div>
+              </div>
+              <div class="field">
+                <label for="currencySelect">Currency</label>
+                <div class="controlWrap controlWrapSelect">
+                  <select id="currencySelect" class="control"></select>
+                </div>
+              </div>
+              <div class="field fieldDate">
+                <label for="startDate">Start date</label>
+                <div class="controlWrap">
+                  <input id="startDate" class="control controlDate" type="date" autocomplete="off" />
+                </div>
+              </div>
+              <div class="field fieldDate">
+                <label for="endDate">End date</label>
+                <div class="controlWrap">
+                  <input id="endDate" class="control controlDate" type="date" autocomplete="off" />
+                </div>
+              </div>
+              <div class="toolbarActions">
+                <button id="loadBtn" class="btnPrimary btnLoad" type="button">Load report</button>
+                <button id="verifyBtn" class="btnSecondary btnVerify" type="button">Verify data</button>
               </div>
             </div>
-          </div>
-          <div style="min-width: 260px;">
-            <label for="currencySelect">Currency</label>
-            <select id="currencySelect"></select>
-          </div>
-          <div style="min-width: 180px;">
-            <label for="startDate">Start</label>
-            <input id="startDate" type="date" />
-          </div>
-          <div style="min-width: 180px;">
-            <label for="endDate">End</label>
-            <input id="endDate" type="date" />
-          </div>
-          <div style="display:flex; gap:12px; align-items:flex-end;">
-            <div style="min-width: 140px;">
-              <button id="loadBtn" type="button">Load Report</button>
+            <div class="dateRangeBar">
+              <span class="dateRangeLabel muted">Quick range</span>
+              <button id="dateLast7Btn" class="btnChip" type="button">Last 7 days</button>
+              <button id="dateLast30Btn" class="btnChip" type="button">Last 30 days</button>
+              <button id="dateClearBtn" class="btnChip btnChipGhost" type="button">All dates</button>
             </div>
-          </div>
-          <div style="display:flex; gap:12px; align-items:flex-end;">
-            <div style="min-width: 170px;">
-              <button id="verifyBtn" class="btnSmall" type="button">Verify Data</button>
-            </div>
-          </div>
-        </div>
-        <div id="verifyResult" class="tableNote" style="display:none; margin-top:10px;"></div>
-        <p class="tableNote reportSourceNote">Billing from imported CSVs. Token metrics use Grafana imports when available.</p>
-      </section>
+            <div id="verifyResult" class="verifyBanner" hidden role="status"></div>
+            <p class="tableNote reportSourceNote">Billing from imported CSVs. Token metrics use Grafana imports when available.</p>
+          </section>
+
+          <div id="reportStatusBar" class="dataStatusBar" hidden aria-live="polite" aria-label="Load summary"></div>
 
           <section class="gridStats reportKpis" aria-label="Summary metrics">
             <article class="card kpiCard">
@@ -119,7 +131,7 @@
               <button id="exportProjectBreakdownBtn" class="btnSmall" type="button">Export CSV</button>
             </div>
             <div class="tableScroll reportTableScroll">
-              <table id="projectBreakdownTable">
+              <table id="projectBreakdownTable" class="dataTable">
                 <thead>
                   <tr>
                     <th class="sortable" data-label="Project" data-sort-key="project_name" scope="col">Project</th>
@@ -143,18 +155,18 @@
             <div class="chartGrid chartGrid3">
               <article class="card chartCard">
                 <h3 class="chartCardTitle">Daily actual</h3>
-                <div class="chartCanvasHost"><canvas id="dailyChart"></canvas></div>
+                <div class="chartCanvasHost chartPlot"><canvas id="dailyChart"></canvas></div>
               </article>
               <article class="card chartCard">
                 <h3 class="chartCardTitle">Monthly actual</h3>
-                <div class="chartCanvasHost"><canvas id="monthlyChart"></canvas></div>
+                <div class="chartCanvasHost chartPlot"><canvas id="monthlyChart"></canvas></div>
               </article>
               <article class="card chartCard chartCardForecast">
                 <div class="chartCardHead">
                   <h3 class="chartCardTitle">Cost forecast (7d)</h3>
                   <div id="forecastQualityCostReport" class="qualityBadge qualityMedium">Forecast quality: -</div>
                 </div>
-                <div class="chartCanvasHost chartCanvasHostShort"><canvas id="costForecastChart"></canvas></div>
+                <div class="chartCanvasHost chartPlot chartCanvasHostShort"><canvas id="costForecastChart"></canvas></div>
                 <div class="forecastMetaRow">
                   <span class="muted">28-day window · DOW correction</span>
                   <a class="btnLinkQuiet" href="/forecast">Open Forecast</a>
@@ -164,7 +176,7 @@
                   <div class="assumptionBody">Linear trend + day-of-week residual on the last 28 valid days. Integer output, clamped ≥ 0.</div>
                 </details>
                 <div class="tableScroll tableScrollCompact">
-                  <table>
+                  <table class="dataTable">
                     <thead><tr><th>Date</th><th class="num">Forecast</th></tr></thead>
                     <tbody id="costForecastTbody"></tbody>
                   </table>
@@ -181,7 +193,7 @@
             <div class="chartGrid chartGrid2">
               <article class="card chartCard">
                 <h3 class="chartCardTitle">Daily usage</h3>
-                <div class="chartCanvasHost"><canvas id="dailyTokenChart"></canvas></div>
+                <div class="chartCanvasHost chartPlot"><canvas id="dailyTokenChart"></canvas></div>
               </article>
               <article class="card chartCard">
                 <div class="chartCardHead">
@@ -189,9 +201,9 @@
                   <button id="exportTokenRatioBtn" class="btnSmall" type="button">Export CSV</button>
                 </div>
                 <p class="ratioKpiLine muted" id="ratioKpiSummaryReport">Valid days: - · &gt;1: - · &lt;1: -</p>
-                <div class="chartCanvasHost chartCanvasHostShort"><canvas id="dailyTokenRatioChart"></canvas></div>
+                <div class="chartCanvasHost chartPlot chartCanvasHostShort"><canvas id="dailyTokenRatioChart"></canvas></div>
                 <div class="tableScroll tableScrollCompact">
-                  <table>
+                  <table class="dataTable">
                     <thead><tr><th>Date</th><th class="num">Ratio</th></tr></thead>
                     <tbody id="tokenRatioTbody"></tbody>
                   </table>
@@ -200,7 +212,7 @@
             </div>
             <article class="card chartCard chartCardWide">
               <h3 class="chartCardTitle">Monthly usage</h3>
-              <div class="chartCanvasHost"><canvas id="monthlyTokenChart"></canvas></div>
+              <div class="chartCanvasHost chartPlot"><canvas id="monthlyTokenChart"></canvas></div>
             </article>
           </section>
 
@@ -225,12 +237,12 @@
                     <button id="dailyNextBtn" class="btnSmall" type="button">Next</button>
                     <span id="dailyPageInfo" class="pageInfo">-</span>
                     <span class="muted">Go</span>
-                    <input id="dailyGoInput" inputmode="numeric" placeholder="page" style="width: 90px;" />
+                    <input id="dailyGoInput" class="pagerGoInput" inputmode="numeric" placeholder="page" />
                     <button id="dailyGoBtn" class="btnSmall" type="button">Go</button>
                   </div>
                 </div>
                 <div class="tableScroll">
-                  <table>
+                  <table class="dataTable">
                     <thead><tr><th>Date</th><th class="num">Actual</th></tr></thead>
                     <tbody id="dailyTbody"></tbody>
                   </table>
@@ -251,12 +263,12 @@
                     <button id="monthlyNextBtn" class="btnSmall" type="button">Next</button>
                     <span id="monthlyPageInfo" class="pageInfo">-</span>
                     <span class="muted">Go</span>
-                    <input id="monthlyGoInput" inputmode="numeric" placeholder="page" style="width: 90px;" />
+                    <input id="monthlyGoInput" class="pagerGoInput" inputmode="numeric" placeholder="page" />
                     <button id="monthlyGoBtn" class="btnSmall" type="button">Go</button>
                   </div>
                 </div>
                 <div class="tableScroll">
-                  <table>
+                  <table class="dataTable">
                     <thead><tr><th>Month</th><th class="num">Actual</th></tr></thead>
                     <tbody id="monthlyTbody"></tbody>
                   </table>
@@ -297,6 +309,7 @@
       let projectBreakdownRows = [];
       let pbSortKey = 'actual_cost_usd_total';
       let pbSortDir = -1;
+      let reportLoading = false;
 
       function _currency() {
         return document.getElementById('currencySelect')?.value || null;
@@ -387,12 +400,121 @@
         return t.length > 0 ? t : '';
       }
 
+      function validateDateRange() {
+        const start = document.getElementById('startDate')?.value || '';
+        const end = document.getElementById('endDate')?.value || '';
+        if (start && end && start > end) {
+          window.AppShell?.toast?.('Start date must be on or before end date.', 'warn');
+          return false;
+        }
+        return true;
+      }
+
+      function setDateChipActive(activeId) {
+        for (const id of ['dateLast7Btn', 'dateLast30Btn', 'dateClearBtn']) {
+          document.getElementById(id)?.classList.toggle('is-active', id === activeId);
+        }
+      }
+
+      function applyDateRangePreset(preset) {
+        if (preset === 'clear') {
+          const startEl = document.getElementById('startDate');
+          const endEl = document.getElementById('endDate');
+          if (startEl) startEl.value = '';
+          if (endEl) endEl.value = '';
+          setDateChipActive('dateClearBtn');
+        } else {
+          const days = preset === '7' ? 7 : 30;
+          const end = new Date();
+          const start = new Date();
+          start.setDate(end.getDate() - (days - 1));
+          const startEl = document.getElementById('startDate');
+          const endEl = document.getElementById('endDate');
+          if (startEl) startEl.value = toYmd(start);
+          if (endEl) endEl.value = toYmd(end);
+          setDateChipActive(preset === '7' ? 'dateLast7Btn' : 'dateLast30Btn');
+        }
+        loadReportWithUi();
+      }
+
+      function updateReportStatusBar(report) {
+        const bar = document.getElementById('reportStatusBar');
+        if (!bar) return;
+        const d = report?.daily || {};
+        const projects = (report?.project_breakdown || []).length;
+        const cur = report?.currency || _currency() || 'USD';
+        const start = document.getElementById('startDate')?.value || '';
+        const end = document.getElementById('endDate')?.value || '';
+        const range = start && end ? `${start} → ${end}` : start || end || 'All dates';
+        const total = d.total_actual;
+        const mk = (html) => {
+          const span = document.createElement('span');
+          span.className = 'statusPill';
+          span.innerHTML = html;
+          return span;
+        };
+        bar.replaceChildren(
+          mk(`<strong>${projects}</strong> projects`),
+          mk(`<strong>${d.count_days ?? 0}</strong> billing days`),
+          mk(`<strong>${fmtCost(total)}</strong> total`),
+          Object.assign(document.createElement('span'), { className: 'statusPill', textContent: range }),
+          Object.assign(document.createElement('span'), { className: 'statusPill', textContent: cur }),
+        );
+        bar.hidden = false;
+      }
+
+      function applyReportPayload(report) {
+        lastReport = report;
+        const currencyOptions = report.currency_options || [];
+        const currencySelect = document.getElementById('currencySelect');
+        if (!currencySelect) return;
+        const prev = currencySelect.value;
+        currencySelect.innerHTML = '';
+        for (const c of currencyOptions) {
+          const opt = document.createElement('option');
+          opt.value = c;
+          opt.textContent = c;
+          currencySelect.appendChild(opt);
+        }
+        const chosen = report.currency || prev || (currencyOptions[0] || '');
+        if (chosen) currencySelect.value = chosen;
+        renderStats(report);
+        renderProjectBreakdown(report);
+        renderCharts(report);
+        renderTables(report);
+        updateReportStatusBar(report);
+      }
+
+      async function loadReportWithUi() {
+        if (!validateDateRange()) return;
+        if (reportLoading) return;
+        const btn = document.getElementById('loadBtn');
+        reportLoading = true;
+        btn?.classList.add('is-loading');
+        btn?.setAttribute('disabled', 'disabled');
+        try {
+          const report = await fetchReport();
+          applyReportPayload(report);
+        } catch (e) {
+          console.error(e);
+        } finally {
+          reportLoading = false;
+          btn?.classList.remove('is-loading');
+          btn?.removeAttribute('disabled');
+        }
+      }
+
       // Forecast utilities are shared across pages via /static/js/forecasting.js.
       const forecastNextDaysDOW = (...args) => window.AppForecasting.forecastNextDaysDOW(...args);
 
       function setText(id, val) {
         const el = document.getElementById(id);
         if (el) el.textContent = fmt(val);
+      }
+
+      function setCostText(id, val) {
+        const el = document.getElementById(id);
+        if (el) el.textContent = fmtCost(val);
       }
 
       function setTextInt(id, val) {
@@ -462,6 +584,10 @@
         if (!tbody) return;
         const rows = getSortedProjectBreakdown();
         tbody.innerHTML = '';
+        if (!rows.length) {
+          tbody.innerHTML = '<tr><td colspan="6" class="muted emptyRow">No projects in selected scope.</td></tr>';
+          return;
+        }
         for (const r of rows) {
           const tr = document.createElement('tr');
           const inTok = r.estimated_input_tokens;
@@ -1166,13 +1292,19 @@
         const slice = points.slice(offset, offset + pageSize);
 
         tbodyEl.innerHTML = '';
-        for (const p of slice) {
+        if (total === 0) {
           const tr = document.createElement('tr');
-          tr.innerHTML = `<td>${p.date ?? ''}</td><td class="num">${fmtCost(p.cost_usd)}</td>`;
+          tr.innerHTML = `<td colspan="2" class="muted emptyRow">No ${label} in selected range.</td>`;
           tbodyEl.appendChild(tr);
+        } else {
+          for (const p of slice) {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td>${p.date ?? ''}</td><td class="num">${fmtCost(p.cost_usd)}</td>`;
+            tbodyEl.appendChild(tr);
+          }
         }
 
-        prevBtn.disabled = safePage <= 1;
+        prevBtn.disabled = safePage <= 1 || total === 0;
         nextBtn.disabled = safePage >= pageCount;
         pageInfoEl.textContent = `${safePage} / ${pageCount} · ${total} ${label}`;
         return safePage;
@@ -1231,11 +1363,11 @@
         if (rptProj) rptProj.textContent = imported || mixed ? 'Projects with imported tokens' : 'Projects with token estimate';
         if (rptModel) rptModel.textContent = imported || mixed ? 'Token data source' : 'Token estimate model';
         if (rptReg) rptReg.textContent = imported || mixed ? 'Token path / region' : 'Token estimate region';
-        setText('d_count', d.count_days);
-        setText('d_total_actual', d.total_actual);
+        setTextInt('d_count', d.count_days);
+        setCostText('d_total_actual', d.total_actual);
         setTextInt('d_est_input_tokens', t.estimated_input_tokens_total);
         setTextInt('d_est_output_tokens', t.estimated_output_tokens_total);
-        setText('d_est_projects', t.projects_with_estimate);
+        setTextInt('d_est_projects', t.projects_with_estimate);
         if (imported || mixed) {
           setTextRaw('d_token_model', mixed ? 'Mixed (imported + estimate)' : 'Imported CSV');
           setTextRaw('d_token_region', 'bills/<project>/token/');
@@ -1243,14 +1375,14 @@
           setTextRaw('d_token_model', report.token_estimate_model_display ?? '-');
           setTextRaw('d_token_region', report.token_estimate_region_display ?? '-');
         }
-        setText('d_avg_actual', d.avg_actual);
-        setText('d_median_actual', d.median_actual);
-        setText('d_var_actual', d.var_actual);
+        setCostText('d_avg_actual', d.avg_actual);
+        setCostText('d_median_actual', d.median_actual);
+        setCostText('d_var_actual', d.var_actual);
 
-        setText('m_count', m.count_months);
-        setText('m_avg_actual', m.avg_actual);
-        setText('m_median_actual', m.median_actual);
-        setText('m_var_actual', m.var_actual);
+        setTextInt('m_count', m.count_months);
+        setCostText('m_avg_actual', m.avg_actual);
+        setCostText('m_median_actual', m.median_actual);
+        setCostText('m_var_actual', m.var_actual);
       }
 
       async function init() {
@@ -1258,6 +1390,7 @@
 
         const projectDropdownBtn = document.getElementById('projectDropdownBtn');
         const projectDropdownMenu = document.getElementById('projectDropdownMenu');
+        const projectDropdownWrap = document.getElementById('projectDropdownWrap');
         projectDropdownMenu.addEventListener('click', (e) => {
           // Prevent the "click outside to close" handler from firing
           // so checkbox clicks can actually toggle.
@@ -1268,29 +1401,27 @@
         });
         projectDropdownBtn.addEventListener('click', (e) => {
           e.stopPropagation();
-          projectDropdownMenu.style.display = projectDropdownMenu.style.display === 'block' ? 'none' : 'block';
+          projectDropdownWrap?.classList.toggle('is-open');
         });
         document.addEventListener('click', () => {
-          projectDropdownMenu.style.display = 'none';
+          projectDropdownWrap?.classList.remove('is-open');
         });
 
-        const report = await fetchReport();
-        lastReport = report;
-        const currencyOptions = report.currency_options || [];
-        const currencySelect = document.getElementById('currencySelect');
-        currencySelect.innerHTML = '';
-        for (const c of currencyOptions) {
-          const opt = document.createElement('option');
-          opt.value = c;
-          opt.textContent = c;
-          currencySelect.appendChild(opt);
+        for (const id of ['startDate', 'endDate']) {
+          document.getElementById(id)?.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              loadReportWithUi();
+            }
+          });
         }
-        const chosen = report.currency || (currencyOptions[0] || '');
-        currencySelect.value = chosen;
-        renderStats(report);
-        renderProjectBreakdown(report);
-        renderCharts(report);
-        renderTables(report);
+        document.getElementById('dateLast7Btn')?.addEventListener('click', () => applyDateRangePreset('7'));
+        document.getElementById('dateLast30Btn')?.addEventListener('click', () => applyDateRangePreset('30'));
+        document.getElementById('dateClearBtn')?.addEventListener('click', () => applyDateRangePreset('clear'));
+        setDateChipActive('dateClearBtn');
+
+        const report = await fetchReport();
+        applyReportPayload(report);
       }
 
       const exportTokenRatioBtn = document.getElementById('exportTokenRatioBtn');
@@ -1298,52 +1429,40 @@
         exportTokenRatioBtn.addEventListener('click', () => exportTokenRatioCsv());
       }
 
-      document.getElementById('loadBtn').addEventListener('click', async () => {
-        try {
-          const report = await fetchReport();
-          lastReport = report;
-          const currencyOptions = report.currency_options || [];
-          const currencySelect = document.getElementById('currencySelect');
-          currencySelect.innerHTML = '';
-          for (const c of currencyOptions) {
-            const opt = document.createElement('option');
-            opt.value = c;
-            opt.textContent = c;
-            currencySelect.appendChild(opt);
-          }
-          const chosen = report.currency || (currencyOptions[0] || '');
-          currencySelect.value = chosen;
-
-          renderStats(report);
-          renderProjectBreakdown(report);
-          renderCharts(report);
-          dailyPage = 1;
-          monthlyPage = 1;
-          renderTables(report);
-        } catch (e) {
-          console.error(e);
-          // toast handled by AppHttp
-        }
+      document.getElementById('loadBtn').addEventListener('click', () => {
+        dailyPage = 1;
+        monthlyPage = 1;
+        loadReportWithUi();
       });
 
       const verifyBtn = document.getElementById('verifyBtn');
       if (verifyBtn) {
         verifyBtn.addEventListener('click', async () => {
+          if (!validateDateRange()) return;
+          verifyBtn.classList.add('is-loading');
+          verifyBtn.setAttribute('disabled', 'disabled');
           try {
             const res = await fetchVerify('deep');
             const el = document.getElementById('verifyResult');
             if (el) {
-              el.style.display = 'block';
+              const total = (res?.checks || []).length;
+              const failed = res?.failed_count ?? 0;
+              el.hidden = false;
+              el.classList.remove('verifyOk', 'verifyFail');
               if (res?.ok) {
-                el.textContent = `Verify OK: all ${res.failed_count ?? 0} checks passed.`;
+                el.classList.add('verifyOk');
+                el.textContent = `Verify OK — ${total} checks passed.`;
               } else {
-                const failed = (res?.failed_checks || []).join(', ');
-                el.textContent = `Verify Failed: ${res?.failed_count ?? 0} checks failed. ${failed ? `Failures: ${failed}` : ''}`;
+                const names = (res?.failed_checks || []).slice(0, 5).join(', ');
+                el.classList.add('verifyFail');
+                el.textContent = `Verify failed — ${failed} of ${total} checks failed.${names ? ` ${names}` : ''}`;
               }
             }
           } catch (e) {
             console.error(e);
-            // toast handled by AppHttp
+          } finally {
+            verifyBtn.classList.remove('is-loading');
+            verifyBtn.removeAttribute('disabled');
           }
         });
       }

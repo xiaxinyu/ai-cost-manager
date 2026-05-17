@@ -618,10 +618,44 @@
     syncUnitPriceSection();
   }
 
+  const CHART_GRID = { color: "rgba(173, 196, 228, 0.09)", drawBorder: false };
+  const CHART_TICKS = { color: "#8fa3ba", font: { size: 11 }, maxRotation: 0, autoSkip: true };
+
   function setLoading(loading) {
     if (!els.loadBtn) return;
     els.loadBtn.disabled = loading;
-    els.loadBtn.textContent = loading ? "Loading…" : "Load Tokens";
+    els.loadBtn.classList.toggle("is-loading", loading);
+    els.loadBtn.textContent = loading ? "Loading…" : "Load data";
+  }
+
+  function isoDateLocal(d) {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  }
+
+  function setDateChipActive(activeId) {
+    for (const id of ["dateLast7Btn", "dateLast30Btn", "dateClearBtn"]) {
+      const el = document.getElementById(id);
+      if (el) el.classList.toggle("is-active", id === activeId);
+    }
+  }
+
+  function applyDateRangePreset(preset) {
+    if (preset === "clear") {
+      clearDateFilters();
+      setDateChipActive("dateClearBtn");
+    } else {
+      const days = preset === "7" ? 7 : 30;
+      const end = new Date();
+      const start = new Date();
+      start.setDate(end.getDate() - (days - 1));
+      if (els.startDate) els.startDate.value = isoDateLocal(start);
+      if (els.endDate) els.endDate.value = isoDateLocal(end);
+      setDateChipActive(preset === "7" ? "dateLast7Btn" : "dateLast30Btn");
+    }
+    loadTokenData();
   }
 
   function seriesStats(points, key) {
@@ -815,8 +849,20 @@
       maintainAspectRatio: false,
       interaction: { mode: "index", intersect: false },
       plugins: {
-        legend: { labels: { boxWidth: 10, color: "#d8e5f4", padding: 14 } },
+        legend: {
+          labels: {
+            boxWidth: 10,
+            boxHeight: 2,
+            color: "#c5d4e8",
+            padding: 14,
+            font: { size: 11, weight: "600" },
+          },
+        },
         tooltip: {
+          backgroundColor: "rgba(11, 18, 32, 0.94)",
+          borderColor: "rgba(173, 196, 228, 0.22)",
+          borderWidth: 1,
+          padding: 10,
           callbacks: {
             label: (ctx) => {
               let value = fmtInt(ctx.parsed.y);
@@ -828,11 +874,18 @@
         },
       },
       scales: {
-        x: { grid: { color: "rgba(173,196,228,0.08)" }, ticks: { maxRotation: 0, autoSkip: true } },
+        x: {
+          grid: CHART_GRID,
+          border: { display: false },
+          ticks: { ...CHART_TICKS, maxTicksLimit: 14 },
+        },
         y: {
           beginAtZero: true,
-          grid: { color: "rgba(173,196,228,0.10)" },
+          grid: CHART_GRID,
+          border: { display: false },
           ticks: {
+            color: "#8fa3ba",
+            font: { size: 11 },
             callback: (v) => {
               if (unitType === "ratio") return Number(v).toFixed(1);
               if (unitType === "usd") {
@@ -1494,10 +1547,15 @@
     input?.addEventListener("keydown", (ev) => {
       if (ev.key === "Enter") {
         ev.preventDefault();
+        setDateChipActive(null);
         loadTokenData();
       }
     });
+    input?.addEventListener("change", () => setDateChipActive(null));
   }
+  document.getElementById("dateLast7Btn")?.addEventListener("click", () => applyDateRangePreset("7"));
+  document.getElementById("dateLast30Btn")?.addEventListener("click", () => applyDateRangePreset("30"));
+  document.getElementById("dateClearBtn")?.addEventListener("click", () => applyDateRangePreset("clear"));
   els.exportBtn.addEventListener("click", exportCsv);
 
   if (els.dailyPrevBtn) {

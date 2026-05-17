@@ -1,408 +1,356 @@
-      .container {
-        max-width: 1200px;
-        margin: 0 auto;
-        padding: 24px;
-      }
-      .header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: 16px;
-        margin-bottom: 10px;
-      }
-      .title {
-        font-size: 16px;
-        font-weight: 620;
-      }
-      .muted {
-        color: #9fb2c7;
-        font-size: 12px;
-      }
-      .card {
-        background: rgba(255, 255, 255, 0.06);
-        border: 1px solid rgba(255, 255, 255, 0.10);
-        border-radius: 12px;
-        padding: 16px;
-      }
-      .controlsRow {
-        display: flex;
-        gap: 12px;
-        flex-wrap: wrap;
-        align-items: flex-end;
-        margin-bottom: 8px;
-      }
-      label {
-        display: block;
-        color: #9fb2c7;
-        font-size: 12px;
-        margin-bottom: 6px;
-      }
-      select, input, button {
-        background: rgba(255, 255, 255, 0.08);
-        border: 1px solid rgba(255, 255, 255, 0.14);
-        border-radius: 10px;
-        color: #e6edf3;
-        padding: 7px 10px;
-        outline: none;
-      }
-      button {
-        cursor: pointer;
-        font-weight: 750;
-        border-color: rgba(94,234,212,0.35);
-        background: rgba(94,234,212,0.14);
-      }
-      .dropdownWrap {
-        position: relative;
-        width: 100%;
-        z-index: 2000;
-      }
-      .dropdownBtn {
-        width: 100%;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: 10px;
-        padding: 10px 12px;
-      }
-      .dropdownBtnText {
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-      }
-      .dropdownMenu {
-        position: absolute;
-        left: 0;
-        right: 0;
-        top: calc(100% + 8px);
-        z-index: 3000;
-        background: rgba(11, 18, 32, 0.98);
-        border: 1px solid rgba(255,255,255,0.14);
-        border-radius: 10px;
-        padding: 8px;
-        max-height: 260px;
-        overflow: auto;
-        display: none;
-        box-shadow: 0 10px 28px rgba(0,0,0,0.35);
-        backdrop-filter: blur(6px);
-        pointer-events: auto;
-      }
-      .dropdownMenu label {
-        margin-bottom: 0;
-      }
-      .dropdownItem {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        padding: 8px 10px;
-        border-radius: 8px;
-        cursor: pointer;
-      }
-      .dropdownItem:hover {
-        background: rgba(255,255,255,0.08);
-      }
-      .dropdownDivider {
-        height: 1px;
-        background: rgba(255,255,255,0.12);
-        margin: 6px 4px;
-      }
-      .dropdownItem input[type="checkbox"] {
-        width: 16px;
-        height: 16px;
-        min-width: 16px;
-        margin: 0;
-        cursor: pointer;
-        accent-color: #5eead4;
-        flex-shrink: 0;
-        position: relative;
-        z-index: 2;
-      }
-      .gridStats {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 14px;
-      }
-      @media (max-width: 900px) {
-        .gridStats { grid-template-columns: 1fr; }
-      }
-      .statRow {
-        display: grid;
-        grid-template-columns: 220px 1fr;
-        gap: 10px;
-        padding: 8px 0;
-        border-bottom: 1px solid rgba(255,255,255,0.08);
-      }
-      .statRow:last-child { border-bottom: none; }
-      .statKey { color: #9fb2c7; font-size: 12px; }
-      .statVal { font-size: 14px; font-weight: 650; }
-      .gridCharts {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 14px;
-        margin-top: 8px;
-      }
-      @media (max-width: 1100px) {
-        .gridCharts { grid-template-columns: 1fr; }
-      }
-      .chartWrap canvas { width: 100% !important; height: 360px !important; }
-      .sectionHeaderRow {
-        display: flex;
-        align-items: baseline;
-        justify-content: space-between;
-        gap: 10px;
-        flex-wrap: wrap;
-        margin-top: 14px;
-        margin-bottom: 8px;
-      }
-      .sectionTitle {
-        font-size: 13px;
-        font-weight: 780;
-        color: #e6edf3;
-        letter-spacing: 0.2px;
-      }
-      /* Forecast cards include a small table; keep them compact and responsive. */
-      #costForecastChart,
-      #tokenForecastChart {
-        height: 320px !important;
-      }
-      #dailyTokenRatioChart {
-        height: 320px !important;
-      }
-      table {
-        width: 100%;
-        border-collapse: collapse;
-      }
-      th, td {
-        padding: 8px 6px;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.10);
-        text-align: left;
-        font-size: 12px;
-      }
-      th { color: #9fb2c7; font-weight: 600; }
-      th.sortable {
-        cursor: pointer;
-        user-select: none;
-        text-decoration: underline;
-        text-decoration-color: rgba(159, 178, 199, 0.45);
-        text-underline-offset: 3px;
-      }
-      th.sortable:hover { color: #c8d4e0; }
-      .num {
-        text-align: right;
-        font-variant-numeric: tabular-nums;
-      }
-      .tableScroll {
-        max-height: 420px;
-        overflow: auto;
-        border-radius: 12px;
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        margin-top: 10px;
-      }
-      thead th {
-        position: sticky;
-        top: 0;
-        background: rgba(11, 18, 32, 0.98);
-        z-index: 1;
-      }
-      tbody tr:nth-child(odd) {
-        background: rgba(255, 255, 255, 0.02);
-      }
-      .rowsToolbar {
-        display:flex;
-        justify-content:space-between;
-        align-items:center;
-        gap:12px;
-        flex-wrap:wrap;
-        margin-top: 8px;
-      }
-      .pager {
-        display:flex;
-        align-items:center;
-        gap:10px;
-        flex-wrap:wrap;
-      }
-      .pager .btnSmall {
-        padding: 6px 8px;
-        border-radius: 10px;
-        cursor: pointer;
-        border: 1px solid rgba(255, 255, 255, 0.14);
-        background: rgba(255, 255, 255, 0.08);
-        color: #e6edf3;
-        font-weight: 650;
-      }
-      .pager .btnSmall:disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
-      }
-      .pager .pageInfo {
-        color: #9fb2c7;
-        font-size: 12px;
-      }
-      .tableNote {
-        color: #9fb2c7;
-        font-size: 12px;
-        margin-top: 8px;
-        line-height: 1.5;
-      }
-      .forecastAssumptions {
-        margin-top: 8px;
-        border: 1px solid rgba(255,255,255,0.10);
-        border-radius: 10px;
-        padding: 10px 12px;
-        background: rgba(255,255,255,0.03);
-      }
-      .forecastAssumptions summary {
-        cursor: pointer;
-        color: #9fb2c7;
-        font-size: 12px;
-        font-weight: 650;
-        user-select: none;
-        list-style: none;
-      }
-      .forecastAssumptions summary::-webkit-details-marker { display: none; }
-      .forecastAssumptions .assumptionBody {
-        margin-top: 8px;
-        color: #9fb2c7;
-        font-size: 12px;
-        line-height: 1.5;
-      }
-      .forecastAssumptions ul { margin: 6px 0 0 18px; padding: 0; }
-      .forecastAssumptions li { margin: 3px 0; }
-      .forecastMetaRow {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 10px;
-        flex-wrap: wrap;
-        margin-top: 8px;
-      }
-      .qualityBadge {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        padding: 2px 10px;
-        border-radius: 999px;
-        font-size: 12px;
-        font-weight: 700;
-        letter-spacing: 0.2px;
-        border: 1px solid rgba(255,255,255,0.14);
-        background: rgba(255,255,255,0.06);
-        color: #e6edf3;
-        user-select: none;
-      }
-      .qualityBadge.qualityHigh { border-color: rgba(94,234,212,0.35); background: rgba(94,234,212,0.12); }
-      .qualityBadge.qualityMedium { border-color: rgba(245,158,11,0.35); background: rgba(245,158,11,0.12); }
-      .qualityBadge.qualityLow { border-color: rgba(248,113,113,0.35); background: rgba(248,113,113,0.12); }
-      a {
-        color: #93c5fd;
-        text-decoration: none;
-        border: 1px solid rgba(255,255,255,0.14);
-        background: rgba(255,255,255,0.08);
-        padding: 7px 10px;
-        border-radius: 10px;
-        display: inline-flex;
-        align-items: center;
-        cursor: pointer;
-      }
-      .btnLink {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        gap: 8px;
-        padding: 7px 10px;
-        border-radius: 999px;
-        border: 1px solid rgba(255, 255, 255, 0.14);
-        background: rgba(255, 255, 255, 0.06);
-        color: #e6edf3;
-        text-decoration: none;
-        font-weight: 700;
-        letter-spacing: 0.2px;
-        box-shadow: 0 10px 26px rgba(0,0,0,0.22);
-        backdrop-filter: blur(6px);
-        transition: transform 120ms ease, background 120ms ease, border-color 120ms ease;
-      }
-      .btnLink:hover {
-        transform: translateY(-1px);
-        background: rgba(255, 255, 255, 0.08);
-        border-color: rgba(255, 255, 255, 0.22);
-      }
-      .btnLink:active { transform: translateY(0px); }
-      .btnLinkPrimary {
-        border-color: rgba(94,234,212,0.38);
-        background: linear-gradient(180deg, rgba(94,234,212,0.18), rgba(94,234,212,0.08));
-      }
-      .btnLinkPrimary:hover {
-        border-color: rgba(94,234,212,0.52);
-        background: linear-gradient(180deg, rgba(94,234,212,0.22), rgba(94,234,212,0.10));
-      }
-      .controlsGroup {
-        display: inline-flex;
-        align-items: center;
-        gap: 10px;
-        padding: 6px;
-        border-radius: 999px;
-        border: 1px solid rgba(255,255,255,0.10);
-        background: rgba(255,255,255,0.04);
-      }
-
-/* Reports: financial control-room layout */
-.contentArea .container {
+/* Reports — financial control room */
+.reportPage {
+  --control-h: 40px;
+  --control-radius: 8px;
+  --control-bg: rgba(12, 22, 38, 0.65);
+  --control-border: rgba(173, 196, 228, 0.22);
+  --control-border-focus: rgba(94, 234, 212, 0.55);
+  --control-shadow: 0 1px 0 rgba(255, 255, 255, 0.04) inset;
+  --chart-plot-bg: rgba(6, 12, 22, 0.45);
   display: grid;
-  gap: 12px;
+  gap: 14px;
+  max-width: 1320px;
 }
 
-.header {
-  align-items: flex-start;
-  justify-content: space-between;
-  margin-bottom: 0;
-}
-
-.header .title {
-  font-size: 20px;
+.reportPageHeader .pageTitle {
+  font-size: clamp(20px, 2.4vw, 24px);
   font-weight: 800;
+  margin: 4px 0 0;
 }
 
-.controlsRow {
-  display: grid;
-  grid-template-columns: minmax(280px, 1.4fr) minmax(150px, 0.7fr) minmax(150px, 0.7fr) minmax(150px, 0.7fr) auto auto;
-  gap: 10px;
+.reportPageHeader .pageDesc {
+  margin: 6px 0 0;
+  max-width: 62ch;
+  line-height: 1.45;
+  color: var(--text-subtle, #9fb2c7);
+}
+
+/* Filter card */
+.reportPage .filterCard {
+  padding: 16px 18px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.03));
+}
+
+.reportPage .filterCardHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(173, 196, 228, 0.12);
+}
+
+.reportPage .filterCardTitle {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #e2e8f0;
+}
+
+.reportPage .filterCardHint {
+  margin: 0;
+  font-size: 12px;
+}
+
+.reportToolbarGrid {
+  grid-template-columns: minmax(240px, 1.6fr) minmax(120px, 0.7fr) minmax(140px, 0.75fr) minmax(140px, 0.75fr) auto;
   align-items: end;
-  margin-bottom: 10px;
+  gap: 14px;
 }
 
-.controlsRow label {
-  color: var(--text-subtle);
-  font-size: 11px;
-  font-weight: 760;
+.reportPage .field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.reportPage .field label {
+  color: #94a8c0;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
   text-transform: uppercase;
 }
 
-.controlsRow select,
-.controlsRow input,
-.dropdownBtn {
-  min-height: 38px;
-  background: var(--surface-2);
-  border-color: var(--border);
+.reportPage .controlWrap {
+  position: relative;
+  display: flex;
+  align-items: stretch;
 }
 
-button,
-.btnSmall {
-  min-height: 38px;
-  border-radius: 7px;
-  background: rgba(20, 184, 166, 0.14);
-  border-color: rgba(20, 184, 166, 0.42);
+.reportPage .controlWrapSelect::after {
+  content: "";
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  margin-top: -2px;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 6px solid #9fb2c7;
+  pointer-events: none;
 }
 
-.gridStats {
-  grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+.reportPage .control {
+  width: 100%;
+  min-height: var(--control-h);
+  padding: 0 12px;
+  font-size: 13px;
+  font-weight: 550;
+  font-family: inherit;
+  color: #f1f5f9;
+  background: var(--control-bg);
+  border: 1px solid var(--control-border);
+  border-radius: var(--control-radius);
+  box-shadow: var(--control-shadow);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+
+.reportPage .controlWrapSelect .control {
+  padding-right: 32px;
+  appearance: none;
+  cursor: pointer;
+}
+
+.reportPage .controlDate {
+  color-scheme: dark;
+  font-variant-numeric: tabular-nums;
+}
+
+.reportPage .control:hover {
+  border-color: rgba(173, 196, 228, 0.32);
+  background: rgba(16, 28, 48, 0.75);
+}
+
+.reportPage .control:focus {
+  outline: none;
+  border-color: var(--control-border-focus);
+  box-shadow: 0 0 0 3px rgba(94, 234, 212, 0.14), var(--control-shadow);
+}
+
+.reportPage .dropdownWrap {
+  position: relative;
+  z-index: 200;
+}
+
+.reportPage .dropdownBtn.control {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   gap: 10px;
+  cursor: pointer;
+  text-align: left;
 }
 
-.gridStats .card {
+.reportPage .dropdownBtnText {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.reportPage .dropdownChevron {
+  flex-shrink: 0;
+  width: 0;
+  height: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 6px solid #9fb2c7;
+}
+
+.reportPage .dropdownMenu {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% + 6px);
+  z-index: 300;
+  display: none;
+  max-height: 280px;
+  overflow: auto;
+  padding: 8px;
+  background: rgba(11, 18, 32, 0.98);
+  border: 1px solid rgba(173, 196, 228, 0.22);
+  border-radius: var(--control-radius);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(8px);
+}
+
+.reportPage .dropdownWrap.is-open .dropdownMenu {
+  display: block;
+}
+
+.reportPage .dropdownItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  margin-bottom: 0;
+}
+
+.reportPage .dropdownItem:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.reportPage .dropdownDivider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.12);
+  margin: 6px 4px;
+}
+
+.reportPage .projectCheckboxList {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.reportPage .dropdownItem input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: #5eead4;
+  flex-shrink: 0;
+}
+
+.reportPage .toolbarActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.reportPage .btnLoad,
+.reportPage .btnVerify {
+  min-height: var(--control-h);
+  padding: 0 16px;
+  font-size: 13px;
+  font-weight: 700;
+  border-radius: var(--control-radius);
+}
+
+.reportPage .btnLoad.is-loading,
+.reportPage .btnVerify.is-loading {
+  opacity: 0.75;
+  cursor: wait;
+}
+
+.reportPage .dateRangeBar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(173, 196, 228, 0.1);
+}
+
+.reportPage .dateRangeLabel {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-right: 4px;
+}
+
+.reportPage .btnChip {
+  min-height: 30px;
+  padding: 5px 12px;
+  font-size: 12px;
+  font-weight: 650;
+  font-family: inherit;
+  color: #d4e0ef;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(173, 196, 228, 0.2);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.reportPage .btnChip:hover {
+  background: rgba(96, 165, 250, 0.12);
+  border-color: rgba(96, 165, 250, 0.35);
+}
+
+.reportPage .btnChip.is-active {
+  background: rgba(94, 234, 212, 0.14);
+  border-color: rgba(94, 234, 212, 0.4);
+  color: #b8fff0;
+}
+
+.reportPage .btnChipGhost {
+  background: transparent;
+  color: #9fb2c7;
+}
+
+.verifyBanner {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: var(--control-radius);
+  font-size: 12px;
+  line-height: 1.4;
+  border: 1px solid rgba(173, 196, 228, 0.2);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.verifyBanner.verifyOk {
+  border-color: rgba(94, 234, 212, 0.35);
+  background: rgba(94, 234, 212, 0.08);
+  color: #b8fff0;
+}
+
+.verifyBanner.verifyFail {
+  border-color: rgba(248, 113, 113, 0.4);
+  background: rgba(248, 113, 113, 0.1);
+  color: #fecaca;
+}
+
+.reportSourceNote {
+  margin: 10px 0 0;
+}
+
+.reportPage .dataStatusBar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+  padding: 12px 16px;
+  border-radius: var(--control-radius);
+  border: 1px solid rgba(173, 196, 228, 0.18);
+  background: linear-gradient(90deg, rgba(94, 234, 212, 0.06), rgba(255, 255, 255, 0.03) 40%);
+  font-size: 12px;
+}
+
+.reportPage .statusPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(173, 196, 228, 0.2);
+  background: rgba(255, 255, 255, 0.05);
+  color: #d4e0ef;
+  font-variant-numeric: tabular-nums;
+}
+
+.reportPage .statusPill strong {
+  font-weight: 750;
+  color: #f1f5f9;
+}
+
+/* KPI cards */
+.reportKpis {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.reportPage .gridStats .card {
   position: relative;
   overflow: hidden;
 }
 
-.gridStats .card::before {
+.reportPage .gridStats .card::before {
   content: "";
   position: absolute;
   inset: 0 auto 0 0;
@@ -410,23 +358,101 @@ button,
   background: var(--finance);
 }
 
-.statRow {
-  grid-template-columns: minmax(180px, 0.9fr) minmax(0, 1fr);
-  border-bottom-color: var(--border-soft);
+.kpiCard {
+  padding: 14px 16px;
 }
 
-.statKey {
-  color: var(--text-subtle);
+.kpiTitle {
+  margin: 0 0 10px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #c8d4e0;
+}
+
+.reportPage .statRow {
+  grid-template-columns: minmax(160px, 0.9fr) minmax(0, 1fr);
+  border-bottom-color: var(--border-soft, rgba(173, 196, 228, 0.12));
+}
+
+.reportPage .statKey {
+  color: var(--text-subtle, #9fb2c7);
   font-size: 11px;
   font-weight: 720;
   text-transform: uppercase;
 }
 
-.statVal {
-  color: var(--text);
+.reportPage .statVal {
+  color: var(--text, #e6edf3);
   font-size: 14px;
   font-weight: 760;
   font-variant-numeric: tabular-nums;
+}
+
+.kpiTokens .statVal {
+  font-size: 13px;
+}
+
+/* Panels & tables */
+.reportPanel {
+  padding: 14px 16px;
+}
+
+.panelTitle {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 820;
+}
+
+.panelDesc {
+  margin: 4px 0 0;
+}
+
+.reportTableScroll {
+  max-height: 320px;
+}
+
+.reportPage .dataTable thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: rgba(7, 14, 26, 0.96);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #adc0d8;
+}
+
+.reportPage .dataTable tbody tr:nth-child(even) {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.reportPage .dataTable tbody tr:hover td {
+  background: rgba(96, 165, 250, 0.06);
+}
+
+.reportPage .dataTable .emptyRow {
+  text-align: center;
+  padding: 16px 8px;
+}
+
+.reportPage .pagerGoInput {
+  width: 4.5rem;
+  min-height: 32px;
+  padding: 0 8px;
+  font-size: 12px;
+  border-radius: 6px;
+  border: 1px solid var(--control-border);
+  background: var(--control-bg);
+  color: #f1f5f9;
+}
+
+/* Sections & charts */
+.reportSection {
+  display: grid;
+  gap: 10px;
 }
 
 .sectionHeaderRow {
@@ -450,118 +476,8 @@ button,
   background: var(--finance);
 }
 
-.sectionHeaderRow:nth-of-type(2) .sectionTitle::before {
+#tokenReportSection .sectionTitle::before {
   background: var(--token);
-}
-
-.gridCharts {
-  gap: 10px;
-}
-
-.chartWrap canvas {
-  height: 330px !important;
-}
-
-.tableNote {
-  color: var(--text-muted);
-}
-
-.tableScroll {
-  border-color: var(--border);
-  border-radius: 8px;
-}
-
-.dropdownMenu {
-  background: var(--surface);
-  border-color: var(--border);
-  box-shadow: var(--shadow);
-}
-
-@media (max-width: 1180px) {
-  .controlsRow {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-@media (max-width: 900px) {
-  .gridStats,
-  .gridCharts,
-  .controlsRow {
-    grid-template-columns: 1fr;
-  }
-}
-
-/* Report page layout refresh */
-.contentArea .container.reportPage,
-.contentArea .container {
-  display: grid;
-  gap: 14px;
-  max-width: 1320px;
-}
-
-.reportPageHeader .pageTitle {
-  font-size: clamp(20px, 2.4vw, 24px);
-  font-weight: 800;
-  margin: 4px 0 0;
-}
-
-.reportPageHeader .pageDesc {
-  margin: 6px 0 0;
-  max-width: 62ch;
-  line-height: 1.45;
-  color: var(--text-subtle, #9fb2c7);
-}
-
-.reportFilters {
-  padding: 14px 16px;
-}
-
-.reportSourceNote {
-  margin: 10px 0 0;
-}
-
-.reportKpis {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
-.kpiCard {
-  padding: 14px 16px;
-}
-
-.kpiTitle {
-  margin: 0 0 10px;
-  font-size: 12px;
-  font-weight: 800;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: #c8d4e0;
-}
-
-.kpiTokens .statVal {
-  font-size: 13px;
-}
-
-.reportPanel {
-  padding: 14px 16px;
-}
-
-.panelTitle {
-  margin: 0;
-  font-size: 14px;
-  font-weight: 820;
-}
-
-.panelDesc {
-  margin: 4px 0 0;
-}
-
-.reportTableScroll {
-  max-height: 320px;
-}
-
-.reportSection {
-  display: grid;
-  gap: 10px;
 }
 
 .sectionHint {
@@ -584,10 +500,6 @@ button,
 .chartCard {
   padding: 14px 16px;
   min-width: 0;
-}
-
-.chartCardWide {
-  margin-top: 0;
 }
 
 .chartCardTitle {
@@ -619,10 +531,14 @@ button,
   height: 220px;
 }
 
-.chartCanvasHost canvas,
-.chartWrap canvas,
-#costForecastChart,
-#dailyTokenRatioChart {
+.reportPage .chartPlot {
+  border-radius: var(--control-radius);
+  border: 1px solid rgba(173, 196, 228, 0.14);
+  background: var(--chart-plot-bg);
+  padding: 8px;
+}
+
+.chartCanvasHost canvas {
   width: 100% !important;
   height: 100% !important;
 }
@@ -645,7 +561,7 @@ button,
   padding: 14px 16px;
 }
 
-.btnLinkQuiet {
+.reportPage .btnLinkQuiet {
   font-size: 12px;
   color: #93c5fd;
   text-decoration: none;
@@ -655,11 +571,15 @@ button,
   background: rgba(96, 165, 250, 0.08);
 }
 
-.btnLinkQuiet:hover {
+.reportPage .btnLinkQuiet:hover {
   background: rgba(96, 165, 250, 0.14);
 }
 
 @media (max-width: 1180px) {
+  .reportToolbarGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .chartGrid3 {
     grid-template-columns: 1fr;
   }
@@ -674,6 +594,7 @@ button,
 }
 
 @media (max-width: 900px) {
+  .reportToolbarGrid,
   .chartGrid2,
   .reportKpis {
     grid-template-columns: 1fr;
@@ -681,5 +602,14 @@ button,
 
   .kpiTokens {
     grid-column: auto;
+  }
+
+  .reportPage .toolbarActions {
+    width: 100%;
+  }
+
+  .reportPage .btnLoad,
+  .reportPage .btnVerify {
+    flex: 1;
   }
 }

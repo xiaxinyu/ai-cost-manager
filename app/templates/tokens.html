@@ -47,24 +47,40 @@
             </div>
           </header>
 
-          <section class="card tokenToolbar" aria-label="Filters">
+          <section class="card tokenToolbar filterCard" aria-label="Filters">
+            <div class="filterCardHead">
+              <h2 class="filterCardTitle">Filters</h2>
+              <p class="filterCardHint muted">Project and date range · press Enter to load</p>
+            </div>
             <div class="toolbarGrid">
               <div class="field projectField">
                 <label for="projectSelect">Project</label>
-                <select id="projectSelect"></select>
+                <div class="controlWrap controlWrapSelect">
+                  <select id="projectSelect" class="control"></select>
+                </div>
               </div>
-              <div class="field">
-                <label for="tokenStartDateInput">Start</label>
-                <input id="tokenStartDateInput" type="date" autocomplete="off" />
+              <div class="field fieldDate">
+                <label for="tokenStartDateInput">Start date</label>
+                <div class="controlWrap">
+                  <input id="tokenStartDateInput" class="control controlDate" type="date" autocomplete="off" />
+                </div>
               </div>
-              <div class="field">
-                <label for="tokenEndDateInput">End</label>
-                <input id="tokenEndDateInput" type="date" autocomplete="off" />
+              <div class="field fieldDate">
+                <label for="tokenEndDateInput">End date</label>
+                <div class="controlWrap">
+                  <input id="tokenEndDateInput" class="control controlDate" type="date" autocomplete="off" />
+                </div>
               </div>
               <div class="toolbarActions">
-                <button id="loadTokensBtn" class="btnPrimary" type="button">Load Tokens</button>
-                <a href="/import" class="btnSecondary btnLinkQuiet">Import data</a>
+                <button id="loadTokensBtn" class="btnPrimary btnLoad" type="button">Load data</button>
+                <a href="/import" class="btnSecondary btnLinkQuiet">Import</a>
               </div>
+            </div>
+            <div class="dateRangeBar">
+              <span class="dateRangeLabel muted">Quick range</span>
+              <button id="dateLast7Btn" class="btnChip" type="button">Last 7 days</button>
+              <button id="dateLast30Btn" class="btnChip" type="button">Last 30 days</button>
+              <button id="dateClearBtn" class="btnChip btnChipGhost" type="button">All dates</button>
             </div>
             <p id="filterHint" class="filterHint muted" hidden></p>
           </section>
@@ -159,59 +175,22 @@
               </div>
             </section>
 
-            <section class="tokenCharts flowSection" aria-label="Token volume charts">
-              <p class="flowStep" aria-hidden="true"><span class="flowStepNum">1</span> Volume</p>
-              <article class="card chartPanel chartWide">
-                <div class="chartHeader">
-                  <div>
-                    <h2 class="sectionTitle" id="chartTitleInput">Input tokens (daily)</h2>
-                    <p class="muted" id="rangeLabel">Selected range: -</p>
-                  </div>
+            <div class="tokenAnalysisFlow" aria-label="Analysis flow">
+            <section class="flowBlock" id="flowDetail" aria-labelledby="flowDetailTitle">
+              <header class="flowBlockHead">
+                <div class="flowBlockIdentity">
+                  <span class="flowStepNum" aria-hidden="true">1</span>
+                  <h2 id="flowDetailTitle" class="flowBlockTitle">Billing detail</h2>
                 </div>
-                <div class="chartCanvasWrap">
-                  <canvas id="tokenInputChart"></canvas>
-                </div>
-              </article>
-              <article class="card chartPanel chartWide">
-                <div class="chartHeader">
-                  <div>
-                    <h2 class="sectionTitle" id="chartTitleOutput">Output tokens (daily)</h2>
-                    <p class="muted chartScaleHint">Own Y-axis scale — output is not drowned out by input volume.</p>
-                  </div>
-                </div>
-                <div class="chartCanvasWrap">
-                  <canvas id="tokenOutputChart"></canvas>
-                </div>
-              </article>
-              <article class="card chartPanel chartWide chartFull">
-                <div class="chartHeader">
-                  <div>
-                    <h2 class="sectionTitle">Output / input ratio</h2>
-                    <p class="muted" id="ratioSummary">Valid days: -</p>
-                  </div>
-                  <span id="ratioBaselinePill" class="pill muted">Baseline 1.0</span>
-                </div>
-                <div class="chartCanvasWrap chartCanvasShort">
-                  <canvas id="tokenRatioChart"></canvas>
-                </div>
-              </article>
-            </section>
-
-            <section class="tokenDetailFlow" aria-label="Daily detail and derived charts">
-            <section class="card tokenTablePanel flowSection">
-              <p class="flowStep" aria-hidden="true"><span class="flowStepNum">2</span> Billing detail</p>
-              <div class="rowsToolbar rowsToolbarSplit">
-                <div>
-                  <h2 class="sectionTitle">Daily detail</h2>
-                  <p class="muted" id="tableHint">One row per model/day. Unit price = cost ÷ tokens × 1M.</p>
-                </div>
-                <div class="tableToolbarRight">
+                <p class="flowBlockDesc muted" id="tableHint">One row per model/day. Unit price = cost ÷ tokens × 1M.</p>
+                <div class="flowBlockActions">
                   <span id="tableRowBadge" class="tableRowBadge muted" hidden></span>
-                  <button id="exportTokensBtn" class="btnSmall" type="button">Export CSV</button>
+                  <button id="exportTokensBtn" class="btnSmall btnExport" type="button">Export CSV</button>
                 </div>
-              </div>
-              <div class="tableScroll">
-                <table>
+              </header>
+              <div class="flowBlockBody card tokenTablePanel">
+              <div class="tableScroll dataTableWrap">
+                <table class="dataTable">
                   <thead>
                     <tr>
                       <th class="thDateCol" scope="col">Date</th>
@@ -245,15 +224,67 @@
                 <button id="dailyNextBtn" class="btnSmall" type="button">Next</button>
                 <span id="dailyPageInfo" class="pageInfo">-</span>
               </div>
+              </div>
             </section>
 
-            <section class="dailyCostCharts flowSection" aria-label="Daily billing cost">
-              <p class="flowStep" aria-hidden="true"><span class="flowStepNum">3</span> Cost</p>
+            <section class="flowBlock" id="flowVolume" aria-labelledby="flowVolumeTitle">
+              <header class="flowBlockHead flowBlockHeadStack">
+                <div class="flowBlockIdentity">
+                  <span class="flowStepNum" aria-hidden="true">2</span>
+                  <h2 id="flowVolumeTitle" class="flowBlockTitle">Volume</h2>
+                </div>
+                <p class="flowBlockDesc muted" id="rangeLabel">Selected range: -</p>
+              </header>
+              <div class="flowChartGrid" aria-label="Token volume charts">
               <article class="card chartPanel chartWide">
                 <div class="chartHeader">
                   <div>
-                    <h2 class="sectionTitle">Input cost (daily, by model)</h2>
-                    <p class="muted chartScaleHint">Same rows as the table — meter-matched billing.</p>
+                    <h3 class="chartCardTitle" id="chartTitleInput">Input tokens (daily)</h3>
+                  </div>
+                </div>
+                <div class="chartCanvasWrap">
+                  <canvas id="tokenInputChart"></canvas>
+                </div>
+              </article>
+              <article class="card chartPanel chartWide">
+                <div class="chartHeader">
+                  <div>
+                    <h3 class="chartCardTitle" id="chartTitleOutput">Output tokens (daily)</h3>
+                    <p class="muted chartScaleHint">Own Y-axis scale — output is not drowned out by input volume.</p>
+                  </div>
+                </div>
+                <div class="chartCanvasWrap">
+                  <canvas id="tokenOutputChart"></canvas>
+                </div>
+              </article>
+              <article class="card chartPanel chartWide chartFull">
+                <div class="chartHeader">
+                  <div>
+                    <h3 class="chartCardTitle">Output / input ratio</h3>
+                    <p class="muted" id="ratioSummary">Valid days: -</p>
+                  </div>
+                  <span id="ratioBaselinePill" class="pill muted">Baseline 1.0</span>
+                </div>
+                <div class="chartCanvasWrap chartCanvasShort">
+                  <canvas id="tokenRatioChart"></canvas>
+                </div>
+              </article>
+              </div>
+            </section>
+
+            <section class="flowBlock" id="flowCost" aria-labelledby="flowCostTitle">
+              <header class="flowBlockHead">
+                <div class="flowBlockIdentity">
+                  <span class="flowStepNum" aria-hidden="true">3</span>
+                  <h2 id="flowCostTitle" class="flowBlockTitle">Cost</h2>
+                </div>
+                <p class="flowBlockDesc muted">Meter-matched billing — same rows as the table above.</p>
+              </header>
+              <div class="flowChartGrid" aria-label="Daily billing cost">
+              <article class="card chartPanel chartWide">
+                <div class="chartHeader">
+                  <div>
+                    <h3 class="chartCardTitle">Input cost (daily, by model)</h3>
                   </div>
                 </div>
                 <div class="chartCanvasWrap">
@@ -263,7 +294,7 @@
               <article class="card chartPanel chartWide">
                 <div class="chartHeader">
                   <div>
-                    <h2 class="sectionTitle">Output cost (daily, by model)</h2>
+                    <h3 class="chartCardTitle">Output cost (daily, by model)</h3>
                     <p class="muted chartScaleHint">Billing currency per calendar day.</p>
                   </div>
                 </div>
@@ -271,22 +302,24 @@
                   <canvas id="tokenOutputCostChart"></canvas>
                 </div>
               </article>
+              </div>
             </section>
 
-            <section id="unitPriceSection" class="unitPriceSection card flowSection" hidden aria-label="Unit price trends">
-              <p class="flowStep" aria-hidden="true"><span class="flowStepNum">4</span> Unit price</p>
-              <div class="unitPriceHead">
-                <div>
-                  <h2 class="sectionTitle">Unit price trends</h2>
-                  <p class="muted panelDesc" id="unitPriceNote">Solid = actual · dashed = catalog list.</p>
-                  <div class="chartLegendKey" aria-hidden="true">
-                    <span class="legendKeyItem"><span class="legendKeyLine legendKeySolid"></span> Actual</span>
-                    <span class="legendKeyItem"><span class="legendKeyLine legendKeyDashed"></span> List price</span>
-                  </div>
+            <section id="unitPriceSection" class="flowBlock flowBlockUnitPrice" hidden aria-labelledby="flowUnitTitle">
+              <header class="flowBlockHead flowBlockHeadStack">
+                <div class="flowBlockIdentity">
+                  <span class="flowStepNum" aria-hidden="true">4</span>
+                  <h2 id="flowUnitTitle" class="flowBlockTitle">Unit price</h2>
                 </div>
-                <div id="catalogRefLine" class="catalogRefLine" hidden role="region" aria-label="Catalog reference"></div>
-              </div>
-              <div id="impliedChartsRow" class="unitPriceChartsRow" hidden>
+                <p class="flowBlockDesc muted panelDesc" id="unitPriceNote">Solid = actual · dashed = catalog list.</p>
+                <div class="chartLegendKey flowBlockLegend" aria-hidden="true">
+                  <span class="legendKeyItem"><span class="legendKeyLine legendKeySolid"></span> Actual</span>
+                  <span class="legendKeyItem"><span class="legendKeyLine legendKeyDashed"></span> List price</span>
+                </div>
+              </header>
+              <div class="flowBlockBody card unitPriceSection">
+              <div id="catalogRefLine" class="catalogRefLine" hidden role="region" aria-label="Catalog reference"></div>
+              <div id="impliedChartsRow" class="flowChartGrid unitPriceChartsRow" hidden>
                 <article class="chartPanel chartWide impliedUnitPriceChartCard">
                   <div class="chartSectionTitle">Input · USD/1M</div>
                   <div class="chartCanvasWrap impliedUnitPriceChartWrap">
@@ -300,8 +333,9 @@
                   </div>
                 </article>
               </div>
+              </div>
             </section>
-            </section>
+            </div>
           </div>
         </div>
       </main>
@@ -314,6 +348,6 @@
     <script src="/static/js/forecasting.js?v=20260516-4"></script>
     <script src="/static/js/chart-plugins.js"></script>
     <script src="/static/js/chart-style.js"></script>
-    <script src="/static/js/pages/tokens.js?v=20260517-7"></script>
+    <script src="/static/js/pages/tokens.js?v=20260517-9"></script>
   </body>
 </html>

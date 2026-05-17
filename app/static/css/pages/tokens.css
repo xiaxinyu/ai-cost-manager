@@ -2,9 +2,209 @@
 .tokenPage {
   --token-gap: 16px;
   --token-gap-sm: 12px;
+  --control-h: 40px;
+  --control-radius: 8px;
+  --control-bg: rgba(12, 22, 38, 0.65);
+  --control-border: rgba(173, 196, 228, 0.22);
+  --control-border-focus: rgba(94, 234, 212, 0.55);
+  --control-shadow: 0 1px 0 rgba(255, 255, 255, 0.04) inset;
+  --table-header-bg: #121a28;
+  --chart-plot-bg: rgba(6, 12, 22, 0.45);
   display: grid;
   gap: var(--token-gap);
   max-width: 1320px;
+}
+
+/* —— Filter bar —— */
+.filterCard {
+  padding: 16px 18px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.03));
+}
+
+.filterCardHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(173, 196, 228, 0.12);
+}
+
+.filterCardTitle {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #e2e8f0;
+}
+
+.filterCardHint {
+  margin: 0;
+  font-size: 12px;
+}
+
+.tokenPage .field label {
+  color: #94a8c0;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.controlWrap {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+}
+
+.controlWrapSelect::after {
+  content: "";
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  width: 0;
+  height: 0;
+  margin-top: -2px;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 6px solid #9fb2c7;
+  pointer-events: none;
+}
+
+.tokenPage .control {
+  width: 100%;
+  min-height: var(--control-h);
+  padding: 0 12px;
+  font-size: 13px;
+  font-weight: 550;
+  font-family: inherit;
+  color: #f1f5f9;
+  background: var(--control-bg);
+  border: 1px solid var(--control-border);
+  border-radius: var(--control-radius);
+  box-shadow: var(--control-shadow);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+
+.tokenPage .controlWrapSelect .control {
+  padding-right: 32px;
+  appearance: none;
+  cursor: pointer;
+}
+
+.tokenPage .controlDate {
+  color-scheme: dark;
+  font-variant-numeric: tabular-nums;
+}
+
+.tokenPage .control:hover {
+  border-color: rgba(173, 196, 228, 0.32);
+  background: rgba(16, 28, 48, 0.75);
+}
+
+.tokenPage .control:focus {
+  outline: none;
+  border-color: var(--control-border-focus);
+  box-shadow: 0 0 0 3px rgba(94, 234, 212, 0.14), var(--control-shadow);
+}
+
+.tokenPage .control::placeholder {
+  color: #6b7f96;
+}
+
+.dateRangeBar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(173, 196, 228, 0.1);
+}
+
+.dateRangeLabel {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-right: 4px;
+}
+
+.btnChip {
+  min-height: 30px;
+  padding: 5px 12px;
+  font-size: 12px;
+  font-weight: 650;
+  font-family: inherit;
+  color: #d4e0ef;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(173, 196, 228, 0.2);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.btnChip:hover {
+  background: rgba(96, 165, 250, 0.12);
+  border-color: rgba(96, 165, 250, 0.35);
+  color: #f1f5f9;
+}
+
+.btnChip:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.2);
+}
+
+.btnChipGhost {
+  background: transparent;
+  color: #9fb2c7;
+}
+
+.btnChip.is-active {
+  background: rgba(94, 234, 212, 0.14);
+  border-color: rgba(94, 234, 212, 0.4);
+  color: #b8fff0;
+}
+
+.tokenPage .btnLoad {
+  min-height: var(--control-h);
+  min-width: 7.5rem;
+  padding: 0 18px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.tokenPage .btnLoad.is-loading {
+  opacity: 0.75;
+  cursor: wait;
+}
+
+.tokenPage .toolbarActions .btnLinkQuiet {
+  min-height: var(--control-h);
+  display: inline-flex;
+  align-items: center;
+  padding: 0 14px;
+  border-radius: var(--control-radius);
+}
+
+.tokenPage .btnExport {
+  min-height: 32px;
+  padding: 0 14px;
+  font-size: 12px;
+  font-weight: 650;
+  border-radius: var(--control-radius);
+  border: 1px solid rgba(173, 196, 228, 0.22);
+  background: rgba(255, 255, 255, 0.07);
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.tokenPage .btnExport:hover {
+  background: rgba(96, 165, 250, 0.12);
+  border-color: rgba(96, 165, 250, 0.35);
 }
 
 .dataStatusBar {
@@ -12,10 +212,10 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 8px 10px;
-  padding: 10px 14px;
-  border-radius: 10px;
+  padding: 12px 16px;
+  border-radius: var(--control-radius);
   border: 1px solid rgba(173, 196, 228, 0.18);
-  background: rgba(255, 255, 255, 0.03);
+  background: linear-gradient(90deg, rgba(94, 234, 212, 0.06), rgba(255, 255, 255, 0.03) 40%);
   font-size: 12px;
   line-height: 1.35;
 }
@@ -37,34 +237,129 @@
   color: #f1f5f9;
 }
 
-.flowSection {
-  position: relative;
+/* Analysis flow: aligned blocks (table → volume → cost → unit price) */
+.tokenAnalysisFlow {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  margin-top: 4px;
 }
 
-.flowStep {
+.flowBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.flowBlockHead {
+  display: grid;
+  grid-template-columns: minmax(10rem, auto) 1fr auto;
+  align-items: center;
+  gap: 10px 16px;
+  padding: 0 2px 10px;
+  border-bottom: 1px solid rgba(173, 196, 228, 0.14);
+}
+
+.flowBlockHeadStack {
+  grid-template-columns: 1fr;
+  align-items: start;
+}
+
+.flowBlockHeadStack .flowBlockIdentity {
+  grid-column: 1;
+}
+
+.flowBlockHeadStack .flowBlockDesc,
+.flowBlockHeadStack .flowBlockLegend {
+  grid-column: 1;
+  margin: 0;
+}
+
+.flowBlockIdentity {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin: 0 0 10px;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: #7f93ab;
+  gap: 10px;
+  min-width: 0;
+}
+
+.flowBlockTitle {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 820;
+  letter-spacing: -0.01em;
+  color: var(--text, #e7edf6);
+  white-space: nowrap;
+}
+
+.flowBlockDesc {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.flowBlockActions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.flowBlockLegend {
+  margin-top: 4px;
+}
+
+.flowBlockBody {
+  padding: 14px 16px;
+  min-width: 0;
+}
+
+.flowBlockBody.card {
+  padding: 14px 16px;
+}
+
+.flowChartGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--token-gap-sm);
+  align-items: stretch;
+}
+
+.flowChartGrid .chartFull {
+  grid-column: 1 / -1;
 }
 
 .flowStepNum {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 20px;
-  height: 20px;
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
   border-radius: 6px;
   font-size: 10px;
   font-weight: 800;
   color: #e2e8f0;
   background: rgba(96, 165, 250, 0.2);
   border: 1px solid rgba(96, 165, 250, 0.35);
+}
+
+.chartCardTitle {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 750;
+  color: var(--text, #e7edf6);
+}
+
+.flowBlockUnitPrice .unitPriceSection {
+  border: none;
+  background: transparent;
+  padding: 0;
+}
+
+.flowBlockUnitPrice .catalogRefLine {
+  margin-bottom: 12px;
 }
 
 .tableToolbarRight {
@@ -179,15 +474,11 @@
   background: #60a5fa;
 }
 
-.tokenToolbar {
-  padding: 14px 16px;
-}
-
 .toolbarGrid {
   display: grid;
-  grid-template-columns: minmax(220px, 1.9fr) minmax(140px, 0.8fr) minmax(140px, 0.8fr) auto;
+  grid-template-columns: minmax(220px, 1.9fr) minmax(148px, 0.85fr) minmax(148px, 0.85fr) auto;
   align-items: end;
-  gap: 12px;
+  gap: 14px;
 }
 
 .toolbarActions {
@@ -212,26 +503,8 @@
 .field {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 6px;
   min-width: 0;
-}
-
-.field label {
-  color: var(--text-subtle, #9fb2c7);
-  font-size: 10px;
-  font-weight: 760;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-
-.field select,
-.field input {
-  width: 100%;
-  min-height: 38px;
-  background: var(--surface-2, rgba(255, 255, 255, 0.06));
-  border: 1px solid var(--border, rgba(173, 196, 228, 0.22));
-  border-radius: 8px;
-  color: #e7edf6;
 }
 
 .tokenSummaryGrid {
@@ -384,18 +657,8 @@
   color: #c4b5fd;
 }
 
-.tokenCharts {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--token-gap-sm);
-}
-
 .chartWide {
   grid-column: auto;
-}
-
-.chartFull {
-  grid-column: 1 / -1;
 }
 
 .chartScaleHint {
@@ -408,9 +671,12 @@
   grid-template-columns: 1fr;
 }
 
-.chartPanel {
-  padding: 14px 16px;
+.tokenPage .chartPanel {
+  padding: 14px 16px 16px;
   min-width: 0;
+  border: 1px solid rgba(173, 196, 228, 0.14);
+  background: linear-gradient(165deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.02));
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.04) inset;
 }
 
 .chartHeader {
@@ -418,22 +684,32 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(173, 196, 228, 0.1);
   flex-wrap: wrap;
 }
 
 .chartCanvasWrap {
   position: relative;
-  height: 232px;
+  height: 236px;
+  padding: 8px 6px 4px;
+  border-radius: 8px;
+  background: var(--chart-plot-bg);
+  border: 1px solid rgba(173, 196, 228, 0.08);
 }
 
 .chartCanvasShort {
-  height: 180px;
+  height: 184px;
 }
 
 .chartCanvasWrap canvas {
   width: 100% !important;
   height: 100% !important;
+}
+
+.impliedUnitPriceChartWrap {
+  height: 272px;
 }
 
 .sectionTitle {
@@ -469,48 +745,68 @@
   background: rgba(248, 113, 113, 0.1);
 }
 
-.tokenTablePanel {
-  padding: 14px 16px;
+.tokenTablePanel.flowBlockBody {
+  padding: 12px 14px 14px;
 }
 
-.tokenTablePanel .tableScroll {
+.tokenTablePanel .dataTableWrap,
+.tokenPage .dataTableWrap {
   overflow: auto;
   max-height: min(52vh, 480px);
   border: 1px solid rgba(173, 196, 228, 0.16);
-  border-radius: 10px;
-  margin-top: 4px;
+  border-radius: var(--control-radius);
+  margin-top: 2px;
+  background: rgba(6, 12, 22, 0.35);
 }
 
-.tokenTablePanel table {
+.tokenPage .dataTable {
   width: 100%;
   table-layout: fixed;
+  border-collapse: separate;
+  border-spacing: 0;
 }
 
-.tokenTablePanel thead .thDateCol {
+.tokenPage .dataTable thead .thDateCol {
   text-align: left;
   vertical-align: middle;
 }
 
-.tokenTablePanel thead th {
+.tokenPage .dataTable thead th {
   position: sticky;
   top: 0;
-  z-index: 1;
-  background: rgba(15, 23, 36, 0.98);
-  box-shadow: 0 1px 0 rgba(173, 196, 228, 0.12);
+  z-index: 2;
+  padding: 10px 10px;
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #94a8c0;
+  background: var(--table-header-bg);
+  border-bottom: 1px solid rgba(173, 196, 228, 0.18);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.2);
 }
 
-.tokenTablePanel tbody tr:nth-child(even) {
+.tokenPage .dataTable thead th.thInputCostCol {
+  border-left: 1px solid rgba(173, 196, 228, 0.12);
+}
+
+.tokenPage .dataTable tbody tr:nth-child(even) {
   background: rgba(255, 255, 255, 0.02);
 }
 
-.tokenTablePanel tbody tr:hover {
-  background: rgba(96, 165, 250, 0.06);
+.tokenPage .dataTable tbody tr:hover {
+  background: rgba(96, 165, 250, 0.07);
 }
 
-.tokenTablePanel tbody td {
-  padding: 9px 10px;
+.tokenPage .dataTable tbody td {
+  padding: 10px 10px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
   font-size: 12px;
+  line-height: 1.35;
+}
+
+.tokenPage .dataTable tbody td.tdInputCost {
+  border-left: 1px solid rgba(173, 196, 228, 0.06);
 }
 
 .thDateCol {
@@ -628,37 +924,15 @@
   flex-wrap: wrap;
 }
 
-.tokenDetailFlow {
-  display: flex;
-  flex-direction: column;
-  gap: var(--token-gap);
-  margin-top: 4px;
-}
 
-.dailyCostCharts {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--token-gap-sm);
-}
-
-.unitPriceSection {
-  padding: 14px 16px;
+.unitPriceSection.flowBlockBody,
+.flowBlockBody.unitPriceSection {
   border: 1px solid rgba(173, 196, 228, 0.16);
   background: rgba(255, 255, 255, 0.02);
 }
 
-.unitPriceHead {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-bottom: 12px;
-}
-
 .unitPriceChartsRow {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--token-gap-sm);
-  margin-top: 4px;
+  margin-top: 0;
 }
 
 .catalogRefLine {
@@ -713,32 +987,63 @@
   font-size: 12px;
 }
 
-.pager {
+.tokenPage .pager {
   display: flex;
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
-  margin-top: 12px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(173, 196, 228, 0.1);
 }
 
-.pager .btnSmall {
-  padding: 6px 8px;
-  border-radius: 10px;
+.tokenPage .pager select {
+  min-height: 32px;
+  padding: 0 28px 0 10px;
+  font-size: 12px;
+  font-weight: 600;
+  appearance: none;
+  background: var(--control-bg);
+  border: 1px solid var(--control-border);
+  border-radius: var(--control-radius);
+  color: #e2e8f0;
+}
+
+.tokenPage .pager .btnSmall {
+  min-width: 4rem;
+  min-height: 32px;
+  padding: 0 12px;
+  border-radius: var(--control-radius);
   cursor: pointer;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(173, 196, 228, 0.2);
+  background: rgba(255, 255, 255, 0.07);
   color: #e6edf3;
+  font-size: 12px;
   font-weight: 650;
+  font-family: inherit;
+  transition: background 0.15s ease, border-color 0.15s ease;
 }
 
-.pager .btnSmall:disabled {
-  opacity: 0.5;
+.tokenPage .pager .btnSmall:hover:not(:disabled) {
+  background: rgba(96, 165, 250, 0.12);
+  border-color: rgba(96, 165, 250, 0.32);
+}
+
+.tokenPage .pager .btnSmall:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.2);
+}
+
+.tokenPage .pager .btnSmall:disabled {
+  opacity: 0.4;
   cursor: not-allowed;
 }
 
-.pager .pageInfo {
+.tokenPage .pager .pageInfo {
+  margin-left: auto;
   color: #9fb2c7;
   font-size: 12px;
+  font-variant-numeric: tabular-nums;
 }
 
 .modelBreakdownPanel .pager {
@@ -771,17 +1076,21 @@
     grid-template-columns: 1fr 1fr;
   }
 
-  .tokenCharts,
-  .dailyCostCharts,
+  .flowBlockHead {
+    grid-template-columns: 1fr;
+  }
+
+  .flowBlockActions {
+    justify-content: flex-start;
+  }
+
+  .flowChartGrid,
   .unitPriceChartsRow {
     grid-template-columns: 1fr;
   }
 
-  .chartWide {
-    grid-column: auto;
-  }
-
-  .tokenCharts .chartPanel:last-child {
+  .chartWide,
+  .flowChartGrid .chartFull {
     grid-column: auto;
   }
 }
@@ -892,11 +1201,6 @@
 
 .impliedUnitPriceChartCard {
   padding: 12px 14px 14px;
-}
-
-.impliedUnitPriceChartWrap {
-  position: relative;
-  height: 268px;
 }
 
 .impliedUnitPriceChartWrap canvas {
