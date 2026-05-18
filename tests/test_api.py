@@ -227,3 +227,49 @@ def test_api_token_timeseries_and_rows_estimated_tokens(tmp_path):
     rows_data = rows.json()
     assert rows_data["rows"][0]["usage_date"] == "2026-04-02"
     assert rows_data["rows"][0]["estimated_total_tokens"] == 1500000.0
+
+
+def test_api_rejects_invalid_date_filters(tmp_path):
+    bills_dir = tmp_path / "bills"
+    project_dir = bills_dir / "projDate"
+    project_dir.mkdir(parents=True, exist_ok=True)
+    (project_dir / "2026-Apr.csv").write_text(
+        '"UsageDate","CostUSD","Cost","ForecastCost","Currency"\n'
+        '"2026-04-01","1.0","1.0","","USD"\n',
+        encoding="utf-8",
+    )
+
+    db_path = tmp_path / "cost_mgmt.sqlite3"
+    ingest_all(bills_dir=bills_dir, db_path=db_path, reimport_changed=False)
+
+    app = create_app(db_path=str(db_path), bills_dir=str(bills_dir), auto_ingest=False)
+    client = TestClient(app)
+
+    import sqlite3
+
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    try:
+        conn.execute("PRAGMA foreign_keys = ON")
+        create_user(conn, username="admin", password="admin12345", is_active=True)
+    finally:
+        conn.close()
+
+    login = client.post("/auth/login", data={"username": "admin", "password": "admin12345"})
+    assert login.status_code in {200, 303}
+
+    bad_format = client.get("/api/projects/projDate/stats?from_date=2026/04/01")
+    assert bad_format.status_code == 400
+    assert bad_format.json()["detail"] == "from_date must be YYYY-MM-DD"
+
+    bad_order = client.get("/api/projects/projDate/timeseries?start_date=2026-04-03&end_date=2026-04-01")
+    assert bad_order.status_code == 400
+    assert bad_order.json()["detail"] == "start_date must be earlier than or equal to end_date"
+
+    token_bad_order = client.get("/api/projects/projDate/token-timeseries?start_date=2026-04-03&end_date=2026-04-01")
+    assert token_bad_order.status_code == 400
+    assert token_bad_order.json()["detail"] == "start_date must be earlier than or equal to end_date"
+
+    rows_bad_order = client.get("/api/projects/projDate/rows?start_date=2026-04-03&end_date=2026-04-01")
+    assert rows_bad_order.status_code == 400
+    assert rows_bad_order.json()["detail"] == "start_date must be earlier than or equal to end_date"

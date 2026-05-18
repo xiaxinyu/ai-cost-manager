@@ -134,3 +134,35 @@ def test_reports_page_layout_without_token_forecast(tmp_path):
     assert "reportStatusBar" in page.text
     assert "reportToolbarGrid" in page.text
 
+
+def test_all_financial_report_rejects_invalid_date_range(tmp_path):
+    bills_dir = tmp_path / "bills"
+    p1 = bills_dir / "projA"
+    p1.mkdir(parents=True, exist_ok=True)
+    (p1 / "2026.csv").write_text(
+        '"UsageDate","CostUSD","Cost","ForecastCost","Currency"\n'
+        '"2026-01-01","1.0","1.0","","USD"\n',
+        encoding="utf-8",
+    )
+
+    db_path = tmp_path / "cost_mgmt.sqlite3"
+    ingest_all(bills_dir=bills_dir, db_path=db_path, reimport_changed=False)
+
+    app = create_app(db_path=str(db_path), bills_dir=str(bills_dir), auto_ingest=False)
+    client = TestClient(app)
+    _create_admin(str(db_path))
+    client.post("/auth/login", data={"username": "admin", "password": "admin12345"})
+
+    bad_format = client.get("/api/reports/all-financial?start_date=2026/01/01")
+    assert bad_format.status_code == 400
+    assert bad_format.json()["detail"] == "start_date must be YYYY-MM-DD"
+
+    bad_order = client.get("/api/reports/all-financial?start_date=2026-01-02&end_date=2026-01-01")
+    assert bad_order.status_code == 400
+    assert bad_order.json()["detail"] == "start_date must be earlier than or equal to end_date"
+
+    verify_bad_order = client.get(
+        "/api/verify/reports-all-financial-consistency?start_date=2026-01-02&end_date=2026-01-01"
+    )
+    assert verify_bad_order.status_code == 400
+    assert verify_bad_order.json()["detail"] == "start_date must be earlier than or equal to end_date"

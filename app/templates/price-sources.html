@@ -11,25 +11,9 @@
     <link rel="stylesheet" href="/static/css/layout-pro.css" />
   </head>
   <body>
-    <div class="appNav">
-      <div class="appNavInner">
-        <div class="brand">Models Cost Management</div>
-        <div class="navLinks">
-          <a class="navLink" href="/">Cost</a>
-          <a class="navLink" href="/tokens">Tokens</a>
-          <a class="navLink" href="/reports">Reports</a>
-          <a class="navLink" href="/prices">Prices</a>
-          <a class="navLink" href="/forecast">Forecast</a>
-          <a class="navLink" href="/import">Import</a>
-          <a class="navLink active" href="/price-sources">Price sources</a>
-        </div>
-        <div class="navRight">
-          <button id="navToggle" class="navToggle" type="button">Menu</button>
-          {% if username %}<span class="muted">{{ username }}</span>{% endif %}
-          <button id="logoutBtnTop" class="logoutBtn" type="button">Logout</button>
-        </div>
-      </div>
-    </div>
+    {% set active_page = 'price_sources' %}
+    {% set logout_btn_id = 'logoutBtnTop' %}
+    {% include "_app_nav.html" %}
     <div class="appLayout">
       <main class="contentArea">
         <div class="container">

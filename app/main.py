@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import os
 from contextlib import asynccontextmanager
+from datetime import date
 from pathlib import Path
 from typing import Optional
 
@@ -84,6 +85,33 @@ class PriceSourcePatchBody(BaseModel):
     notes: Optional[str] = None
 
 
+def _normalize_iso_date_param(value: Optional[str], *, param_name: str) -> Optional[str]:
+    if value is None:
+        return None
+    raw = value.strip()
+    if not raw:
+        return None
+    try:
+        date.fromisoformat(raw)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=f"{param_name} must be YYYY-MM-DD") from exc
+    return raw
+
+
+def _normalize_date_range(
+    start_value: Optional[str],
+    end_value: Optional[str],
+    *,
+    start_name: str,
+    end_name: str,
+) -> tuple[Optional[str], Optional[str]]:
+    start_date = _normalize_iso_date_param(start_value, param_name=start_name)
+    end_date = _normalize_iso_date_param(end_value, param_name=end_name)
+    if start_date and end_date and start_date > end_date:
+        raise HTTPException(status_code=400, detail=f"{start_name} must be earlier than or equal to {end_name}")
+    return start_date, end_date
+
+
 def _default_bills_dir() -> str:
     return str(Path(__file__).resolve().parents[1] / "bills")
 
@@ -157,6 +185,12 @@ def create_app(
             return "anonymous"
         return require_active_user(request, db_path=db_path)
 
+    def _require_ui_username(request: Request) -> Optional[str]:
+        username = str(request.session.get("username") or "")
+        if auth_enabled and not username:
+            return None
+        return username
+
     def _price_source_catalog_snapshot() -> list[dict[str, object]]:
         conn = get_connection(db_path)
         try:
@@ -210,91 +244,83 @@ def create_app(
 
     @app.get("/", response_class=HTMLResponse)
     def index(request: Request) -> HTMLResponse:
-        if auth_enabled:
-            # If not logged in, show login page.
-            username = request.session.get("username")
-            if not username:
-                return RedirectResponse(url="/login", status_code=303)
+        username = _require_ui_username(request)
+        if username is None:
+            return RedirectResponse(url="/login", status_code=303)
         return templates.TemplateResponse(
             request,
             "index.html",
             {
                 "default_db_path": db_path,
                 "default_bills_dir": bills_dir,
-                "username": request.session.get("username", ""),
+                "username": username,
             },
         )
 
     @app.get("/import", response_class=HTMLResponse)
     def import_page(request: Request) -> HTMLResponse:
-        if auth_enabled:
-            username = request.session.get("username")
-            if not username:
-                return RedirectResponse(url="/login", status_code=303)
+        username = _require_ui_username(request)
+        if username is None:
+            return RedirectResponse(url="/login", status_code=303)
         return templates.TemplateResponse(
             request,
             "import.html",
-            {"username": request.session.get("username", "")},
+            {"username": username},
         )
 
     @app.get("/reports", response_class=HTMLResponse)
     def reports_page(request: Request) -> HTMLResponse:
-        if auth_enabled:
-            username = request.session.get("username")
-            if not username:
-                return RedirectResponse(url="/login", status_code=303)
+        username = _require_ui_username(request)
+        if username is None:
+            return RedirectResponse(url="/login", status_code=303)
         return templates.TemplateResponse(
             request,
             "reports.html",
-            {"username": request.session.get("username", "")},
+            {"username": username},
         )
 
     @app.get("/tokens", response_class=HTMLResponse)
     def tokens_page(request: Request) -> HTMLResponse:
-        if auth_enabled:
-            username = request.session.get("username")
-            if not username:
-                return RedirectResponse(url="/login", status_code=303)
+        username = _require_ui_username(request)
+        if username is None:
+            return RedirectResponse(url="/login", status_code=303)
         return templates.TemplateResponse(
             request,
             "tokens.html",
-            {"username": request.session.get("username", "")},
+            {"username": username},
         )
 
     @app.get("/forecast", response_class=HTMLResponse)
     def forecast_page(request: Request) -> HTMLResponse:
-        if auth_enabled:
-            username = request.session.get("username")
-            if not username:
-                return RedirectResponse(url="/login", status_code=303)
+        username = _require_ui_username(request)
+        if username is None:
+            return RedirectResponse(url="/login", status_code=303)
         return templates.TemplateResponse(
             request,
             "forecast.html",
-            {"username": request.session.get("username", "")},
+            {"username": username},
         )
 
     @app.get("/prices", response_class=HTMLResponse)
     def prices_page(request: Request) -> HTMLResponse:
-        if auth_enabled:
-            username = request.session.get("username")
-            if not username:
-                return RedirectResponse(url="/login", status_code=303)
+        username = _require_ui_username(request)
+        if username is None:
+            return RedirectResponse(url="/login", status_code=303)
         return templates.TemplateResponse(
             request,
             "prices.html",
-            {"username": request.session.get("username", "")},
+            {"username": username},
         )
 
     @app.get("/price-sources", response_class=HTMLResponse)
     def price_sources_page(request: Request) -> HTMLResponse:
-        if auth_enabled:
-            username = request.session.get("username")
-            if not username:
-                return RedirectResponse(url="/login", status_code=303)
+        username = _require_ui_username(request)
+        if username is None:
+            return RedirectResponse(url="/login", status_code=303)
         return templates.TemplateResponse(
             request,
             "price-sources.html",
-            {"username": request.session.get("username", "")},
+            {"username": username},
         )
 
     @app.get("/api/projects")
@@ -352,6 +378,12 @@ def create_app(
         currency: Optional[str] = Query(default=None, description="Currency code"),
         _: str = Depends(_auth_dep),
     ) -> JSONResponse:
+        from_date, to_date = _normalize_date_range(
+            from_date,
+            to_date,
+            start_name="from_date",
+            end_name="to_date",
+        )
         conn = get_connection(db_path)
         try:
             stats = get_project_stats(conn, project_name, from_date=from_date, to_date=to_date, currency=currency)
@@ -383,6 +415,12 @@ def create_app(
         currency: Optional[str] = Query(default=None, description="Currency code"),
         _: str = Depends(_auth_dep),
     ) -> JSONResponse:
+        start_date, end_date = _normalize_date_range(
+            start_date,
+            end_date,
+            start_name="start_date",
+            end_name="end_date",
+        )
         conn = get_connection(db_path)
         try:
             payload = get_model_implied_usd_per_1m_analysis(
@@ -404,6 +442,12 @@ def create_app(
         currency: Optional[str] = Query(default=None, description="Currency code"),
         _: str = Depends(_auth_dep),
     ) -> JSONResponse:
+        start_date, end_date = _normalize_date_range(
+            start_date,
+            end_date,
+            start_name="start_date",
+            end_name="end_date",
+        )
         conn = get_connection(db_path)
         try:
             payload = get_project_daily_implied_usd_per_1m_timeseries(
@@ -425,6 +469,12 @@ def create_app(
         currency: Optional[str] = Query(default=None, description="Currency code"),
         _: str = Depends(_auth_dep),
     ) -> JSONResponse:
+        start_date, end_date = _normalize_date_range(
+            start_date,
+            end_date,
+            start_name="start_date",
+            end_name="end_date",
+        )
         conn = get_connection(db_path)
         try:
             payload = get_billing_token_bridge(
@@ -447,6 +497,12 @@ def create_app(
         currency: Optional[str] = Query(default=None, description="Currency code"),
         _: str = Depends(_auth_dep),
     ) -> JSONResponse:
+        start_date, end_date = _normalize_date_range(
+            start_date,
+            end_date,
+            start_name="start_date",
+            end_name="end_date",
+        )
         conn = get_connection(db_path)
         try:
             points, chosen_currency = get_timeseries(
@@ -540,6 +596,12 @@ def create_app(
         ),
         _: str = Depends(_auth_dep),
     ) -> JSONResponse:
+        start_date, end_date = _normalize_date_range(
+            start_date,
+            end_date,
+            start_name="start_date",
+            end_name="end_date",
+        )
         conn = get_connection(db_path)
         try:
             points, chosen_currency, model_name, token_region, token_data_source = get_token_timeseries(
@@ -621,6 +683,12 @@ def create_app(
         mode: str = Query(default="simple", description="simple|full"),
         _: str = Depends(_auth_dep),
     ) -> JSONResponse:
+        start_date, end_date = _normalize_date_range(
+            start_date,
+            end_date,
+            start_name="start_date",
+            end_name="end_date",
+        )
         conn = get_connection(db_path)
         try:
             result = get_rows(
@@ -865,6 +933,12 @@ def create_app(
         ),
         _: str = Depends(_auth_dep),
     ) -> JSONResponse:
+        start_date, end_date = _normalize_date_range(
+            start_date,
+            end_date,
+            start_name="start_date",
+            end_name="end_date",
+        )
         conn = get_connection(db_path)
         try:
             currencies = get_all_currencies(
@@ -929,6 +1003,12 @@ def create_app(
         mode: str = Query(default="quick", description="quick|deep"),
         _: str = Depends(_auth_dep),
     ) -> JSONResponse:
+        start_date, end_date = _normalize_date_range(
+            start_date,
+            end_date,
+            start_name="start_date",
+            end_name="end_date",
+        )
         conn = get_connection(db_path)
         try:
             result = verify_all_financial_consistency(
