@@ -19,7 +19,7 @@
           <header class="pageHeader reportPageHeader">
             <div class="breadcrumb">Home / Reports</div>
             <h1 class="pageTitle">Financial Report Center</h1>
-            <p class="pageDesc">Cost trends and token usage for the selected scope.</p>
+            <p class="pageDesc">Read top → bottom: scope summary, spend trends, model &amp; project breakdown, tokens, then raw tables.</p>
           </header>
 
           <section class="card reportFilters filterCard" aria-label="Filters">
@@ -75,42 +75,189 @@
               <button id="dateClearBtn" class="btnChip btnChipGhost" type="button">All dates</button>
             </div>
             <div id="verifyResult" class="verifyBanner" hidden role="status"></div>
-            <p class="tableNote reportSourceNote">Billing from imported CSVs. Token metrics use Grafana imports when available.</p>
+            <p class="tableNote reportSourceNote">Billing and token volumes are actuals from imported CSVs only (no cost-based estimates).</p>
           </section>
 
           <div id="reportStatusBar" class="dataStatusBar" hidden aria-live="polite" aria-label="Load summary"></div>
 
-          <section class="gridStats reportKpis" aria-label="Summary metrics">
-            <article class="card kpiCard">
-              <h2 class="kpiTitle">Cost · Daily</h2>
-              <div class="statRow"><div class="statKey">Days with data</div><div class="statVal" id="d_count">-</div></div>
-              <div class="statRow"><div class="statKey">Total actual</div><div class="statVal" id="d_total_actual">-</div></div>
-              <div class="statRow"><div class="statKey">Avg / day</div><div class="statVal" id="d_avg_actual">-</div></div>
-              <div class="statRow"><div class="statKey">Median / day</div><div class="statVal" id="d_median_actual">-</div></div>
-              <div class="statRow"><div class="statKey">Variance / day</div><div class="statVal" id="d_var_actual">-</div></div>
-            </article>
-            <article class="card kpiCard">
-              <h2 class="kpiTitle">Cost · Monthly</h2>
-              <div class="statRow"><div class="statKey">Months with data</div><div class="statVal" id="m_count">-</div></div>
-              <div class="statRow"><div class="statKey">Avg / month</div><div class="statVal" id="m_avg_actual">-</div></div>
-              <div class="statRow"><div class="statKey">Median / month</div><div class="statVal" id="m_median_actual">-</div></div>
-              <div class="statRow"><div class="statKey">Variance / month</div><div class="statVal" id="m_var_actual">-</div></div>
-            </article>
-            <article class="card kpiCard kpiTokens" id="tokenKpiCard">
-              <h2 class="kpiTitle">Tokens · Scope</h2>
-              <div class="statRow"><div class="statKey" id="rptKeyInputTokens">Input tokens</div><div class="statVal" id="d_est_input_tokens">-</div></div>
-              <div class="statRow"><div class="statKey" id="rptKeyOutputTokens">Output tokens</div><div class="statVal" id="d_est_output_tokens">-</div></div>
-              <div class="statRow"><div class="statKey" id="rptKeyProjectsTokens">Projects with data</div><div class="statVal" id="d_est_projects">-</div></div>
-              <div class="statRow"><div class="statKey" id="rptKeyTokenModel">Source / model</div><div class="statVal" id="d_token_model">-</div></div>
-              <div class="statRow"><div class="statKey" id="rptKeyTokenRegion">Path / region</div><div class="statVal" id="d_token_region">-</div></div>
-            </article>
+          <nav class="reportNav card" aria-label="Report sections">
+            <span class="reportNavLabel muted">Jump to</span>
+            <a class="reportNavLink" href="#report-glance">① Summary</a>
+            <a class="reportNavLink" href="#report-spend-trends">② Spend trends</a>
+            <a class="reportNavLink" href="#report-by-model">③ By model</a>
+            <a class="reportNavLink" href="#report-by-project">④ By project</a>
+            <a class="reportNavLink" href="#report-tokens">⑤ Tokens</a>
+            <a class="reportNavLink" href="#report-raw-data">⑥ Raw tables</a>
+          </nav>
+
+          <section id="report-glance" class="card reportAtAGlance" aria-label="At a glance">
+            <div class="reportSectionHead">
+              <span class="reportStep">1</span>
+              <div>
+                <h2 class="reportSectionTitle">At a glance</h2>
+                <p class="reportSectionLead muted" id="reportInsightLine">Load a report to see spend, tokens, and how they compare in scope.</p>
+              </div>
+            </div>
+            <div class="heroMetricGrid">
+              <article class="heroMetric heroMetricPrimary">
+                <span class="heroMetricLabel">Total spend</span>
+                <span class="heroMetricValue" id="hero_total_spend">—</span>
+                <span class="heroMetricSub" id="hero_total_sub">—</span>
+              </article>
+              <article class="heroMetric">
+                <span class="heroMetricLabel">Avg / day</span>
+                <span class="heroMetricValue" id="hero_avg_day">—</span>
+                <span class="heroMetricSub" id="hero_avg_day_sub">—</span>
+              </article>
+              <article class="heroMetric">
+                <span class="heroMetricLabel">Input tokens</span>
+                <span class="heroMetricValue" id="hero_input_tokens">—</span>
+                <span class="heroMetricSub" id="hero_input_sub">—</span>
+              </article>
+              <article class="heroMetric">
+                <span class="heroMetricLabel">Output tokens</span>
+                <span class="heroMetricValue" id="hero_output_tokens">—</span>
+                <span class="heroMetricSub" id="hero_output_sub">—</span>
+              </article>
+              <article class="heroMetric" id="heroMeterCard" hidden>
+                <span class="heroMetricLabel">Meter cost</span>
+                <span class="heroMetricValue" id="hero_meter_cost">—</span>
+                <span class="heroMetricSub" id="hero_meter_sub">inp + out (meter matched)</span>
+              </article>
+              <article class="heroMetric" id="heroCatalogCard" hidden>
+                <span class="heroMetricLabel">vs catalog</span>
+                <span class="heroMetricValue" id="hero_catalog_delta">—</span>
+                <span class="heroMetricSub" id="hero_catalog_sub">actual − list price</span>
+              </article>
+            </div>
+            <details class="reportKpiDetails">
+              <summary>More statistics (daily / monthly / variance)</summary>
+              <div class="gridStats reportKpis reportKpisCompact">
+                <article class="card kpiCard">
+                  <h3 class="kpiTitle">Cost · Daily</h3>
+                  <div class="statRow"><div class="statKey">Days</div><div class="statVal" id="d_count">-</div></div>
+                  <div class="statRow"><div class="statKey">Total</div><div class="statVal" id="d_total_actual">-</div></div>
+                  <div class="statRow"><div class="statKey">Avg</div><div class="statVal" id="d_avg_actual">-</div></div>
+                  <div class="statRow"><div class="statKey">Median</div><div class="statVal" id="d_median_actual">-</div></div>
+                  <div class="statRow"><div class="statKey">Variance</div><div class="statVal" id="d_var_actual">-</div></div>
+                </article>
+                <article class="card kpiCard">
+                  <h3 class="kpiTitle">Cost · Monthly</h3>
+                  <div class="statRow"><div class="statKey">Months</div><div class="statVal" id="m_count">-</div></div>
+                  <div class="statRow"><div class="statKey">Avg</div><div class="statVal" id="m_avg_actual">-</div></div>
+                  <div class="statRow"><div class="statKey">Median</div><div class="statVal" id="m_median_actual">-</div></div>
+                  <div class="statRow"><div class="statKey">Variance</div><div class="statVal" id="m_var_actual">-</div></div>
+                </article>
+                <article class="card kpiCard kpiTokens" id="tokenKpiCard">
+                  <h3 class="kpiTitle">Tokens · Scope</h3>
+                  <div class="statRow"><div class="statKey" id="rptKeyInputTokens">Input</div><div class="statVal" id="d_input_tokens">-</div></div>
+                  <div class="statRow"><div class="statKey" id="rptKeyOutputTokens">Output</div><div class="statVal" id="d_output_tokens">-</div></div>
+                  <div class="statRow"><div class="statKey" id="rptKeyProjectsTokens">Projects</div><div class="statVal" id="d_import_projects">-</div></div>
+                  <div class="statRow"><div class="statKey" id="rptKeyTokenModel">Source</div><div class="statVal" id="d_token_model">-</div></div>
+                  <div class="statRow"><div class="statKey" id="rptKeyTokenRegion">Path</div><div class="statVal" id="d_token_region">-</div></div>
+                </article>
+              </div>
+            </details>
           </section>
 
-          <section class="card reportPanel">
+          <section id="report-spend-trends" class="reportSectionShell reportSection" aria-label="Spend trends">
+            <div class="reportSectionHead">
+              <span class="reportStep">2</span>
+              <div>
+                <h2 class="reportSectionTitle">Spend trends</h2>
+                <p class="reportSectionLead muted" id="costTrendInsight">Daily and monthly billing actuals for the selected scope.</p>
+              </div>
+            </div>
+            <div class="chartGrid chartGrid2">
+              <article class="card chartCard">
+                <h3 class="chartCardTitle">Daily actual</h3>
+                <p class="chartCardHint muted">Line = each billing day; raw tables show day-over-day % and share.</p>
+                <div class="chartCanvasHost chartPlot"><canvas id="dailyChart"></canvas></div>
+              </article>
+              <article class="card chartCard">
+                <h3 class="chartCardTitle">Monthly actual</h3>
+                <p class="chartCardHint muted">Bars = calendar month totals.</p>
+                <div class="chartCanvasHost chartPlot"><canvas id="monthlyChart"></canvas></div>
+              </article>
+            </div>
+          </section>
+
+          <section id="report-by-model" class="reportExecutive reportSectionShell" hidden aria-label="By model">
+            <div class="reportSectionHead">
+              <span class="reportStep">3</span>
+              <div class="reportExecutiveHead">
+                <h2 class="reportSectionTitle">By model</h2>
+                <p class="reportSectionLead muted">Meter-matched costs vs catalog list price; charts show daily drivers.</p>
+                <span id="reportExecutiveHint" class="executiveHint muted"></span>
+              </div>
+            </div>
+            <div id="reportMeterTotals" class="meterTotalGrid" hidden>
+              <article class="meterTotalCard">
+                <div class="meterTotalLabel">Input cost (meter)</div>
+                <div class="meterTotalValue" id="reportInputCostTotal">—</div>
+              </article>
+              <article class="meterTotalCard">
+                <div class="meterTotalLabel">Output cost (meter)</div>
+                <div class="meterTotalValue" id="reportOutputCostTotal">—</div>
+              </article>
+              <article class="meterTotalCard meterTotalCardAccent">
+                <div class="meterTotalLabel">Meter total (in + out)</div>
+                <div class="meterTotalValue" id="reportMeterCostTotal">—</div>
+              </article>
+            </div>
+            <article class="card reportPanel reportModelPanel">
+              <div class="rowsToolbar">
+                <div>
+                  <h3 class="panelTitle">Cost by model</h3>
+                  <p class="tableNote panelDesc">Meter-matched input/output; catalog list price for variance.</p>
+                </div>
+              </div>
+              <div class="tableScroll reportTableScroll reportModelTableScroll">
+                <table class="dataTable reportModelTable" id="reportModelCostTable">
+                  <thead>
+                    <tr>
+                      <th scope="col">Model</th>
+                      <th class="num" scope="col">Input</th>
+                      <th class="num" scope="col">Output</th>
+                      <th class="num" scope="col">Meter total</th>
+                      <th class="num" scope="col">Catalog</th>
+                      <th class="num" scope="col">Δ vs catalog</th>
+                      <th class="num" scope="col">Days</th>
+                    </tr>
+                  </thead>
+                  <tbody id="reportModelCostTbody"></tbody>
+                  <tfoot id="reportModelCostTfoot"></tfoot>
+                </table>
+              </div>
+            </article>
+            <div class="chartGrid chartGrid3 reportExecutiveCharts">
+              <article class="card chartCard">
+                <h3 class="chartCardTitle">Actual vs catalog (daily)</h3>
+                <div class="chartCanvasHost chartPlot"><canvas id="reportMarketChart"></canvas></div>
+              </article>
+              <article class="card chartCard">
+                <h3 class="chartCardTitle">Input cost by model</h3>
+                <div class="chartCanvasHost chartPlot"><canvas id="reportInputByModelChart"></canvas></div>
+              </article>
+              <article class="card chartCard">
+                <h3 class="chartCardTitle">Output cost by model</h3>
+                <div class="chartCanvasHost chartPlot"><canvas id="reportOutputByModelChart"></canvas></div>
+              </article>
+            </div>
+          </section>
+
+          <section id="report-by-project" class="card reportPanel reportSectionShell">
+            <div class="reportSectionHead">
+              <span class="reportStep">4</span>
+              <div>
+                <h2 class="reportSectionTitle">By project</h2>
+                <p class="reportSectionLead muted" id="projectBreakdownInsight">Share of total spend and token volume per project.</p>
+              </div>
+            </div>
             <div class="rowsToolbar">
               <div>
-                <h2 class="panelTitle">By project</h2>
-                <p class="tableNote panelDesc">Per-project cost in scope. Token columns use imported CSVs or cost-based estimates.</p>
+                <h3 class="panelTitle">Project breakdown</h3>
+                <p class="tableNote panelDesc">Per-project billing actual; token columns are imported CSV totals only.</p>
               </div>
               <button id="exportProjectBreakdownBtn" class="btnSmall" type="button">Export CSV</button>
             </div>
@@ -120,10 +267,11 @@
                   <tr>
                     <th class="sortable" data-label="Project" data-sort-key="project_name" scope="col">Project</th>
                     <th class="num sortable" data-label="Cost (USD)" data-sort-key="actual_cost_usd_total" scope="col">Cost (USD)</th>
+                    <th class="num" scope="col">Share</th>
                     <th class="num sortable" data-label="Days" data-sort-key="actual_days" scope="col">Days</th>
                     <th data-label="Model" scope="col">Model</th>
-                    <th class="num sortable" data-label="Input tokens" data-sort-key="estimated_input_tokens" scope="col">Input tokens</th>
-                    <th class="num sortable" data-label="Output tokens" data-sort-key="estimated_output_tokens" scope="col">Output tokens</th>
+                    <th class="num sortable" data-label="Input tokens" data-sort-key="input_tokens" scope="col">Input tokens</th>
+                    <th class="num sortable" data-label="Output tokens" data-sort-key="output_tokens" scope="col">Output tokens</th>
                   </tr>
                 </thead>
                 <tbody id="projectBreakdownTbody"></tbody>
@@ -131,27 +279,13 @@
             </div>
           </section>
 
-          <section class="reportSection" aria-label="Cost charts">
-            <div class="sectionHeaderRow">
-              <h2 class="sectionTitle">Cost</h2>
-              <span class="sectionHint muted">Billing actuals</span>
-            </div>
-            <div class="chartGrid chartGrid2">
-              <article class="card chartCard">
-                <h3 class="chartCardTitle">Daily actual</h3>
-                <div class="chartCanvasHost chartPlot"><canvas id="dailyChart"></canvas></div>
-              </article>
-              <article class="card chartCard">
-                <h3 class="chartCardTitle">Monthly actual</h3>
-                <div class="chartCanvasHost chartPlot"><canvas id="monthlyChart"></canvas></div>
-              </article>
-            </div>
-          </section>
-
-          <section class="reportSection" aria-label="Token usage" id="tokenReportSection">
-            <div class="sectionHeaderRow">
-              <h2 class="sectionTitle">Tokens</h2>
-              <span class="sectionHint muted">Historical token usage in scope</span>
+          <section id="report-tokens" class="reportSection reportSectionShell" aria-label="Token usage">
+            <div class="reportSectionHead">
+              <span class="reportStep">5</span>
+              <div>
+                <h2 class="reportSectionTitle">Token usage</h2>
+                <p class="reportSectionLead muted" id="tokenSectionInsight">Imported token CSV totals by day (actual usage).</p>
+              </div>
             </div>
             <div class="chartGrid chartGrid2">
               <article class="card chartCard">
@@ -179,11 +313,15 @@
             </article>
           </section>
 
-          <section class="reportSection" aria-label="Cost tables">
-            <div class="sectionHeaderRow">
-              <h2 class="sectionTitle">Data tables</h2>
-              <span class="sectionHint muted">Paginated billing detail</span>
-            </div>
+          <details id="report-raw-data" class="reportSection reportDetailsSection" open>
+            <summary class="reportDetailsSummary">
+              <span class="reportStep">6</span>
+              <span class="reportDetailsSummaryText">
+                <strong>Raw billing tables</strong>
+                <span class="muted"> — day/month rows with share % and change vs prior period</span>
+              </span>
+            </summary>
+            <p class="reportSectionLead muted tableAnalysisNote" id="tableAnalysisNote">Sorted newest first. Δ day = vs previous calendar day; share = % of total in range.</p>
             <div class="chartGrid chartGrid2">
               <article class="card reportTableCard">
                 <div class="rowsToolbar">
@@ -206,7 +344,7 @@
                 </div>
                 <div class="tableScroll">
                   <table class="dataTable">
-                    <thead><tr><th>Date</th><th class="num">Actual</th></tr></thead>
+                    <thead><tr><th>Date</th><th class="num">Actual</th><th class="num">Share</th><th class="num">Δ vs prior</th></tr></thead>
                     <tbody id="dailyTbody"></tbody>
                   </table>
                 </div>
@@ -232,13 +370,13 @@
                 </div>
                 <div class="tableScroll">
                   <table class="dataTable">
-                    <thead><tr><th>Month</th><th class="num">Actual</th></tr></thead>
+                    <thead><tr><th>Month</th><th class="num">Actual</th><th class="num">Share</th><th class="num">Δ vs prior</th></tr></thead>
                     <tbody id="monthlyTbody"></tbody>
                   </table>
                 </div>
               </article>
             </div>
-          </section>
+          </details>
 
         </div>
       </main>
@@ -260,6 +398,9 @@
       let dailyTokenChart = null;
       let dailyTokenRatioChart = null;
       let monthlyTokenChart = null;
+      let reportMarketChart = null;
+      let reportInputByModelChart = null;
+      let reportOutputByModelChart = null;
       let lastReport = null;
       let lastTokenRatioRows = [];
 
@@ -314,6 +455,300 @@
       function fmtCost(n) {
         return window.AppMoney?.fmtCost(n, _currency()) ?? '-';
       }
+      function tokenIn(p) {
+        if (!p) return null;
+        const v = p.input_tokens;
+        return v === null || v === undefined ? null : Number(v);
+      }
+
+      function tokenOut(p) {
+        if (!p) return null;
+        const v = p.output_tokens;
+        return v === null || v === undefined ? null : Number(v);
+      }
+
+      function tokenTotal(p) {
+        const i = tokenIn(p);
+        const o = tokenOut(p);
+        if (i === null || o === null) return null;
+        return i + o;
+      }
+
+      function hasImportedTokens(report) {
+        return report?.has_imported_tokens === true || report?.token_data_source === 'imported';
+      }
+
+
+      const MODEL_CHART_COLORS = [
+        { border: '#60a5fa', fill: 'rgba(96, 165, 250, 0.12)' },
+        { border: '#a78bfa', fill: 'rgba(167, 139, 250, 0.12)' },
+        { border: '#5eead4', fill: 'rgba(94, 234, 212, 0.12)' },
+        { border: '#fbbf24', fill: 'rgba(251, 191, 36, 0.12)' },
+        { border: '#f87171', fill: 'rgba(248, 113, 113, 0.12)' },
+        { border: '#34d399', fill: 'rgba(52, 211, 153, 0.12)' },
+      ];
+
+      function _unionSortedDates(...lists) {
+        const set = new Set();
+        for (const list of lists) {
+          for (const p of list || []) {
+            const d = safeDateStr(p?.date);
+            if (d) set.add(d);
+          }
+        }
+        return [...set].sort();
+      }
+
+      function _destroyExecutiveCharts() {
+        for (const ch of [reportMarketChart, reportInputByModelChart, reportOutputByModelChart]) {
+          if (ch) ch.destroy();
+        }
+        reportMarketChart = null;
+        reportInputByModelChart = null;
+        reportOutputByModelChart = null;
+      }
+
+      function _buildModelDirCostChart(dailyByModel, valueKey) {
+        const models = [
+          ...new Set((dailyByModel || []).map((r) => String(r.model_name || '')).filter(Boolean)),
+        ].sort();
+        const labels = _unionSortedDates(dailyByModel);
+        const datasets = models.map((model, idx) => {
+          const col = MODEL_CHART_COLORS[idx % MODEL_CHART_COLORS.length];
+          const byDate = new Map(
+            (dailyByModel || [])
+              .filter((r) => String(r.model_name) === model)
+              .map((r) => [String(r.date), r[valueKey]])
+          );
+          const data = labels.map((d) => {
+            const v = byDate.get(d);
+            return v === null || v === undefined ? null : window.AppMoney?.roundCost(v);
+          });
+          return {
+            label: model,
+            data,
+            borderColor: col.border,
+            backgroundColor: col.fill,
+            fill: false,
+            tension: 0.22,
+            pointRadius: 2,
+            pointHoverRadius: 4,
+            borderWidth: 2,
+            spanGaps: true,
+          };
+        });
+        return { labels, datasets, models };
+      }
+
+      function _renderReportDirCostChart(canvasId, existingChart, dailyByModel, valueKey) {
+        const { labels, datasets, models } = _buildModelDirCostChart(dailyByModel, valueKey);
+        if (existingChart) existingChart.destroy();
+        const ctx = document.getElementById(canvasId)?.getContext('2d');
+        if (!ctx) return null;
+        return new Chart(ctx, {
+          type: 'line',
+          data: { labels, datasets },
+          options: {
+            ...chartLineDefaults,
+            plugins: {
+              ...chartLineDefaults.plugins,
+              legend: {
+                display: models.length > 0,
+                position: 'top',
+                labels: { color: '#e6edf3', font: { size: 11, weight: '600' }, boxWidth: 12 },
+              },
+              tooltip: {
+                ...chartLineDefaults.plugins.tooltip,
+                callbacks: { label: tooltipLabelCurrency },
+              },
+            },
+            scales: {
+              ...chartLineDefaults.scales,
+              y: {
+                ...chartLineDefaults.scales.y,
+                ticks: {
+                  callback: (value) => window.AppMoney?.fmtCost(value, _currency()) ?? String(value),
+                },
+              },
+            },
+          },
+        });
+      }
+
+      function renderExecutiveOverview(report) {
+        const section = document.getElementById('report-by-model');
+        const hint = document.getElementById('reportExecutiveHint');
+        const meterTotals = document.getElementById('reportMeterTotals');
+        const catalog = report?.catalog_market || {};
+        const show = catalog.available === true && (catalog.model_summary || []).length > 0;
+
+        if (section) section.hidden = !show;
+        if (!show) {
+          _destroyExecutiveCharts();
+          if (meterTotals) meterTotals.hidden = true;
+          if (hint) hint.textContent = '';
+          const tbody = document.getElementById('reportModelCostTbody');
+          const tfoot = document.getElementById('reportModelCostTfoot');
+          if (tbody) tbody.innerHTML = '';
+          if (tfoot) tfoot.innerHTML = '';
+          return;
+        }
+
+        const summary = catalog.summary || {};
+        const models = catalog.model_summary || [];
+        const daily = catalog.daily_by_model || [];
+        const projCount = (catalog.projects_with_data || []).length;
+
+        if (hint) {
+          const unpriced = catalog.unpriced_models || [];
+          hint.textContent = unpriced.length
+            ? `${models.length} models · ${projCount} projects · ${unpriced.length} without catalog price`
+            : `${models.length} models · ${projCount} projects with token imports`;
+        }
+
+        if (meterTotals) meterTotals.hidden = false;
+        const setMeter = (id, val) => {
+          const el = document.getElementById(id);
+          if (el) el.textContent = val != null ? fmtCost(val) : '—';
+        };
+        setMeter('reportInputCostTotal', summary.total_input_cost_usd);
+        setMeter('reportOutputCostTotal', summary.total_output_cost_usd);
+        setMeter('reportMeterCostTotal', summary.total_meter_cost_usd);
+
+        const tbody = document.getElementById('reportModelCostTbody');
+        const tfoot = document.getElementById('reportModelCostTfoot');
+        if (tbody) {
+          const sorted = [...models].sort(
+            (a, b) => Number(b?.actual_cost_usd ?? 0) - Number(a?.actual_cost_usd ?? 0)
+          );
+          tbody.innerHTML = sorted
+            .map((r) => {
+              const meterTotal =
+                r.input_cost_usd != null || r.output_cost_usd != null
+                  ? (Number(r.input_cost_usd || 0) + Number(r.output_cost_usd || 0))
+                  : null;
+              const vPct = r.variance_pct;
+              const delta =
+                vPct === null || vPct === undefined ? '—' : `${vPct > 0 ? '+' : ''}${vPct}%`;
+              const name = escapeHtml(r.model_name || '—');
+              return `<tr>
+                <td class="tdModelName" title="${name}">${name}</td>
+                <td class="num mono">${fmtCost(r.input_cost_usd)}</td>
+                <td class="num mono">${fmtCost(r.output_cost_usd)}</td>
+                <td class="num mono">${meterTotal != null ? fmtCost(meterTotal) : '—'}</td>
+                <td class="num mono">${fmtCost(r.catalog_cost_usd)}</td>
+                <td class="num mono">${escapeHtml(delta)}</td>
+                <td class="num">${escapeHtml(String(r.days_with_rows ?? '—'))}</td>
+              </tr>`;
+            })
+            .join('');
+        }
+        if (tfoot) {
+          tfoot.innerHTML = `<tr class="modelCostTotalRow">
+            <th scope="row">All models</th>
+            <td class="num mono">${fmtCost(summary.total_input_cost_usd)}</td>
+            <td class="num mono">${fmtCost(summary.total_output_cost_usd)}</td>
+            <td class="num mono">${fmtCost(summary.total_meter_cost_usd)}</td>
+            <td class="num mono">${fmtCost(summary.total_catalog_cost_usd)}</td>
+            <td class="num mono">${
+              summary.variance_pct != null ? `${summary.variance_pct > 0 ? '+' : ''}${summary.variance_pct}%` : '—'
+            }</td>
+            <td class="num">—</td>
+          </tr>`;
+        }
+
+        const C = window.AppChartStyle?.colors || {};
+        const L = window.AppChartStyle?.labels || {};
+        const catPoints = catalog.points || [];
+        const costPoints = report.daily_points || [];
+        const actualByDate = new Map();
+        const catalogByDate = new Map();
+        for (const p of catPoints) {
+          const d = safeDateStr(p?.date);
+          if (!d) continue;
+          if (p.actual_cost_usd != null) actualByDate.set(d, p.actual_cost_usd);
+          if (p.catalog_cost_usd != null) catalogByDate.set(d, p.catalog_cost_usd);
+        }
+        for (const p of costPoints) {
+          const d = safeDateStr(p?.date);
+          if (!d) continue;
+          if (!actualByDate.has(d) && p.cost_usd != null) actualByDate.set(d, p.cost_usd);
+        }
+        const labels = _unionSortedDates(catPoints, costPoints);
+        const actualData = labels.map((d) => {
+          const v = actualByDate.get(d);
+          return v == null ? null : window.AppMoney?.roundCost(v);
+        });
+        const catalogData = labels.map((d) => {
+          const v = catalogByDate.get(d);
+          return v == null ? null : window.AppMoney?.roundCost(v);
+        });
+
+        const marketCtx = document.getElementById('reportMarketChart')?.getContext('2d');
+        if (marketCtx) {
+          if (reportMarketChart) reportMarketChart.destroy();
+          reportMarketChart = new Chart(marketCtx, {
+            type: 'line',
+            data: {
+              labels,
+              datasets: [
+                {
+                  label: L.costActual || 'Actual',
+                  data: actualData,
+                  borderColor: C.cost || '#5eead4',
+                  backgroundColor: 'rgba(94,234,212,0.12)',
+                  fill: true,
+                  tension: 0.28,
+                  pointRadius: 2,
+                  borderWidth: 2.2,
+                  spanGaps: true,
+                },
+                {
+                  label: L.costCatalog || 'Catalog market',
+                  data: catalogData,
+                  borderColor: C.catalog || '#a78bfa',
+                  backgroundColor: 'rgba(167,139,250,0.08)',
+                  fill: false,
+                  tension: 0.28,
+                  pointRadius: 2,
+                  borderWidth: 2,
+                  borderDash: [4, 3],
+                  spanGaps: true,
+                },
+              ],
+            },
+            options: {
+              ...chartLineDefaults,
+              plugins: {
+                ...chartLineDefaults.plugins,
+                tooltip: { ...chartLineDefaults.plugins.tooltip, callbacks: { label: tooltipLabelCurrency } },
+              },
+              scales: {
+                ...chartLineDefaults.scales,
+                y: {
+                  ...chartLineDefaults.scales.y,
+                  ticks: {
+                    callback: (value) => window.AppMoney?.fmtCost(value, _currency()) ?? String(value),
+                  },
+                },
+              },
+            },
+          });
+        }
+
+        reportInputByModelChart = _renderReportDirCostChart(
+          'reportInputByModelChart',
+          reportInputByModelChart,
+          daily,
+          'input_cost_usd'
+        );
+        reportOutputByModelChart = _renderReportDirCostChart(
+          'reportOutputByModelChart',
+          reportOutputByModelChart,
+          daily,
+          'output_cost_usd'
+        );
+      }
 
       function tooltipLabelTokens(ctx) {
         const v = ctx.parsed?.y;
@@ -328,8 +763,127 @@
 
       function fmtInt(n) {
         if (n === null || n === undefined || isNaN(n)) return '-';
-        // Token estimates should be shown as full integers (no small decimals).
+        // Token counts are shown as full integers (no small decimals).
         return Math.round(Number(n)).toLocaleString(undefined, { maximumFractionDigits: 0, minimumFractionDigits: 0 });
+      }
+
+      function fmtPct(n, digits = 1) {
+        if (n === null || n === undefined || !Number.isFinite(Number(n))) return '—';
+        const v = Number(n);
+        const sign = v > 0 ? '+' : '';
+        return `${sign}${v.toFixed(digits)}%`;
+      }
+
+      function fmtDeltaPct(n) {
+        if (n === null || n === undefined || !Number.isFinite(Number(n))) return '—';
+        const v = Number(n);
+        const cls = v > 0 ? 'deltaUp' : v < 0 ? 'deltaDown' : 'deltaFlat';
+        return `<span class="deltaCell ${cls}">${fmtPct(v)}</span>`;
+      }
+
+      function enrichCostPoints(points, { chronological = false } = {}) {
+        const rows = (points || []).map((p) => ({
+          date: p.date,
+          cost_usd: Number(p.cost_usd ?? 0),
+        }));
+        const ordered = chronological
+          ? [...rows].sort((a, b) => String(a.date).localeCompare(String(b.date)))
+          : [...rows].sort((a, b) => String(b.date).localeCompare(String(a.date)));
+        const total = ordered.reduce((s, r) => s + r.cost_usd, 0);
+        return ordered.map((r, i) => {
+          const share_pct = total > 0 ? (r.cost_usd / total) * 100 : null;
+          const prev = ordered[i + 1];
+          const change_pct =
+            prev && prev.cost_usd > 0
+              ? ((r.cost_usd - prev.cost_usd) / prev.cost_usd) * 100
+              : null;
+          return { ...r, share_pct, change_pct };
+        });
+      }
+
+      function renderShareBar(pct) {
+        if (pct === null || pct === undefined || !Number.isFinite(Number(pct))) {
+          return '<span class="muted">—</span>';
+        }
+        const w = Math.max(2, Math.min(100, Number(pct)));
+        return `<div class="shareBarCell"><div class="shareBarTrack"><div class="shareBarFill" style="width:${w}%"></div></div><span class="shareBarPct">${Number(pct).toFixed(1)}%</span></div>`;
+      }
+
+      function renderAtAGlance(report) {
+        const d = report?.daily || {};
+        const t = report?.token_actual || {};
+        const cm = report?.catalog_market;
+        const summary = cm?.summary || {};
+        const imported = hasImportedTokens(report);
+
+        const set = (id, text) => {
+          const el = document.getElementById(id);
+          if (el) el.textContent = text ?? '—';
+        };
+
+        set('hero_total_spend', fmtCost(d.total_actual));
+        set('hero_total_sub', `${d.count_days ?? 0} billing days in scope`);
+        set('hero_avg_day', fmtCost(d.avg_actual));
+        set('hero_avg_day_sub', `median ${fmtCost(d.median_actual)}`);
+
+        const inTok = imported ? t.input_tokens_total : null;
+        const outTok = imported ? t.output_tokens_total : null;
+        set('hero_input_tokens', inTok == null ? '—' : fmtInt(inTok));
+        set('hero_output_tokens', outTok == null ? '—' : fmtInt(outTok));
+        const ratio =
+          inTok > 0 && outTok != null ? `out/in ${(Number(outTok) / Number(inTok)).toFixed(3)}` : '—';
+        set(
+          'hero_input_sub',
+          imported ? `${t.projects_with_imported_tokens ?? 0} projects (imported CSV)` : 'No token CSV in scope'
+        );
+        set('hero_output_sub', imported ? ratio : 'Import token files under bills/<project>/token/');
+
+        const meterCard = document.getElementById('heroMeterCard');
+        const catalogCard = document.getElementById('heroCatalogCard');
+        if (cm?.available && summary.total_meter_cost_usd != null) {
+          if (meterCard) meterCard.hidden = false;
+          set('hero_meter_cost', fmtCost(summary.total_meter_cost_usd));
+          const sub = document.getElementById('hero_meter_sub');
+          if (sub) {
+            sub.textContent = `in ${fmtCost(summary.total_input_cost_usd)} · out ${fmtCost(summary.total_output_cost_usd)}`;
+          }
+        } else if (meterCard) {
+          meterCard.hidden = true;
+        }
+
+        if (cm?.available && summary.variance_pct != null) {
+          if (catalogCard) catalogCard.hidden = false;
+          set('hero_catalog_delta', fmtPct(summary.variance_pct));
+          const sub = document.getElementById('hero_catalog_sub');
+          if (sub) {
+            sub.textContent = `${fmtCost(summary.variance_usd)} vs catalog ${fmtCost(summary.total_catalog_cost_usd)}`;
+          }
+        } else if (catalogCard) {
+          catalogCard.hidden = true;
+        }
+
+        const insight = document.getElementById('reportInsightLine');
+        if (insight) {
+          const projects = (report?.project_breakdown || []).length;
+          const top = [...(report?.project_breakdown || [])].sort(
+            (a, b) => Number(b.actual_cost_usd_total ?? 0) - Number(a.actual_cost_usd_total ?? 0)
+          )[0];
+          const topName = top?.project_name ? escapeHtml(top.project_name) : '—';
+          const topCost = top ? fmtCost(top.actual_cost_usd_total) : '—';
+          insight.innerHTML = `<strong>${projects}</strong> projects · total <strong>${fmtCost(d.total_actual)}</strong> · largest contributor <strong>${topName}</strong> (${topCost}). Scroll for trends, model split, and exportable tables.`;
+        }
+
+        const costInsight = document.getElementById('costTrendInsight');
+        if (costInsight && (report.daily_points || []).length) {
+          const enriched = enrichCostPoints(report.daily_points, { chronological: true });
+          const max = enriched.reduce(
+            (best, r) => (r.cost_usd > (best?.cost_usd ?? -1) ? r : best),
+            null
+          );
+          costInsight.textContent = max
+            ? `Peak day ${max.date}: ${fmtCost(max.cost_usd)} (${fmtPct(max.share_pct)} of period). Charts below; section ⑥ adds share and day-over-day %.`
+            : costInsight.textContent;
+        }
       }
 
       function toYmd(d) {
@@ -403,13 +957,21 @@
           span.innerHTML = html;
           return span;
         };
-        bar.replaceChildren(
+        const pills = [
           mk(`<strong>${projects}</strong> projects`),
           mk(`<strong>${d.count_days ?? 0}</strong> billing days`),
           mk(`<strong>${fmtCost(total)}</strong> total`),
           Object.assign(document.createElement('span'), { className: 'statusPill', textContent: range }),
           Object.assign(document.createElement('span'), { className: 'statusPill', textContent: cur }),
-        );
+        ];
+        const cm = report?.catalog_market;
+        if (cm?.available && cm.summary?.model_count) {
+          pills.push(mk(`<strong>${cm.summary.model_count}</strong> models (meter)`));
+          if (cm.summary.total_meter_cost_usd != null) {
+            pills.push(mk(`<strong>${fmtCost(cm.summary.total_meter_cost_usd)}</strong> meter cost`));
+          }
+        }
+        bar.replaceChildren(...pills);
         bar.hidden = false;
       }
 
@@ -429,6 +991,8 @@
         const chosen = report.currency || prev || (currencyOptions[0] || '');
         if (chosen) currencySelect.value = chosen;
         renderStats(report);
+        renderAtAGlance(report);
+        renderExecutiveOverview(report);
         renderProjectBreakdown(report);
         renderCharts(report);
         renderTables(report);
@@ -532,24 +1096,25 @@
         const rows = getSortedProjectBreakdown();
         tbody.innerHTML = '';
         if (!rows.length) {
-          tbody.innerHTML = '<tr><td colspan="6" class="muted emptyRow">No projects in selected scope.</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="7" class="muted emptyRow">No projects in selected scope.</td></tr>';
           return;
         }
+        const totalCost = rows.reduce((s, r) => s + Number(r.actual_cost_usd_total ?? 0), 0);
         for (const r of rows) {
           const tr = document.createElement('tr');
-          const inTok = r.estimated_input_tokens;
-          const outTok = r.estimated_output_tokens;
-          const modelName = r.token_estimate_model || r.configured_model_name || '—';
-          const modelHtml =
-            escapeHtml(modelName) +
-            (inTok == null && r.configured_model_name
-              ? ' <span class="muted" style="font-size:11px;">(no price match)</span>'
-              : '');
+          const inTok = r.input_tokens;
+          const outTok = r.output_tokens;
+          const models = Array.isArray(r.token_models) ? r.token_models : [];
+          const modelName = models.length ? models.join(', ') : '—';
+          const modelHtml = escapeHtml(modelName);
+          const cost = Number(r.actual_cost_usd_total ?? 0);
+          const share = totalCost > 0 ? (cost / totalCost) * 100 : null;
           tr.innerHTML = `
             <td>${escapeHtml(r.project_name || '')}</td>
             <td class="num">${fmtCost(r.actual_cost_usd_total)}</td>
+            <td class="num shareCol">${renderShareBar(share)}</td>
             <td class="num">${fmt(r.actual_days)}</td>
-            <td class="mono" style="max-width:220px; word-break:break-word;">${modelHtml}</td>
+            <td class="tdModelName" title="${escapeHtml(modelName)}">${modelHtml}</td>
             <td class="num">${inTok == null ? '—' : fmtInt(inTok)}</td>
             <td class="num">${outTok == null ? '—' : fmtInt(outTok)}</td>
           `;
@@ -570,21 +1135,22 @@
           'actual_cost_usd_total',
           'actual_days',
           'currency',
-          'configured_model_name',
-          'estimated_input_tokens',
-          'estimated_output_tokens',
+          'token_models',
+          'input_tokens',
+          'output_tokens',
         ];
         const lines = [header.join(',')];
         for (const r of rows) {
+          const models = Array.isArray(r.token_models) ? r.token_models.join('; ') : '';
           lines.push(
             [
               csvEscapeCell(r.project_name),
               csvEscapeCell(r.actual_cost_usd_total),
               csvEscapeCell(r.actual_days),
               csvEscapeCell(r.currency),
-              csvEscapeCell(r.configured_model_name ?? ''),
-              csvEscapeCell(r.estimated_input_tokens ?? ''),
-              csvEscapeCell(r.estimated_output_tokens ?? ''),
+              csvEscapeCell(models),
+              csvEscapeCell(r.input_tokens ?? ''),
+              csvEscapeCell(r.output_tokens ?? ''),
             ].join(',')
           );
         }
@@ -762,6 +1328,23 @@
         const L = window.AppChartStyle?.labels || {};
         const daily = report.daily_points || [];
         const monthly = report.monthly_points || [];
+        const showTokens = hasImportedTokens(report);
+        const tokenSection = document.getElementById('report-tokens');
+        if (tokenSection) tokenSection.hidden = !showTokens;
+        const tokenInsight = document.getElementById('tokenSectionInsight');
+        if (tokenInsight) {
+          tokenInsight.textContent = showTokens
+            ? 'Actual input/output token totals from imported Grafana CSVs.'
+            : 'No imported token CSVs in this scope — cost charts above still show billing actuals.';
+        }
+        if (!showTokens) {
+          for (const ch of [dailyTokenChart, dailyTokenRatioChart, monthlyTokenChart]) {
+            if (ch) ch.destroy();
+          }
+          dailyTokenChart = null;
+          dailyTokenRatioChart = null;
+          monthlyTokenChart = null;
+        }
 
         // Daily
         const dailyLabels = daily.map(p => p.date);
@@ -849,12 +1432,25 @@
           }
         });
 
-        // Daily Token Estimates
+        if (!showTokens) {
+          return;
+        }
+
+        // Daily tokens (imported actuals)
         const dailyTokens = report.token_daily_points || [];
         const dailyTokenLabels = dailyTokens.map(p => p.date);
-        const dailyTokenInput = dailyTokens.map(p => (p.estimated_input_tokens === null || p.estimated_input_tokens === undefined) ? null : Math.round(Number(p.estimated_input_tokens)));
-        const dailyTokenOutput = dailyTokens.map(p => (p.estimated_output_tokens === null || p.estimated_output_tokens === undefined) ? null : Math.round(Number(p.estimated_output_tokens)));
-        const dailyTokenTotal = dailyTokens.map(p => (p.estimated_total_tokens === null || p.estimated_total_tokens === undefined) ? null : Math.round(Number(p.estimated_total_tokens)));
+        const dailyTokenInput = dailyTokens.map((p) => {
+          const v = tokenIn(p);
+          return v === null ? null : Math.round(v);
+        });
+        const dailyTokenOutput = dailyTokens.map((p) => {
+          const v = tokenOut(p);
+          return v === null ? null : Math.round(v);
+        });
+        const dailyTokenTotal = dailyTokens.map((p) => {
+          const v = tokenTotal(p);
+          return v === null ? null : Math.round(v);
+        });
         const dailyTokenCtx = document.getElementById('dailyTokenChart').getContext('2d');
         if (dailyTokenChart) dailyTokenChart.destroy();
         dailyTokenChart = new Chart(dailyTokenCtx, {
@@ -863,7 +1459,7 @@
             labels: dailyTokenLabels,
             datasets: [
               {
-                label: L.tokenInput || 'Estimated Input Tokens',
+                label: L.tokenInput || 'Input tokens (actual)',
                 data: dailyTokenInput,
                 borderColor: C.input || '#60a5fa',
                 fill: false,
@@ -875,7 +1471,7 @@
                 yAxisID: 'yTokens'
               },
               {
-                label: L.tokenOutput || 'Estimated Output Tokens',
+                label: L.tokenOutput || 'Output tokens (actual)',
                 data: dailyTokenOutput,
                 borderColor: C.output || '#a78bfa',
                 fill: false,
@@ -887,7 +1483,7 @@
                 yAxisID: 'yTokens'
               },
               {
-                label: L.tokenTotal || 'Estimated Total Tokens',
+                label: L.tokenTotal || 'Total tokens (actual)',
                 data: dailyTokenTotal,
                 borderColor: C.total || '#f59e0b',
                 fill: false,
@@ -936,7 +1532,7 @@
         });
 
         // Daily Token Ratio (Output / Input)
-        const ratioRows = window.AppForecasting?.dailyTokenRatio?.(dailyTokens || [], { inputKey: 'estimated_input_tokens', outputKey: 'estimated_output_tokens' }) || [];
+        const ratioRows = window.AppForecasting?.dailyTokenRatio?.(dailyTokens || [], { inputKey: 'input_tokens', outputKey: 'output_tokens' }) || [];
         lastTokenRatioRows = ratioRows;
         const ratioLabels = ratioRows.map((r) => r.date);
         const ratioData = ratioRows.map((r) => (r.ratio === null || r.ratio === undefined ? null : Number(r.ratio)));
@@ -1046,9 +1642,18 @@
         // Monthly Token Estimates
         const monthlyTokens = report.token_monthly_points || [];
         const monthlyTokenLabels = monthlyTokens.map(p => p.date);
-        const monthlyTokenInput = monthlyTokens.map(p => (p.estimated_input_tokens === null || p.estimated_input_tokens === undefined) ? null : Math.round(Number(p.estimated_input_tokens)));
-        const monthlyTokenOutput = monthlyTokens.map(p => (p.estimated_output_tokens === null || p.estimated_output_tokens === undefined) ? null : Math.round(Number(p.estimated_output_tokens)));
-        const monthlyTokenTotal = monthlyTokens.map(p => (p.estimated_total_tokens === null || p.estimated_total_tokens === undefined) ? null : Math.round(Number(p.estimated_total_tokens)));
+        const monthlyTokenInput = monthlyTokens.map((p) => {
+          const v = tokenIn(p);
+          return v === null ? null : Math.round(v);
+        });
+        const monthlyTokenOutput = monthlyTokens.map((p) => {
+          const v = tokenOut(p);
+          return v === null ? null : Math.round(v);
+        });
+        const monthlyTokenTotal = monthlyTokens.map((p) => {
+          const v = tokenTotal(p);
+          return v === null ? null : Math.round(v);
+        });
         const monthlyTokenCtx = document.getElementById('monthlyTokenChart').getContext('2d');
         if (monthlyTokenChart) monthlyTokenChart.destroy();
         monthlyTokenChart = new Chart(monthlyTokenCtx, {
@@ -1057,7 +1662,7 @@
             labels: monthlyTokenLabels,
             datasets: [
               {
-                label: L.tokenInput || 'Estimated Input Tokens',
+                label: L.tokenInput || 'Input tokens (actual)',
                 data: monthlyTokenInput,
                 borderColor: C.input || '#60a5fa',
                 fill: false,
@@ -1069,7 +1674,7 @@
                 yAxisID: 'yTokens'
               },
               {
-                label: L.tokenOutput || 'Estimated Output Tokens',
+                label: L.tokenOutput || 'Output tokens (actual)',
                 data: monthlyTokenOutput,
                 borderColor: C.output || '#a78bfa',
                 fill: false,
@@ -1081,7 +1686,7 @@
                 yAxisID: 'yTokens'
               },
               {
-                label: L.tokenTotal || 'Estimated Total Tokens',
+                label: L.tokenTotal || 'Total tokens (actual)',
                 data: monthlyTokenTotal,
                 borderColor: C.total || '#f59e0b',
                 fill: false,
@@ -1141,12 +1746,12 @@
         tbodyEl.innerHTML = '';
         if (total === 0) {
           const tr = document.createElement('tr');
-          tr.innerHTML = `<td colspan="2" class="muted emptyRow">No ${label} in selected range.</td>`;
+          tr.innerHTML = `<td colspan="4" class="muted emptyRow">No ${label} in selected range.</td>`;
           tbodyEl.appendChild(tr);
         } else {
           for (const p of slice) {
             const tr = document.createElement('tr');
-            tr.innerHTML = `<td>${p.date ?? ''}</td><td class="num">${fmtCost(p.cost_usd)}</td>`;
+            tr.innerHTML = `<td>${p.date ?? ''}</td><td class="num">${fmtCost(p.cost_usd)}</td><td class="num">${fmtPct(p.share_pct)}</td><td class="num">${fmtDeltaPct(p.change_pct)}</td>`;
             tbodyEl.appendChild(tr);
           }
         }
@@ -1158,9 +1763,15 @@
       }
 
       function renderTables(report) {
-        // Tables default to reverse-chronological order (latest first).
-        const daily = (report.daily_points || []).slice().reverse();
-        const monthly = (report.monthly_points || []).slice().reverse();
+        const daily = enrichCostPoints(report.daily_points || [], { chronological: true });
+        const monthly = enrichCostPoints(report.monthly_points || [], { chronological: true });
+        const note = document.getElementById('tableAnalysisNote');
+        if (note && daily.length) {
+          const top = daily.reduce((b, r) => (r.cost_usd > (b?.cost_usd ?? -1) ? r : b), null);
+          note.textContent = top
+            ? `Newest first. Peak row ${top.date}: ${fmtCost(top.cost_usd)} (${fmtPct(top.share_pct)} of total). Δ vs prior = previous calendar ${daily[0]?.date?.length === 7 ? 'month' : 'day'}.`
+            : note.textContent;
+        }
 
         const dailyTbody = document.getElementById('dailyTbody');
         const dailyPrevBtn = document.getElementById('dailyPrevBtn');
@@ -1196,32 +1807,25 @@
       function renderStats(report) {
         const d = report.daily || {};
         const m = report.monthly || {};
-        const t = report.token_estimate || {};
-        const tokenSource = report.token_data_source || 'estimated';
-        const imported = tokenSource === 'imported';
-        const mixed = tokenSource === 'mixed';
+        const t = report.token_actual || {};
+        const imported = hasImportedTokens(report);
         const rptIn = document.getElementById('rptKeyInputTokens');
         const rptOut = document.getElementById('rptKeyOutputTokens');
         const rptProj = document.getElementById('rptKeyProjectsTokens');
         const rptModel = document.getElementById('rptKeyTokenModel');
         const rptReg = document.getElementById('rptKeyTokenRegion');
-        if (rptIn) rptIn.textContent = imported || mixed ? 'Input tokens (total)' : 'Estimated input tokens (total)';
-        if (rptOut) rptOut.textContent = imported || mixed ? 'Output tokens (total)' : 'Estimated output tokens (total)';
-        if (rptProj) rptProj.textContent = imported || mixed ? 'Projects with imported tokens' : 'Projects with token estimate';
-        if (rptModel) rptModel.textContent = imported || mixed ? 'Token data source' : 'Token estimate model';
-        if (rptReg) rptReg.textContent = imported || mixed ? 'Token path / region' : 'Token estimate region';
+        if (rptIn) rptIn.textContent = 'Input tokens (actual total)';
+        if (rptOut) rptOut.textContent = 'Output tokens (actual total)';
+        if (rptProj) rptProj.textContent = 'Projects with token CSV';
+        if (rptModel) rptModel.textContent = 'Models (from imports)';
+        if (rptReg) rptReg.textContent = 'Import path';
         setTextInt('d_count', d.count_days);
         setCostText('d_total_actual', d.total_actual);
-        setTextInt('d_est_input_tokens', t.estimated_input_tokens_total);
-        setTextInt('d_est_output_tokens', t.estimated_output_tokens_total);
-        setTextInt('d_est_projects', t.projects_with_estimate);
-        if (imported || mixed) {
-          setTextRaw('d_token_model', mixed ? 'Mixed (imported + estimate)' : 'Imported CSV');
-          setTextRaw('d_token_region', 'bills/<project>/token/');
-        } else {
-          setTextRaw('d_token_model', report.token_estimate_model_display ?? '-');
-          setTextRaw('d_token_region', report.token_estimate_region_display ?? '-');
-        }
+        setTextInt('d_input_tokens', imported ? t.input_tokens_total : null);
+        setTextInt('d_output_tokens', imported ? t.output_tokens_total : null);
+        setTextInt('d_import_projects', imported ? t.projects_with_imported_tokens : 0);
+        setTextRaw('d_token_model', imported ? (report.token_models_display ?? '—') : '—');
+        setTextRaw('d_token_region', imported ? (report.token_import_path ?? 'bills/<project>/token/') : '—');
         setCostText('d_avg_actual', d.avg_actual);
         setCostText('d_median_actual', d.median_actual);
         setCostText('d_var_actual', d.var_actual);

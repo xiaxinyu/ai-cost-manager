@@ -666,9 +666,9 @@ def get_imported_token_timeseries(
         out.append(
             {
                 "date": d,
-                "estimated_input_tokens": in_tok,
-                "estimated_output_tokens": out_tok,
-                "estimated_total_tokens": in_tok + out_tok,
+                "input_tokens": in_tok,
+                "output_tokens": out_tok,
+                "total_tokens": in_tok + out_tok,
             }
         )
     return out
@@ -2317,6 +2317,303 @@ def get_catalog_market_cost_timeseries(
     }
 
 
+def _sum_optional_cost(a: object | None, b: object | None) -> float | None:
+    if a is None and b is None:
+        return None
+    return _safe_float(a) + _safe_float(b)
+
+
+def _merge_catalog_daily_rows(
+    existing: dict[str, object] | None, row: dict[str, object]
+) -> dict[str, object]:
+    if existing is None:
+        return dict(row)
+    out = dict(existing)
+    for key in (
+        "actual_cost_usd",
+        "input_cost_usd",
+        "output_cost_usd",
+        "catalog_cost_usd",
+        "catalog_input_cost_usd",
+        "catalog_output_cost_usd",
+        "input_tokens",
+        "output_tokens",
+    ):
+        merged = _sum_optional_cost(existing.get(key), row.get(key))
+        out[key] = round_cost(merged) if merged is not None else None
+    am_a = str(existing.get("allocation_method") or "")
+    am_b = str(row.get("allocation_method") or "")
+    if am_a and am_b and am_a != am_b:
+        out["allocation_method"] = "mixed"
+    return out
+
+
+def _model_summary_from_daily_by_model(
+    daily_by_model: list[dict[str, object]],
+) -> list[dict[str, object]]:
+    summary_by_model: dict[str, dict[str, object]] = {}
+    for row in daily_by_model:
+        m = str(row["model_name"])
+        st = summary_by_model.setdefault(
+            m,
+            {
+                "model_name": m,
+                "actual_cost_usd": 0.0,
+                "input_cost_usd": 0.0,
+                "output_cost_usd": 0.0,
+                "catalog_cost_usd": 0.0,
+                "catalog_input_cost_usd": 0.0,
+                "catalog_output_cost_usd": 0.0,
+                "days_with_rows": 0,
+                "catalog_usd_per_1m_input": row.get("catalog_usd_per_1m_input"),
+                "catalog_usd_per_1m_output": row.get("catalog_usd_per_1m_output"),
+                "catalog_price_input": row.get("catalog_price_input"),
+                "catalog_price_output": row.get("catalog_price_output"),
+            },
+        )
+        st["days_with_rows"] = int(st["days_with_rows"]) + 1
+        for src_key, dst_key in (
+            ("actual_cost_usd", "actual_cost_usd"),
+            ("input_cost_usd", "input_cost_usd"),
+            ("output_cost_usd", "output_cost_usd"),
+            ("catalog_cost_usd", "catalog_cost_usd"),
+            ("catalog_input_cost_usd", "catalog_input_cost_usd"),
+            ("catalog_output_cost_usd", "catalog_output_cost_usd"),
+        ):
+            v = row.get(src_key)
+            if v is not None:
+                st[dst_key] = float(st[dst_key]) + float(v)
+
+    model_summary: list[dict[str, object]] = []
+    for m in sorted(summary_by_model.keys()):
+        st = summary_by_model[m]
+        actual_t = float(st["actual_cost_usd"])
+        input_t = float(st["input_cost_usd"])
+        output_t = float(st["output_cost_usd"])
+        catalog_t = float(st["catalog_cost_usd"])
+        catalog_in_t = float(st["catalog_input_cost_usd"])
+        catalog_out_t = float(st["catalog_output_cost_usd"])
+        variance = round_cost(actual_t - catalog_t) if catalog_t > 0 or actual_t > 0 else None
+        variance_pct = None
+        if catalog_t > 0:
+            variance_pct = round((actual_t - catalog_t) / catalog_t * 100.0, 1)
+        model_summary.append(
+            {
+                "model_name": m,
+                "actual_cost_usd": round_cost(actual_t) if actual_t > 0 else None,
+                "input_cost_usd": round_cost(input_t) if input_t > 0 else None,
+                "output_cost_usd": round_cost(output_t) if output_t > 0 else None,
+                "catalog_cost_usd": round_cost(catalog_t) if catalog_t > 0 else None,
+                "catalog_input_cost_usd": (
+                    round_cost(catalog_in_t) if catalog_in_t > 0 else None
+                ),
+                "catalog_output_cost_usd": (
+                    round_cost(catalog_out_t) if catalog_out_t > 0 else None
+                ),
+                "variance_usd": variance,
+                "variance_pct": variance_pct,
+                "days_with_rows": int(st["days_with_rows"]),
+                "catalog_usd_per_1m_input": st.get("catalog_usd_per_1m_input"),
+                "catalog_usd_per_1m_output": st.get("catalog_usd_per_1m_output"),
+                "catalog_price_input": st.get("catalog_price_input"),
+                "catalog_price_output": st.get("catalog_price_output"),
+            }
+        )
+    return model_summary
+
+
+def get_all_catalog_market_breakdown(
+    conn: sqlite3.Connection,
+    *,
+    start_date: str | None = None,
+    end_date: str | None = None,
+    currency: str | None = None,
+    project_names: list[str] | None = None,
+) -> dict[str, object]:
+    """
+    Cross-project rollup of catalog-market / meter cost analytics (Cost + Tokens core views).
+    """
+    scoped_projects = project_names if project_names else list_projects(conn)
+    merged_daily: dict[tuple[str, str], dict[str, object]] = {}
+    points_by_date: dict[str, dict[str, object]] = {}
+    unpriced_models: set[str] = set()
+    projects_with_data: list[str] = []
+    token_sources: set[str] = set()
+    chosen_currency = currency
+
+    for pn in scoped_projects:
+        ts = get_catalog_market_cost_timeseries(
+            conn,
+            pn,
+            start_date=start_date,
+            end_date=end_date,
+            currency=chosen_currency,
+        )
+        if not ts.get("available"):
+            continue
+        projects_with_data.append(pn)
+        chosen_currency = str(ts.get("currency") or chosen_currency or "USD")
+        src = ts.get("token_data_source")
+        if src:
+            token_sources.add(str(src))
+        for m in ts.get("unpriced_models") or []:
+            unpriced_models.add(str(m))
+
+        for row in ts.get("daily_by_model") or []:
+            key = (str(row["date"]), str(row["model_name"]))
+            merged_daily[key] = _merge_catalog_daily_rows(merged_daily.get(key), row)
+
+        for p in ts.get("points") or []:
+            d = str(p.get("date") or "")
+            if not d:
+                continue
+            cur = points_by_date.get(d)
+            if cur is None:
+                points_by_date[d] = {
+                    "date": d,
+                    "actual_cost_usd": p.get("actual_cost_usd"),
+                    "catalog_cost_usd": p.get("catalog_cost_usd"),
+                    "model_actual_sum_usd": p.get("model_actual_sum_usd"),
+                }
+            else:
+                cur["actual_cost_usd"] = _sum_optional_cost(
+                    cur.get("actual_cost_usd"), p.get("actual_cost_usd")
+                )
+                cur["catalog_cost_usd"] = _sum_optional_cost(
+                    cur.get("catalog_cost_usd"), p.get("catalog_cost_usd")
+                )
+                cur["model_actual_sum_usd"] = _sum_optional_cost(
+                    cur.get("model_actual_sum_usd"), p.get("model_actual_sum_usd")
+                )
+
+    daily_by_model = list(merged_daily.values())
+    daily_by_model.sort(key=lambda r: (str(r["date"]), str(r["model_name"])))
+
+    if not daily_by_model and not points_by_date:
+        return {
+            "available": False,
+            "reason": "no_token_volume",
+            "currency": chosen_currency,
+            "projects_with_data": [],
+            "token_data_source": None,
+            "points": [],
+            "daily_by_model": [],
+            "model_summary": [],
+            "summary": {},
+            "unpriced_models": sorted(unpriced_models),
+        }
+
+    model_summary = _model_summary_from_daily_by_model(daily_by_model)
+
+    catalog_by_date: dict[str, float] = {}
+    for row in daily_by_model:
+        d = str(row["date"])
+        c = row.get("catalog_cost_usd")
+        if c is not None:
+            catalog_by_date[d] = catalog_by_date.get(d, 0.0) + float(c)
+
+    points: list[dict[str, object]] = []
+    for d in sorted(points_by_date.keys()):
+        entry = points_by_date[d]
+        points.append(
+            {
+                "date": d,
+                "actual_cost_usd": (
+                    round_cost(entry["actual_cost_usd"])
+                    if entry.get("actual_cost_usd") is not None
+                    else None
+                ),
+                "catalog_cost_usd": (
+                    round_cost(entry["catalog_cost_usd"])
+                    if entry.get("catalog_cost_usd") is not None
+                    else None
+                ),
+                "model_actual_sum_usd": (
+                    round_cost(entry["model_actual_sum_usd"])
+                    if entry.get("model_actual_sum_usd") is not None
+                    else None
+                ),
+            }
+        )
+
+    total_catalog = sum(catalog_by_date.values())
+    total_actual = sum(
+        float(p["actual_cost_usd"])
+        for p in points
+        if p.get("actual_cost_usd") is not None
+    )
+    total_input = sum(
+        float(r["input_cost_usd"])
+        for r in daily_by_model
+        if r.get("input_cost_usd") is not None
+    )
+    total_output = sum(
+        float(r["output_cost_usd"])
+        for r in daily_by_model
+        if r.get("output_cost_usd") is not None
+    )
+    total_catalog_input = sum(
+        float(r["catalog_input_cost_usd"])
+        for r in daily_by_model
+        if r.get("catalog_input_cost_usd") is not None
+    )
+    total_catalog_output = sum(
+        float(r["catalog_output_cost_usd"])
+        for r in daily_by_model
+        if r.get("catalog_output_cost_usd") is not None
+    )
+    days_with_catalog = len(catalog_by_date)
+
+    variance_usd = round_cost(total_actual - total_catalog) if days_with_catalog else None
+    variance_pct = None
+    if days_with_catalog and total_catalog > 0:
+        variance_pct = round((total_actual - total_catalog) / total_catalog * 100.0, 1)
+
+    if len(token_sources) == 1:
+        token_data_source = next(iter(token_sources))
+    elif len(token_sources) > 1:
+        token_data_source = "mixed"
+    else:
+        token_data_source = None
+
+    return {
+        "available": True,
+        "currency": chosen_currency,
+        "projects_with_data": projects_with_data,
+        "token_data_source": token_data_source,
+        "catalog_model_hint": (
+            sorted(unpriced_models)[:8] if unpriced_models else None
+        ),
+        "points": points,
+        "daily_by_model": daily_by_model,
+        "model_summary": model_summary,
+        "summary": {
+            "total_catalog_cost_usd": round_cost(total_catalog) if days_with_catalog else None,
+            "total_actual_cost_usd": round_cost(total_actual) if total_actual else None,
+            "total_input_cost_usd": round_cost(total_input) if total_input > 0 else None,
+            "total_output_cost_usd": round_cost(total_output) if total_output > 0 else None,
+            "total_meter_cost_usd": (
+                round_cost(total_input + total_output)
+                if (total_input + total_output) > 0
+                else None
+            ),
+            "total_catalog_input_cost_usd": (
+                round_cost(total_catalog_input) if total_catalog_input > 0 else None
+            ),
+            "total_catalog_output_cost_usd": (
+                round_cost(total_catalog_output) if total_catalog_output > 0 else None
+            ),
+            "variance_usd": variance_usd,
+            "variance_pct": variance_pct,
+            "days_with_catalog": days_with_catalog,
+            "model_count": len(model_summary),
+            "project_count": len(projects_with_data),
+        },
+        "unpriced_models": sorted(unpriced_models),
+        "unit_label": "USD per 1M tokens (catalog list)",
+    }
+
+
 def get_project_daily_implied_usd_per_1m_timeseries(
     conn: sqlite3.Connection,
     project_name: str,
@@ -2963,12 +3260,20 @@ def get_token_timeseries(
         )
         rows: list[dict] = []
         for p in imported:
+            in_tok = p.get("input_tokens", p.get("estimated_input_tokens"))
+            out_tok = p.get("output_tokens", p.get("estimated_output_tokens"))
+            total = p.get("total_tokens", p.get("estimated_total_tokens"))
+            if total is None and in_tok is not None and out_tok is not None:
+                total = float(in_tok) + float(out_tok)
             rows.append(
                 {
                     "date": p["date"],
-                    "estimated_input_tokens": p["estimated_input_tokens"],
-                    "estimated_output_tokens": p["estimated_output_tokens"],
-                    "estimated_total_tokens": p["estimated_total_tokens"],
+                    "input_tokens": in_tok,
+                    "output_tokens": out_tok,
+                    "total_tokens": total,
+                    "estimated_input_tokens": in_tok,
+                    "estimated_output_tokens": out_tok,
+                    "estimated_total_tokens": total,
                 }
             )
         return rows, None, None, None, "imported"
@@ -3147,10 +3452,9 @@ def get_all_token_timeseries(
     project_names: list[str] | None = None,
 ) -> tuple[list[dict], str | None, str | None, str | None]:
     """
-    Aggregate token totals (input/output/total) for the same scope as all-financial reports.
+    Aggregate imported token totals (input/output/total) for all-financial reports.
 
-    Uses imported token CSV data when available per project; otherwise falls back to
-    cost-based estimates from linked model prices.
+    Only sums Grafana/token CSV imports per project — no cost-based token estimates.
     """
     if granularity not in {"day", "month"}:
         raise ValueError("granularity must be 'day' or 'month'")
@@ -3189,93 +3493,26 @@ def get_all_token_timeseries(
     }
 
     token_models: set[str] = set()
-    token_regions: set[str] = set()
     imported_projects = 0
-    estimated_projects = 0
 
     for pn in scoped_projects:
-        if project_has_imported_tokens(conn, pn):
-            imported_projects += 1
-            meta = get_imported_token_meta(
-                conn, pn, start_date=start_date, end_date=end_date
-            )
-            for m in meta.get("models") or []:
-                token_models.add(str(m))
-            _aggregate_imported_tokens_into_period(
-                conn,
-                project_name=pn,
-                granularity=granularity,
-                start_date=start_date,
-                end_date=end_date,
-                per_period=per_period,
-                period_set=period_set,
-            )
+        if not project_has_imported_tokens(conn, pn):
             continue
-
-        price_model = _get_project_token_price_model(conn, project_name=pn)
-        if not price_model:
-            continue
-        estimated_projects += 1
-
-        model_name = price_model.get("model_name")
-        if model_name:
-            token_models.add(str(model_name))
-
-        region = price_model.get("price_region")
-        if region:
-            token_regions.add(str(region))
-
-        input_price = float(price_model["input_price"])
-        output_price = float(price_model["output_price"])
-
-        where = ["project_name = ?"]
-        params: list[object] = [pn]
-        if chosen_currency:
-            where.append("currency = ?")
-            params.append(chosen_currency)
-        if start_date:
-            where.append("usage_date >= ?")
-            params.append(start_date)
-        if end_date:
-            where.append("usage_date <= ?")
-            params.append(end_date)
-
-        where_sql = " AND ".join(where)
-        rows = conn.execute(
-            f"""
-            SELECT
-                {date_expr} AS period,
-                COALESCE(SUM(cost_usd), 0) AS actual_cost_usd_total
-            FROM transactions
-            WHERE {where_sql}
-            GROUP BY {date_expr}
-            ORDER BY period ASC
-            """,
-            tuple(params),
-        ).fetchall()
-
-        for r in rows:
-            period = str(r["period"])
-            if period not in period_set:
-                period_set.add(period)
-                periods.append(period)
-                per_period[period] = {"input": 0.0, "output": 0.0, "has": False}
-
-            cost_usd = _safe_float(r["actual_cost_usd_total"])
-            token_est = _estimate_tokens_from_price(
-                cost_usd=cost_usd,
-                input_price=input_price,
-                output_price=output_price,
-            )
-            if token_est is None:
-                continue
-
-            in_tok = _safe_float(token_est["estimated_input_tokens"])
-            out_tok = _safe_float(token_est["estimated_output_tokens"])
-
-            per_period[period]["input"] = _safe_float(per_period[period]["input"]) + in_tok
-            per_period[period]["output"] = _safe_float(per_period[period]["output"]) + out_tok
-            per_period[period]["has"] = True
+        imported_projects += 1
+        meta = get_imported_token_meta(
+            conn, pn, start_date=start_date, end_date=end_date
+        )
+        for m in meta.get("models") or []:
+            token_models.add(str(m))
+        _aggregate_imported_tokens_into_period(
+            conn,
+            project_name=pn,
+            granularity=granularity,
+            start_date=start_date,
+            end_date=end_date,
+            per_period=per_period,
+            period_set=period_set,
+        )
 
     periods.sort()
 
@@ -3288,16 +3525,7 @@ def get_all_token_timeseries(
         return f"Multiple ({len(vals)})"
 
     model_display = display_single_or_multiple(token_models)
-    region_display = display_single_or_multiple(token_regions)
-
-    if imported_projects and estimated_projects:
-        token_data_source = "mixed"
-    elif imported_projects:
-        token_data_source = "imported"
-    elif estimated_projects:
-        token_data_source = "estimated"
-    else:
-        token_data_source = None
+    token_data_source = "imported" if imported_projects else None
 
     points: list[dict] = []
     for d in periods:
@@ -3306,9 +3534,9 @@ def get_all_token_timeseries(
             points.append(
                 {
                     "date": d,
-                    "estimated_input_tokens": None,
-                    "estimated_output_tokens": None,
-                    "estimated_total_tokens": None,
+                    "input_tokens": None,
+                    "output_tokens": None,
+                    "total_tokens": None,
                 }
             )
         else:
@@ -3317,13 +3545,13 @@ def get_all_token_timeseries(
             points.append(
                 {
                     "date": d,
-                    "estimated_input_tokens": in_tok,
-                    "estimated_output_tokens": out_tok,
-                    "estimated_total_tokens": in_tok + out_tok,
+                    "input_tokens": in_tok,
+                    "output_tokens": out_tok,
+                    "total_tokens": in_tok + out_tok,
                 }
             )
 
-    return points, model_display, region_display, token_data_source
+    return points, model_display, "bills/<project>/token/", token_data_source
 
 
 def verify_all_financial_consistency(
@@ -3394,7 +3622,6 @@ def verify_all_financial_consistency(
     token_month_output_sum: dict[str, float] = {d: 0.0 for d in report_dates_month}
 
     token_models: set[str] = set()
-    token_regions: set[str] = set()
 
     for pn in scoped_projects:
         # Cost points
@@ -3422,53 +3649,58 @@ def verify_all_financial_consistency(
             if p["date"] in month_set:
                 cost_month_sum[p["date"]] += float(p["cost_usd"] or 0.0)
 
-        # Token points
-        tp_day, _, _, _, _ = get_token_timeseries(
+        if not project_has_imported_tokens(conn, pn):
+            continue
+
+        meta = get_imported_token_meta(
+            conn, pn, start_date=start_date, end_date=end_date
+        )
+        for m in meta.get("models") or []:
+            token_models.add(str(m))
+
+        for p in get_imported_token_timeseries(
             conn,
-            project_name=pn,
+            pn,
             start_date=start_date,
             end_date=end_date,
             granularity="day",
-            currency=chosen_currency,
-        )
-        for p in tp_day:
+        ):
             d = p["date"]
             if d not in day_set:
                 continue
-            in_tok = p.get("estimated_input_tokens")
-            out_tok = p.get("estimated_output_tokens")
+            in_tok = p.get("input_tokens")
+            if in_tok is None:
+                in_tok = p.get("estimated_input_tokens")
+            out_tok = p.get("output_tokens")
+            if out_tok is None:
+                out_tok = p.get("estimated_output_tokens")
             if in_tok is None or out_tok is None:
                 continue
             token_day_has[d] = True
             token_day_input_sum[d] += float(in_tok)
             token_day_output_sum[d] += float(out_tok)
 
-        tp_month, _, _, _, _ = get_token_timeseries(
+        for p in get_imported_token_timeseries(
             conn,
-            project_name=pn,
+            pn,
             start_date=start_date,
             end_date=end_date,
             granularity="month",
-            currency=chosen_currency,
-        )
-        for p in tp_month:
+        ):
             d = p["date"]
             if d not in month_set:
                 continue
-            in_tok = p.get("estimated_input_tokens")
-            out_tok = p.get("estimated_output_tokens")
+            in_tok = p.get("input_tokens")
+            if in_tok is None:
+                in_tok = p.get("estimated_input_tokens")
+            out_tok = p.get("output_tokens")
+            if out_tok is None:
+                out_tok = p.get("estimated_output_tokens")
             if in_tok is None or out_tok is None:
                 continue
             token_month_has[d] = True
             token_month_input_sum[d] += float(in_tok)
             token_month_output_sum[d] += float(out_tok)
-
-        price_model = _get_project_token_price_model(conn, project_name=pn)
-        if price_model:
-            if price_model.get("model_name"):
-                token_models.add(str(price_model["model_name"]))
-            if price_model.get("price_region"):
-                token_regions.add(str(price_model["price_region"]))
 
     def display_single_or_multiple(vals: set[str]) -> str | None:
         vals = {v for v in vals if v}
@@ -3479,7 +3711,7 @@ def verify_all_financial_consistency(
         return f"Multiple ({len(vals)})"
 
     expected_model_display = display_single_or_multiple(token_models)
-    expected_region_display = display_single_or_multiple(token_regions)
+    expected_region_display = "bills/<project>/token/"
 
     eps_cost = 1e-6
     eps_tokens = 1e-3
@@ -3508,21 +3740,21 @@ def verify_all_financial_consistency(
             f"report={report_cost_month_total}, computed={computed_cost_month_total}",
         )
 
-        report_token = stats.get("token_estimate") or {}
-        report_est_input_total = float(report_token.get("estimated_input_tokens_total") or 0.0)
-        report_est_output_total = float(report_token.get("estimated_output_tokens_total") or 0.0)
-        computed_est_input_total = sum(v for d, v in token_day_input_sum.items() if token_day_has[d])
-        computed_est_output_total = sum(v for d, v in token_day_output_sum.items() if token_day_has[d])
+        report_token = stats.get("token_actual") or {}
+        report_in_total = float(report_token.get("input_tokens_total") or 0.0)
+        report_out_total = float(report_token.get("output_tokens_total") or 0.0)
+        computed_in_total = sum(v for d, v in token_day_input_sum.items() if token_day_has[d])
+        computed_out_total = sum(v for d, v in token_day_output_sum.items() if token_day_has[d])
 
         add_check(
             "token_totals_input_matches",
-            abs(report_est_input_total - computed_est_input_total) <= eps_tokens,
-            f"report={report_est_input_total}, computed={computed_est_input_total}",
+            abs(report_in_total - computed_in_total) <= eps_tokens,
+            f"report={report_in_total}, computed={computed_in_total}",
         )
         add_check(
             "token_totals_output_matches",
-            abs(report_est_output_total - computed_est_output_total) <= eps_tokens,
-            f"report={report_est_output_total}, computed={computed_est_output_total}",
+            abs(report_out_total - computed_out_total) <= eps_tokens,
+            f"report={report_out_total}, computed={computed_out_total}",
         )
     else:
         # Deep mode: per-period points must match.
@@ -3542,11 +3774,14 @@ def verify_all_financial_consistency(
                 continue
 
             if not token_day_has[d]:
-                add_check(f"token_daily_point_none:{d}", tp.get("estimated_input_tokens") is None and tp.get("estimated_output_tokens") is None)
+                add_check(
+                    f"token_daily_point_none:{d}",
+                    tp.get("input_tokens") is None and tp.get("output_tokens") is None,
+                )
                 continue
 
-            report_in = tp.get("estimated_input_tokens")
-            report_out = tp.get("estimated_output_tokens")
+            report_in = tp.get("input_tokens")
+            report_out = tp.get("output_tokens")
             computed_in = token_day_input_sum[d]
             computed_out = token_day_output_sum[d]
 
@@ -3577,11 +3812,14 @@ def verify_all_financial_consistency(
                 continue
 
             if not token_month_has[d]:
-                add_check(f"token_monthly_point_none:{d}", tp.get("estimated_input_tokens") is None and tp.get("estimated_output_tokens") is None)
+                add_check(
+                    f"token_monthly_point_none:{d}",
+                    tp.get("input_tokens") is None and tp.get("output_tokens") is None,
+                )
                 continue
 
-            report_in = tp.get("estimated_input_tokens")
-            report_out = tp.get("estimated_output_tokens")
+            report_in = tp.get("input_tokens")
+            report_out = tp.get("output_tokens")
             computed_in = token_month_input_sum[d]
             computed_out = token_month_output_sum[d]
 
@@ -3703,20 +3941,28 @@ def get_financial_project_breakdown(
     for r in rows:
         pn = r["project_name"]
         total = round_cost(_safe_float(r["cost_usd_total"])) or 0.0
-        te = _estimate_tokens_by_cost(conn, project_name=pn, total_cost_usd=total) or {}
-        cfg = get_project_model_config(conn, pn)
-        configured = (cfg or {}).get("model_name")
+        in_tok: float | None = None
+        out_tok: float | None = None
+        model_names: list[str] = []
+        if project_has_imported_tokens(conn, pn):
+            in_val, out_val = get_imported_token_totals(
+                conn, pn, start_date=start_date, end_date=end_date
+            )
+            in_tok = in_val
+            out_tok = out_val
+            meta = get_imported_token_meta(
+                conn, pn, start_date=start_date, end_date=end_date
+            )
+            model_names = [str(m) for m in (meta.get("models") or []) if m]
         out.append(
             {
                 "project_name": pn,
                 "actual_cost_usd_total": total,
                 "actual_days": int(r["actual_days"]),
                 "currency": chosen_currency,
-                "model_configured": bool(configured),
-                "configured_model_name": configured,
-                "estimated_input_tokens": te.get("estimated_input_tokens"),
-                "estimated_output_tokens": te.get("estimated_output_tokens"),
-                "token_estimate_model": te.get("model_name"),
+                "input_tokens": in_tok,
+                "output_tokens": out_tok,
+                "token_models": model_names,
             }
         )
     return out
@@ -3750,23 +3996,22 @@ def get_all_financial_stats(
     daily_actual = [p["cost_usd"] for p in daily_points]
     monthly_actual = [p["cost_usd"] for p in monthly_points]
 
-    estimated_input_tokens_total = 0.0
-    estimated_output_tokens_total = 0.0
-    projects_with_token_estimate = 0
+    input_tokens_total = 0.0
+    output_tokens_total = 0.0
+    projects_with_imported_tokens = 0
     scoped_projects = project_names if project_names else list_projects(conn)
     for project_name in scoped_projects:
-        pstats = get_project_stats(
+        if not project_has_imported_tokens(conn, project_name):
+            continue
+        in_tok, out_tok = get_imported_token_totals(
             conn,
             project_name,
-            from_date=start_date,
-            to_date=end_date,
-            currency=chosen_currency,
+            start_date=start_date,
+            end_date=end_date,
         )
-        if pstats.estimated_input_tokens is None or pstats.estimated_output_tokens is None:
-            continue
-        estimated_input_tokens_total += pstats.estimated_input_tokens
-        estimated_output_tokens_total += pstats.estimated_output_tokens
-        projects_with_token_estimate += 1
+        projects_with_imported_tokens += 1
+        input_tokens_total += in_tok
+        output_tokens_total += out_tok
 
     return {
         "currency": chosen_currency,
@@ -3783,10 +4028,10 @@ def get_all_financial_stats(
             "median_actual": _median(monthly_actual),
             "var_actual": _variance(monthly_actual),
         },
-        "token_estimate": {
-            "projects_with_estimate": projects_with_token_estimate,
-            "estimated_input_tokens_total": estimated_input_tokens_total,
-            "estimated_output_tokens_total": estimated_output_tokens_total,
+        "token_actual": {
+            "projects_with_imported_tokens": projects_with_imported_tokens,
+            "input_tokens_total": input_tokens_total,
+            "output_tokens_total": output_tokens_total,
         },
         "project_breakdown": get_financial_project_breakdown(
             conn,

@@ -174,11 +174,24 @@
               </header>
               <div class="flowBlockBody card tokenTablePanel">
               <div class="tableScroll dataTableWrap">
-                <table class="dataTable">
+                <table class="dataTable tokenBillingTable">
+                  <colgroup>
+                    <col class="colDate" />
+                    <col class="colModel" />
+                    <col class="colTokens" />
+                    <col class="colTokens" />
+                    <col class="colMoney" />
+                    <col class="colMoney" />
+                    <col class="colMoney" />
+                    <col class="colBilling" />
+                    <col class="colUnit" />
+                    <col class="colUnit" />
+                    <col class="colRatio" />
+                  </colgroup>
                   <thead>
                     <tr>
                       <th class="thDateCol" scope="col">Date</th>
-                      <th class="thModelCol" scope="col">Model</th>
+                      <th class="thModelCol" scope="col" title="Model name from imported token CSV">Model</th>
                       <th class="num thInputCol" scope="col">Input</th>
                       <th class="num thOutputCol" scope="col">Output</th>
                       <th class="num thInputCostCol" scope="col">Input cost</th>

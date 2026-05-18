@@ -58,6 +58,8 @@ def test_all_financial_report_stats(tmp_path):
     assert payload["currency_options"]
     assert payload["currency"] == "USD"
     assert "project_breakdown" in payload
+    assert "catalog_market" in payload
+    assert payload["catalog_market"]["available"] is False
     pb = payload["project_breakdown"]
     assert isinstance(pb, list) and len(pb) == 2
     by_name = {r["project_name"]: r for r in pb}
@@ -91,20 +93,22 @@ def test_all_financial_report_stats(tmp_path):
     assert daily2["median_actual"] == 2.0
     assert daily2["var_actual"] == 1.0
 
-    # Token estimates time series (may be null when no project model config exists)
     assert "token_daily_points" in payload
     assert "token_monthly_points" in payload
-    assert "token_estimate_model_display" in payload
-    assert "token_estimate_region_display" in payload
+    assert "token_models_display" in payload
+    assert "token_import_path" in payload
+    assert "token_actual" in payload
+    assert "token_estimate" not in payload
 
     assert len(payload["token_daily_points"]) == daily["count_days"]
     assert len(payload["token_monthly_points"]) == monthly["count_months"]
 
     td0 = payload["token_daily_points"][0]
-    assert "estimated_input_tokens" in td0
-    assert "estimated_output_tokens" in td0
-    assert "estimated_total_tokens" in td0
-    assert all(p["estimated_total_tokens"] is None for p in payload["token_daily_points"])
+    assert "input_tokens" in td0
+    assert "output_tokens" in td0
+    assert "total_tokens" in td0
+    assert all(p["total_tokens"] is None for p in payload["token_daily_points"])
+    assert payload["token_actual"]["input_tokens_total"] == 0.0
 
     # Verify consistency between report-scoped aggregation and per-project dashboard calculations.
     ver = client.get("/api/verify/reports-all-financial-consistency?currency=USD&mode=deep")
@@ -129,11 +133,14 @@ def test_reports_page_layout_without_token_forecast(tmp_path):
     assert "Token Forecast (7d)" not in page.text
     assert "chartGrid2" in page.text
     assert "costForecastChart" not in page.text
-    assert "tokenReportSection" in page.text
+    assert "report-tokens" in page.text
+    assert "report-glance" in page.text
+    assert "report-raw-data" in page.text
     assert "filterCard" in page.text
     assert "dateLast7Btn" in page.text
     assert "reportStatusBar" in page.text
     assert "reportToolbarGrid" in page.text
+    assert "heroMetricGrid" in page.text
 
 
 def test_all_financial_report_rejects_invalid_date_range(tmp_path):

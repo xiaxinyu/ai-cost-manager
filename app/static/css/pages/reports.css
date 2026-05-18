@@ -341,8 +341,17 @@
 }
 
 /* KPI cards */
+.reportPage .gridStats.reportKpis {
+  display: grid;
+  gap: 12px;
+}
+
 .reportKpis {
   grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.reportKpisCompact {
+  margin-top: 12px;
 }
 
 .reportPage .gridStats .card {
@@ -372,8 +381,12 @@
 }
 
 .reportPage .statRow {
-  grid-template-columns: minmax(160px, 0.9fr) minmax(0, 1fr);
-  border-bottom-color: var(--border-soft, rgba(173, 196, 228, 0.12));
+  display: grid;
+  grid-template-columns: minmax(100px, 0.85fr) minmax(0, 1fr);
+  gap: 8px;
+  align-items: baseline;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border-soft, rgba(173, 196, 228, 0.12));
 }
 
 .reportPage .statKey {
@@ -575,6 +588,331 @@
   background: rgba(96, 165, 250, 0.14);
 }
 
+/* Executive overview (Cost + Tokens rollup) */
+.reportExecutive {
+  display: grid;
+  gap: 12px;
+}
+
+.reportExecutiveHead {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.executiveHint {
+  font-size: 12px;
+  text-align: right;
+}
+
+.reportPage .meterTotalGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.reportPage .meterTotalCard {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 14px;
+  border-radius: var(--control-radius);
+  border: 1px solid rgba(173, 196, 228, 0.18);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.reportPage .meterTotalCardAccent {
+  border-color: rgba(94, 234, 212, 0.32);
+  background: rgba(94, 234, 212, 0.08);
+}
+
+.reportPage .meterTotalLabel {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #94a8c0;
+}
+
+.reportPage .meterTotalValue {
+  font-size: 20px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: #f1f5f9;
+}
+
+.reportModelPanel .panelTitle {
+  font-size: 14px;
+}
+
+.reportModelTableScroll {
+  max-height: 360px;
+}
+
+.reportPage .reportModelTable .tdModelName {
+  min-width: 11rem;
+  max-width: 28rem;
+  font-weight: 650;
+  color: #e7edf6;
+  white-space: normal;
+  word-break: break-word;
+  line-height: 1.35;
+}
+
+.reportPage .dataTable .modelCostTotalRow th,
+.reportPage .dataTable .modelCostTotalRow td {
+  font-weight: 750;
+  border-top: 1px solid rgba(173, 196, 228, 0.22);
+  background: rgba(94, 234, 212, 0.06);
+}
+
+.reportExecutiveCharts .chartCanvasHost {
+  height: 240px;
+}
+
+#report-by-model .reportSectionTitle::before,
+#report-by-model .sectionTitle::before {
+  background: linear-gradient(135deg, var(--finance), var(--token));
+}
+
+/* Report navigation & structure */
+.reportNav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+  padding: 10px 14px;
+}
+
+.reportNavLabel {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.reportNavLink {
+  font-size: 12px;
+  font-weight: 650;
+  color: #c8d8ec;
+  text-decoration: none;
+  padding: 5px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(173, 196, 228, 0.2);
+  background: rgba(255, 255, 255, 0.04);
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.reportNavLink:hover {
+  background: rgba(96, 165, 250, 0.12);
+  border-color: rgba(96, 165, 250, 0.35);
+  color: #e8f2ff;
+}
+
+.reportAtAGlance {
+  padding: 16px 18px;
+}
+
+.reportSectionHead {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.reportStep {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 800;
+  color: #b8fff0;
+  background: rgba(94, 234, 212, 0.14);
+  border: 1px solid rgba(94, 234, 212, 0.35);
+}
+
+.reportSectionTitle {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 820;
+  color: #f1f5f9;
+}
+
+.reportSectionLead {
+  margin: 6px 0 0;
+  font-size: 13px;
+  line-height: 1.45;
+  max-width: 72ch;
+}
+
+.reportSectionShell {
+  display: grid;
+  gap: 12px;
+}
+
+.heroMetricGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.heroMetric {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 14px;
+  border-radius: var(--control-radius);
+  border: 1px solid rgba(173, 196, 228, 0.16);
+  background: rgba(255, 255, 255, 0.03);
+  min-width: 0;
+}
+
+.heroMetricPrimary {
+  border-color: rgba(94, 234, 212, 0.32);
+  background: linear-gradient(145deg, rgba(94, 234, 212, 0.1), rgba(255, 255, 255, 0.02));
+}
+
+.heroMetricLabel {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #94a8c0;
+}
+
+.heroMetricValue {
+  font-size: clamp(18px, 2.2vw, 22px);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: #f8fafc;
+  line-height: 1.2;
+}
+
+.heroMetricSub {
+  font-size: 11px;
+  color: #9fb2c7;
+  line-height: 1.35;
+}
+
+.reportKpiDetails {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(173, 196, 228, 0.12);
+}
+
+.reportKpiDetails summary {
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 650;
+  color: #93c5fd;
+  list-style: none;
+}
+
+.reportKpiDetails summary::-webkit-details-marker {
+  display: none;
+}
+
+.chartCardHint {
+  margin: -4px 0 8px;
+  font-size: 11px;
+}
+
+.reportDetailsSection {
+  padding: 0;
+  border: 1px solid rgba(173, 196, 228, 0.16);
+  border-radius: var(--control-radius);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.reportDetailsSummary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.reportDetailsSummary::-webkit-details-marker {
+  display: none;
+}
+
+.reportDetailsSection[open] .reportDetailsSummary {
+  border-bottom: 1px solid rgba(173, 196, 228, 0.12);
+}
+
+.reportDetailsSection .chartGrid,
+.reportDetailsSection .tableAnalysisNote {
+  padding: 0 16px 16px;
+}
+
+.tableAnalysisNote {
+  margin: 0 0 10px;
+}
+
+.shareCol {
+  min-width: 7.5rem;
+}
+
+.shareBarCell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.shareBarTrack {
+  flex: 1;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.shareBarFill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(94, 234, 212, 0.85), rgba(96, 165, 250, 0.75));
+}
+
+.shareBarPct {
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: #c8d4e0;
+  min-width: 2.8rem;
+  text-align: right;
+}
+
+.deltaCell {
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+.deltaUp {
+  color: #fca5a5;
+}
+
+.deltaDown {
+  color: #6ee7b7;
+}
+
+.deltaFlat {
+  color: #9fb2c7;
+}
+
+.reportExecutiveHead {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+}
+
 @media (max-width: 1180px) {
   .reportToolbarGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -584,11 +922,16 @@
     grid-template-columns: 1fr;
   }
 
-  .reportKpis {
+  .reportKpis,
+  .heroMetricGrid {
     grid-template-columns: 1fr 1fr;
   }
 
   .kpiTokens {
+    grid-column: 1 / -1;
+  }
+
+  .heroMetricPrimary {
     grid-column: 1 / -1;
   }
 }
@@ -596,8 +939,18 @@
 @media (max-width: 900px) {
   .reportToolbarGrid,
   .chartGrid2,
-  .reportKpis {
+  .reportKpis,
+  .heroMetricGrid {
     grid-template-columns: 1fr;
+  }
+
+  .reportNav {
+    gap: 6px;
+  }
+
+  .reportNavLink {
+    font-size: 11px;
+    padding: 4px 8px;
   }
 
   .kpiTokens {

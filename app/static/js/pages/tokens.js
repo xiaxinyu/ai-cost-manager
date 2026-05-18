@@ -1208,7 +1208,16 @@
 
         const tdModel = document.createElement("td");
         tdModel.className = "tdModel";
-        tdModel.textContent = p.model_name || "—";
+        const modelLabel = String(p.model_name || "").trim() || "—";
+        if (modelLabel === "—") {
+          tdModel.textContent = "—";
+        } else {
+          const span = document.createElement("span");
+          span.className = "modelNameLabel";
+          span.textContent = modelLabel;
+          tdModel.title = modelLabel;
+          tdModel.appendChild(span);
+        }
 
         const tdInput = document.createElement("td");
         tdInput.className = "num tdInput";

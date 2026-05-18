@@ -799,9 +799,46 @@
 
 .tokenPage .dataTable {
   width: 100%;
-  table-layout: fixed;
+  min-width: 1080px;
+  table-layout: auto;
   border-collapse: separate;
   border-spacing: 0;
+}
+
+/* Billing detail: fixed columns so model names are not squeezed to "gpt…" */
+.tokenPage .dataTable.tokenBillingTable {
+  table-layout: fixed;
+  min-width: 1320px;
+  width: max(100%, 1320px);
+}
+
+.tokenPage .dataTable.tokenBillingTable col.colDate {
+  width: 6.5rem;
+}
+
+.tokenPage .dataTable.tokenBillingTable col.colModel {
+  width: 18rem;
+  min-width: 18rem;
+}
+
+.tokenPage .dataTable.tokenBillingTable col.colTokens {
+  width: 6.75rem;
+}
+
+.tokenPage .dataTable.tokenBillingTable col.colMoney {
+  width: 6.25rem;
+}
+
+.tokenPage .dataTable.tokenBillingTable col.colBilling {
+  width: 5.5rem;
+}
+
+.tokenPage .dataTable.tokenBillingTable col.colUnit {
+  width: 6.5rem;
+}
+
+.tokenPage .dataTable.tokenBillingTable col.colRatio {
+  width: 5.25rem;
 }
 
 .tokenPage .dataTable thead .thDateCol {
@@ -848,20 +885,94 @@
 }
 
 .thDateCol {
-  width: 7.25rem;
+  width: 6.5rem;
   white-space: nowrap;
 }
 
 .thModelCol {
-  min-width: 9rem;
+  min-width: 12rem;
 }
 
-.tokenTablePanel .tdModel {
+.tokenPage .dataTable.tokenBillingTable thead th.thModelCol,
+.tokenPage .dataTable.tokenBillingTable tbody td.tdModel {
+  position: sticky;
+  left: 6.5rem; /* matches colDate width */
+  z-index: 3;
+  background: var(--table-header-bg, rgba(7, 14, 26, 0.96));
+  box-shadow: 3px 0 8px rgba(0, 0, 0, 0.22);
+}
+
+.tokenPage .dataTable.tokenBillingTable tbody td.tdModel {
+  z-index: 2;
+  background: rgba(8, 14, 26, 0.98);
+}
+
+.tokenPage .dataTable.tokenBillingTable tbody tr:hover td.tdModel {
+  background: rgba(12, 22, 38, 0.98);
+}
+
+.tokenPage .dataTable.tokenBillingTable thead th.thDateCol,
+.tokenPage .dataTable.tokenBillingTable tbody td.tdDate {
+  position: sticky;
+  left: 0;
+  z-index: 4;
+  background: var(--table-header-bg, rgba(7, 14, 26, 0.96));
+  box-shadow: 3px 0 8px rgba(0, 0, 0, 0.18);
+}
+
+.tokenPage .dataTable tbody td.tdDate {
+  z-index: 1;
+  background: rgba(8, 14, 26, 0.98);
+}
+
+.tokenPage .dataTable.tokenBillingTable .tdModel,
+.tokenPage .dataTable.tokenBillingTable .thModelCol {
+  min-width: 18rem;
+  max-width: none;
+  width: 18rem;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: nowrap;
+}
+
+.tokenTablePanel .tdModel,
+.tokenTablePanel .modelNameLabel {
   font-size: 12px;
-  color: var(--text-subtle, #b8c5d6);
-  max-width: 14rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  font-weight: 600;
+  color: var(--text, #e7edf6);
+  max-width: none;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: nowrap;
+  line-height: 1.35;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  letter-spacing: -0.02em;
+}
+
+.tokenTablePanel .modelNameLabel {
+  display: inline-block;
+  max-width: none;
+  vertical-align: middle;
+}
+
+.tokenPage .dataTable.tokenBillingTable .thInputCol,
+.tokenPage .dataTable.tokenBillingTable .thOutputCol,
+.tokenPage .dataTable.tokenBillingTable .tdInput,
+.tokenPage .dataTable.tokenBillingTable .tdOutput {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.tokenPage .dataTable.tokenBillingTable .thInputCostCol,
+.tokenPage .dataTable.tokenBillingTable .thOutputCostCol,
+.tokenPage .dataTable.tokenBillingTable .thTotalCostCol,
+.tokenPage .dataTable.tokenBillingTable .tdInputCost,
+.tokenPage .dataTable.tokenBillingTable .tdOutputCost,
+.tokenPage .dataTable.tokenBillingTable .tdTotalCost,
+.tokenPage .dataTable.tokenBillingTable .tdUnitIn,
+.tokenPage .dataTable.tokenBillingTable .tdUnitOut,
+.tokenPage .dataTable.tokenBillingTable .tdRatio {
+  text-align: right;
   white-space: nowrap;
 }
 

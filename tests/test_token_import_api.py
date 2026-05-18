@@ -85,7 +85,7 @@ def test_import_api_billing_and_token_together(tmp_path):
 
     report = client.get("/api/reports/all-financial?project_names=rg-techlab-ai-coding").json()
     assert report["token_data_source"] == "imported"
-    assert report["token_daily_points"][0]["estimated_input_tokens"] == 1_000_000.0
+    assert report["token_daily_points"][0]["input_tokens"] == 1_000_000.0
 
     projects = client.get("/api/projects").json()
     assert "rg-techlab-ai-coding" in projects["projects_with_imported_tokens"]

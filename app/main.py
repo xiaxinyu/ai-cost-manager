@@ -23,6 +23,7 @@ from .db import (
     get_project_model_config,
     get_all_currencies,
     get_all_financial_stats,
+    get_all_catalog_market_breakdown,
     get_available_currencies,
     get_connection,
     get_project_stats,
@@ -938,15 +939,24 @@ def create_app(
                 currency=chosen_currency,
                 project_names=project_names,
             )
+            catalog_market = get_all_catalog_market_breakdown(
+                conn,
+                start_date=start_date,
+                end_date=end_date,
+                currency=chosen_currency,
+                project_names=project_names,
+            )
             return JSONResponse(
                 {
                     "currency_options": currencies,
                     **stats,
                     "token_daily_points": token_daily_points,
                     "token_monthly_points": token_monthly_points,
-                    "token_estimate_model_display": token_model_display,
-                    "token_estimate_region_display": token_region_display,
+                    "token_models_display": token_model_display,
+                    "token_import_path": token_region_display,
                     "token_data_source": token_data_source,
+                    "has_imported_tokens": token_data_source == "imported",
+                    "catalog_market": catalog_market,
                 }
             )
         finally:
