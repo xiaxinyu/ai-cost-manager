@@ -200,7 +200,7 @@
                 <div class="meterTotalLabel">Output cost (meter)</div>
                 <div class="meterTotalValue" id="reportOutputCostTotal">—</div>
               </article>
-              <article class="meterTotalCard meterTotalCardAccent">
+              <article class="meterTotalCard meterTotalCardEmphasis">
                 <div class="meterTotalLabel">Meter total (in + out)</div>
                 <div class="meterTotalValue" id="reportMeterCostTotal">—</div>
               </article>
@@ -217,10 +217,10 @@
                   <thead>
                     <tr>
                       <th scope="col">Model</th>
-                      <th class="num" scope="col">Input</th>
-                      <th class="num" scope="col">Output</th>
-                      <th class="num" scope="col">Meter total</th>
-                      <th class="num" scope="col">Catalog</th>
+                      <th class="num" scope="col">Input (USD)</th>
+                      <th class="num" scope="col">Output (USD)</th>
+                      <th class="num" scope="col">Meter total (USD)</th>
+                      <th class="num" scope="col">Catalog (USD)</th>
                       <th class="num" scope="col">Δ vs catalog</th>
                       <th class="num" scope="col">Days</th>
                     </tr>
@@ -262,14 +262,23 @@
               <button id="exportProjectBreakdownBtn" class="btnSmall" type="button">Export CSV</button>
             </div>
             <div class="tableScroll reportTableScroll">
-              <table id="projectBreakdownTable" class="dataTable">
+              <table id="projectBreakdownTable" class="dataTable reportProjectTable">
+                <colgroup>
+                  <col class="reportColProject" />
+                  <col class="reportColModels" />
+                  <col class="reportColMoney" />
+                  <col class="reportColShare" />
+                  <col class="reportColDays" />
+                  <col class="reportColTokens" />
+                  <col class="reportColTokens" />
+                </colgroup>
                 <thead>
                   <tr>
                     <th class="sortable" data-label="Project" data-sort-key="project_name" scope="col">Project</th>
+                    <th data-label="Models" scope="col">Models</th>
                     <th class="num sortable" data-label="Cost (USD)" data-sort-key="actual_cost_usd_total" scope="col">Cost (USD)</th>
                     <th class="num" scope="col">Share</th>
                     <th class="num sortable" data-label="Days" data-sort-key="actual_days" scope="col">Days</th>
-                    <th data-label="Model" scope="col">Model</th>
                     <th class="num sortable" data-label="Input tokens" data-sort-key="input_tokens" scope="col">Input tokens</th>
                     <th class="num sortable" data-label="Output tokens" data-sort-key="output_tokens" scope="col">Output tokens</th>
                   </tr>
@@ -293,14 +302,18 @@
                 <div class="chartCanvasHost chartPlot"><canvas id="dailyTokenChart"></canvas></div>
               </article>
               <article class="card chartCard">
-                <div class="chartCardHead">
+                <div class="chartCardHead rowsToolbar">
                   <h3 class="chartCardTitle">Output / input ratio</h3>
                   <button id="exportTokenRatioBtn" class="btnSmall" type="button">Export CSV</button>
                 </div>
                 <p class="ratioKpiLine muted" id="ratioKpiSummaryReport">Valid days: - · &gt;1: - · &lt;1: -</p>
                 <div class="chartCanvasHost chartPlot chartCanvasHostShort"><canvas id="dailyTokenRatioChart"></canvas></div>
                 <div class="tableScroll tableScrollCompact">
-                  <table class="dataTable">
+                  <table class="dataTable reportBillingTable">
+                    <colgroup>
+                      <col class="reportColPeriod" />
+                      <col class="reportColPct" />
+                    </colgroup>
                     <thead><tr><th>Date</th><th class="num">Ratio</th></tr></thead>
                     <tbody id="tokenRatioTbody"></tbody>
                   </table>
@@ -343,8 +356,14 @@
                   </div>
                 </div>
                 <div class="tableScroll">
-                  <table class="dataTable">
-                    <thead><tr><th>Date</th><th class="num">Actual</th><th class="num">Share</th><th class="num">Δ vs prior</th></tr></thead>
+                  <table class="dataTable reportBillingTable">
+                    <colgroup>
+                      <col class="reportColPeriod" />
+                      <col class="reportColMoney" />
+                      <col class="reportColPct" />
+                      <col class="reportColPct" />
+                    </colgroup>
+                    <thead><tr><th>Date</th><th class="num">Actual (USD)</th><th class="num">Share</th><th class="num">Δ vs prior</th></tr></thead>
                     <tbody id="dailyTbody"></tbody>
                   </table>
                 </div>
@@ -369,8 +388,14 @@
                   </div>
                 </div>
                 <div class="tableScroll">
-                  <table class="dataTable">
-                    <thead><tr><th>Month</th><th class="num">Actual</th><th class="num">Share</th><th class="num">Δ vs prior</th></tr></thead>
+                  <table class="dataTable reportBillingTable">
+                    <colgroup>
+                      <col class="reportColPeriod" />
+                      <col class="reportColMoney" />
+                      <col class="reportColPct" />
+                      <col class="reportColPct" />
+                    </colgroup>
+                    <thead><tr><th>Month</th><th class="num">Actual (USD)</th><th class="num">Share</th><th class="num">Δ vs prior</th></tr></thead>
                     <tbody id="monthlyTbody"></tbody>
                   </table>
                 </div>
@@ -454,6 +479,13 @@
 
       function fmtCost(n) {
         return window.AppMoney?.fmtCost(n, _currency()) ?? '-';
+      }
+
+      /** Table cells: amount only (currency in column header). */
+      function fmtCostCell(n) {
+        const x = window.AppMoney?.roundCost?.(n);
+        if (x === null) return '—';
+        return x.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
       }
       function tokenIn(p) {
         if (!p) return null;
@@ -609,7 +641,7 @@
         if (meterTotals) meterTotals.hidden = false;
         const setMeter = (id, val) => {
           const el = document.getElementById(id);
-          if (el) el.textContent = val != null ? fmtCost(val) : '—';
+          if (el) el.textContent = val != null ? fmtCostCell(val) : '—';
         };
         setMeter('reportInputCostTotal', summary.total_input_cost_usd);
         setMeter('reportOutputCostTotal', summary.total_output_cost_usd);
@@ -633,10 +665,10 @@
               const name = escapeHtml(r.model_name || '—');
               return `<tr>
                 <td class="tdModelName" title="${name}">${name}</td>
-                <td class="num mono">${fmtCost(r.input_cost_usd)}</td>
-                <td class="num mono">${fmtCost(r.output_cost_usd)}</td>
-                <td class="num mono">${meterTotal != null ? fmtCost(meterTotal) : '—'}</td>
-                <td class="num mono">${fmtCost(r.catalog_cost_usd)}</td>
+                <td class="num mono">${fmtCostCell(r.input_cost_usd)}</td>
+                <td class="num mono">${fmtCostCell(r.output_cost_usd)}</td>
+                <td class="num mono">${meterTotal != null ? fmtCostCell(meterTotal) : '—'}</td>
+                <td class="num mono">${fmtCostCell(r.catalog_cost_usd)}</td>
                 <td class="num mono">${escapeHtml(delta)}</td>
                 <td class="num">${escapeHtml(String(r.days_with_rows ?? '—'))}</td>
               </tr>`;
@@ -646,10 +678,10 @@
         if (tfoot) {
           tfoot.innerHTML = `<tr class="modelCostTotalRow">
             <th scope="row">All models</th>
-            <td class="num mono">${fmtCost(summary.total_input_cost_usd)}</td>
-            <td class="num mono">${fmtCost(summary.total_output_cost_usd)}</td>
-            <td class="num mono">${fmtCost(summary.total_meter_cost_usd)}</td>
-            <td class="num mono">${fmtCost(summary.total_catalog_cost_usd)}</td>
+            <td class="num mono">${fmtCostCell(summary.total_input_cost_usd)}</td>
+            <td class="num mono">${fmtCostCell(summary.total_output_cost_usd)}</td>
+            <td class="num mono">${fmtCostCell(summary.total_meter_cost_usd)}</td>
+            <td class="num mono">${fmtCostCell(summary.total_catalog_cost_usd)}</td>
             <td class="num mono">${
               summary.variance_pct != null ? `${summary.variance_pct > 0 ? '+' : ''}${summary.variance_pct}%` : '—'
             }</td>
@@ -1110,11 +1142,11 @@
           const cost = Number(r.actual_cost_usd_total ?? 0);
           const share = totalCost > 0 ? (cost / totalCost) * 100 : null;
           tr.innerHTML = `
-            <td>${escapeHtml(r.project_name || '')}</td>
-            <td class="num">${fmtCost(r.actual_cost_usd_total)}</td>
+            <td class="tdText">${escapeHtml(r.project_name || '')}</td>
+            <td class="tdModelName" title="${escapeHtml(modelName)}">${modelHtml}</td>
+            <td class="num mono">${fmtCostCell(r.actual_cost_usd_total)}</td>
             <td class="num shareCol">${renderShareBar(share)}</td>
             <td class="num">${fmt(r.actual_days)}</td>
-            <td class="tdModelName" title="${escapeHtml(modelName)}">${modelHtml}</td>
             <td class="num">${inTok == null ? '—' : fmtInt(inTok)}</td>
             <td class="num">${outTok == null ? '—' : fmtInt(outTok)}</td>
           `;
@@ -1459,7 +1491,7 @@
             labels: dailyTokenLabels,
             datasets: [
               {
-                label: L.tokenInput || 'Input tokens (actual)',
+                label: 'Input tokens',
                 data: dailyTokenInput,
                 borderColor: C.input || '#60a5fa',
                 fill: false,
@@ -1471,7 +1503,7 @@
                 yAxisID: 'yTokens'
               },
               {
-                label: L.tokenOutput || 'Output tokens (actual)',
+                label: 'Output tokens',
                 data: dailyTokenOutput,
                 borderColor: C.output || '#a78bfa',
                 fill: false,
@@ -1483,7 +1515,7 @@
                 yAxisID: 'yTokens'
               },
               {
-                label: L.tokenTotal || 'Total tokens (actual)',
+                label: 'Total tokens',
                 data: dailyTokenTotal,
                 borderColor: C.total || '#f59e0b',
                 fill: false,
@@ -1513,7 +1545,7 @@
               }
             },
             scales: {
-              x: { ticks: { autoSkip: true, maxTicksLimit: 12, maxRotation: 0 } },
+              x: { ticks: { autoSkip: true, maxTicksLimit: 8, maxRotation: 0 } },
               y: { display: false },
               yTokens: {
                 position: 'right',
@@ -1633,7 +1665,7 @@
               const r = ratioRows[i];
               const tr = document.createElement('tr');
               const val = r.ratio === null || r.ratio === undefined ? '-' : Number(r.ratio).toLocaleString(undefined, { maximumFractionDigits: 3 });
-              tr.innerHTML = `<td>${r.date}</td><td class="num">${val}</td>`;
+              tr.innerHTML = `<td class="tdText">${r.date}</td><td class="num">${val}</td>`;
               ratioTbody.appendChild(tr);
             }
           }
@@ -1662,7 +1694,7 @@
             labels: monthlyTokenLabels,
             datasets: [
               {
-                label: L.tokenInput || 'Input tokens (actual)',
+                label: 'Input tokens',
                 data: monthlyTokenInput,
                 borderColor: C.input || '#60a5fa',
                 fill: false,
@@ -1674,7 +1706,7 @@
                 yAxisID: 'yTokens'
               },
               {
-                label: L.tokenOutput || 'Output tokens (actual)',
+                label: 'Output tokens',
                 data: monthlyTokenOutput,
                 borderColor: C.output || '#a78bfa',
                 fill: false,
@@ -1686,7 +1718,7 @@
                 yAxisID: 'yTokens'
               },
               {
-                label: L.tokenTotal || 'Total tokens (actual)',
+                label: 'Total tokens',
                 data: monthlyTokenTotal,
                 borderColor: C.total || '#f59e0b',
                 fill: false,
@@ -1716,7 +1748,7 @@
               }
             },
             scales: {
-              x: { ticks: { autoSkip: true, maxTicksLimit: 12, maxRotation: 0 } },
+              x: { ticks: { autoSkip: true, maxTicksLimit: 8, maxRotation: 0 } },
               y: { display: false },
               yTokens: {
                 position: 'right',
@@ -1751,7 +1783,7 @@
         } else {
           for (const p of slice) {
             const tr = document.createElement('tr');
-            tr.innerHTML = `<td>${p.date ?? ''}</td><td class="num">${fmtCost(p.cost_usd)}</td><td class="num">${fmtPct(p.share_pct)}</td><td class="num">${fmtDeltaPct(p.change_pct)}</td>`;
+            tr.innerHTML = `<td class="tdText">${p.date ?? ''}</td><td class="num mono">${fmtCostCell(p.cost_usd)}</td><td class="num">${fmtPct(p.share_pct)}</td><td class="num">${fmtDeltaPct(p.change_pct)}</td>`;
             tbodyEl.appendChild(tr);
           }
         }

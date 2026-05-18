@@ -49,6 +49,40 @@ def token_model_name(*, version: str, family: str | None) -> str:
     return f"gpt-{version}"
 
 
+_AZURE_MODEL_DATE_SUFFIX_RE = re.compile(
+    r"(?:[-_])(?:20\d{2})(?:[-_](?:\d{1,2}|\d{2}|\d{4}|\d{2}[-_]\d{2}))*$"
+)
+_GPT_4O_COMPACT_RE = re.compile(r"^gpt4o(?:mini)?(?P<date>20\d{2,})?$", re.IGNORECASE)
+
+
+def _strip_azure_model_date_suffix(name: str) -> str:
+    s = name.strip()
+    while True:
+        nxt = _AZURE_MODEL_DATE_SUFFIX_RE.sub("", s)
+        if nxt == s:
+            return s
+        s = nxt
+
+
+def _canonical_gpt_4o_family(raw: str, compact: str, tokens: list[str]) -> str | None:
+    """Return gpt-4o / gpt-4o-mini when the label is in the GPT-4o family."""
+    low = raw.lower()
+    if "mini" in low and ("4o" in compact or any(t == "4o" for t in tokens)):
+        return "gpt-4o-mini"
+    if re.search(r"(?i)gpt[\s\-_]*4o[\s\-_]*mini|4o[\s\-_]*mini", raw):
+        return "gpt-4o-mini"
+    m_compact = _GPT_4O_COMPACT_RE.match(compact)
+    if m_compact:
+        return "gpt-4o-mini" if compact.lower().startswith("gpt4omini") else "gpt-4o"
+    if re.search(r"(?i)gpt[\s\-_]*4o(?:[\s\-_]|$)", raw):
+        return "gpt-4o"
+    if any(t == "4o" for t in tokens) and ("gpt" in tokens or compact.startswith("gpt")):
+        return "gpt-4o"
+    if compact.startswith("gpt4o"):
+        return "gpt-4o"
+    return None
+
+
 def canonical_model_name(name: str | None) -> str:
     """
     Canonicalize model names from token headers / meter-derived labels.
@@ -56,7 +90,9 @@ def canonical_model_name(name: str | None) -> str:
     Examples:
     - "gpt-5.3-codex"  -> "gpt-5.3-codex"
     - "GPT 5.3 CODEX"  -> "gpt-5.3-codex"
-    - "gpt53codex"     -> "gpt-53-codex" (best effort)
+    - "gpt-4o-2024-11-20" -> "gpt-4o"
+    - "GPT-4o-2024-0513" -> "gpt-4o"
+    - "gpt 4o 1120" -> "gpt-4o"
     """
     if not name:
         return ""
@@ -64,8 +100,14 @@ def canonical_model_name(name: str | None) -> str:
     if not raw:
         return ""
 
+    raw = _strip_azure_model_date_suffix(raw)
     compact = "".join(ch for ch in raw if ch.isalnum() or ch == ".")
     tokens = _METER_TOKEN_RE.findall(raw)
+
+    gpt_4o = _canonical_gpt_4o_family(raw, compact, tokens)
+    if gpt_4o:
+        return gpt_4o
+
     has_gpt_hint = ("gpt" in tokens) or ("gpt" in compact)
     has_codex_hint = ("codex" in tokens) or ("codex" in compact)
     is_plain_version = bool(_MODEL_VERSION_RE.fullmatch(raw))
@@ -77,9 +119,14 @@ def canonical_model_name(name: str | None) -> str:
     version: str | None = None
     for i, tok in enumerate(tokens):
         if tok == "gpt":
-            if i + 1 < len(tokens) and _MODEL_VERSION_RE.fullmatch(tokens[i + 1]):
-                version = tokens[i + 1]
+            nxt = tokens[i + 1] if i + 1 < len(tokens) else ""
+            if nxt == "4o":
+                continue
+            if nxt and _MODEL_VERSION_RE.fullmatch(nxt):
+                version = nxt
                 break
+        elif tok == "4o":
+            continue
         elif _MODEL_PREFIXED_VERSION_RE.match(tok):
             version = _MODEL_PREFIXED_VERSION_RE.match(tok).group(1)  # type: ignore[union-attr]
             break
@@ -89,7 +136,12 @@ def canonical_model_name(name: str | None) -> str:
     if version is None:
         m = _MODEL_VERSION_RE.search(raw)
         if m:
-            version = m.group(1)
+            span = m.group(0)
+            start = m.start()
+            if start > 0 and raw[start - 1 : start + len(span)] == "4o":
+                version = None
+            else:
+                version = m.group(1)
     if version is None:
         return ""
     if not (has_gpt_hint or has_codex_hint or is_plain_version):

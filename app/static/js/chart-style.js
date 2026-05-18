@@ -14,12 +14,12 @@
   const labels = {
     costActual: 'CostUSD (Actual)',
     costForecast: 'CostUSD (Forecast 7d)',
-    tokenInput: 'Estimated Input Tokens',
-    tokenOutput: 'Estimated Output Tokens',
-    tokenTotal: 'Estimated Total Tokens',
-    tokenInputForecast: 'Estimated Input Tokens (Forecast 7d)',
-    tokenOutputForecast: 'Estimated Output Tokens (Forecast 7d)',
-    tokenTotalForecast: 'Estimated Total Tokens (Forecast 7d)',
+    tokenInput: 'Input tokens',
+    tokenOutput: 'Output tokens',
+    tokenTotal: 'Total tokens',
+    tokenInputForecast: 'Input tokens (forecast 7d)',
+    tokenOutputForecast: 'Output tokens (forecast 7d)',
+    tokenTotalForecast: 'Total tokens (forecast 7d)',
   };
 
   window.AppChartStyle = { colors, labels };

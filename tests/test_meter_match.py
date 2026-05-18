@@ -4,6 +4,7 @@ import pytest
 
 from app.meter_match import (
     aggregate_billing_rows,
+    canonical_model_name,
     parse_foundry_meter,
     sum_meter_costs,
     token_model_name,
@@ -71,6 +72,31 @@ def test_aggregate_billing_rows_cached_input_rolls_to_input_bucket():
 def test_token_models_match_fuzzy():
     assert token_models_match("gpt-5.3-codex", "GPT-5.3-Codex")
     assert not token_models_match("gpt-5.3-codex", "gpt-5.4")
+
+
+@pytest.mark.parametrize(
+    "raw,expected",
+    [
+        ("gpt-4o", "gpt-4o"),
+        ("GPT-4o", "gpt-4o"),
+        ("gpt-4o-2024-11-20", "gpt-4o"),
+        ("GPT-4o-2024-0513", "gpt-4o"),
+        ("gpt 4o 1120", "gpt-4o"),
+        ("gpt4o", "gpt-4o"),
+        ("gpt4o20241120", "gpt-4o"),
+        ("gpt-4o-mini", "gpt-4o-mini"),
+        ("gpt-4o-mini-2024-07-18", "gpt-4o-mini"),
+    ],
+)
+def test_canonical_model_name_gpt_4o_family(raw, expected):
+    assert canonical_model_name(raw) == expected
+
+
+def test_token_models_match_gpt_4o_catalog_snapshot():
+    assert token_models_match("gpt-4o-2024-11-20", "GPT-4o-2024-0513")
+    assert token_models_match("gpt-4o", "GPT-4o-2024-0513")
+    assert token_models_match("gpt 4o 1120", "GPT-4o-2024-0513")
+    assert not token_models_match("gpt-4o", "gpt-5.4")
 
 
 def test_token_model_name():

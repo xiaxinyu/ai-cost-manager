@@ -349,11 +349,45 @@
     return { available: models.length > 0, models };
   }
 
+  function stripAzureModelDateSuffix(name) {
+    let s = String(name || "").trim().toLowerCase();
+    const re = /[-_](?:20\d{2})(?:[-_](?:\d{1,2}|\d{2}|\d{4}|\d{2}[-_]\d{2}))*$/;
+    let prev = null;
+    while (s !== prev) {
+      prev = s;
+      s = s.replace(re, "");
+    }
+    return s;
+  }
+
+  function canonicalModelKey(name) {
+    let raw = stripAzureModelDateSuffix(name);
+    const compact = raw.replace(/[^a-z0-9.]/g, "");
+    const tokens = raw.match(/[a-z0-9.]+/g) || [];
+    if (/mini/.test(raw) && (/4o/.test(compact) || tokens.includes("4o"))) {
+      return "gpt-4o-mini";
+    }
+    if (/^gpt4omini(?:20\d{2,})?$/i.test(compact)) {
+      return "gpt-4o-mini";
+    }
+    if (/gpt[\s\-_]*4o[\s\-_]*mini|4o[\s\-_]*mini/i.test(raw)) {
+      return "gpt-4o-mini";
+    }
+    if (/^gpt4o(?:20\d{2,})?$/i.test(compact)) {
+      return "gpt-4o";
+    }
+    if (/gpt[\s\-_]*4o(?:[\s\-_]|$)/i.test(raw)) {
+      return "gpt-4o";
+    }
+    if (tokens.includes("4o") && (tokens.includes("gpt") || compact.startsWith("gpt"))) {
+      return "gpt-4o";
+    }
+    return raw.replace(/\s+/g, "-");
+  }
+
   function normalizeModelKey(name) {
-    return String(name || "")
-      .trim()
-      .toLowerCase()
-      .replace(/\s+/g, "-");
+    const canonical = canonicalModelKey(name);
+    return canonical.replace(/[^a-z0-9]/g, "");
   }
 
   function findCatalogModel(modelName, catalogModels) {
@@ -363,6 +397,7 @@
     let fuzzy = null;
     for (const c of catalogModels || []) {
       const cn = normalizeModelKey(c.model_name);
+      if (!cn) continue;
       if (cn === target) {
         exact = c;
         break;
@@ -713,32 +748,32 @@
       els.sourceBadge.hidden = false;
       els.sourceBadge.classList.remove("sourceImported", "sourceEstimated");
       els.sourceBadge.classList.add(imported ? "sourceImported" : "sourceEstimated");
-      els.sourceBadgeText.textContent = imported ? "Imported CSV" : "Cost estimate";
+      els.sourceBadgeText.textContent = imported ? "Imported CSV" : "From billing";
     }
 
-    const inputLabel = imported ? "Input tokens (actual)" : "Estimated input";
-    const outputLabel = imported ? "Output tokens (actual)" : "Estimated output";
-    const totalLabel = imported ? "Total tokens (actual)" : "Estimated total";
+    const inputLabel = "Input tokens";
+    const outputLabel = "Output tokens";
+    const totalLabel = "Total tokens";
 
     if (els.labelInput) els.labelInput.textContent = inputLabel;
     if (els.labelOutput) els.labelOutput.textContent = outputLabel;
     if (els.labelTotal) els.labelTotal.textContent = totalLabel;
     if (els.chartTitleInput) {
-      els.chartTitleInput.textContent = imported ? "Input tokens (imported)" : "Estimated input tokens";
+      els.chartTitleInput.textContent = imported ? "Input tokens" : "Input tokens (from billing)";
     }
     if (els.chartTitleOutput) {
-      els.chartTitleOutput.textContent = imported ? "Output tokens (imported)" : "Estimated output tokens";
+      els.chartTitleOutput.textContent = imported ? "Output tokens" : "Output tokens (from billing)";
     }
     if (els.tableHint) {
       els.tableHint.textContent = imported
         ? "One row per model/day — tokens, costs, unit $/1M, and out÷in ratio."
-        : "Estimated tokens and out÷in ratio from billing.";
+        : "Token volume derived from billing and catalog pricing (no token CSV).";
     }
 
     chartLabels = {
-      input: imported ? "Input tokens" : L.tokenInput || "Estimated input",
-      output: imported ? "Output tokens" : L.tokenOutput || "Estimated output",
-      total: imported ? "Total tokens" : L.tokenTotal || "Estimated total",
+      input: imported ? "Input tokens" : "Input tokens (from billing)",
+      output: imported ? "Output tokens" : "Output tokens (from billing)",
+      total: imported ? "Total tokens" : "Total tokens (from billing)",
     };
 
     if (els.filterHint) {
@@ -746,7 +781,7 @@
       const models = (series.import_meta?.models || []).length;
       els.filterHint.textContent = imported
         ? `Imported CSV · ${models} model column(s) · bills/<project>/token/`
-        : "Estimated from pricing model (no token CSV).";
+        : "Derived from billing × catalog price (no token CSV).";
     }
 
     if (els.tokenModel) {

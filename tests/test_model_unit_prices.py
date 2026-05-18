@@ -272,6 +272,59 @@ def test_catalog_prefers_global_standard_over_cheaper_fuzzy(tmp_path):
     assert resolved["output_source"]["amount"] == 10.0
 
 
+def test_catalog_prices_gpt_4o_family_match(tmp_path):
+    """gpt-4o dated snapshots and shorthand labels match GPT-4o catalog rows."""
+    conn = sqlite3.connect(":memory:")
+    conn.row_factory = sqlite3.Row
+    try:
+        init_db(conn)
+        for metric, amount in (("input", 5.5), ("output", 16.5)):
+            conn.execute(
+                """
+                INSERT INTO model_prices(
+                    source_id, source_url, effective_date, retrieved_at_utc,
+                    vendor, platform, price_region, price_currency,
+                    model_series, model_name, context_bucket, deployment_scope,
+                    billing_mode, metric_name, amount,
+                    unit_quantity, unit_name, unit_expression, notes, source_detail_json
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    "src",
+                    "https://example.com",
+                    "2026-04-29",
+                    "2026-04-29T00:00:00Z",
+                    "Microsoft",
+                    "azure-openai",
+                    "East US",
+                    "USD",
+                    "GPT-4o Series",
+                    "GPT-4o-2024-0513",
+                    None,
+                    "global",
+                    "standard",
+                    metric,
+                    amount,
+                    1_000_000,
+                    "tokens",
+                    "USD/1M tokens",
+                    None,
+                    None,
+                ),
+            )
+        conn.commit()
+        from app.db import _resolve_catalog_prices_for_model_name
+
+        for token_model in ("gpt-4o", "gpt-4o-2024-11-20", "gpt 4o 1120"):
+            resolved = _resolve_catalog_prices_for_model_name(conn, token_model)
+            assert resolved["input_source"] is not None, token_model
+            assert resolved["input_source"]["catalog_model_name"] == "GPT-4o-2024-0513"
+            assert resolved["input_source"]["amount"] == 5.5
+            assert resolved["output_source"]["amount"] == 16.5
+    finally:
+        conn.close()
+
+
 def test_catalog_prices_fuzzy_match_normalized_model_name(tmp_path):
     """Token CSV model keys like gpt-5.3-codex should match catalog GPT-5.3 Codex."""
     bills_dir = tmp_path / "bills"

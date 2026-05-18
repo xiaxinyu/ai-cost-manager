@@ -426,6 +426,17 @@
   max-height: 320px;
 }
 
+.reportPage .dataTable {
+  width: 100%;
+  table-layout: fixed;
+}
+
+.reportPage .dataTable th,
+.reportPage .dataTable td {
+  padding: 9px 12px;
+  vertical-align: middle;
+}
+
 .reportPage .dataTable thead th {
   position: sticky;
   top: 0;
@@ -436,6 +447,52 @@
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: #adc0d8;
+}
+
+.reportPage .dataTable thead th.num,
+.reportPage .dataTable tbody td.num {
+  text-align: right;
+}
+
+.reportPage .dataTable tbody td.tdText,
+.reportPage .dataTable tbody td.tdModelName {
+  text-align: left;
+  white-space: normal;
+  word-break: break-word;
+  line-height: 1.35;
+}
+
+.reportPage .dataTable .mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 12px;
+}
+
+.reportColProject {
+  width: 22%;
+}
+
+.reportColModels {
+  width: 18%;
+}
+
+.reportColMoney {
+  width: 11%;
+}
+
+.reportColShare {
+  width: 14%;
+}
+
+.reportColDays {
+  width: 7%;
+}
+
+.reportColTokens {
+  width: 14%;
+}
+
+.reportColPeriod {
+  width: 26%;
 }
 
 .reportPage .dataTable tbody tr:nth-child(even) {
@@ -522,13 +579,30 @@
   color: #e7edf6;
 }
 
-.chartCardHead {
+.chartCardHead,
+.reportPage .rowsToolbar {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
-  gap: 10px;
+  gap: 12px;
   flex-wrap: wrap;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
+}
+
+.reportPage .rowsToolbar {
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(173, 196, 228, 0.12);
+}
+
+.reportPage .rowsToolbar > div:first-child,
+.chartCardHead > div:first-child {
+  flex: 1;
+  min-width: 0;
+}
+
+.reportPage .rowsToolbar .panelTitle,
+.chartCardHead .chartCardTitle {
+  margin: 0;
 }
 
 .chartCardHead .chartCardTitle {
@@ -596,15 +670,19 @@
 
 .reportExecutiveHead {
   display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
 }
 
 .executiveHint {
+  display: block;
+  margin: 0;
   font-size: 12px;
-  text-align: right;
+  text-align: left;
+  line-height: 1.4;
 }
 
 .reportPage .meterTotalGrid {
@@ -623,9 +701,8 @@
   background: rgba(255, 255, 255, 0.04);
 }
 
-.reportPage .meterTotalCardAccent {
-  border-color: rgba(94, 234, 212, 0.32);
-  background: rgba(94, 234, 212, 0.08);
+.reportPage .meterTotalCardEmphasis .meterTotalValue {
+  color: #b8fff0;
 }
 
 .reportPage .meterTotalLabel {
@@ -634,6 +711,14 @@
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: #94a8c0;
+}
+
+.reportPage .meterTotalLabel::after {
+  content: " · USD";
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  color: #7a8fa8;
 }
 
 .reportPage .meterTotalValue {
@@ -720,6 +805,12 @@
   align-items: flex-start;
   gap: 12px;
   margin-bottom: 14px;
+}
+
+.reportSectionHead > div,
+.reportSectionHead > .reportExecutiveHead {
+  flex: 1;
+  min-width: 0;
 }
 
 .reportStep {
@@ -860,6 +951,14 @@
   min-width: 7.5rem;
 }
 
+.reportPage .dataTable td.shareCol {
+  text-align: right;
+}
+
+.reportPage .dataTable td.shareCol .shareBarCell {
+  justify-content: flex-end;
+}
+
 .shareBarCell {
   display: flex;
   align-items: center;
@@ -903,14 +1002,6 @@
 
 .deltaFlat {
   color: #9fb2c7;
-}
-
-.reportExecutiveHead {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  flex: 1;
-  min-width: 0;
 }
 
 @media (max-width: 1180px) {
