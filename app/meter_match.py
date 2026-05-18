@@ -309,25 +309,58 @@ def sum_meter_costs(
 
 def aggregate_billing_rows(
     rows: Iterable[tuple[str, str, float]],
+    *,
+    token_models: Iterable[str] | None = None,
 ) -> dict[str, dict[str, dict[str, float]]]:
     """
     Aggregate transaction rows into date → token_model → {input, output, total} costs.
 
-    Each row is (usage_date, meter, cost_usd).
+    Each row is (usage_date, meter, cost_usd). Uses strict meter parse first, then
+    explicit model+direction matching against ``token_models`` when parse fails.
     """
+    models_list = sorted(
+        {
+            canonical_model_name(m) or str(m)
+            for m in (token_models or [])
+            if m and str(m).strip()
+        }
+    )
     out: dict[str, dict[str, dict[str, float]]] = {}
     for usage_date, meter, cost_usd in rows:
-        parsed = parse_foundry_meter(meter)
-        if parsed is None:
-            continue
         cost = float(cost_usd or 0.0)
         if cost <= 0:
             continue
-        bucket = billing_direction_bucket(parsed.billing_direction)
-        day = out.setdefault(str(usage_date), {}).setdefault(
-            parsed.token_model,
-            {"input": 0.0, "output": 0.0, "total": 0.0},
-        )
-        day[bucket] = day.get(bucket, 0.0) + cost
-        day["total"] = day.get("total", 0.0) + cost
+        parsed = parse_foundry_meter(meter)
+        if parsed is not None:
+            bucket = billing_direction_bucket(parsed.billing_direction)
+            day = out.setdefault(str(usage_date), {}).setdefault(
+                parsed.token_model,
+                {"input": 0.0, "output": 0.0, "total": 0.0},
+            )
+            day[bucket] = day.get(bucket, 0.0) + cost
+            day["total"] = day.get("total", 0.0) + cost
+            continue
+        if not models_list:
+            continue
+        for model in models_list:
+            if meter_matches_model_direction(
+                meter, token_model=model, token_direction="input"
+            ):
+                day = out.setdefault(str(usage_date), {}).setdefault(
+                    model,
+                    {"input": 0.0, "output": 0.0, "total": 0.0},
+                )
+                day["input"] = day.get("input", 0.0) + cost
+                day["total"] = day.get("total", 0.0) + cost
+                break
+            if meter_matches_model_direction(
+                meter, token_model=model, token_direction="output"
+            ):
+                day = out.setdefault(str(usage_date), {}).setdefault(
+                    model,
+                    {"input": 0.0, "output": 0.0, "total": 0.0},
+                )
+                day["output"] = day.get("output", 0.0) + cost
+                day["total"] = day.get("total", 0.0) + cost
+                break
     return out

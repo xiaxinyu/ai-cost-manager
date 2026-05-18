@@ -61,8 +61,109 @@
       #modelCostSummaryTable td.num {
         text-align: right;
       }
-      #timeseriesChartActualByModel {
+      .catalogSourceCell {
+        min-width: 220px;
+        max-width: 360px;
+        font-size: 11px;
+        line-height: 1.45;
+        vertical-align: top;
+      }
+      .catalogSourceLines {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+      .catalogSourceMetric {
+        display: inline-block;
+        min-width: 28px;
+        color: #9fb2c7;
+        font-weight: 600;
+      }
+      .catalogSourceName {
+        color: #e6edf3;
+        font-weight: 600;
+      }
+      .catalogMatchTag {
+        display: inline-block;
+        margin-left: 4px;
+        padding: 0 6px;
+        border-radius: 999px;
+        font-size: 10px;
+        font-weight: 700;
+        color: #fbbf24;
+        border: 1px solid rgba(251, 191, 36, 0.35);
+        background: rgba(251, 191, 36, 0.1);
+        vertical-align: middle;
+      }
+      .catalogTierTag {
+        display: inline-block;
+        margin-left: 4px;
+        padding: 0 6px;
+        border-radius: 999px;
+        font-size: 10px;
+        font-weight: 700;
+        color: #5eead4;
+        border: 1px solid rgba(94, 234, 212, 0.35);
+        background: rgba(94, 234, 212, 0.1);
+        vertical-align: middle;
+      }
+      .catalogTierTag.muted {
+        color: #9fb2c7;
+        border-color: rgba(159, 178, 199, 0.25);
+        background: rgba(159, 178, 199, 0.08);
+      }
+      .modelTableHint a {
+        color: #5eead4;
+        text-decoration: none;
+      }
+      .modelTableHint a:hover {
+        text-decoration: underline;
+      }
+      #timeseriesChartInputByModel,
+      #timeseriesChartOutputByModel {
         min-height: 300px;
+      }
+      .modelCostDirCharts {
+        margin-top: 10px;
+      }
+      .meterTotalGrid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 12px;
+      }
+      @media (max-width: 900px) {
+        .meterTotalGrid {
+          grid-template-columns: 1fr;
+        }
+      }
+      .meterTotalItem {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        padding: 10px 12px;
+        border-radius: 10px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        background: rgba(255, 255, 255, 0.04);
+      }
+      .meterTotalItemHighlight {
+        border-color: rgba(94, 234, 212, 0.28);
+        background: rgba(94, 234, 212, 0.08);
+      }
+      .meterTotalLabel {
+        font-size: 11px;
+        color: #9fb2c7;
+        font-weight: 600;
+      }
+      .meterTotalValue {
+        font-size: 18px;
+        font-weight: 700;
+        color: #e6edf3;
+      }
+      #modelCostSummaryTable tfoot th,
+      #modelCostSummaryTable tfoot td {
+        border-top: 1px solid rgba(94, 234, 212, 0.25);
+        background: rgba(94, 234, 212, 0.06);
+        font-weight: 700;
       }
       .stat {
         display: flex;
@@ -472,8 +573,34 @@
   max-height: 320px;
 }
 
-#timeseriesChartActualByModel {
+#timeseriesChartInputByModel,
+#timeseriesChartOutputByModel {
   min-height: 300px;
+}
+
+.modelCostDirCharts {
+  margin-top: 10px;
+}
+
+.meterTotalGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.meterTotalItem {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.meterTotalItemHighlight {
+  border-color: rgba(94, 234, 212, 0.28);
+  background: rgba(94, 234, 212, 0.06);
 }
 
 @media (max-width: 960px) {

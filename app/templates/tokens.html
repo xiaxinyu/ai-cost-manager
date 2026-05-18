@@ -166,7 +166,7 @@
                   <span class="flowStepNum" aria-hidden="true">1</span>
                   <h2 id="flowDetailTitle" class="flowBlockTitle">Billing detail</h2>
                 </div>
-                <p class="flowBlockDesc muted" id="tableHint">One row per model/day. Unit price = cost ÷ tokens × 1M.</p>
+                <p class="flowBlockDesc muted" id="tableHint">Costs and $/1M come only from billing Meter rows (inp/opt) matched to each model — not estimated from daily totals.</p>
                 <div class="flowBlockActions">
                   <span id="tableRowBadge" class="tableRowBadge muted" hidden></span>
                   <button id="exportTokensBtn" class="btnSmall btnExport" type="button">Export CSV</button>
@@ -184,8 +184,9 @@
                       <th class="num thInputCostCol" scope="col">Input cost</th>
                       <th class="num thOutputCostCol" scope="col">Output cost</th>
                       <th class="num thTotalCostCol" scope="col">Total</th>
-                      <th class="num thUnitInCol" scope="col" title="Input cost ÷ input tokens × 1M">$/1M in</th>
-                      <th class="num thUnitOutCol" scope="col" title="Output cost ÷ output tokens × 1M">$/1M out</th>
+                      <th scope="col" title="How billing was matched">Billing</th>
+                      <th class="num thUnitInCol" scope="col" title="Meter input cost ÷ input tokens × 1M">$/1M in</th>
+                      <th class="num thUnitOutCol" scope="col" title="Meter output cost ÷ output tokens × 1M">$/1M out</th>
                       <th class="num thRatioCol" scope="col" title="Output tokens ÷ input tokens">
                         <div class="thStack">
                           <span class="thHeadPrimary">Ratio</span>
@@ -262,7 +263,7 @@
                   <span class="flowStepNum" aria-hidden="true">3</span>
                   <h2 id="flowCostTitle" class="flowBlockTitle">Cost</h2>
                 </div>
-                <p class="flowBlockDesc muted">Meter-matched billing — same rows as the table above.</p>
+                <p class="flowBlockDesc muted">Meter-matched input/opt billing only (no estimated split).</p>
               </header>
               <div class="flowChartGrid" aria-label="Daily billing cost">
               <article class="card chartPanel chartWide">
@@ -295,7 +296,7 @@
                   <span class="flowStepNum" aria-hidden="true">4</span>
                   <h2 id="flowUnitTitle" class="flowBlockTitle">Unit price</h2>
                 </div>
-                <p class="flowBlockDesc muted panelDesc" id="unitPriceNote">Solid = actual · dashed = catalog list.</p>
+                <p class="flowBlockDesc muted panelDesc" id="unitPriceNote">Solid = meter-matched $/1M (cost ÷ tokens) · dashed = Model Prices list.</p>
                 <div class="chartLegendKey flowBlockLegend" aria-hidden="true">
                   <span class="legendKeyItem"><span class="legendKeyLine legendKeySolid"></span> Actual</span>
                   <span class="legendKeyItem"><span class="legendKeyLine legendKeyDashed"></span> List price</span>

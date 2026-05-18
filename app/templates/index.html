@@ -96,27 +96,58 @@
                 <div class="sectionTitle">By model</div>
                 <span class="muted" id="modelSectionHint"></span>
               </div>
+              <div class="modelMeterTotals" id="modelMeterTotals" hidden>
+                <div class="card tight meterTotalCard">
+                  <div class="chartSectionTitle">Meter-matched totals (all models)</div>
+                  <div class="meterTotalGrid">
+                    <div class="meterTotalItem">
+                      <span class="meterTotalLabel">Input cost</span>
+                      <span class="meterTotalValue mono" id="projectInputCostTotal">—</span>
+                    </div>
+                    <div class="meterTotalItem">
+                      <span class="meterTotalLabel">Output cost</span>
+                      <span class="meterTotalValue mono" id="projectOutputCostTotal">—</span>
+                    </div>
+                    <div class="meterTotalItem meterTotalItemHighlight">
+                      <span class="meterTotalLabel">Input + output</span>
+                      <span class="meterTotalValue mono" id="projectMeterCostTotal">—</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
               <div class="card tight modelSummaryCard">
                 <div class="chartSectionTitle">Model totals (scope)</div>
-                <p class="muted modelTableHint">Actual = meter-matched or proportional billing split. Catalog = tokens × list price (USD/1M).</p>
+                <p class="muted modelTableHint">Actual = billing Meter (inp/opt). Catalog = tokens × list price from <a href="/prices">Model Prices</a>.</p>
                 <div class="tableScroll modelSummaryTableWrap">
                   <table class="dataTable" id="modelCostSummaryTable">
                     <thead>
                       <tr>
-                        <th scope="col">Model</th>
-                        <th class="num" scope="col">Actual</th>
+                        <th scope="col">Model (tokens)</th>
+                        <th scope="col">Catalog source (Model Prices)</th>
+                        <th class="num" scope="col">Input actual</th>
+                        <th class="num" scope="col">Output actual</th>
+                        <th class="num" scope="col">Total actual</th>
                         <th class="num" scope="col">Catalog market</th>
                         <th class="num" scope="col">Δ vs catalog</th>
                         <th class="num" scope="col">Days</th>
                       </tr>
                     </thead>
                     <tbody id="modelCostSummaryTbody"></tbody>
+                    <tfoot id="modelCostSummaryTfoot"></tfoot>
                   </table>
                 </div>
               </div>
-              <div class="card tight">
-                <div class="chartSectionTitle">Actual cost by model (daily)</div>
-                <canvas id="timeseriesChartActualByModel"></canvas>
+              <div class="chartStack modelCostDirCharts">
+                <div class="card tight">
+                  <div class="chartSectionTitle">Input cost by model (daily)</div>
+                  <p class="muted marketChartHint">Meter-matched input (inp) billing per model/day.</p>
+                  <canvas id="timeseriesChartInputByModel"></canvas>
+                </div>
+                <div class="card tight">
+                  <div class="chartSectionTitle">Output cost by model (daily)</div>
+                  <p class="muted marketChartHint">Meter-matched output (opt) billing per model/day.</p>
+                  <canvas id="timeseriesChartOutputByModel"></canvas>
+                </div>
               </div>
             </section>
             </section>
@@ -148,7 +179,8 @@
 
       let chartActual = null;
       let chartMarket = null;
-      let chartActualByModel = null;
+      let chartInputByModel = null;
+      let chartOutputByModel = null;
       let currentProjectName = null;
       let currentCurrency = null;
       let currentStartDate = null;
@@ -164,6 +196,11 @@
       const costModelSectionEl = document.getElementById('costModelSection');
       const modelSectionHintEl = document.getElementById('modelSectionHint');
       const modelCostSummaryTbodyEl = document.getElementById('modelCostSummaryTbody');
+      const modelCostSummaryTfootEl = document.getElementById('modelCostSummaryTfoot');
+      const modelMeterTotalsEl = document.getElementById('modelMeterTotals');
+      const projectInputCostTotalEl = document.getElementById('projectInputCostTotal');
+      const projectOutputCostTotalEl = document.getElementById('projectOutputCostTotal');
+      const projectMeterCostTotalEl = document.getElementById('projectMeterCostTotal');
 
       const MODEL_CHART_COLORS = [
         { border: '#60a5fa', fill: 'rgba(96, 165, 250, 0.12)' },
@@ -349,12 +386,18 @@
             chartMarket.destroy();
             chartMarket = null;
           }
-          if (chartActualByModel) {
-            chartActualByModel.destroy();
-            chartActualByModel = null;
+          if (chartInputByModel) {
+            chartInputByModel.destroy();
+            chartInputByModel = null;
+          }
+          if (chartOutputByModel) {
+            chartOutputByModel.destroy();
+            chartOutputByModel = null;
           }
           if (costModelSectionEl) costModelSectionEl.hidden = true;
+          if (modelMeterTotalsEl) modelMeterTotalsEl.hidden = true;
           if (modelCostSummaryTbodyEl) modelCostSummaryTbodyEl.innerHTML = '';
+          if (modelCostSummaryTfootEl) modelCostSummaryTfootEl.innerHTML = '';
           return;
         }
 
@@ -425,11 +468,17 @@
 
         if (costModelSectionEl) costModelSectionEl.hidden = !show;
         if (!show) {
-          if (chartActualByModel) {
-            chartActualByModel.destroy();
-            chartActualByModel = null;
+          if (chartInputByModel) {
+            chartInputByModel.destroy();
+            chartInputByModel = null;
+          }
+          if (chartOutputByModel) {
+            chartOutputByModel.destroy();
+            chartOutputByModel = null;
           }
           if (modelCostSummaryTbodyEl) modelCostSummaryTbodyEl.innerHTML = '';
+          if (modelCostSummaryTfootEl) modelCostSummaryTfootEl.innerHTML = '';
+          if (modelMeterTotalsEl) modelMeterTotalsEl.hidden = true;
           return;
         }
 
@@ -441,11 +490,53 @@
             : `${n} model(s) in scope`;
         }
 
-        renderModelSummaryTable(summary);
-        renderActualByModelChart(daily);
+        renderProjectMeterTotals(catalogPayload?.summary || {});
+        renderModelSummaryTable(summary, catalogPayload?.summary || {});
+        renderModelDirCostCharts(daily);
       }
 
-      function renderModelSummaryTable(rows) {
+      function renderProjectMeterTotals(summary) {
+        if (modelMeterTotalsEl) modelMeterTotalsEl.hidden = false;
+        const tin = summary.total_input_cost_usd;
+        const tout = summary.total_output_cost_usd;
+        const tmeter = summary.total_meter_cost_usd;
+        if (projectInputCostTotalEl) {
+          projectInputCostTotalEl.textContent = tin != null ? fmt2(tin) : '—';
+        }
+        if (projectOutputCostTotalEl) {
+          projectOutputCostTotalEl.textContent = tout != null ? fmt2(tout) : '—';
+        }
+        if (projectMeterCostTotalEl) {
+          projectMeterCostTotalEl.textContent = tmeter != null ? fmt2(tmeter) : '—';
+        }
+      }
+
+      function fmtCatalogPriceLine(src, metricLabel) {
+        if (!src || src.amount == null || !Number.isFinite(Number(src.amount))) {
+          return `<div class="catalogSourceLine muted"><span class="catalogSourceMetric">${metricLabel}</span> —</div>`;
+        }
+        const name = escapeHtml(src.catalog_model_name || '—');
+        const rate = window.AppMoney?.fmtCostPer1m(src.amount, currentCurrency) ?? String(src.amount);
+        const tier =
+          src.price_tier === 'global_standard'
+            ? ' <span class="catalogTierTag">global standard</span>'
+            : src.price_tier === 'standard'
+              ? ' <span class="catalogTierTag muted">standard</span>'
+              : '';
+        const kind = src.match_kind === 'exact' ? '' : ' <span class="catalogMatchTag">fuzzy</span>';
+        return `<div class="catalogSourceLine"><span class="catalogSourceMetric">${metricLabel}</span> <span class="catalogSourceName">${name}</span> · <span class="mono">${escapeHtml(rate)}</span>${tier}${kind}</div>`;
+      }
+
+      function renderCatalogSourceCell(row) {
+        const inp = row.catalog_price_input;
+        const out = row.catalog_price_output;
+        if (!inp && !out) {
+          return '<span class="muted">No match in Model Prices</span>';
+        }
+        return `<div class="catalogSourceLines">${fmtCatalogPriceLine(inp, 'In')}${fmtCatalogPriceLine(out, 'Out')}</div>`;
+      }
+
+      function renderModelSummaryTable(rows, projectSummary) {
         if (!modelCostSummaryTbodyEl) return;
         const sorted = [...(rows || [])].sort((a, b) => {
           const av = Number(a?.actual_cost_usd ?? 0);
@@ -461,6 +552,9 @@
                 : `${vPct > 0 ? '+' : ''}${vPct}%`;
             return `<tr>
               <td>${escapeHtml(r.model_name)}</td>
+              <td class="catalogSourceCell">${renderCatalogSourceCell(r)}</td>
+              <td class="num mono">${fmt2(r.input_cost_usd)}</td>
+              <td class="num mono">${fmt2(r.output_cost_usd)}</td>
               <td class="num mono">${fmt2(r.actual_cost_usd)}</td>
               <td class="num mono">${fmt2(r.catalog_cost_usd)}</td>
               <td class="num mono">${escapeHtml(delta)}</td>
@@ -468,9 +562,21 @@
             </tr>`;
           })
           .join('');
+        if (modelCostSummaryTfootEl) {
+          const ps = projectSummary || {};
+          modelCostSummaryTfootEl.innerHTML = `<tr class="modelCostTotalRow">
+            <th scope="row" colspan="2">All models (total)</th>
+            <td class="num mono">${fmt2(ps.total_input_cost_usd)}</td>
+            <td class="num mono">${fmt2(ps.total_output_cost_usd)}</td>
+            <td class="num mono">${fmt2(ps.total_meter_cost_usd ?? ps.total_actual_cost_usd)}</td>
+            <td class="num mono">${fmt2(ps.total_catalog_cost_usd)}</td>
+            <td class="num mono">—</td>
+            <td class="num">—</td>
+          </tr>`;
+        }
       }
 
-      function renderActualByModelChart(dailyByModel) {
+      function _buildModelDirCostChart(dailyByModel, valueKey) {
         const models = [
           ...new Set((dailyByModel || []).map((r) => String(r.model_name || '')).filter(Boolean)),
         ].sort();
@@ -480,7 +586,7 @@
           const byDate = new Map(
             (dailyByModel || [])
               .filter((r) => String(r.model_name) === model)
-              .map((r) => [String(r.date), r.actual_cost_usd])
+              .map((r) => [String(r.date), r[valueKey]])
           );
           const data = labels.map((d) => {
             const v = byDate.get(d);
@@ -500,12 +606,15 @@
             unitType: 'currency',
           };
         });
+        return { labels, datasets, models };
+      }
 
-        if (chartActualByModel) chartActualByModel.destroy();
-        const ctx = document.getElementById('timeseriesChartActualByModel')?.getContext('2d');
-        if (!ctx) return;
-
-        chartActualByModel = new Chart(ctx, {
+      function _renderDirCostChart(canvasId, existingChart, dailyByModel, valueKey, emptyMsg) {
+        const { labels, datasets, models } = _buildModelDirCostChart(dailyByModel, valueKey);
+        if (existingChart) existingChart.destroy();
+        const ctx = document.getElementById(canvasId)?.getContext('2d');
+        if (!ctx) return null;
+        return new Chart(ctx, {
           type: 'line',
           data: { labels, datasets },
           options: {
@@ -540,8 +649,25 @@
               },
             },
           },
-          plugins: [emptyStatePlugin('No per-model actual cost in range')],
+          plugins: [emptyStatePlugin(emptyMsg)],
         });
+      }
+
+      function renderModelDirCostCharts(dailyByModel) {
+        chartInputByModel = _renderDirCostChart(
+          'timeseriesChartInputByModel',
+          chartInputByModel,
+          dailyByModel,
+          'input_cost_usd',
+          'No meter-matched input cost in range'
+        );
+        chartOutputByModel = _renderDirCostChart(
+          'timeseriesChartOutputByModel',
+          chartOutputByModel,
+          dailyByModel,
+          'output_cost_usd',
+          'No meter-matched output cost in range'
+        );
       }
 
       function renderMarketChart(costPoints, catalogPayload) {

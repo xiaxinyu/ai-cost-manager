@@ -863,11 +863,11 @@ def get_imported_token_daily_by_model(
         out_tok = float(vals["output"])
         ratio: float | None = (out_tok / in_tok) if in_tok > 0 else None
         c = _lookup_cost(d, model_name)
-        method = str(c.get("allocation_method") or "no_cost_overlap")
+        method = str(c.get("allocation_method") or "no_meter_match")
         in_raw = c.get("input_cost_usd")
         out_raw = c.get("output_cost_usd")
         total_raw = c.get("total_cost_usd")
-        has_cost = method != "no_cost_overlap"
+        has_cost = method in {"meter_matched", "meter_matched_partial"}
         usd_per_1m_input: float | None = None
         usd_per_1m_output: float | None = None
         if has_cost and in_raw is not None and in_tok > 0 and float(in_raw) > 0:
@@ -974,6 +974,56 @@ def sum_transaction_cost_usd_for_model_day(
     return total
 
 
+def _meter_split_cost_for_model_day(
+    conn: sqlite3.Connection,
+    project_name: str,
+    *,
+    usage_date: str,
+    token_model: str,
+    currency: str | None = None,
+) -> dict[str, object]:
+    """
+    Bill input/output USD for one model day from transaction ``Meter`` rows only.
+
+    Never estimates from daily totals or token ratios.
+    """
+    bill_in = sum_transaction_cost_usd_for_model_day(
+        conn,
+        project_name,
+        usage_date=usage_date,
+        token_model=token_model,
+        token_direction="input",
+        currency=currency,
+    )
+    bill_out = sum_transaction_cost_usd_for_model_day(
+        conn,
+        project_name,
+        usage_date=usage_date,
+        token_model=token_model,
+        token_direction="output",
+        currency=currency,
+    )
+    meter_total = bill_in + bill_out
+    if meter_total <= 0:
+        return {
+            "input_cost_usd": None,
+            "output_cost_usd": None,
+            "total_cost_usd": None,
+            "allocation_method": "no_meter_match",
+        }
+    method = (
+        "meter_matched"
+        if bill_in > 0 and bill_out > 0
+        else "meter_matched_partial"
+    )
+    return {
+        "input_cost_usd": round_cost(bill_in) if bill_in > 0 else None,
+        "output_cost_usd": round_cost(bill_out) if bill_out > 0 else None,
+        "total_cost_usd": round_cost(meter_total),
+        "allocation_method": method,
+    }
+
+
 def get_imported_token_daily_cost_by_model(
     conn: sqlite3.Connection,
     project_name: str,
@@ -985,10 +1035,10 @@ def get_imported_token_daily_cost_by_model(
     """
     Per calendar day + model: split daily cost into input/output buckets.
 
-    Primary rule: for each (date, model, direction), sum ``transactions`` rows whose
-    ``Meter`` matches that model and direction (see ``sum_transaction_cost_usd_for_model_day``).
+    For each (date, model, direction), sum ``transactions`` rows whose ``Meter`` matches
+    that model and direction (see ``sum_transaction_cost_usd_for_model_day``).
 
-    Fallback: proportional split of daily project cost by model token share when no meter match.
+    When no meter rows match, costs and unit prices are left empty (no estimation).
     """
     where = ["project_name = ?"]
     params: list[object] = [project_name]
@@ -1036,7 +1086,7 @@ def get_imported_token_daily_cost_by_model(
 
     token_dates = sorted(by_date_model.keys())
     eff_start, eff_end = token_dates[0], token_dates[-1]
-    cost_points, chosen_currency = get_timeseries(
+    _, chosen_currency = get_timeseries(
         conn,
         project_name,
         start_date=eff_start,
@@ -1044,58 +1094,30 @@ def get_imported_token_daily_cost_by_model(
         granularity="day",
         currency=currency,
     )
-    cost_by_date = {str(p["date"]): float(p["cost_usd"] or 0.0) for p in cost_points}
     out: list[dict[str, object]] = []
     for d in sorted(by_date_model.keys(), reverse=True):
-        daily_cost = float(cost_by_date.get(d, 0.0))
         models = by_date_model.get(d, {})
-        total_tokens = sum((v["input"] + v["output"]) for v in models.values())
         for model_name in sorted(models.keys()):
             tok = models[model_name]
             in_tok = float(tok["input"])
             out_tok = float(tok["output"])
-            model_total = in_tok + out_tok
-            if model_total <= 0:
+            if in_tok + out_tok <= 0:
                 continue
 
-            bill_in = sum_transaction_cost_usd_for_model_day(
+            split = _meter_split_cost_for_model_day(
                 conn,
                 project_name,
                 usage_date=d,
                 token_model=model_name,
-                token_direction="input",
                 currency=chosen_currency,
             )
-            bill_out = sum_transaction_cost_usd_for_model_day(
-                conn,
-                project_name,
-                usage_date=d,
-                token_model=model_name,
-                token_direction="output",
-                currency=chosen_currency,
-            )
-            meter_total = bill_in + bill_out
-
-            if meter_total > 0:
-                in_cost = bill_in
-                out_cost = bill_out
-                allocation_method = "meter_matched"
-            elif daily_cost > 0 and total_tokens > 0:
-                allocated = daily_cost * (model_total / total_tokens)
-                in_share = (in_tok / model_total) if model_total > 0 else 0.0
-                out_share = (out_tok / model_total) if model_total > 0 else 0.0
-                in_cost = allocated * in_share
-                out_cost = allocated * out_share
-                allocation_method = "proportional_by_daily_tokens"
-            else:
-                in_cost = 0.0
-                out_cost = 0.0
-                allocation_method = "no_cost_overlap"
-
-            total_cost = in_cost + out_cost
+            allocation_method = str(split["allocation_method"])
+            in_cost = split.get("input_cost_usd")
+            out_cost = split.get("output_cost_usd")
+            total_cost = split.get("total_cost_usd")
             log_cost_step(
                 "daily_cost_row date=%s model=%s in_tok=%.0f out_tok=%.0f "
-                "bill_in=%.6f bill_out=%.6f method=%s",
+                "bill_in=%s bill_out=%s method=%s",
                 d,
                 model_name,
                 in_tok,
@@ -1108,9 +1130,9 @@ def get_imported_token_daily_cost_by_model(
                 {
                     "date": d,
                     "model_name": model_name,
-                    "input_cost_usd": round_cost(in_cost),
-                    "output_cost_usd": round_cost(out_cost),
-                    "total_cost_usd": round_cost(total_cost),
+                    "input_cost_usd": in_cost,
+                    "output_cost_usd": out_cost,
+                    "total_cost_usd": total_cost,
                     "allocation_method": allocation_method,
                 }
             )
@@ -1241,17 +1263,19 @@ def get_imported_token_models_with_prices(
         """
     ).fetchall()
 
+    catalog_rows = _fetch_catalog_price_rows(conn)
+
     def _metric_pick(model_name: str, metric_name: str) -> sqlite3.Row | None:
-        target = _norm_model_name(model_name)
-        if not target:
+        picked = _pick_catalog_price_row(
+            catalog_rows, target_token_model=model_name, metric_name=metric_name
+        )
+        if not picked:
             return None
         for r in price_rows:
-            if str(r["metric_name"]) != metric_name:
-                continue
-            candidate = _norm_model_name(str(r["model_name"]))
-            if not candidate:
-                continue
-            if candidate == target or target in candidate or candidate in target:
+            if (
+                str(r["model_name"]) == picked["catalog_model_name"]
+                and str(r["metric_name"]) == metric_name
+            ):
                 return r
         return None
 
@@ -1308,34 +1332,159 @@ def _float_stats(vals: list[float], *, money: bool = False) -> dict[str, float |
     }
 
 
-def _catalog_usd_per_1m_for_model_name(conn: sqlite3.Connection, model_name: str) -> dict[str, float | None]:
-    target = _norm_model_name(model_name)
-    if not target:
-        return {"input": None, "output": None}
-    rows = conn.execute(
+_CATALOG_FAMILY_TOKENS = ("codex", "mini", "chat", "max", "pro", "nano", "shortco", "short")
+
+
+def _catalog_extra_families(name: str) -> set[str]:
+    low = str(name or "").lower()
+    return {tok for tok in _CATALOG_FAMILY_TOKENS if tok in low}
+
+
+def _catalog_family_penalty(target_canonical: str, catalog_model_name: str) -> int:
+    """Lower is better. Penalize catalog variants with families absent from the token model."""
+    tgt = (target_canonical or "").lower()
+    cat = str(catalog_model_name or "").lower()
+    allowed = _catalog_extra_families(tgt)
+    penalty = 0
+    for extra in _catalog_extra_families(cat):
+        if extra in allowed:
+            continue
+        if extra == "pro":
+            penalty += 25
+        elif extra in {"codex", "mini", "chat", "max"}:
+            penalty += 15
+        else:
+            penalty += 8
+    return penalty
+
+
+def _is_global_standard_price_row(row: sqlite3.Row) -> bool:
+    scope = str(row["deployment_scope"] or "").strip().lower()
+    mode = str(row["billing_mode"] or "").strip().lower()
+    return scope == "global" and mode == "standard"
+
+
+def _catalog_name_match_tier(target_norm: str, catalog_model_name: str) -> int:
+    """0 = exact normalized match, 1 = fuzzy substring, 2 = no match."""
+    cn = _norm_model_name(catalog_model_name)
+    if not target_norm or not cn:
+        return 2
+    if cn == target_norm:
+        return 0
+    if target_norm in cn or cn in target_norm:
+        return 1
+    return 2
+
+
+def _fetch_catalog_price_rows(conn: sqlite3.Connection) -> list[sqlite3.Row]:
+    return conn.execute(
         """
-        SELECT model_name, metric_name, amount
+        SELECT
+            model_name,
+            metric_name,
+            amount,
+            deployment_scope,
+            billing_mode,
+            effective_date,
+            id
         FROM model_prices
         WHERE price_currency = 'USD'
           AND billing_mode = 'standard'
           AND metric_name IN ('input', 'output')
           AND amount > 0
+        ORDER BY effective_date DESC, id DESC
         """
     ).fetchall()
-    matches = [
+
+
+def _pick_catalog_price_row(
+    rows: list[sqlite3.Row],
+    *,
+    target_token_model: str,
+    metric_name: str,
+) -> dict[str, object] | None:
+    """
+    Choose one catalog row for a token model + metric.
+
+    Priority: (1) deployment_scope=global & billing_mode=standard,
+    then other standard rows; within each pool pick best name fit (not lowest price).
+    """
+    target_norm = _norm_model_name(target_token_model)
+    target_canonical = canonical_model_name(target_token_model) or str(target_token_model)
+    if not target_norm:
+        return None
+
+    metric_rows = [r for r in rows if str(r["metric_name"]) == metric_name]
+    name_matched = [
         r
-        for r in rows
-        if (
-            _norm_model_name(r["model_name"]) == target
-            or target in _norm_model_name(r["model_name"])
-            or _norm_model_name(r["model_name"]) in target
-        )
+        for r in metric_rows
+        if _catalog_name_match_tier(target_norm, str(r["model_name"])) < 2
     ]
-    input_prices = [float(r["amount"]) for r in matches if r["metric_name"] == "input"]
-    output_prices = [float(r["amount"]) for r in matches if r["metric_name"] == "output"]
+    if not name_matched:
+        return None
+
+    global_std = [r for r in name_matched if _is_global_standard_price_row(r)]
+    pools: list[tuple[str, list[sqlite3.Row]]] = []
+    if global_std:
+        pools.append(("global_standard", global_std))
+    other_standard = [r for r in name_matched if r not in global_std]
+    if other_standard:
+        pools.append(("standard", other_standard))
+
+    def _sort_key(r: sqlite3.Row) -> tuple[int, int, int, int]:
+        tier = _catalog_name_match_tier(target_norm, str(r["model_name"]))
+        penalty = _catalog_family_penalty(target_canonical, str(r["model_name"]))
+        return (tier, penalty, len(str(r["model_name"])), -int(r["id"] or 0))
+
+    for price_tier, pool in pools:
+        best = min(pool, key=_sort_key)
+        catalog_name = str(best["model_name"])
+        tier = _catalog_name_match_tier(target_norm, catalog_name)
+        return {
+            "catalog_model_name": catalog_name,
+            "amount": float(best["amount"]),
+            "match_kind": "exact" if tier == 0 else "fuzzy",
+            "price_tier": price_tier,
+            "deployment_scope": str(best["deployment_scope"] or ""),
+            "billing_mode": str(best["billing_mode"] or ""),
+        }
+    return None
+
+
+def _catalog_price_match_kind(target: str, catalog_model_name: str) -> str:
+    tier = _catalog_name_match_tier(_norm_model_name(target), catalog_model_name)
+    if tier == 0:
+        return "exact"
+    if tier == 1:
+        return "fuzzy"
+    return "none"
+
+
+def _resolve_catalog_prices_for_model_name(
+    conn: sqlite3.Connection, model_name: str
+) -> dict[str, object]:
+    """
+    Resolve catalog USD/1M input & output for a token/billing model name.
+
+    Prefers ``global`` + ``standard`` rows in ``model_prices``, then best name match.
+    Returns which catalog row was used for each metric.
+    """
+    rows = _fetch_catalog_price_rows(conn)
+    input_src = _pick_catalog_price_row(rows, target_token_model=model_name, metric_name="input")
+    output_src = _pick_catalog_price_row(rows, target_token_model=model_name, metric_name="output")
     return {
-        "input": min(input_prices) if input_prices else None,
-        "output": min(output_prices) if output_prices else None,
+        "input": input_src["amount"] if input_src else None,
+        "output": output_src["amount"] if output_src else None,
+        "input_source": input_src,
+        "output_source": output_src,
+    }
+
+
+def _catalog_usd_per_1m_for_model_name(conn: sqlite3.Connection, model_name: str) -> dict[str, float | None]:
+    resolved = _resolve_catalog_prices_for_model_name(conn, model_name)
+    return {
+        "input": resolved.get("input"),  # type: ignore[return-value]
+        "output": resolved.get("output"),  # type: ignore[return-value]
     }
 
 
@@ -1374,6 +1523,38 @@ def _billing_transaction_rows(
     return [(str(r["usage_date"]), str(r["meter"] or ""), float(r["cost_usd"])) for r in rows]
 
 
+def _project_token_model_names(
+    conn: sqlite3.Connection,
+    project_name: str,
+    *,
+    start_date: str | None = None,
+    end_date: str | None = None,
+) -> list[str]:
+    where = ["project_name = ?"]
+    params: list[object] = [project_name]
+    if start_date:
+        where.append("usage_date >= ?")
+        params.append(start_date)
+    if end_date:
+        where.append("usage_date <= ?")
+        params.append(end_date)
+    where_sql = " AND ".join(where)
+    rows = conn.execute(
+        f"""
+        SELECT DISTINCT model_name
+        FROM token_usage_points
+        WHERE {where_sql}
+        """,
+        tuple(params),
+    ).fetchall()
+    names: set[str] = set()
+    for r in rows:
+        m = canonical_model_name(r["model_name"]) or str(r["model_name"])
+        if m:
+            names.add(m)
+    return sorted(names)
+
+
 def get_meter_billing_by_date_model(
     conn: sqlite3.Connection,
     project_name: str,
@@ -1390,7 +1571,13 @@ def get_meter_billing_by_date_model(
         end_date=end_date,
         currency=currency,
     )
-    return aggregate_billing_rows(rows)
+    token_models = _project_token_model_names(
+        conn,
+        project_name,
+        start_date=start_date,
+        end_date=end_date,
+    )
+    return aggregate_billing_rows(rows, token_models=token_models)
 
 
 def get_project_meter_billing_by_direction_day(
@@ -1563,9 +1750,9 @@ def get_model_implied_usd_per_1m_analysis(
     """
     Implied USD per 1M tokens per model per day.
 
-    Primary: sum billing ``Meter`` rows matched to token CSV model columns
-    (e.g. ``5.3 codex inp`` → ``gpt-5.3-codex`` input). Fallback when meters
-    do not parse: proportional split of daily project cost by token share.
+    Sum billing ``Meter`` rows matched to token CSV model columns
+    (e.g. ``5.3 codex inp`` → ``gpt-5.3-codex`` input). Days without a meter
+    match are omitted (no proportional estimation).
     """
     if not project_has_imported_tokens(conn, project_name):
         return {
@@ -1616,7 +1803,7 @@ def get_model_implied_usd_per_1m_analysis(
             "from_date": start_date,
             "to_date": end_date,
             "unit_label": "USD per 1M tokens",
-            "allocation_method": "proportional_by_daily_tokens",
+            "allocation_method": "meter_only",
             "models": [],
         }
 
@@ -1642,7 +1829,7 @@ def get_model_implied_usd_per_1m_analysis(
 
     token_dates = sorted(by_date_model.keys())
     eff_start, eff_end = token_dates[0], token_dates[-1]
-    cost_points, chosen_currency = get_timeseries(
+    _, chosen_currency = get_timeseries(
         conn,
         project_name,
         start_date=eff_start,
@@ -1650,16 +1837,8 @@ def get_model_implied_usd_per_1m_analysis(
         granularity="day",
         currency=currency,
     )
-    cost_by_date = {str(p["date"]): float(p["cost_usd"]) for p in cost_points}
-    billing_by_date_model = get_meter_billing_by_date_model(
-        conn,
-        project_name,
-        start_date=eff_start,
-        end_date=eff_end,
-        currency=chosen_currency,
-    )
     used_meter_match = False
-    used_proportional = False
+    used_partial = False
 
     model_daily: dict[str, list[dict[str, object]]] = {}
     models_seen: set[str] = set()
@@ -1668,18 +1847,9 @@ def get_model_implied_usd_per_1m_analysis(
             models_seen.add(mn)
 
     for usage_date in token_dates:
-        daily_cost = cost_by_date.get(usage_date, 0.0)
         day_models = by_date_model.get(usage_date, {})
         if not day_models:
             continue
-
-        total_tokens = 0.0
-        for tok in day_models.values():
-            total_tokens += tok["input"] + tok["output"]
-        if total_tokens <= 0:
-            continue
-
-        day_billing = billing_by_date_model.get(usage_date, {})
 
         for model_name, tok in day_models.items():
             in_tok = tok["input"]
@@ -1688,47 +1858,33 @@ def get_model_implied_usd_per_1m_analysis(
             if model_total <= 0:
                 continue
 
-            bill = day_billing.get(model_name)
-            if bill is None:
-                for bk, bv in day_billing.items():
-                    if token_models_match(bk, model_name):
-                        bill = bv
-                        break
-            bill = bill or {}
-            bill_in = float(bill.get("input", 0.0))
-            bill_out = float(bill.get("output", 0.0))
-            meter_cost = bill_in + bill_out
-
-            if meter_cost > 0:
-                used_meter_match = True
-                allocated_cost = meter_cost
-                usd_per_1m_input = (
-                    (bill_in / in_tok) * TOKENS_PER_MILLION if in_tok > 0 and bill_in > 0 else None
-                )
-                usd_per_1m_output = (
-                    (bill_out / out_tok) * TOKENS_PER_MILLION
-                    if out_tok > 0 and bill_out > 0
-                    else None
-                )
-                alloc_method = "meter_matched"
-            elif daily_cost > 0:
-                used_proportional = True
-                allocated_cost = daily_cost * (model_total / total_tokens)
-                in_share = in_tok / model_total if model_total > 0 else 0.0
-                out_share = out_tok / model_total if model_total > 0 else 0.0
-                usd_per_1m_input = (
-                    (allocated_cost * in_share / in_tok) * TOKENS_PER_MILLION
-                    if in_tok > 0
-                    else None
-                )
-                usd_per_1m_output = (
-                    (allocated_cost * out_share / out_tok) * TOKENS_PER_MILLION
-                    if out_tok > 0
-                    else None
-                )
-                alloc_method = "proportional_by_daily_tokens"
-            else:
+            split = _meter_split_cost_for_model_day(
+                conn,
+                project_name,
+                usage_date=usage_date,
+                token_model=model_name,
+                currency=chosen_currency,
+            )
+            alloc_method = str(split["allocation_method"])
+            if alloc_method == "no_meter_match":
                 continue
+
+            if alloc_method == "meter_matched_partial":
+                used_partial = True
+            else:
+                used_meter_match = True
+
+            bill_in = float(split["input_cost_usd"] or 0.0)
+            bill_out = float(split["output_cost_usd"] or 0.0)
+            allocated_cost = float(split["total_cost_usd"] or 0.0)
+            usd_per_1m_input = (
+                (bill_in / in_tok) * TOKENS_PER_MILLION if in_tok > 0 and bill_in > 0 else None
+            )
+            usd_per_1m_output = (
+                (bill_out / out_tok) * TOKENS_PER_MILLION
+                if out_tok > 0 and bill_out > 0
+                else None
+            )
 
             usd_per_1m_blended = (allocated_cost / model_total) * TOKENS_PER_MILLION
 
@@ -1777,12 +1933,12 @@ def get_model_implied_usd_per_1m_analysis(
             }
         )
 
-    if used_meter_match and not used_proportional:
-        top_method = "meter_matched"
-    elif used_meter_match and used_proportional:
-        top_method = "meter_matched_with_proportional_fallback"
+    if used_meter_match and used_partial:
+        top_method = "meter_matched_with_partial_days"
+    elif used_meter_match or used_partial:
+        top_method = "meter_matched_partial" if used_partial and not used_meter_match else "meter_matched"
     else:
-        top_method = "proportional_by_daily_tokens"
+        top_method = "no_meter_match"
 
     return {
         "available": True,
@@ -1828,7 +1984,7 @@ def get_catalog_market_cost_timeseries(
     """
     Per-model and daily totals: actual billed cost vs catalog list price (tokens × USD/1M).
 
-    ``daily_by_model`` rows include meter-matched or proportional actual cost per model/day.
+    ``daily_by_model`` rows include meter-matched actual cost per model/day only.
     ``points`` are project-level daily totals (billing actual vs sum of catalog market).
     """
     chosen_currency = currency
@@ -1836,12 +1992,12 @@ def get_catalog_market_cost_timeseries(
         currencies = get_available_currencies(conn, project_name)
         chosen_currency = currencies[0] if currencies else "USD"
 
-    catalog_cache: dict[str, dict[str, float | None]] = {}
+    catalog_cache: dict[str, dict[str, object]] = {}
     unpriced_models: set[str] = set()
 
-    def _catalog_for(model_name: str) -> dict[str, float | None]:
+    def _catalog_for(model_name: str) -> dict[str, object]:
         if model_name not in catalog_cache:
-            catalog_cache[model_name] = _catalog_usd_per_1m_for_model_name(conn, model_name)
+            catalog_cache[model_name] = _resolve_catalog_prices_for_model_name(conn, model_name)
         return catalog_cache[model_name]
 
     daily_by_model: list[dict[str, object]] = []
@@ -1866,6 +2022,10 @@ def get_catalog_market_cost_timeseries(
                 unpriced_models.add(model)
             catalog_cost = _catalog_cost_from_tokens(in_tok, out_tok, cat)
             actual_raw = row.get("total_cost_usd")
+            in_cost_raw = row.get("input_cost_usd")
+            out_cost_raw = row.get("output_cost_usd")
+            catalog_in = _catalog_cost_from_tokens(in_tok, 0.0, cat)
+            catalog_out = _catalog_cost_from_tokens(0.0, out_tok, cat)
             daily_by_model.append(
                 {
                     "date": str(row["date"]),
@@ -1875,11 +2035,25 @@ def get_catalog_market_cost_timeseries(
                         if actual_raw is not None
                         else None
                     ),
+                    "input_cost_usd": (
+                        round_cost(float(in_cost_raw))
+                        if in_cost_raw is not None
+                        else None
+                    ),
+                    "output_cost_usd": (
+                        round_cost(float(out_cost_raw))
+                        if out_cost_raw is not None
+                        else None
+                    ),
                     "catalog_cost_usd": catalog_cost,
+                    "catalog_input_cost_usd": catalog_in,
+                    "catalog_output_cost_usd": catalog_out,
                     "input_tokens": in_tok,
                     "output_tokens": out_tok,
                     "catalog_usd_per_1m_input": cat.get("input"),
                     "catalog_usd_per_1m_output": cat.get("output"),
+                    "catalog_price_input": cat.get("input_source"),
+                    "catalog_price_output": cat.get("output_source"),
                     "allocation_method": row.get("allocation_method"),
                 }
             )
@@ -1934,6 +2108,8 @@ def get_catalog_market_cost_timeseries(
                     "output_tokens": out_tok,
                     "catalog_usd_per_1m_input": cat.get("input"),
                     "catalog_usd_per_1m_output": cat.get("output"),
+                    "catalog_price_input": cat.get("input_source"),
+                    "catalog_price_output": cat.get("output_source"),
                     "allocation_method": "estimated_from_billing",
                 }
             )
@@ -2005,25 +2181,47 @@ def get_catalog_market_cost_timeseries(
             {
                 "model_name": m,
                 "actual_cost_usd": 0.0,
+                "input_cost_usd": 0.0,
+                "output_cost_usd": 0.0,
                 "catalog_cost_usd": 0.0,
+                "catalog_input_cost_usd": 0.0,
+                "catalog_output_cost_usd": 0.0,
                 "days_with_rows": 0,
                 "catalog_usd_per_1m_input": row.get("catalog_usd_per_1m_input"),
                 "catalog_usd_per_1m_output": row.get("catalog_usd_per_1m_output"),
+                "catalog_price_input": row.get("catalog_price_input"),
+                "catalog_price_output": row.get("catalog_price_output"),
             },
         )
         st["days_with_rows"] = int(st["days_with_rows"]) + 1
         a = row.get("actual_cost_usd")
+        cin = row.get("input_cost_usd")
+        cout = row.get("output_cost_usd")
         c = row.get("catalog_cost_usd")
+        cat_in = row.get("catalog_input_cost_usd")
+        cat_out = row.get("catalog_output_cost_usd")
         if a is not None:
             st["actual_cost_usd"] = float(st["actual_cost_usd"]) + float(a)
+        if cin is not None:
+            st["input_cost_usd"] = float(st["input_cost_usd"]) + float(cin)
+        if cout is not None:
+            st["output_cost_usd"] = float(st["output_cost_usd"]) + float(cout)
         if c is not None:
             st["catalog_cost_usd"] = float(st["catalog_cost_usd"]) + float(c)
+        if cat_in is not None:
+            st["catalog_input_cost_usd"] = float(st["catalog_input_cost_usd"]) + float(cat_in)
+        if cat_out is not None:
+            st["catalog_output_cost_usd"] = float(st["catalog_output_cost_usd"]) + float(cat_out)
 
     model_summary: list[dict[str, object]] = []
     for m in sorted(summary_by_model.keys()):
         st = summary_by_model[m]
         actual_t = float(st["actual_cost_usd"])
+        input_t = float(st["input_cost_usd"])
+        output_t = float(st["output_cost_usd"])
         catalog_t = float(st["catalog_cost_usd"])
+        catalog_in_t = float(st["catalog_input_cost_usd"])
+        catalog_out_t = float(st["catalog_output_cost_usd"])
         variance = round_cost(actual_t - catalog_t) if catalog_t > 0 or actual_t > 0 else None
         variance_pct = None
         if catalog_t > 0:
@@ -2032,12 +2230,22 @@ def get_catalog_market_cost_timeseries(
             {
                 "model_name": m,
                 "actual_cost_usd": round_cost(actual_t) if actual_t > 0 else None,
+                "input_cost_usd": round_cost(input_t) if input_t > 0 else None,
+                "output_cost_usd": round_cost(output_t) if output_t > 0 else None,
                 "catalog_cost_usd": round_cost(catalog_t) if catalog_t > 0 else None,
+                "catalog_input_cost_usd": (
+                    round_cost(catalog_in_t) if catalog_in_t > 0 else None
+                ),
+                "catalog_output_cost_usd": (
+                    round_cost(catalog_out_t) if catalog_out_t > 0 else None
+                ),
                 "variance_usd": variance,
                 "variance_pct": variance_pct,
                 "days_with_rows": int(st["days_with_rows"]),
                 "catalog_usd_per_1m_input": st.get("catalog_usd_per_1m_input"),
                 "catalog_usd_per_1m_output": st.get("catalog_usd_per_1m_output"),
+                "catalog_price_input": st.get("catalog_price_input"),
+                "catalog_price_output": st.get("catalog_price_output"),
             }
         )
 
@@ -2045,6 +2253,26 @@ def get_catalog_market_cost_timeseries(
 
     total_catalog = sum(float(c) for c in catalog_by_date.values())
     total_actual = sum(actual_by_date.values())
+    total_input = sum(
+        float(r["input_cost_usd"])
+        for r in daily_by_model
+        if r.get("input_cost_usd") is not None
+    )
+    total_output = sum(
+        float(r["output_cost_usd"])
+        for r in daily_by_model
+        if r.get("output_cost_usd") is not None
+    )
+    total_catalog_input = sum(
+        float(r["catalog_input_cost_usd"])
+        for r in daily_by_model
+        if r.get("catalog_input_cost_usd") is not None
+    )
+    total_catalog_output = sum(
+        float(r["catalog_output_cost_usd"])
+        for r in daily_by_model
+        if r.get("catalog_output_cost_usd") is not None
+    )
     days_with_catalog = sum(1 for d in all_dates if d in catalog_by_date)
 
     variance_usd = round_cost(total_actual - total_catalog) if days_with_catalog else None
@@ -2066,6 +2294,19 @@ def get_catalog_market_cost_timeseries(
         "summary": {
             "total_catalog_cost_usd": round_cost(total_catalog) if days_with_catalog else None,
             "total_actual_cost_usd": round_cost(total_actual) if total_actual else None,
+            "total_input_cost_usd": round_cost(total_input) if total_input > 0 else None,
+            "total_output_cost_usd": round_cost(total_output) if total_output > 0 else None,
+            "total_meter_cost_usd": (
+                round_cost(total_input + total_output)
+                if (total_input + total_output) > 0
+                else None
+            ),
+            "total_catalog_input_cost_usd": (
+                round_cost(total_catalog_input) if total_catalog_input > 0 else None
+            ),
+            "total_catalog_output_cost_usd": (
+                round_cost(total_catalog_output) if total_catalog_output > 0 else None
+            ),
             "variance_usd": variance_usd,
             "variance_pct": variance_pct,
             "days_with_catalog": days_with_catalog,
@@ -2214,14 +2455,8 @@ def get_project_daily_implied_usd_per_1m_timeseries(
         if cost_in > 0 and tin > 0:
             usd_in = (cost_in / tin) * TOKENS_PER_MILLION
             input_vals.append(usd_in)
-        elif cost is not None and cost > 0 and tin > 0:
-            usd_in = (cost / tin) * TOKENS_PER_MILLION
-            input_vals.append(usd_in)
         if cost_out > 0 and tout > 0:
             usd_out = (cost_out / tout) * TOKENS_PER_MILLION
-            output_vals.append(usd_out)
-        elif cost is not None and cost > 0 and tout > 0:
-            usd_out = (cost / tout) * TOKENS_PER_MILLION
             output_vals.append(usd_out)
 
         points.append(
@@ -2387,42 +2622,35 @@ def _get_project_token_price_model(
     if not target:
         return None
 
-    rows = conn.execute(
-        """
-        SELECT model_name, metric_name, amount, price_region
-        FROM model_prices
-        WHERE price_currency = 'USD'
-          AND billing_mode = 'standard'
-          AND metric_name IN ('input', 'output')
-          AND amount > 0
-        """
-    ).fetchall()
-    matches = [
-        r
-        for r in rows
-        if (
-            _norm_model_name(r["model_name"]) == target
-            or target in _norm_model_name(r["model_name"])
-            or _norm_model_name(r["model_name"]) in target
-        )
-    ]
-    if not matches:
+    catalog_rows = _fetch_catalog_price_rows(conn)
+    pin = _pick_catalog_price_row(
+        catalog_rows, target_token_model=str(cfg["model_name"]), metric_name="input"
+    )
+    pout = _pick_catalog_price_row(
+        catalog_rows, target_token_model=str(cfg["model_name"]), metric_name="output"
+    )
+    if not pin or not pout:
         return None
 
-    input_prices = [float(r["amount"]) for r in matches if r["metric_name"] == "input"]
-    output_prices = [float(r["amount"]) for r in matches if r["metric_name"] == "output"]
-    if not input_prices or not output_prices:
-        return None
+    regions: set[str] = set()
+    for picked in (pin, pout):
+        for r in conn.execute(
+            """
+            SELECT price_region FROM model_prices
+            WHERE model_name = ? AND metric_name IN ('input', 'output')
+            """,
+            (picked["catalog_model_name"],),
+        ).fetchall():
+            if r["price_region"]:
+                regions.add(str(r["price_region"]))
 
-    # Conservative estimate: use min standard prices found for configured model.
-    regions = sorted({str(r["price_region"]) for r in matches if r["price_region"]})
     return {
         "model_name": cfg["model_name"],
-        "input_price": min(input_prices),
-        "output_price": min(output_prices),
+        "input_price": float(pin["amount"]),
+        "output_price": float(pout["amount"]),
         # Might be multiple regions if multiple price entries exist for the same model.
         # Keep it fully visible for the dashboard (frontend can wrap/scroll if needed).
-        "price_region": ", ".join(regions) if regions else None,
+        "price_region": ", ".join(sorted(regions)) if regions else None,
     }
 
 

@@ -115,7 +115,7 @@ def test_billing_token_bridge_and_meter_matched_prices(tmp_path):
         conn.close()
 
 
-def test_proportional_fallback_when_meters_unparsed(tmp_path):
+def test_no_proportional_when_meters_unparsed(tmp_path):
     bills_dir = tmp_path / "bills"
     project_dir = bills_dir / "projPlain"
     token_dir = project_dir / "token"
@@ -139,9 +139,13 @@ def test_proportional_fallback_when_meters_unparsed(tmp_path):
     conn = get_connection(db_path)
     try:
         payload = get_model_implied_usd_per_1m_analysis(conn, "projPlain", currency="USD")
-        assert payload["allocation_method"] == "proportional_by_daily_tokens"
-        day = payload["models"][0]["daily"][0]
-        assert day["allocation_method"] == "proportional_by_daily_tokens"
+        assert payload["allocation_method"] == "no_meter_match"
+        assert all(not m.get("daily") for m in payload["models"])
+        daily = get_imported_token_daily_by_model(conn, "projPlain", currency="USD")
+        assert daily[0]["allocation_method"] == "no_meter_match"
+        assert daily[0]["total_cost_usd"] is None
+        assert daily[0]["usd_per_1m_input"] is None
+        assert daily[0]["usd_per_1m_output"] is None
     finally:
         conn.close()
 

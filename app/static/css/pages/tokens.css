@@ -237,6 +237,44 @@
   color: #f1f5f9;
 }
 
+.tokenPage .allocBadge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.tokenPage .alloc-meter-matched {
+  color: #5eead4;
+  border: 1px solid rgba(94, 234, 212, 0.35);
+  background: rgba(94, 234, 212, 0.1);
+}
+
+.tokenPage .alloc-meter-matched-partial {
+  color: #fbbf24;
+  border: 1px solid rgba(251, 191, 36, 0.35);
+  background: rgba(251, 191, 36, 0.1);
+}
+
+.tokenPage .alloc-no-meter-match {
+  color: #9fb2c7;
+  border: 1px solid rgba(159, 178, 199, 0.25);
+  background: rgba(159, 178, 199, 0.08);
+}
+
+.tokenPage tr.rowNoMeter td {
+  opacity: 0.72;
+}
+
+.tokenPage tr.rowNoMeter .tdInputCost,
+.tokenPage tr.rowNoMeter .tdOutputCost,
+.tokenPage tr.rowNoMeter .tdTotalCost {
+  color: #9fb2c7;
+}
+
 /* Analysis flow: aligned blocks (table → volume → cost → unit price) */
 .tokenAnalysisFlow {
   display: flex;

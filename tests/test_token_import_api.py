@@ -78,8 +78,8 @@ def test_import_api_billing_and_token_together(tmp_path):
     assert "usd_per_1m_output" in daily[0]
     assert daily[0]["allocation_method"] in {
         "meter_matched",
-        "proportional_by_daily_tokens",
-        "no_cost_overlap",
+        "meter_matched_partial",
+        "no_meter_match",
     }
     assert series.get("import_meta", {}).get("model_count") >= 1
 

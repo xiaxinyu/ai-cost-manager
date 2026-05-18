@@ -111,7 +111,24 @@
     output: "Output tokens",
     total: "Total tokens",
   };
-  const DAILY_TABLE_COL_COUNT = 10;
+  const DAILY_TABLE_COL_COUNT = 11;
+
+  function isMeterAllocated(method) {
+    return method === "meter_matched" || method === "meter_matched_partial";
+  }
+
+  function allocationLabel(method) {
+    switch (method) {
+      case "meter_matched":
+        return "Meter";
+      case "meter_matched_partial":
+        return "Meter (partial)";
+      case "no_meter_match":
+        return "No meter";
+      default:
+        return method || "—";
+    }
+  }
   let lastBillingCurrency = "USD";
 
   const MODEL_CHART_COLORS = [
@@ -227,9 +244,14 @@
   function updateDataStatusBar(project, stats, series) {
     if (!els.dataStatusBar) return;
     const rows = series?.daily_by_model || [];
+    const meta = series?._cost_meta || {};
     const withCost = rows.filter(
       (r) => r.input_cost_usd != null || r.output_cost_usd != null
     ).length;
+    const meterRows =
+      meta.rows_meter_matched != null
+        ? Number(meta.rows_meter_matched) + Number(meta.rows_meter_partial || 0)
+        : rows.filter((r) => isMeterAllocated(r.allocation_method)).length;
     const models = new Set(rows.map((r) => r.model_name).filter(Boolean)).size;
     const rangeStart = stats?.min_usage_date || els.startDate?.value || "—";
     const rangeEnd = stats?.max_usage_date || els.endDate?.value || "—";
@@ -250,6 +272,7 @@
       pill("Range", `${rangeStart} → ${rangeEnd}`),
       pill("Rows", String(rows.length)),
       pill("Models", String(models)),
+      pill("Meter matched", `${meterRows}/${rows.length || 0}`),
       pill("With cost", `${withCost}/${rows.length || 0}`),
       pill("Currency", ccy),
       pill("Source", source),
@@ -265,7 +288,8 @@
       return;
     }
     els.tableRowBadge.hidden = false;
-    els.tableRowBadge.textContent = `${totalRows} rows · ${withCostRows} with billing cost`;
+    const meterRows = lastDailyModelRows.filter((r) => isMeterAllocated(r.allocation_method)).length;
+    els.tableRowBadge.textContent = `${totalRows} rows · ${meterRows} meter-matched · ${withCostRows} with cost`;
   }
 
   function moneyStats(vals) {
@@ -286,10 +310,11 @@
     };
   }
 
-  /** Unit prices derived from daily detail: cost_usd ÷ tokens × 1M (same as the table). */
+  /** Unit prices from meter-matched rows only (cost ÷ tokens × 1M). */
   function modelUnitPricesFromDaily(dailyByModel) {
     const byModel = new Map();
     for (const row of dailyByModel || []) {
+      if (!isMeterAllocated(row.allocation_method)) continue;
       const name = row.model_name || "model";
       if (!byModel.has(name)) {
         byModel.set(name, { model_name: name, daily: [] });
@@ -1174,6 +1199,9 @@
       label: "rows",
       renderRow: (p) => {
         const tr = document.createElement("tr");
+        if (!isMeterAllocated(p.allocation_method)) {
+          tr.classList.add("rowNoMeter");
+        }
         const tdDate = document.createElement("td");
         tdDate.className = "tdDate";
         tdDate.textContent = p.date || "";
@@ -1214,13 +1242,36 @@
         tdTotalCost.textContent = fmtUsd(p.total_cost_usd, lastBillingCurrency);
         tdTotalCost.title = p.allocation_method ? `allocation: ${p.allocation_method}` : "";
 
+        const tdBilling = document.createElement("td");
+        tdBilling.className = "tdBilling";
+        const badge = document.createElement("span");
+        badge.className = `allocBadge alloc-${String(p.allocation_method || "none").replaceAll("_", "-")}`;
+        badge.textContent = allocationLabel(p.allocation_method);
+        tdBilling.title =
+          p.allocation_method === "no_meter_match"
+            ? "No billing Meter matched this model/day — costs and unit prices are not estimated."
+            : p.allocation_method === "meter_matched_partial"
+              ? "Only one direction had meter rows; the other $/1M is blank."
+              : "Input/opt costs summed from transaction Meter rows.";
+        tdBilling.appendChild(badge);
+
         const tdUnitIn = document.createElement("td");
         tdUnitIn.className = "num tdUnitIn";
-        tdUnitIn.textContent = fmtUsdPer1m(p.usd_per_1m_input, lastBillingCurrency);
+        if (isMeterAllocated(p.allocation_method) && p.usd_per_1m_input != null) {
+          tdUnitIn.textContent = fmtUsdPer1m(p.usd_per_1m_input, lastBillingCurrency);
+        } else {
+          tdUnitIn.textContent = "—";
+          tdUnitIn.title = "Requires meter-matched input billing";
+        }
 
         const tdUnitOut = document.createElement("td");
         tdUnitOut.className = "num tdUnitOut";
-        tdUnitOut.textContent = fmtUsdPer1m(p.usd_per_1m_output, lastBillingCurrency);
+        if (isMeterAllocated(p.allocation_method) && p.usd_per_1m_output != null) {
+          tdUnitOut.textContent = fmtUsdPer1m(p.usd_per_1m_output, lastBillingCurrency);
+        } else {
+          tdUnitOut.textContent = "—";
+          tdUnitOut.title = "Requires meter-matched output billing";
+        }
 
         tr.append(
           tdDate,
@@ -1230,6 +1281,7 @@
           tdInputCost,
           tdOutputCost,
           tdTotalCost,
+          tdBilling,
           tdUnitIn,
           tdUnitOut,
           tdRatio
@@ -1322,14 +1374,21 @@
         allocation_method: r.allocation_method,
       });
     });
+    const noMeter = rows.filter((r) => r.allocation_method === "no_meter_match").length;
     if (rows.length > 0 && withCost === 0) {
       console.warn(
         "All daily costs are null. Restart: COST_DEBUG=1 .venv/bin/python -m app.cli serve --reload --log-level info"
       );
       window.AppShell?.toast?.(
-        "Daily costs missing — server may be running old code. Restart serve with latest code; check browser console.",
+        "No meter-matched billing for this range — unit prices require inp/opt Meter rows. Check billing CSV or Import.",
         "warn",
         9000
+      );
+    } else if (rows.length > 0 && noMeter > 0 && meta.policy === "meter_only") {
+      window.AppShell?.toast?.(
+        `${noMeter} row(s) have tokens but no matching billing Meter — costs are not estimated.`,
+        "info",
+        7000
       );
     }
     console.groupEnd();

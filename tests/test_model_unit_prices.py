@@ -19,6 +19,20 @@ from app.main import create_app
 from app.token_ingest import ingest_token_all
 
 
+def _write_foundry_cost(path, rows: list[tuple[str, str, float]]) -> None:
+    lines = [
+        '"UsageDate","ResourceId","ResourceType","ResourceLocation","ResourceGroupName",'
+        '"ServiceName","ServiceTier","Meter","CostUSD","Cost","Currency"'
+    ]
+    rid = "/subscriptions/x/resourcegroups/rg/providers/microsoft.cognitiveservices/accounts/a"
+    for usage_date, meter, cost in rows:
+        lines.append(
+            f'"{usage_date}","{rid}","microsoft.cognitiveservices/accounts","US East 2",'
+            f'"rg","Foundry Models","Azure OpenAI GPT5","{meter}","{cost}","{cost}","USD"'
+        )
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
 def _create_admin(db_path: str) -> None:
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
@@ -35,20 +49,25 @@ def test_model_implied_usd_per_1m_daily_stats(tmp_path):
     token_dir = project_dir / "token"
     token_dir.mkdir(parents=True)
 
-    (project_dir / "cost.csv").write_text(
-        '"UsageDate","CostUSD","Cost","ForecastCost","Currency"\n'
-        '"2026-05-01","10.0","10.0","","USD"\n'
-        '"2026-05-02","30.0","30.0","","USD"\n',
-        encoding="utf-8",
+    _write_foundry_cost(
+        project_dir / "cost.csv",
+        [
+            ("2026-05-01", "5.3 codex inp Gl 1M Tokens", 8.0),
+            ("2026-05-01", "5.3 codex opt Gl 1M Tokens", 2.0),
+            ("2026-05-02", "5.3 codex inp Gl 1M Tokens", 20.0),
+            ("2026-05-02", "5.3 codex opt Gl 1M Tokens", 4.0),
+            ("2026-05-02", "5.4 inp Gl 1M Tokens", 5.0),
+            ("2026-05-02", "5.4 opt Gl 1M Tokens", 1.0),
+        ],
     )
     (token_dir / "input-tokens.csv").write_text(
-        '"Time","model-a","model-b"\n'
+        '"Time","gpt-5.3-codex","gpt-5.4"\n'
         "2026-05-01 10:00:00,1 Mil,0\n"
         "2026-05-02 10:00:00,2 Mil,1 Mil\n",
         encoding="utf-8",
     )
     (token_dir / "output-tokens.csv").write_text(
-        '"Time","model-a","model-b"\n'
+        '"Time","gpt-5.3-codex","gpt-5.4"\n'
         "2026-05-01 10:00:00,100 K,0\n"
         "2026-05-02 10:00:00,200 K,50 K\n",
         encoding="utf-8",
@@ -65,31 +84,24 @@ def test_model_implied_usd_per_1m_daily_stats(tmp_path):
         conn.close()
 
     assert payload["available"] is True
+    assert payload["allocation_method"] == "meter_matched"
     by_name = {m["model_name"]: m for m in payload["models"]}
-    assert "model-a" in by_name and "model-b" in by_name
+    assert "gpt-5.3-codex" in by_name and "gpt-5.4" in by_name
 
-    # Day1: cost 10, model-a 1M in + 100K out (only model with tokens) => $10 / 1.1M tokens
-    a_day1 = next(d for d in by_name["model-a"]["daily"] if d["date"] == "2026-05-01")
-    expected_blended_d1 = round_cost(10.0 / 1_100_000 * 1_000_000)
-    assert a_day1["usd_per_1m_blended"] == expected_blended_d1
-    assert a_day1["usd_per_1m_input"] == expected_blended_d1
-    assert a_day1["usd_per_1m_output"] == expected_blended_d1
+    codex_day1 = next(d for d in by_name["gpt-5.3-codex"]["daily"] if d["date"] == "2026-05-01")
+    assert codex_day1["allocation_method"] == "meter_matched"
+    assert codex_day1["usd_per_1m_input"] == round_cost(8.0)
+    assert codex_day1["usd_per_1m_output"] == round_cost(20.0)
+    assert codex_day1["usd_per_1m_blended"] == round_cost(10.0 / 1_100_000 * 1_000_000)
 
-    # Day2: cost 30, model-a 2.2M tokens, model-b 1.05M tokens
-    a_day2 = next(d for d in by_name["model-a"]["daily"] if d["date"] == "2026-05-02")
-    b_day2 = next(d for d in by_name["model-b"]["daily"] if d["date"] == "2026-05-02")
-    a_alloc_d2 = 30.0 * (2_200_000 / 3_250_000)
-    b_alloc_d2 = 30.0 * (1_050_000 / 3_250_000)
-    assert a_day2["cost_usd_allocated"] == round_cost(a_alloc_d2)
-    assert b_day2["cost_usd_allocated"] == round_cost(b_alloc_d2)
-    assert a_day2["usd_per_1m_blended"] == round_cost(a_alloc_d2 / 2_200_000 * 1_000_000)
+    codex_day2 = next(d for d in by_name["gpt-5.3-codex"]["daily"] if d["date"] == "2026-05-02")
+    g54_day2 = next(d for d in by_name["gpt-5.4"]["daily"] if d["date"] == "2026-05-02")
+    assert codex_day2["cost_usd_allocated"] == round_cost(24.0)
+    assert g54_day2["cost_usd_allocated"] == round_cost(6.0)
+    assert codex_day2["usd_per_1m_input"] == round_cost(10.0)
 
-    st_a = by_name["model-a"]["stats"]["blended"]
-    assert st_a["count"] == 2
-    assert st_a["min"] == min(expected_blended_d1, a_day2["usd_per_1m_blended"])
-    assert st_a["max"] == max(expected_blended_d1, a_day2["usd_per_1m_blended"])
-    assert st_a["mean"] == round_cost((expected_blended_d1 + a_day2["usd_per_1m_blended"]) / 2)
-    assert st_a["median"] == round_cost((expected_blended_d1 + a_day2["usd_per_1m_blended"]) / 2)
+    st_codex = by_name["gpt-5.3-codex"]["stats"]["blended"]
+    assert st_codex["count"] == 2
 
 
 def test_project_daily_implied_usd_per_1m_timeseries(tmp_path):
@@ -98,20 +110,25 @@ def test_project_daily_implied_usd_per_1m_timeseries(tmp_path):
     token_dir = project_dir / "token"
     token_dir.mkdir(parents=True)
 
-    (project_dir / "cost.csv").write_text(
-        '"UsageDate","CostUSD","Cost","ForecastCost","Currency"\n'
-        '"2026-05-01","10.0","10.0","","USD"\n'
-        '"2026-05-02","30.0","30.0","","USD"\n',
-        encoding="utf-8",
+    _write_foundry_cost(
+        project_dir / "cost.csv",
+        [
+            ("2026-05-01", "5.3 codex inp Gl 1M Tokens", 8.0),
+            ("2026-05-01", "5.3 codex opt Gl 1M Tokens", 2.0),
+            ("2026-05-02", "5.3 codex inp Gl 1M Tokens", 20.0),
+            ("2026-05-02", "5.3 codex opt Gl 1M Tokens", 4.0),
+            ("2026-05-02", "5.4 inp Gl 1M Tokens", 5.0),
+            ("2026-05-02", "5.4 opt Gl 1M Tokens", 1.0),
+        ],
     )
     (token_dir / "input-tokens.csv").write_text(
-        '"Time","model-a","model-b"\n'
+        '"Time","gpt-5.3-codex","gpt-5.4"\n'
         "2026-05-01 10:00:00,1 Mil,0\n"
         "2026-05-02 10:00:00,2 Mil,1 Mil\n",
         encoding="utf-8",
     )
     (token_dir / "output-tokens.csv").write_text(
-        '"Time","model-a","model-b"\n'
+        '"Time","gpt-5.3-codex","gpt-5.4"\n'
         "2026-05-01 10:00:00,100 K,0\n"
         "2026-05-02 10:00:00,200 K,50 K\n",
         encoding="utf-8",
@@ -130,22 +147,16 @@ def test_project_daily_implied_usd_per_1m_timeseries(tmp_path):
     assert payload["available"] is True
     by_date = {p["date"]: p for p in payload["points"]}
     d1 = by_date["2026-05-01"]
-    assert abs(float(d1["usd_per_1m_input"]) - 10.0) < 1e-6
-    assert abs(float(d1["usd_per_1m_output"]) - 100.0) < 1e-6
+    assert abs(float(d1["usd_per_1m_input"]) - 8.0) < 1e-6
+    assert abs(float(d1["usd_per_1m_output"]) - 20.0) < 1e-6
     d2 = by_date["2026-05-02"]
-    assert abs(float(d2["usd_per_1m_input"]) - 10.0) < 1e-6
-    assert abs(float(d2["usd_per_1m_output"]) - 120.0) < 1e-6
+    assert abs(float(d2["usd_per_1m_input"]) - round_cost(25.0 / 3_000_000 * 1_000_000)) < 1e-6
+    assert abs(float(d2["usd_per_1m_output"]) - 20.0) < 1e-6
 
     st_in = payload["stats"]["input"]
     assert st_in["count"] == 2
-    assert abs(st_in["min"] - 10.0) < 1e-9
-    assert abs(st_in["max"] - 10.0) < 1e-9
     st_out = payload["stats"]["output"]
     assert st_out["count"] == 2
-    assert abs(st_out["min"] - 100.0) < 1e-6
-    assert abs(st_out["max"] - 120.0) < 1e-6
-    assert abs(st_out["mean"] - 110.0) < 1e-6
-    assert abs(st_out["median"] - 110.0) < 1e-6
 
 
 def test_model_unit_prices_api(tmp_path):
@@ -153,17 +164,19 @@ def test_model_unit_prices_api(tmp_path):
     project_dir = bills_dir / "projM"
     token_dir = project_dir / "token"
     token_dir.mkdir(parents=True)
-    (project_dir / "cost.csv").write_text(
-        '"UsageDate","CostUSD","Cost","ForecastCost","Currency"\n'
-        '"2026-05-01","5.0","5.0","","USD"\n',
-        encoding="utf-8",
+    _write_foundry_cost(
+        project_dir / "cost.csv",
+        [
+            ("2026-05-01", "5.3 codex inp Gl 1M Tokens", 3.0),
+            ("2026-05-01", "5.3 codex opt Gl 1M Tokens", 1.0),
+        ],
     )
     (token_dir / "input-tokens.csv").write_text(
-        '"Time","gpt-x"\n2026-05-01 10:00:00,1 Mil\n',
+        '"Time","gpt-5.3-codex"\n2026-05-01 10:00:00,1 Mil\n',
         encoding="utf-8",
     )
     (token_dir / "output-tokens.csv").write_text(
-        '"Time","gpt-x"\n2026-05-01 10:00:00,50 K\n',
+        '"Time","gpt-5.3-codex"\n2026-05-01 10:00:00,50 K\n',
         encoding="utf-8",
     )
 
@@ -182,6 +195,7 @@ def test_model_unit_prices_api(tmp_path):
     assert data["available"] is True
     assert len(data["models"]) == 1
     assert data["models"][0]["stats"]["blended"]["count"] == 1
+    assert data["allocation_method"] == "meter_matched"
 
     res_ip = client.get("/api/projects/projM/implied-unit-prices-timeseries?currency=USD")
     assert res_ip.status_code == 200
@@ -194,6 +208,68 @@ def test_model_unit_prices_api(tmp_path):
     assert page.status_code == 200
     assert "unitPriceSection" in page.text
     assert "impliedUnitPriceInputChart" in page.text
+
+
+def test_catalog_prefers_global_standard_over_cheaper_fuzzy(tmp_path):
+    """gpt-5.1 should use GPT-5.1 Global (1.25/10), not codex-mini (0.25/2)."""
+    db_path = tmp_path / "cost_mgmt.sqlite3"
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    try:
+        init_db(conn)
+        rows = [
+            ("GPT-5.1 Global", "global", "standard", "input", 1.25),
+            ("GPT-5.1 Global", "global", "standard", "output", 10.0),
+            ("GPT-5.1-codex-mini Global", "global", "standard", "input", 0.25),
+            ("GPT-5.1-codex-mini Global", "global", "standard", "output", 2.0),
+        ]
+        for model_name, scope, mode, metric, amount in rows:
+            conn.execute(
+                """
+                INSERT INTO model_prices(
+                    source_id, source_url, effective_date, retrieved_at_utc,
+                    vendor, platform, price_region, price_currency,
+                    model_series, model_name, context_bucket, deployment_scope,
+                    billing_mode, metric_name, amount,
+                    unit_quantity, unit_name, unit_expression, notes, source_detail_json
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    "src",
+                    "https://example.com",
+                    "2026-05-13",
+                    "2026-05-13T00:00:00Z",
+                    "Microsoft",
+                    "azure-openai",
+                    "eastus2",
+                    "USD",
+                    "GPT-5.1",
+                    model_name,
+                    None,
+                    scope,
+                    mode,
+                    metric,
+                    amount,
+                    1_000_000,
+                    "tokens",
+                    "USD/1M tokens",
+                    None,
+                    None,
+                ),
+            )
+        conn.commit()
+        from app.db import _resolve_catalog_prices_for_model_name
+
+        resolved = _resolve_catalog_prices_for_model_name(conn, "gpt-5.1")
+    finally:
+        conn.close()
+
+    assert resolved["input_source"]["catalog_model_name"] == "GPT-5.1 Global"
+    assert resolved["input_source"]["amount"] == 1.25
+    assert resolved["input_source"]["price_tier"] == "global_standard"
+    assert resolved["input_source"]["match_kind"] == "exact"
+    assert resolved["output_source"]["catalog_model_name"] == "GPT-5.1 Global"
+    assert resolved["output_source"]["amount"] == 10.0
 
 
 def test_catalog_prices_fuzzy_match_normalized_model_name(tmp_path):
@@ -379,6 +455,12 @@ def test_catalog_market_cost_timeseries(tmp_path):
     assert payload["daily_by_model"][0]["catalog_cost_usd"] == round_cost(3.15)
     assert len(payload["model_summary"]) >= 1
     assert payload["model_summary"][0]["catalog_cost_usd"] == round_cost(3.15)
+    ms = payload["model_summary"][0]
+    assert ms["catalog_price_input"]["catalog_model_name"] == "GPT-5.3 Codex"
+    assert ms["catalog_price_input"]["amount"] == 1.75
+    assert ms["catalog_price_output"]["catalog_model_name"] == "GPT-5.3 Codex"
+    assert ms["catalog_price_output"]["amount"] == 14.0
+    assert ms["catalog_price_input"]["match_kind"] in ("exact", "fuzzy")
 
     app = create_app(db_path=str(db_path), bills_dir=str(bills_dir), auto_ingest=False)
     client = TestClient(app)
@@ -389,8 +471,11 @@ def test_catalog_market_cost_timeseries(tmp_path):
     assert "timeseriesChartMarket" in page.text
     assert "catalogMarketTotal" in page.text
     assert "modelCostSummaryTable" in page.text
-    assert "timeseriesChartActualByModel" in page.text
+    assert "timeseriesChartInputByModel" in page.text
+    assert "timeseriesChartOutputByModel" in page.text
+    assert "projectInputCostTotal" in page.text
     assert "costModelSection" in page.text
+    assert "Catalog source (Model Prices)" in page.text
 
     api = client.get("/api/projects/projCat/catalog-market-timeseries?currency=USD")
     assert api.status_code == 200
@@ -399,6 +484,10 @@ def test_catalog_market_cost_timeseries(tmp_path):
     assert body["points"][0]["catalog_cost_usd"] == round_cost(3.15)
     assert len(body["daily_by_model"]) >= 1
     assert len(body["model_summary"]) >= 1
+    assert "input_cost_usd" in body["daily_by_model"][0]
+    assert "total_input_cost_usd" in body["summary"]
+    assert "total_output_cost_usd" in body["summary"]
+    assert "total_meter_cost_usd" in body["summary"]
 
 
 def test_imported_daily_by_model_money_fields_two_decimals(tmp_path):

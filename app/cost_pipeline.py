@@ -6,7 +6,7 @@ import logging
 import os
 from typing import Any
 
-COST_PIPELINE_VERSION = "20260517-meter-sum-v2"
+COST_PIPELINE_VERSION = "20260518-meter-only-v3"
 
 _log = logging.getLogger("app.cost_pipeline")
 _logging_ready = False
@@ -42,10 +42,17 @@ def summarize_daily_cost_rows(rows: list[dict[str, Any]]) -> dict[str, Any]:
         if r.get("input_cost_usd") is not None or r.get("output_cost_usd") is not None
     )
     meter_matched = sum(1 for r in rows if r.get("allocation_method") == "meter_matched")
+    meter_partial = sum(
+        1 for r in rows if r.get("allocation_method") == "meter_matched_partial"
+    )
+    no_meter = sum(1 for r in rows if r.get("allocation_method") == "no_meter_match")
     return {
         "pipeline_version": COST_PIPELINE_VERSION,
         "row_count": total,
         "rows_with_cost": with_cost,
         "rows_meter_matched": meter_matched,
+        "rows_meter_partial": meter_partial,
+        "rows_no_meter_match": no_meter,
         "rows_missing_cost": total - with_cost,
+        "policy": "meter_only",
     }
