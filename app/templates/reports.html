@@ -19,7 +19,7 @@
           <header class="pageHeader reportPageHeader">
             <div class="breadcrumb">Home / Reports</div>
             <h1 class="pageTitle">Financial Report Center</h1>
-            <p class="pageDesc">Cost trends, billing forecast, and token usage for the selected scope. Token forecasts are on the Forecast page.</p>
+            <p class="pageDesc">Cost trends and token usage for the selected scope.</p>
           </header>
 
           <section class="card reportFilters filterCard" aria-label="Filters">
@@ -134,9 +134,9 @@
           <section class="reportSection" aria-label="Cost charts">
             <div class="sectionHeaderRow">
               <h2 class="sectionTitle">Cost</h2>
-              <span class="sectionHint muted">Billing actuals and 7-day forecast</span>
+              <span class="sectionHint muted">Billing actuals</span>
             </div>
-            <div class="chartGrid chartGrid3">
+            <div class="chartGrid chartGrid2">
               <article class="card chartCard">
                 <h3 class="chartCardTitle">Daily actual</h3>
                 <div class="chartCanvasHost chartPlot"><canvas id="dailyChart"></canvas></div>
@@ -145,34 +145,13 @@
                 <h3 class="chartCardTitle">Monthly actual</h3>
                 <div class="chartCanvasHost chartPlot"><canvas id="monthlyChart"></canvas></div>
               </article>
-              <article class="card chartCard chartCardForecast">
-                <div class="chartCardHead">
-                  <h3 class="chartCardTitle">Cost forecast (7d)</h3>
-                  <div id="forecastQualityCostReport" class="qualityBadge qualityMedium">Forecast quality: -</div>
-                </div>
-                <div class="chartCanvasHost chartPlot chartCanvasHostShort"><canvas id="costForecastChart"></canvas></div>
-                <div class="forecastMetaRow">
-                  <span class="muted">28-day window · DOW correction</span>
-                  <a class="btnLinkQuiet" href="/forecast">Open Forecast</a>
-                </div>
-                <details class="forecastAssumptions">
-                  <summary>Assumptions</summary>
-                  <div class="assumptionBody">Linear trend + day-of-week residual on the last 28 valid days. Integer output, clamped ≥ 0.</div>
-                </details>
-                <div class="tableScroll tableScrollCompact">
-                  <table class="dataTable">
-                    <thead><tr><th>Date</th><th class="num">Forecast</th></tr></thead>
-                    <tbody id="costForecastTbody"></tbody>
-                  </table>
-                </div>
-              </article>
             </div>
           </section>
 
           <section class="reportSection" aria-label="Token usage" id="tokenReportSection">
             <div class="sectionHeaderRow">
               <h2 class="sectionTitle">Tokens</h2>
-              <span class="sectionHint muted">Historical usage only — no token forecast on this page</span>
+              <span class="sectionHint muted">Historical token usage in scope</span>
             </div>
             <div class="chartGrid chartGrid2">
               <article class="card chartCard">
@@ -281,7 +260,6 @@
       let dailyTokenChart = null;
       let dailyTokenRatioChart = null;
       let monthlyTokenChart = null;
-      let costForecastChart = null;
       let lastReport = null;
       let lastTokenRatioRows = [];
 
@@ -299,7 +277,6 @@
         return document.getElementById('currencySelect')?.value || null;
       }
 
-      const forecastQualityCostReportEl = document.getElementById('forecastQualityCostReport');
       const ratioKpiSummaryReportEl = document.getElementById('ratioKpiSummaryReport');
 
       const chartLineDefaults = {
@@ -327,17 +304,6 @@
           },
         },
       };
-
-      function _renderForecastQualityBadge(el, q) {
-        if (!el) return;
-        const level = q?.level || 'medium';
-        const txt = level === 'high' ? 'High' : level === 'low' ? 'Low' : 'Medium';
-        el.textContent = `Forecast quality: ${txt}`;
-        el.classList.remove('qualityHigh', 'qualityMedium', 'qualityLow');
-        el.classList.add(level === 'high' ? 'qualityHigh' : level === 'low' ? 'qualityLow' : 'qualityMedium');
-        const details = q ? `samples ${q.valid}/${q.expected} · missing ${(q.missingRatio * 100).toFixed(0)}% · volatility ${(q.relVol * 100).toFixed(0)}%` : '';
-        el.title = details;
-      }
 
       function tooltipLabelCurrency(ctx) {
         const v = ctx.parsed?.y;
@@ -487,9 +453,6 @@
           btn?.removeAttribute('disabled');
         }
       }
-
-      // Forecast utilities are shared across pages via /static/js/forecasting.js.
-      const forecastNextDaysDOW = (...args) => window.AppForecasting.forecastNextDaysDOW(...args);
 
       function setText(id, val) {
         const el = document.getElementById(id);
@@ -1166,106 +1129,6 @@
           }
         });
 
-        renderForecastReports(report);
-      }
-
-      function renderForecastReports(report) {
-        const C = window.AppChartStyle?.colors || {};
-        const L = window.AppChartStyle?.labels || {};
-        const daily = report.daily_points || [];
-        const dailyTokens = report.token_daily_points || [];
-
-        const lastDate =
-          (daily.length ? safeDateStr(daily[daily.length - 1]?.date) : '') ||
-          (dailyTokens.length ? safeDateStr(dailyTokens[dailyTokens.length - 1]?.date) : '');
-
-        // Cost forecast
-        const costFc = forecastNextDaysDOW(daily, 'cost_usd', lastDate, { windowDays: 28, horizonDays: 7 }) || [];
-        try {
-          const q = window.AppForecasting?.forecastQuality?.(daily, 'cost_usd', { windowDays: 28 }) || null;
-          _renderForecastQualityBadge(forecastQualityCostReportEl, q);
-        } catch (e) {}
-        const costLabels = daily.map((p) => p.date).concat(costFc.map((x) => x.date));
-        const costActual = daily.map((p) => (p.cost_usd === null || p.cost_usd === undefined) ? null : window.AppMoney?.roundCost(p.cost_usd));
-        const costFcData = costLabels.map(() => null);
-        const costBy = new Map(costFc.map((x) => [x.date, x.value]));
-        for (let i = daily.length; i < costLabels.length; i++) {
-          const d = costLabels[i];
-          if (costBy.has(d)) costFcData[i] = costBy.get(d);
-        }
-        // Make dashed forecast visually connect to the last actual point (no broken segment).
-        if (daily.length >= 1) {
-          const lastActual = costActual[daily.length - 1];
-          if (lastActual !== null && lastActual !== undefined && Number.isFinite(Number(lastActual))) {
-            costFcData[daily.length - 1] = window.AppMoney?.roundCost(lastActual);
-          }
-        }
-
-        const costCtx = document.getElementById('costForecastChart').getContext('2d');
-        if (costForecastChart) costForecastChart.destroy();
-        costForecastChart = new Chart(costCtx, {
-          type: 'line',
-          data: {
-            labels: costLabels,
-            datasets: [
-              {
-                label: L.costActual || 'CostUSD (Actual)',
-                data: costActual,
-                borderColor: C.cost || '#5eead4',
-                backgroundColor: 'rgba(94,234,212,0.10)',
-                fill: false,
-                tension: 0.25,
-                pointRadius: 2,
-                borderWidth: 2.2,
-                spanGaps: true,
-              },
-              {
-                label: L.costForecast || 'CostUSD (Forecast 7d)',
-                data: costFcData,
-                borderColor: 'rgba(94,234,212,0.92)',
-                backgroundColor: 'rgba(0,0,0,0)',
-                fill: false,
-                tension: 0.25,
-                pointRadius: 2,
-                borderWidth: 2.2,
-                borderDash: [5, 4],
-                spanGaps: true,
-              }
-            ]
-          },
-          options: {
-            ...chartLineDefaults,
-            plugins: {
-              ...chartLineDefaults.plugins,
-              tooltip: { ...chartLineDefaults.plugins.tooltip, callbacks: { label: tooltipLabelCurrency } },
-            },
-            scales: {
-              ...chartLineDefaults.scales,
-              y: {
-                ...chartLineDefaults.scales.y,
-                ticks: {
-                  callback: (value) => window.AppMoney?.fmtCost(value, _currency()) ?? String(value),
-                }
-              }
-            }
-          },
-          plugins: [window.AppChartPlugins?.forecastHorizonShade?.({ startIndex: Math.max(0, daily.length - 1), label: 'Forecast horizon' })].filter(Boolean),
-        });
-
-        const costTbody = document.getElementById('costForecastTbody');
-        if (costTbody) {
-          costTbody.innerHTML = '';
-          for (const x of costFc) {
-            const tr = document.createElement('tr');
-            tr.innerHTML = `<td>${x.date}</td><td class="num">${fmtCost(x.value)}</td>`;
-            costTbody.appendChild(tr);
-          }
-          if (costFc.length === 0) {
-            const tr = document.createElement('tr');
-            tr.innerHTML = `<td colspan="2" class="muted">Not enough data to forecast (need at least 2 days).</td>`;
-            costTbody.appendChild(tr);
-          }
-        }
       }
 
       function renderPagedTable({ points, page, pageSize, tbodyEl, pageInfoEl, prevBtn, nextBtn, label }) {

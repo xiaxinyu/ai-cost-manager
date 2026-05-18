@@ -714,9 +714,6 @@
       input: imported ? "Input tokens" : L.tokenInput || "Estimated input",
       output: imported ? "Output tokens" : L.tokenOutput || "Estimated output",
       total: imported ? "Total tokens" : L.tokenTotal || "Estimated total",
-      inputFc: imported ? "Input forecast (7d)" : L.tokenInputForecast || "Input forecast (7d)",
-      outputFc: imported ? "Output forecast (7d)" : L.tokenOutputForecast || "Output forecast (7d)",
-      totalFc: imported ? "Total forecast (7d)" : L.tokenTotalForecast || "Total forecast (7d)",
     };
 
     if (els.filterHint) {

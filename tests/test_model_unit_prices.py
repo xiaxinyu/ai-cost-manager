@@ -8,6 +8,7 @@ from fastapi.testclient import TestClient
 from app.auth import create_user
 from app.money import round_cost
 from app.db import (
+    get_catalog_market_cost_timeseries,
     get_connection,
     get_model_implied_usd_per_1m_analysis,
     get_project_daily_implied_usd_per_1m_timeseries,
@@ -298,6 +299,106 @@ def test_catalog_prices_fuzzy_match_normalized_model_name(tmp_path):
     model = next(m for m in payload["models"] if "codex" in m["model_name"].lower())
     assert model["catalog_usd_per_1m_input"] == 1.75
     assert model["catalog_usd_per_1m_output"] == 14.0
+
+
+def test_catalog_market_cost_timeseries(tmp_path):
+    """1M input + 100K output at catalog 1.75 / 14 USD per 1M → 3.15 USD market cost."""
+    bills_dir = tmp_path / "bills"
+    project_dir = bills_dir / "projCat"
+    token_dir = project_dir / "token"
+    token_dir.mkdir(parents=True)
+    (project_dir / "cost.csv").write_text(
+        '"UsageDate","CostUSD","Cost","ForecastCost","Currency"\n'
+        '"2026-05-01","10.0","10.0","","USD"\n',
+        encoding="utf-8",
+    )
+    (token_dir / "input-tokens.csv").write_text(
+        '"Time","gpt-5.3-codex"\n2026-05-01 10:00:00,1 Mil\n',
+        encoding="utf-8",
+    )
+    (token_dir / "output-tokens.csv").write_text(
+        '"Time","gpt-5.3-codex"\n2026-05-01 10:00:00,100 K\n',
+        encoding="utf-8",
+    )
+
+    db_path = tmp_path / "cost_mgmt.sqlite3"
+    ingest_all(bills_dir=bills_dir, db_path=db_path, reimport_changed=False)
+    ingest_token_all(bills_dir=bills_dir, db_path=db_path, reimport_changed=False)
+
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    try:
+        init_db(conn)
+        for metric, amount in (("input", 1.75), ("output", 14.0)):
+            conn.execute(
+                """
+                INSERT INTO model_prices(
+                    source_id, source_url, effective_date, retrieved_at_utc,
+                    vendor, platform, price_region, price_currency,
+                    model_series, model_name, context_bucket, deployment_scope,
+                    billing_mode, metric_name, amount,
+                    unit_quantity, unit_name, unit_expression, notes, source_detail_json
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    "src",
+                    "https://example.com",
+                    "2026-04-29",
+                    "2026-04-29T00:00:00Z",
+                    "Microsoft",
+                    "azure-openai",
+                    "East US",
+                    "USD",
+                    "GPT-5.3",
+                    "GPT-5.3 Codex",
+                    None,
+                    "global",
+                    "standard",
+                    metric,
+                    amount,
+                    1_000_000,
+                    "tokens",
+                    "USD/1M tokens",
+                    None,
+                    None,
+                ),
+            )
+        conn.commit()
+        payload = get_catalog_market_cost_timeseries(conn, "projCat", currency="USD")
+    finally:
+        conn.close()
+
+    assert payload["available"] is True
+    assert payload["token_data_source"] == "imported"
+    assert len(payload["points"]) == 1
+    assert payload["points"][0]["catalog_cost_usd"] == round_cost(3.15)
+    assert payload["points"][0]["actual_cost_usd"] == round_cost(10.0)
+    assert payload["summary"]["total_catalog_cost_usd"] == round_cost(3.15)
+    assert payload["summary"]["total_actual_cost_usd"] == round_cost(10.0)
+    assert len(payload["daily_by_model"]) >= 1
+    assert payload["daily_by_model"][0]["catalog_cost_usd"] == round_cost(3.15)
+    assert len(payload["model_summary"]) >= 1
+    assert payload["model_summary"][0]["catalog_cost_usd"] == round_cost(3.15)
+
+    app = create_app(db_path=str(db_path), bills_dir=str(bills_dir), auto_ingest=False)
+    client = TestClient(app)
+    _create_admin(str(db_path))
+    client.post("/auth/login", data={"username": "admin", "password": "admin12345"})
+    page = client.get("/")
+    assert page.status_code == 200
+    assert "timeseriesChartMarket" in page.text
+    assert "catalogMarketTotal" in page.text
+    assert "modelCostSummaryTable" in page.text
+    assert "timeseriesChartActualByModel" in page.text
+    assert "costModelSection" in page.text
+
+    api = client.get("/api/projects/projCat/catalog-market-timeseries?currency=USD")
+    assert api.status_code == 200
+    body = api.json()
+    assert body["available"] is True
+    assert body["points"][0]["catalog_cost_usd"] == round_cost(3.15)
+    assert len(body["daily_by_model"]) >= 1
+    assert len(body["model_summary"]) >= 1
 
 
 def test_imported_daily_by_model_money_fields_two_decimals(tmp_path):

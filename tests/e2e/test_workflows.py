@@ -43,8 +43,7 @@ def test_desktop_primary_workflows(page, e2e_server_base_url: str) -> None:
     # Charts should render non-empty canvases.
     for cid in [
         "timeseriesChartActual",
-        "timeseriesChartCostForecast",
-        
+        "timeseriesChartMarket",
     ]:
         n = page.evaluate(_canvas_data_url_len_expr(cid))
         assert n > 2000, f"canvas {cid} looks empty (dataURL len={n})"
@@ -77,7 +76,7 @@ def test_desktop_primary_workflows(page, e2e_server_base_url: str) -> None:
     page.wait_for_selector("#loadBtn")
     page.click("#loadBtn")
     page.wait_for_timeout(700)
-    for cid in ["dailyChart", "monthlyChart", "costForecastChart", "dailyTokenChart", "dailyTokenRatioChart"]:
+    for cid in ["dailyChart", "monthlyChart", "dailyTokenChart", "dailyTokenRatioChart"]:
         n = page.evaluate(_canvas_data_url_len_expr(cid))
         assert n > 2000, f"canvas {cid} looks empty (dataURL len={n})"
 

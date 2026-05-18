@@ -127,7 +127,8 @@ def test_reports_page_layout_without_token_forecast(tmp_path):
     assert page.status_code == 200
     assert "tokenForecastChart" not in page.text
     assert "Token Forecast (7d)" not in page.text
-    assert "chartGrid3" in page.text
+    assert "chartGrid2" in page.text
+    assert "costForecastChart" not in page.text
     assert "tokenReportSection" in page.text
     assert "filterCard" in page.text
     assert "dateLast7Btn" in page.text

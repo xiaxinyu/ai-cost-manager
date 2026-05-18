@@ -16,8 +16,6 @@ from pydantic import BaseModel
 
 from .db import (
     clear_all_model_prices,
-    get_cost_forecast_baseline,
-    get_forecast_model_unit_prices,
     get_model_price_by_id,
     get_model_price_filter_options,
     get_model_prices,
@@ -37,12 +35,12 @@ from .db import (
     get_all_token_timeseries,
     verify_all_financial_consistency,
     get_billing_token_bridge,
+    get_catalog_market_cost_timeseries,
     trace_transaction_cost_match,
     get_model_implied_usd_per_1m_analysis,
     get_project_daily_implied_usd_per_1m_timeseries,
     get_timeseries,
     init_db,
-    list_forecast_model_catalog,
     list_price_source_catalog,
     list_projects,
     list_projects_with_imported_tokens,
@@ -290,17 +288,6 @@ def create_app(
             {"username": username},
         )
 
-    @app.get("/forecast", response_class=HTMLResponse)
-    def forecast_page(request: Request) -> HTMLResponse:
-        username = _require_ui_username(request)
-        if username is None:
-            return RedirectResponse(url="/login", status_code=303)
-        return templates.TemplateResponse(
-            request,
-            "forecast.html",
-            {"username": username},
-        )
-
     @app.get("/prices", response_class=HTMLResponse)
     def prices_page(request: Request) -> HTMLResponse:
         username = _require_ui_username(request)
@@ -434,6 +421,33 @@ def create_app(
         finally:
             conn.close()
 
+    @app.get("/api/projects/{project_name}/catalog-market-timeseries")
+    def api_catalog_market_timeseries(
+        project_name: str,
+        start_date: Optional[str] = Query(default=None, description="YYYY-MM-DD"),
+        end_date: Optional[str] = Query(default=None, description="YYYY-MM-DD"),
+        currency: Optional[str] = Query(default=None, description="Currency code"),
+        _: str = Depends(_auth_dep),
+    ) -> JSONResponse:
+        start_date, end_date = _normalize_date_range(
+            start_date,
+            end_date,
+            start_name="start_date",
+            end_name="end_date",
+        )
+        conn = get_connection(db_path)
+        try:
+            payload = get_catalog_market_cost_timeseries(
+                conn,
+                project_name,
+                start_date=start_date,
+                end_date=end_date,
+                currency=currency,
+            )
+            return JSONResponse(payload)
+        finally:
+            conn.close()
+
     @app.get("/api/projects/{project_name}/implied-unit-prices-timeseries")
     def api_implied_unit_prices_timeseries(
         project_name: str,
@@ -527,59 +541,6 @@ def create_app(
                     "points": points,
                 }
             )
-        finally:
-            conn.close()
-
-    @app.get("/api/projects/{project_name}/forecast-baseline")
-    def api_forecast_baseline(
-        project_name: str,
-        window_days: int = Query(default=28, ge=7, le=90),
-        currency: Optional[str] = Query(default=None),
-        _: str = Depends(_auth_dep),
-    ) -> JSONResponse:
-        conn = get_connection(db_path)
-        try:
-            out = get_cost_forecast_baseline(
-                conn, project_name, window_days=window_days, currency=currency
-            )
-            return JSONResponse(out)
-        finally:
-            conn.close()
-
-    @app.get("/api/forecast/model-catalog")
-    def api_forecast_model_catalog(_: str = Depends(_auth_dep)) -> JSONResponse:
-        conn = get_connection(db_path)
-        try:
-            opts = list_forecast_model_catalog(conn)
-            return JSONResponse({"options": opts})
-        finally:
-            conn.close()
-
-    @app.get("/api/forecast/model-unit-prices")
-    def api_forecast_model_unit_prices(
-        vendor: str = Query(..., min_length=1),
-        platform: str = Query(..., min_length=1),
-        model_series: str = Query(..., min_length=1),
-        model_name: str = Query(..., min_length=1),
-        price_region: Optional[str] = Query(default=None, description="omit or empty = any region"),
-        deployment_scope: Optional[str] = Query(default="global"),
-        billing_mode: str = Query(default="standard"),
-        _: str = Depends(_auth_dep),
-    ) -> JSONResponse:
-        conn = get_connection(db_path)
-        try:
-            pr = (price_region.strip() if price_region else None) or None
-            out = get_forecast_model_unit_prices(
-                conn,
-                vendor=vendor,
-                platform=platform,
-                model_series=model_series,
-                model_name=model_name,
-                price_region=pr,
-                deployment_scope=(deployment_scope.strip() if deployment_scope else None),
-                billing_mode=billing_mode,
-            )
-            return JSONResponse(out)
         finally:
             conn.close()
 

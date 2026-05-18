@@ -19,7 +19,7 @@
           <div class="pageHeader">
             <div class="breadcrumb">Home / Cost</div>
             <div class="pageTitle">Cost Overview</div>
-            <p class="pageDesc">Daily billing cost (CostUSD) and 7-day forecast from imported billing CSVs. Token-level pricing is on the Tokens page.</p>
+            <p class="pageDesc">Daily billing cost (CostUSD) and catalog market price from token volume × list unit prices. Token detail is on the Tokens page.</p>
           </div>
           <div class="header card">
         <div>
@@ -57,6 +57,20 @@
             <div class="value" id="daysCount" style="font-size:16px;">-</div>
           </div>
         </div>
+        <div class="card" id="catalogMarketCard">
+          <div class="stat">
+            <div class="label">Catalog market (list)</div>
+            <div class="value" id="catalogMarketTotal">-</div>
+            <div class="sub tokenStats" id="catalogMarketNote">Token volume × catalog USD/1M</div>
+          </div>
+        </div>
+        <div class="card" id="catalogVarianceCard">
+          <div class="stat">
+            <div class="label">Billing vs catalog</div>
+            <div class="value" id="catalogVariancePct" style="font-size:16px;">-</div>
+            <div class="sub tokenStats" id="catalogVarianceNote">Actual − catalog market</div>
+          </div>
+        </div>
       </div>
 
           <div class="dashSections">
@@ -70,27 +84,41 @@
                   <div class="chartSectionTitle">Actual cost (daily)</div>
                   <canvas id="timeseriesChartActual"></canvas>
                 </div>
-                <div class="card tight">
-                  <div class="chartSectionTitle muted">Forecast cost (7d)</div>
-                  <canvas id="timeseriesChartCostForecast"></canvas>
-                  <div class="forecastMetaRow">
-                    <div class="muted">Last 28 days · 7-day horizon · DOW correction</div>
-                    <div id="forecastQualityCost" class="qualityBadge qualityMedium">Forecast quality: -</div>
-                  </div>
-                  <details class="forecastAssumptions">
-                    <summary>Forecast assumptions (7d)</summary>
-                    <div class="assumptionBody">
-                      Uses the last <b>28</b> valid daily points to fit a <b>linear trend</b> with <b>day-of-week residual correction</b>.
-                      Output is <b>integer</b> and <b>clamped to ≥ 0</b>.
-                      <ul>
-                        <li><b>Window</b>: 28 samples (clamped to [2, 365])</li>
-                        <li><b>Horizon</b>: 7 days (clamped to [1, 30])</li>
-                        <li><b>Continuity</b>: dashed forecast starts at last actual point</li>
-                      </ul>
-                    </div>
-                  </details>
+                <div class="card tight" id="marketCompareSection">
+                  <div class="chartSectionTitle">Actual vs catalog market (daily)</div>
+                  <p class="muted marketChartHint" id="marketChartHint">Imported token volume × catalog list price (USD/1M) from Model Prices.</p>
+                  <canvas id="timeseriesChartMarket"></canvas>
                 </div>
               </div>
+
+            <section class="costModelSection" id="costModelSection" hidden aria-label="Cost by model">
+              <div class="sectionHeaderRow">
+                <div class="sectionTitle">By model</div>
+                <span class="muted" id="modelSectionHint"></span>
+              </div>
+              <div class="card tight modelSummaryCard">
+                <div class="chartSectionTitle">Model totals (scope)</div>
+                <p class="muted modelTableHint">Actual = meter-matched or proportional billing split. Catalog = tokens × list price (USD/1M).</p>
+                <div class="tableScroll modelSummaryTableWrap">
+                  <table class="dataTable" id="modelCostSummaryTable">
+                    <thead>
+                      <tr>
+                        <th scope="col">Model</th>
+                        <th class="num" scope="col">Actual</th>
+                        <th class="num" scope="col">Catalog market</th>
+                        <th class="num" scope="col">Δ vs catalog</th>
+                        <th class="num" scope="col">Days</th>
+                      </tr>
+                    </thead>
+                    <tbody id="modelCostSummaryTbody"></tbody>
+                  </table>
+                </div>
+              </div>
+              <div class="card tight">
+                <div class="chartSectionTitle">Actual cost by model (daily)</div>
+                <canvas id="timeseriesChartActualByModel"></canvas>
+              </div>
+            </section>
             </section>
           </div>
         </div>
@@ -101,8 +129,6 @@
     <script src="/static/js/app-shell.js"></script>
     <script src="/static/js/money.js"></script>
     <script src="/static/js/http.js"></script>
-    <script src="/static/js/forecasting.js"></script>
-    <script src="/static/js/chart-plugins.js"></script>
     <script src="/static/js/chart-style.js"></script>
     <script>
       // Make fonts clearer for dark UI dashboards.
@@ -121,12 +147,40 @@
       const applyFiltersBtn = document.getElementById('applyFiltersBtn');
 
       let chartActual = null;
-      let chartCostForecast = null;
+      let chartMarket = null;
+      let chartActualByModel = null;
       let currentProjectName = null;
       let currentCurrency = null;
       let currentStartDate = null;
       let currentEndDate = null;
-      const forecastQualityCostEl = document.getElementById('forecastQualityCost');
+      const catalogMarketTotalEl = document.getElementById('catalogMarketTotal');
+      const catalogMarketNoteEl = document.getElementById('catalogMarketNote');
+      const catalogVariancePctEl = document.getElementById('catalogVariancePct');
+      const catalogVarianceNoteEl = document.getElementById('catalogVarianceNote');
+      const marketChartHintEl = document.getElementById('marketChartHint');
+      const marketCompareSectionEl = document.getElementById('marketCompareSection');
+      const catalogMarketCard = document.getElementById('catalogMarketCard');
+      const catalogVarianceCard = document.getElementById('catalogVarianceCard');
+      const costModelSectionEl = document.getElementById('costModelSection');
+      const modelSectionHintEl = document.getElementById('modelSectionHint');
+      const modelCostSummaryTbodyEl = document.getElementById('modelCostSummaryTbody');
+
+      const MODEL_CHART_COLORS = [
+        { border: '#60a5fa', fill: 'rgba(96, 165, 250, 0.12)' },
+        { border: '#a78bfa', fill: 'rgba(167, 139, 250, 0.12)' },
+        { border: '#5eead4', fill: 'rgba(94, 234, 212, 0.12)' },
+        { border: '#fbbf24', fill: 'rgba(251, 191, 36, 0.12)' },
+        { border: '#f87171', fill: 'rgba(248, 113, 113, 0.12)' },
+        { border: '#34d399', fill: 'rgba(52, 211, 153, 0.12)' },
+      ];
+
+      function escapeHtml(s) {
+        return String(s ?? '')
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;');
+      }
 
       function fmt2(n) {
         return window.AppMoney?.fmtCost(n, currentCurrency) ?? '-';
@@ -162,9 +216,6 @@
         d.setDate(d.getDate() + Number(days || 0));
         return _toYmd(d);
       }
-
-      // Forecast utilities are shared across pages via /static/js/forecasting.js.
-      const forecastNextDaysDOW = (...args) => window.AppForecasting.forecastNextDaysDOW(...args);
 
       function _calcSeriesStats(points, key) {
         const rows = (points || [])
@@ -277,52 +328,366 @@
         }
       };
 
-      function renderChart(costPoints, { costForecast } = {}) {
+      function renderCatalogMarketUi(catalogPayload, costPoints) {
+        const summary = catalogPayload?.summary || {};
+        const available = catalogPayload?.available === true;
+        if (catalogMarketCard) catalogMarketCard.style.opacity = available ? '1' : '0.55';
+        if (catalogVarianceCard) catalogVarianceCard.style.opacity = available ? '1' : '0.55';
+        if (marketCompareSectionEl) marketCompareSectionEl.hidden = !available;
+
+        if (!available) {
+          if (catalogMarketTotalEl) catalogMarketTotalEl.textContent = '—';
+          if (catalogMarketNoteEl) {
+            const reason = catalogPayload?.reason === 'no_token_volume'
+              ? 'Import token CSVs or configure a model on Tokens.'
+              : 'No catalog market data for this scope.';
+            catalogMarketNoteEl.textContent = reason;
+          }
+          if (catalogVariancePctEl) catalogVariancePctEl.textContent = '—';
+          if (catalogVarianceNoteEl) catalogVarianceNoteEl.textContent = '—';
+          if (chartMarket) {
+            chartMarket.destroy();
+            chartMarket = null;
+          }
+          if (chartActualByModel) {
+            chartActualByModel.destroy();
+            chartActualByModel = null;
+          }
+          if (costModelSectionEl) costModelSectionEl.hidden = true;
+          if (modelCostSummaryTbodyEl) modelCostSummaryTbodyEl.innerHTML = '';
+          return;
+        }
+
+        const totalCat = summary.total_catalog_cost_usd;
+        if (catalogMarketTotalEl) catalogMarketTotalEl.textContent = fmt2(totalCat);
+        const src = catalogPayload.token_data_source === 'imported' ? 'Imported tokens' : 'Estimated tokens';
+        let note = `${src} × catalog USD/1M`;
+        const unpriced = catalogPayload.unpriced_models || [];
+        if (unpriced.length) {
+          note += ` · ${unpriced.length} model(s) without catalog match`;
+        }
+        if (catalogMarketNoteEl) catalogMarketNoteEl.textContent = note;
+
+        const vPct = summary.variance_pct;
+        const vUsd = summary.variance_usd;
+        if (catalogVariancePctEl) {
+          catalogVariancePctEl.textContent =
+            vPct === null || vPct === undefined ? '—' : `${vPct > 0 ? '+' : ''}${vPct}%`;
+        }
+        if (catalogVarianceNoteEl) {
+          catalogVarianceNoteEl.textContent =
+            vUsd === null || vUsd === undefined
+              ? 'Actual − catalog'
+              : `Δ ${fmt2(vUsd)} (actual − catalog)`;
+        }
+        if (marketChartHintEl) {
+          marketChartHintEl.textContent =
+            catalogPayload.token_data_source === 'imported'
+              ? 'Per model/day: input & output tokens × catalog list price (Model Prices).'
+              : 'Estimated token volume from billing × catalog list price for the configured model.';
+        }
+
+        renderMarketChart(costPoints, catalogPayload);
+        renderModelCostSection(catalogPayload);
+      }
+
+      function _unionSortedDates(...lists) {
+        const set = new Set();
+        for (const list of lists) {
+          for (const p of list || []) {
+            const d = _safeDateStr(p?.date);
+            if (d) set.add(d);
+          }
+        }
+        return [...set].sort();
+      }
+
+      function _modelBreakdownByDate(dailyByModel) {
+        const map = new Map();
+        for (const row of dailyByModel || []) {
+          const d = _safeDateStr(row?.date);
+          if (!d) continue;
+          const list = map.get(d) || [];
+          list.push(row);
+          map.set(d, list);
+        }
+        for (const [d, list] of map) {
+          list.sort((a, b) => String(a.model_name).localeCompare(String(b.model_name)));
+          map.set(d, list);
+        }
+        return map;
+      }
+
+      function renderModelCostSection(catalogPayload) {
+        const summary = catalogPayload?.model_summary || [];
+        const daily = catalogPayload?.daily_by_model || [];
+        const show = catalogPayload?.available === true && summary.length > 0;
+
+        if (costModelSectionEl) costModelSectionEl.hidden = !show;
+        if (!show) {
+          if (chartActualByModel) {
+            chartActualByModel.destroy();
+            chartActualByModel = null;
+          }
+          if (modelCostSummaryTbodyEl) modelCostSummaryTbodyEl.innerHTML = '';
+          return;
+        }
+
+        if (modelSectionHintEl) {
+          const n = summary.length;
+          const unpriced = catalogPayload.unpriced_models || [];
+          modelSectionHintEl.textContent = unpriced.length
+            ? `${n} model(s) · ${unpriced.length} without catalog match`
+            : `${n} model(s) in scope`;
+        }
+
+        renderModelSummaryTable(summary);
+        renderActualByModelChart(daily);
+      }
+
+      function renderModelSummaryTable(rows) {
+        if (!modelCostSummaryTbodyEl) return;
+        const sorted = [...(rows || [])].sort((a, b) => {
+          const av = Number(a?.actual_cost_usd ?? 0);
+          const bv = Number(b?.actual_cost_usd ?? 0);
+          return bv - av;
+        });
+        modelCostSummaryTbodyEl.innerHTML = sorted
+          .map((r) => {
+            const vPct = r.variance_pct;
+            const delta =
+              vPct === null || vPct === undefined
+                ? '—'
+                : `${vPct > 0 ? '+' : ''}${vPct}%`;
+            return `<tr>
+              <td>${escapeHtml(r.model_name)}</td>
+              <td class="num mono">${fmt2(r.actual_cost_usd)}</td>
+              <td class="num mono">${fmt2(r.catalog_cost_usd)}</td>
+              <td class="num mono">${escapeHtml(delta)}</td>
+              <td class="num">${escapeHtml(String(r.days_with_rows ?? '—'))}</td>
+            </tr>`;
+          })
+          .join('');
+      }
+
+      function renderActualByModelChart(dailyByModel) {
+        const models = [
+          ...new Set((dailyByModel || []).map((r) => String(r.model_name || '')).filter(Boolean)),
+        ].sort();
+        const labels = _unionSortedDates(dailyByModel);
+        const datasets = models.map((model, idx) => {
+          const col = MODEL_CHART_COLORS[idx % MODEL_CHART_COLORS.length];
+          const byDate = new Map(
+            (dailyByModel || [])
+              .filter((r) => String(r.model_name) === model)
+              .map((r) => [String(r.date), r.actual_cost_usd])
+          );
+          const data = labels.map((d) => {
+            const v = byDate.get(d);
+            return v === null || v === undefined ? null : window.AppMoney?.roundCost(v);
+          });
+          return {
+            label: model,
+            data,
+            borderColor: col.border,
+            backgroundColor: col.fill,
+            fill: false,
+            tension: 0.22,
+            pointRadius: 2,
+            pointHoverRadius: 4,
+            borderWidth: 2,
+            spanGaps: true,
+            unitType: 'currency',
+          };
+        });
+
+        if (chartActualByModel) chartActualByModel.destroy();
+        const ctx = document.getElementById('timeseriesChartActualByModel')?.getContext('2d');
+        if (!ctx) return;
+
+        chartActualByModel = new Chart(ctx, {
+          type: 'line',
+          data: { labels, datasets },
+          options: {
+            ...chartLineDefaults,
+            plugins: {
+              decimation: { enabled: true, algorithm: 'min-max' },
+              legend: {
+                display: models.length > 0,
+                position: 'top',
+                labels: { color: '#e6edf3', font: { size: 12, weight: '600' }, boxWidth: 14 },
+              },
+              tooltip: {
+                enabled: true,
+                backgroundColor: 'rgba(11,18,32,0.92)',
+                borderColor: 'rgba(255,255,255,0.16)',
+                borderWidth: 1,
+                callbacks: { label: tooltipLabelForValue },
+              },
+            },
+            scales: {
+              x: {
+                ticks: { color: '#9fb2c7', maxTicksLimit: 12, maxRotation: 0 },
+                grid: { color: 'rgba(255,255,255,0.08)' },
+              },
+              y: {
+                ticks: {
+                  color: '#9fb2c7',
+                  callback: (value) => window.AppMoney?.fmtCost(value, currentCurrency) ?? String(value),
+                },
+                beginAtZero: true,
+                grid: { color: 'rgba(255,255,255,0.08)' },
+              },
+            },
+          },
+          plugins: [emptyStatePlugin('No per-model actual cost in range')],
+        });
+      }
+
+      function renderMarketChart(costPoints, catalogPayload) {
+        const C = window.AppChartStyle?.colors || {};
+        const L = window.AppChartStyle?.labels || {};
+        const catPoints = catalogPayload?.points || [];
+        const dailyByModel = catalogPayload?.daily_by_model || [];
+        const breakdownByDate = _modelBreakdownByDate(dailyByModel);
+
+        const actualByDate = new Map();
+        const catalogByDate = new Map();
+        for (const p of catPoints) {
+          const d = _safeDateStr(p?.date);
+          if (!d) continue;
+          if (p.actual_cost_usd !== null && p.actual_cost_usd !== undefined) {
+            actualByDate.set(d, p.actual_cost_usd);
+          }
+          if (p.catalog_cost_usd !== null && p.catalog_cost_usd !== undefined) {
+            catalogByDate.set(d, p.catalog_cost_usd);
+          }
+        }
+        for (const p of costPoints || []) {
+          const d = _safeDateStr(p?.date);
+          if (!d) continue;
+          if (!actualByDate.has(d) && p.cost_usd !== null && p.cost_usd !== undefined) {
+            actualByDate.set(d, p.cost_usd);
+          }
+        }
+
+        const labels = _unionSortedDates(catPoints, costPoints);
+        const actualData = labels.map((d) => {
+          const v = actualByDate.get(d);
+          return v === null || v === undefined ? null : window.AppMoney?.roundCost(v);
+        });
+        const catalogData = labels.map((d) => {
+          const v = catalogByDate.get(d);
+          return v === null || v === undefined ? null : window.AppMoney?.roundCost(v);
+        });
+
+        if (chartMarket) chartMarket.destroy();
+        const ctx = document.getElementById('timeseriesChartMarket')?.getContext('2d');
+        if (!ctx) return;
+
+        chartMarket = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels,
+            datasets: [
+              {
+                label: L.costActual || 'CostUSD (Actual)',
+                data: actualData,
+                borderColor: C.cost || '#5eead4',
+                backgroundColor: 'rgba(94,234,212,0.12)',
+                fill: false,
+                tension: 0.25,
+                pointRadius: 2,
+                borderWidth: 2.4,
+                spanGaps: true,
+                unitType: 'currency',
+              },
+              {
+                label: 'Catalog market (list)',
+                data: catalogData,
+                borderColor: '#60a5fa',
+                backgroundColor: 'rgba(96,165,250,0.10)',
+                fill: false,
+                tension: 0.25,
+                pointRadius: 2,
+                borderWidth: 2.2,
+                borderDash: [4, 3],
+                spanGaps: true,
+                unitType: 'currency',
+              },
+            ],
+          },
+          options: {
+            ...chartLineDefaults,
+            plugins: {
+              decimation: { enabled: true, algorithm: 'min-max' },
+              legend: {
+                display: true,
+                position: 'top',
+                labels: { color: '#e6edf3', font: { size: 14, weight: '600' } },
+              },
+              tooltip: {
+                enabled: true,
+                backgroundColor: 'rgba(11,18,32,0.92)',
+                borderColor: 'rgba(255,255,255,0.16)',
+                borderWidth: 1,
+                callbacks: {
+                  label: tooltipLabelForValue,
+                  afterBody: (items) => {
+                    if (!items?.length) return [];
+                    const idx = items[0].dataIndex;
+                    const date = labels[idx];
+                    const rows = breakdownByDate.get(date);
+                    if (!rows?.length) return [];
+                    const lines = ['', 'By model (actual / catalog):'];
+                    const max = 8;
+                    for (const r of rows.slice(0, max)) {
+                      const name = String(r.model_name || 'model');
+                      lines.push(
+                        ` ${name}: ${fmt2(r.actual_cost_usd)} / ${fmt2(r.catalog_cost_usd)}`
+                      );
+                    }
+                    if (rows.length > max) {
+                      lines.push(` …+${rows.length - max} more`);
+                    }
+                    return lines;
+                  },
+                },
+              },
+            },
+            scales: {
+              x: {
+                ticks: { color: '#9fb2c7', maxTicksLimit: 12, maxRotation: 0 },
+                grid: { color: 'rgba(255,255,255,0.08)' },
+              },
+              y: {
+                ticks: {
+                  color: '#9fb2c7',
+                  callback: (value) => window.AppMoney?.fmtCost(value, currentCurrency) ?? String(value),
+                },
+                beginAtZero: true,
+                grid: { color: 'rgba(255,255,255,0.08)' },
+              },
+            },
+          },
+          plugins: [emptyStatePlugin('No catalog market data in range')],
+        });
+      }
+
+      function renderChart(costPoints) {
         const C = window.AppChartStyle?.colors || {};
         const L = window.AppChartStyle?.labels || {};
         const labels = (costPoints || []).map((p) => p.date);
-        const lastLabel = labels.length ? labels[labels.length - 1] : null;
-        const horizonLabels = lastLabel
-          ? Array.from({ length: 7 }, (_, i) => _addDaysYmd(lastLabel, i + 1)).filter(Boolean)
-          : [];
-
         const costData = (costPoints || []).map((p) => {
           const v = p.cost_usd;
           return v === null || v === undefined ? null : window.AppMoney?.roundCost(v);
         });
 
-        const costFcBy = Array.isArray(costForecast) ? new Map(costForecast.map((x) => [x.date, x.value])) : new Map();
-        const costOnlyForecastData = horizonLabels.map((d) => (costFcBy.has(d) ? costFcBy.get(d) : null));
-
-        try {
-          if (forecastQualityCostEl) {
-            const q = window.AppForecasting?.forecastQuality?.(costPoints || [], 'cost_usd', { windowDays: 28 }) || null;
-            _renderForecastQualityBadge(forecastQualityCostEl, q);
-          }
-        } catch (e) {
-          /* optional */
-        }
-
-        const lastIdx = labels.length - 1;
-        const prevIdx = labels.length - 2;
-        const hasLast = lastIdx >= 0 && lastLabel;
-        const hasPrev = prevIdx >= 0;
-        const costForecastLabels = hasLast
-          ? [hasPrev ? labels[prevIdx] : lastLabel, lastLabel].filter(Boolean).concat(horizonLabels)
-          : horizonLabels;
-        const costActualTail = hasLast
-          ? [hasPrev ? costData[prevIdx] : null, costData[lastIdx]].filter((_, i, arr) => arr.length > 1 || i === 0)
-          : [];
-        const costForecastDashed = hasLast ? [costData[lastIdx]].concat(costOnlyForecastData) : costOnlyForecastData;
-
         if (chartActual) chartActual.destroy();
-        if (chartCostForecast) chartCostForecast.destroy();
         chartActual = null;
-        chartCostForecast = null;
 
         const ctxA = document.getElementById('timeseriesChartActual')?.getContext('2d');
-        const ctxC = document.getElementById('timeseriesChartCostForecast')?.getContext('2d');
-        if (!ctxA || !ctxC) return;
+        if (!ctxA) return;
 
         const gradient = ctxA.createLinearGradient(0, 0, 0, 360);
         gradient.addColorStop(0, 'rgba(94,234,212,0.28)');
@@ -381,103 +746,6 @@
           },
           plugins: [emptyStatePlugin('No data in selected range')],
         });
-
-        const horizonShadeCost = window.AppChartPlugins?.forecastHorizonShade?.({ startIndex: 1, label: 'Forecast horizon' }) || null;
-        chartCostForecast = new Chart(ctxC, {
-          type: 'line',
-          data: {
-            labels: costForecastLabels,
-            datasets: [
-              {
-                label: 'CostUSD (Actual, last)',
-                data: costActualTail.concat(costForecastLabels.slice(costActualTail.length).map(() => null)),
-                borderColor: C.cost || '#5eead4',
-                backgroundColor: 'rgba(0,0,0,0)',
-                fill: false,
-                tension: 0.25,
-                pointRadius: 2,
-                pointHoverRadius: 3,
-                borderWidth: 2.2,
-                spanGaps: true,
-                unitType: 'currency',
-              },
-              {
-                label: L.costForecast || 'CostUSD (Forecast 7d)',
-                data: costForecastLabels.map((_, i) => {
-                  const head = hasLast ? 1 : 0;
-                  if (i < head) return costForecastDashed[i] ?? null;
-                  if (i >= head && i < head + costOnlyForecastData.length) return costForecastDashed[i] ?? null;
-                  return null;
-                }),
-                borderColor: 'rgba(94,234,212,0.88)',
-                backgroundColor: 'rgba(0,0,0,0)',
-                fill: false,
-                tension: 0.25,
-                pointRadius: 2,
-                pointHoverRadius: 3,
-                borderWidth: 2.2,
-                borderDash: [5, 4],
-                spanGaps: true,
-                unitType: 'currency',
-              },
-            ],
-          },
-          options: {
-            ...chartLineDefaults,
-            plugins: {
-              decimation: { enabled: true, algorithm: 'min-max' },
-              legend: {
-                display: true,
-                position: 'top',
-                labels: {
-                  color: '#e6edf3',
-                  font: { size: 15, weight: '600' },
-                  filter: (item) => !String(item?.text || '').includes('(Actual, last)'),
-                },
-              },
-              tooltip: {
-                enabled: true,
-                backgroundColor: 'rgba(11,18,32,0.92)',
-                borderColor: 'rgba(255,255,255,0.16)',
-                borderWidth: 1,
-                titleFont: { size: 14, weight: '600' },
-                bodyFont: { size: 13 },
-                callbacks: { label: tooltipLabelForValue },
-              },
-            },
-            scales: {
-              x: {
-                ticks: { color: '#9fb2c7', font: { size: 12, weight: '500' }, autoSkip: true, maxTicksLimit: 12, maxRotation: 0 },
-                grid: { color: 'rgba(255,255,255,0.08)' },
-              },
-              y: {
-                ticks: {
-                  color: '#9fb2c7',
-                  font: { size: 12, weight: '500' },
-                  callback: (value) => {
-                    const n = Math.round(Number(value));
-                    if (!Number.isFinite(n)) return String(value);
-                    return n.toLocaleString(undefined, { maximumFractionDigits: 0, minimumFractionDigits: 0 });
-                  },
-                },
-                beginAtZero: true,
-                grid: { color: 'rgba(255,255,255,0.08)' },
-              },
-            },
-          },
-          plugins: [emptyStatePlugin('No forecast (need at least 2 days of history)'), horizonShadeCost].filter(Boolean),
-        });
-      }
-
-      function _renderForecastQualityBadge(el, q) {
-        if (!el) return;
-        const level = q?.level || 'medium';
-        const txt = level === 'high' ? 'High' : level === 'low' ? 'Low' : 'Medium';
-        el.textContent = `Forecast quality: ${txt}`;
-        el.classList.remove('qualityHigh', 'qualityMedium', 'qualityLow');
-        el.classList.add(level === 'high' ? 'qualityHigh' : level === 'low' ? 'qualityLow' : 'qualityMedium');
-        const details = q ? `samples ${q.valid}/${q.expected} · missing ${(q.missingRatio * 100).toFixed(0)}% · volatility ${(q.relVol * 100).toFixed(0)}%` : '';
-        el.title = details;
       }
 
       function fmtTs(ts) {
@@ -542,11 +810,22 @@
           `/api/projects/${encodeURIComponent(projectName)}/timeseries?${tsParams.toString()}`
         );
 
-        const costPts = ts.points || [];
-        const lastDate = costPts.length ? _safeDateStr(costPts[costPts.length - 1]?.date) : '';
-        const costForecast = forecastNextDaysDOW(costPts, 'cost_usd', lastDate, { windowDays: 28, horizonDays: 7 }) || [];
+        const marketParams = new URLSearchParams();
+        if (currentStartDate) marketParams.set('start_date', currentStartDate);
+        if (currentEndDate) marketParams.set('end_date', currentEndDate);
+        if (currentCurrency) marketParams.set('currency', currentCurrency);
+        let catalogPayload = { available: false };
+        try {
+          catalogPayload = await window.AppHttp.getJson(
+            `/api/projects/${encodeURIComponent(projectName)}/catalog-market-timeseries?${marketParams.toString()}`
+          );
+        } catch (e) {
+          console.error(e);
+        }
 
-        renderChart(costPts, { costForecast });
+        const costPts = ts.points || [];
+        renderChart(costPts);
+        renderCatalogMarketUi(catalogPayload, costPts);
 
         const costStats = _calcSeriesStatsFloat(costPts, 'cost_usd');
         _renderCostStats(costStatsEl, costStats);
