@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="/static/css/page-common.css" />
     <link rel="stylesheet" href="/static/css/pages/import.css" />
     <link rel="stylesheet" href="/static/css/layout-pro.css" />
+    <link rel="stylesheet" href="/static/css/dashboard-shared.css" />
   </head>
   <body>
     {% set active_page = 'import' %}
@@ -15,7 +16,7 @@
     {% include "_app_nav.html" %}
     <div class="appLayout">
       <main class="contentArea">
-        <div class="container">
+        <div class="container importPage dashPage">
           <div class="pageHeader">
             <div class="breadcrumb">Home / Data Operations / Import</div>
             <div class="pageTitle">Billing &amp; Token Import</div>
@@ -47,8 +48,8 @@
           </div>
         </div>
 
-        <div class="tableScroll">
-          <table>
+        <div class="tableScroll dashTableShell">
+          <table class="dashTable">
             <thead>
               <tr>
                 <th style="width:56px; text-align:center;">Pick</th>
@@ -74,8 +75,8 @@
         </div>
         <div id="verifyImportedStatus" class="muted" style="display:none; margin-top:10px;"></div>
 
-        <div class="tableScroll">
-          <table>
+        <div class="tableScroll dashTableShell">
+          <table class="dashTable">
             <thead>
               <tr>
                 <th style="width:56px; text-align:center;">Verify</th>
@@ -96,6 +97,7 @@
 
     <script src="/static/js/app-shell.js"></script>
     <script src="/static/js/http.js"></script>
+    <script src="/static/js/dashboard-ui.js"></script>
     <script>
       const missingFilesTbody = document.getElementById('missingFilesTbody');
       const missingCountEl = document.getElementById('missingCount');
@@ -130,8 +132,24 @@
         }
       }
 
+      const importPageRoot = document.querySelector('.importPage.dashPage');
+
+      function setImportLoading(loading) {
+        window.AppDashboardUi?.setPageLoading?.({
+          loading,
+          loadBtn: importBtn,
+          loadBtnLabel: 'Import Selected',
+          loadBtnLoadingLabel: 'Importing…',
+          pageRoot: importPageRoot,
+          disableEls: [refreshBtn, verifyImportedBtn],
+        });
+        if (!loading) refreshBtn.disabled = false;
+      }
+
       async function loadMissingFiles() {
         importStatus.textContent = 'Loading...';
+        refreshBtn.classList.add('is-loading');
+        refreshBtn.disabled = true;
         const data = await window.AppHttp.getJson('/api/import/missing-files');
         const missing = data.missing_files || [];
 
@@ -156,6 +174,8 @@
         const empty = missing.length === 0;
         importBtn.disabled = empty || selectedFiles.size === 0;
         importStatus.textContent = empty ? 'Up to date' : 'Ready';
+        refreshBtn.classList.remove('is-loading');
+        refreshBtn.disabled = false;
       }
 
       async function runImport() {
@@ -166,8 +186,7 @@
           return;
         }
 
-        importStatus.textContent = 'Importing...';
-        importBtn.disabled = true;
+        setImportLoading(true);
         try {
           const data = await window.AppHttp.postJson('/api/import/run', {
             reimport_changed: false,
@@ -185,7 +204,7 @@
           console.error(e);
           importStatus.textContent = 'Import failed';
         } finally {
-          // Reset selection before re-rendering missing list, so checkboxes match UI state.
+          setImportLoading(false);
           selectedFiles.clear();
           await loadMissingFiles();
           bindPickEvents();

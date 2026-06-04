@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="/static/css/page-common.css" />
     <link rel="stylesheet" href="/static/css/pages/tokens.css" />
     <link rel="stylesheet" href="/static/css/layout-pro.css" />
+    <link rel="stylesheet" href="/static/css/dashboard-shared.css" />
   </head>
   <body>
     {% set active_page = 'tokens' %}
@@ -15,7 +16,7 @@
     {% include "_app_nav.html" %}
     <div class="appLayout">
       <main class="contentArea">
-        <div class="container tokenPage">
+        <div class="container tokenPage dashPage">
 
           <header class="pageHeader tokenPageHeader">
             <div class="breadcrumb">Home / Tokens</div>
@@ -173,8 +174,8 @@
                 </div>
               </header>
               <div class="flowBlockBody card tokenTablePanel">
-              <div class="tableScroll dataTableWrap">
-                <table class="dataTable tokenBillingTable">
+              <div class="tableScroll dataTableWrap dashTableShell">
+                <table class="dataTable dashTable tokenBillingTable">
                   <colgroup>
                     <col class="colDate" />
                     <col class="colModel" />
@@ -240,7 +241,7 @@
                     <h3 class="chartCardTitle" id="chartTitleInput">Input tokens (daily)</h3>
                   </div>
                 </div>
-                <div class="chartCanvasWrap">
+                <div class="chartCanvasHost" data-chart-host>
                   <canvas id="tokenInputChart"></canvas>
                 </div>
               </article>
@@ -251,7 +252,7 @@
                     <p class="muted chartScaleHint">Own Y-axis scale — output is not drowned out by input volume.</p>
                   </div>
                 </div>
-                <div class="chartCanvasWrap">
+                <div class="chartCanvasHost" data-chart-host>
                   <canvas id="tokenOutputChart"></canvas>
                 </div>
               </article>
@@ -263,7 +264,7 @@
                   </div>
                   <span id="ratioBaselinePill" class="pill muted">Baseline 1.0</span>
                 </div>
-                <div class="chartCanvasWrap chartCanvasShort">
+                <div class="chartCanvasHost chartCanvasHostShort" data-chart-host>
                   <canvas id="tokenRatioChart"></canvas>
                 </div>
               </article>
@@ -285,7 +286,7 @@
                     <h3 class="chartCardTitle">Input cost (daily, by model)</h3>
                   </div>
                 </div>
-                <div class="chartCanvasWrap">
+                <div class="chartCanvasHost" data-chart-host>
                   <canvas id="tokenInputCostChart"></canvas>
                 </div>
               </article>
@@ -296,7 +297,7 @@
                     <p class="muted chartScaleHint">Billing currency per calendar day.</p>
                   </div>
                 </div>
-                <div class="chartCanvasWrap">
+                <div class="chartCanvasHost" data-chart-host>
                   <canvas id="tokenOutputCostChart"></canvas>
                 </div>
               </article>
@@ -320,13 +321,13 @@
               <div id="impliedChartsRow" class="flowChartGrid unitPriceChartsRow" hidden>
                 <article class="chartPanel chartWide impliedUnitPriceChartCard">
                   <div class="chartSectionTitle">Input · USD/1M</div>
-                  <div class="chartCanvasWrap impliedUnitPriceChartWrap">
+                  <div class="chartCanvasHost impliedUnitPriceChartWrap" data-chart-host>
                     <canvas id="impliedUnitPriceInputChart"></canvas>
                   </div>
                 </article>
                 <article class="chartPanel chartWide impliedUnitPriceChartCard">
                   <div class="chartSectionTitle">Output · USD/1M</div>
-                  <div class="chartCanvasWrap impliedUnitPriceChartWrap">
+                  <div class="chartCanvasHost impliedUnitPriceChartWrap" data-chart-host>
                     <canvas id="impliedUnitPriceOutputChart"></canvas>
                   </div>
                 </article>
@@ -346,6 +347,7 @@
     <script src="/static/js/forecasting.js?v=20260516-4"></script>
     <script src="/static/js/chart-plugins.js"></script>
     <script src="/static/js/chart-style.js"></script>
-    <script src="/static/js/pages/tokens.js?v=20260517-9"></script>
+    <script src="/static/js/dashboard-ui.js"></script>
+    <script src="/static/js/pages/tokens.js?v=20260604-1"></script>
   </body>
 </html>

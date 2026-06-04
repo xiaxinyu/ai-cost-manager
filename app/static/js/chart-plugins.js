@@ -45,6 +45,30 @@
     };
   }
 
-  window.AppChartPlugins = { forecastHorizonShade };
+  /** Vertical guide at the active tooltip index (index mode). */
+  function hoverCrosshair({ color = 'rgba(148, 163, 184, 0.38)' } = {}) {
+    return {
+      id: 'hoverCrosshair',
+      afterDatasetsDraw(chart) {
+        const active = chart.tooltip?.getActiveElements?.() || [];
+        if (!active.length) return;
+        const el = active[0].element;
+        if (!el || el.x == null) return;
+        const { top, bottom } = chart.chartArea;
+        const ctx = chart.ctx;
+        ctx.save();
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 1;
+        ctx.setLineDash([4, 5]);
+        ctx.beginPath();
+        ctx.moveTo(el.x, top);
+        ctx.lineTo(el.x, bottom);
+        ctx.stroke();
+        ctx.restore();
+      },
+    };
+  }
+
+  window.AppChartPlugins = { forecastHorizonShade, hoverCrosshair };
 })();
 

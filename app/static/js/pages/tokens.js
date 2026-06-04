@@ -1,13 +1,13 @@
 /* global Chart, window */
 
 (() => {
-  const C = window.AppChartStyle?.colors || {};
-  const L = window.AppChartStyle?.labels || {};
+  const CHART = window.AppChartStyle;
+  const DASH = window.AppDashboardUi;
+  const C = CHART?.colors || {};
+  const L = CHART?.labels || {};
   const F = window.AppForecasting || {};
 
-  Chart.defaults.font.family = "system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif";
-  Chart.defaults.color = "#e6edf3";
-  Chart.defaults.font.size = 12;
+  CHART?.applyDefaults?.();
 
   const els = {
     projectSelect: document.getElementById("projectSelect"),
@@ -582,7 +582,7 @@
       return;
     }
 
-    const xTicks = {
+    const xTicks = CHART?.xAxisTicks?.(xLabels.length) || {
       color: "#9fb2c7",
       font: { size: 11, weight: "500" },
       autoSkip: true,
@@ -621,6 +621,7 @@
           labels: xLabels,
           datasets,
         },
+        plugins: [...chartPlugins(), emptyStatePluginImplied(emptyMsg)],
         options: {
           ...chartLineDefaults,
           plugins: {
@@ -667,7 +668,6 @@
           },
           scales,
         },
-        plugins: [emptyStatePluginImplied(emptyMsg)],
       });
 
     chartImpliedUnitInput = buildChart(ctxIn, datasetsIn, "No input unit-price days with billing overlap");
@@ -678,14 +678,21 @@
     syncUnitPriceSection();
   }
 
-  const CHART_GRID = { color: "rgba(173, 196, 228, 0.09)", drawBorder: false };
-  const CHART_TICKS = { color: "#8fa3ba", font: { size: 11 }, maxRotation: 0, autoSkip: true };
+  const tokenPageRoot = document.querySelector(".tokenPage.dashPage");
 
   function setLoading(loading) {
-    if (!els.loadBtn) return;
-    els.loadBtn.disabled = loading;
-    els.loadBtn.classList.toggle("is-loading", loading);
-    els.loadBtn.textContent = loading ? "Loading…" : "Load data";
+    DASH?.setPageLoading?.({
+      loading,
+      loadBtn: els.loadBtn,
+      loadBtnLabel: "Load data",
+      loadBtnLoadingLabel: "Loading…",
+      pageRoot: tokenPageRoot,
+      disableEls: [els.projectSelect, els.startDate, els.endDate],
+    });
+  }
+
+  function chartPlugins() {
+    return CHART?.chartPluginsExtra?.() || DASH?.crosshairPlugins?.() || [];
   }
 
   function isoDateLocal(d) {
@@ -900,64 +907,28 @@
     });
   }
 
-  function chartOptions(unitType = "tokens", currency = "") {
-    return {
-      responsive: true,
-      maintainAspectRatio: false,
-      interaction: { mode: "index", intersect: false },
-      plugins: {
-        legend: {
-          labels: {
-            boxWidth: 10,
-            boxHeight: 2,
-            color: "#c5d4e8",
-            padding: 14,
-            font: { size: 11, weight: "600" },
+  function chartOptions(unitType = "tokens", currency = "", labelCount = 0) {
+    const unit = unitType === "usd" ? "currency" : unitType;
+    return (
+      CHART?.buildChartOptionsForUnit?.({
+        unitType: unit,
+        currency: currency || lastBillingCurrency,
+        labelCount,
+        tooltipCallbacks: {
+          label: (ctx) => {
+            let value = fmtInt(ctx.parsed.y);
+            if (unitType === "ratio") value = fmtRatio(ctx.parsed.y);
+            if (unitType === "usd") value = fmtUsd(ctx.parsed.y, currency);
+            return `${ctx.dataset.label}: ${value}`;
           },
         },
-        tooltip: {
-          backgroundColor: "rgba(11, 18, 32, 0.94)",
-          borderColor: "rgba(173, 196, 228, 0.22)",
-          borderWidth: 1,
-          padding: 10,
-          callbacks: {
-            label: (ctx) => {
-              let value = fmtInt(ctx.parsed.y);
-              if (unitType === "ratio") value = fmtRatio(ctx.parsed.y);
-              if (unitType === "usd") value = fmtUsd(ctx.parsed.y, currency);
-              return `${ctx.dataset.label}: ${value}`;
-            },
-          },
-        },
-      },
-      scales: {
-        x: {
-          grid: CHART_GRID,
-          border: { display: false },
-          ticks: { ...CHART_TICKS, maxTicksLimit: 14 },
-        },
-        y: {
-          beginAtZero: true,
-          grid: CHART_GRID,
-          border: { display: false },
-          ticks: {
-            color: "#8fa3ba",
-            font: { size: 11 },
-            callback: (v) => {
-              if (unitType === "ratio") return Number(v).toFixed(1);
-              if (unitType === "usd") {
-                const n = fmtUsdAxis(v);
-                return currency ? `${n} ${currency}` : n;
-              }
-              return fmtInt(v);
-            },
-          },
-        },
-      },
-    };
+      }) || chartLineDefaults
+    );
   }
 
   function _tokenLineDataset(label, data, color, bg) {
+    const n = (data || []).filter((v) => v != null && !Number.isNaN(v)).length;
+    const pr = CHART?.pointRadiusForCount?.(n, { sparse: 2, dense: 0 }) ?? 2;
     return {
       label,
       data,
@@ -966,8 +937,8 @@
       fill: true,
       tension: 0.28,
       spanGaps: true,
-      pointRadius: 2,
-      pointHoverRadius: 4,
+      pointRadius: pr,
+      pointHoverRadius: 5,
       borderWidth: 2.2,
     };
   }
@@ -1037,7 +1008,8 @@
       tokenInputChart = new Chart(inputCtx, {
         type: "line",
         data: { labels, datasets: inputDatasets },
-        options: chartOptions("tokens"),
+        options: chartOptions("tokens", "", labels.length),
+        plugins: chartPlugins(),
       });
     }
 
@@ -1047,7 +1019,8 @@
       tokenOutputChart = new Chart(outputCtx, {
         type: "line",
         data: { labels, datasets: outputDatasets },
-        options: chartOptions("tokens"),
+        options: chartOptions("tokens", "", labels.length),
+        plugins: chartPlugins(),
       });
     }
   }
@@ -1097,7 +1070,8 @@
       tokenInputCostChart = new Chart(inputCtx, {
         type: "line",
         data: { labels, datasets: inputDatasets },
-        options: chartOptions("usd", currency),
+        options: chartOptions("usd", currency, labels.length),
+        plugins: chartPlugins(),
       });
     }
 
@@ -1107,7 +1081,8 @@
       tokenOutputCostChart = new Chart(outputCtx, {
         type: "line",
         data: { labels, datasets: outputDatasets },
-        options: chartOptions("usd", currency),
+        options: chartOptions("usd", currency, labels.length),
+        plugins: chartPlugins(),
       });
     }
   }
@@ -1164,18 +1139,20 @@
       });
     }
 
+    const ratioLabels = ratioRows.map((p) => p.date);
+    const ratioOpts = chartOptions("ratio", "", ratioLabels.length);
     tokenRatioChart = new Chart(ctx, {
       type: "line",
       data: {
-        labels: ratioRows.map((p) => p.date),
+        labels: ratioLabels,
         datasets,
       },
       options: {
-        ...chartOptions("ratio"),
+        ...ratioOpts,
         scales: {
-          ...chartOptions("ratio").scales,
+          ...ratioOpts.scales,
           y: {
-            ...chartOptions("ratio").scales.y,
+            ...ratioOpts.scales.y,
             beginAtZero: false,
             min: bounds.min,
             max: bounds.max,
@@ -1192,6 +1169,7 @@
           },
         },
       },
+      plugins: chartPlugins(),
     });
   }
 
@@ -1637,6 +1615,14 @@
       setLoading(false);
     }
   }
+
+  DASH?.bindFilterEnter?.(
+    document.querySelector(".tokenPage .filterCard"),
+    () => {
+      setDateChipActive(null);
+      loadTokenData();
+    }
+  );
 
   els.loadBtn.addEventListener("click", loadTokenData);
   els.projectSelect.addEventListener("change", () => {

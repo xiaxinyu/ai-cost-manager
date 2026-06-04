@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="/static/css/page-common.css" />
     <link rel="stylesheet" href="/static/css/pages/reports.css" />
     <link rel="stylesheet" href="/static/css/layout-pro.css" />
+    <link rel="stylesheet" href="/static/css/dashboard-shared.css" />
   </head>
   <body>
     {% set active_page = 'reports' %}
@@ -15,7 +16,7 @@
     {% include "_app_nav.html" %}
     <div class="appLayout">
       <main class="contentArea">
-        <div class="container reportPage">
+        <div class="container reportPage dashPage">
           <header class="pageHeader reportPageHeader">
             <div class="breadcrumb">Home / Reports</div>
             <h1 class="pageTitle">Financial Report Center</h1>
@@ -213,7 +214,7 @@
                 </div>
               </div>
               <div class="tableScroll reportTableScroll reportModelTableScroll">
-                <table class="dataTable reportModelTable" id="reportModelCostTable">
+                <table class="dataTable dashTable reportModelTable" id="reportModelCostTable">
                   <thead>
                     <tr>
                       <th scope="col">Model</th>
@@ -262,7 +263,7 @@
               <button id="exportProjectBreakdownBtn" class="btnSmall" type="button">Export CSV</button>
             </div>
             <div class="tableScroll reportTableScroll">
-              <table id="projectBreakdownTable" class="dataTable reportProjectTable">
+              <table id="projectBreakdownTable" class="dataTable dashTable reportProjectTable">
                 <colgroup>
                   <col class="reportColProject" />
                   <col class="reportColModels" />
@@ -414,9 +415,9 @@
     <script src="/static/js/forecasting.js"></script>
     <script src="/static/js/chart-plugins.js"></script>
     <script src="/static/js/chart-style.js"></script>
+    <script src="/static/js/dashboard-ui.js"></script>
     <script>
-      Chart.defaults.font.family = 'system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif';
-      Chart.defaults.color = '#e6edf3';
+      window.AppChartStyle?.applyDefaults?.();
 
       let dailyChart = null;
       let monthlyChart = null;
@@ -445,31 +446,25 @@
 
       const ratioKpiSummaryReportEl = document.getElementById('ratioKpiSummaryReport');
 
-      const chartLineDefaults = {
-        responsive: true,
-        maintainAspectRatio: false,
-        interaction: { mode: 'index', intersect: false },
-        plugins: {
-          decimation: { enabled: true, algorithm: 'min-max' },
-          legend: { labels: { boxWidth: 10, color: '#d8e5f4', padding: 14 } },
-          tooltip: {
-            backgroundColor: 'rgba(11,18,32,0.94)',
-            borderColor: 'rgba(173,196,228,0.22)',
-            borderWidth: 1,
-            padding: 10,
-          },
-        },
-        scales: {
-          x: {
-            grid: { color: 'rgba(173,196,228,0.08)' },
-            ticks: { maxRotation: 0, autoSkip: true, maxTicksLimit: 14 },
-          },
-          y: {
-            beginAtZero: true,
-            grid: { color: 'rgba(173,196,228,0.10)' },
-          },
-        },
-      };
+      const reportPageRoot = document.querySelector('.reportPage.dashPage');
+
+      function reportChartOpts(labelCount, tooltipCallbacks = {}) {
+        return (
+          window.AppChartStyle?.buildLineChartOptions?.({
+            currency: _currency(),
+            labelCount,
+            tooltipCallbacks: { label: tooltipLabelCurrency, ...tooltipCallbacks },
+          }) || {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+          }
+        );
+      }
+
+      function reportChartPlugins() {
+        return window.AppChartStyle?.chartPluginsExtra?.() || [];
+      }
 
       function tooltipLabelCurrency(ctx) {
         const v = ctx.parsed?.y;
@@ -577,33 +572,18 @@
         if (existingChart) existingChart.destroy();
         const ctx = document.getElementById(canvasId)?.getContext('2d');
         if (!ctx) return null;
+        const opts = reportChartOpts(labels.length);
         return new Chart(ctx, {
           type: 'line',
           data: { labels, datasets },
           options: {
-            ...chartLineDefaults,
+            ...opts,
             plugins: {
-              ...chartLineDefaults.plugins,
-              legend: {
-                display: models.length > 0,
-                position: 'top',
-                labels: { color: '#e6edf3', font: { size: 11, weight: '600' }, boxWidth: 12 },
-              },
-              tooltip: {
-                ...chartLineDefaults.plugins.tooltip,
-                callbacks: { label: tooltipLabelCurrency },
-              },
-            },
-            scales: {
-              ...chartLineDefaults.scales,
-              y: {
-                ...chartLineDefaults.scales.y,
-                ticks: {
-                  callback: (value) => window.AppMoney?.fmtCost(value, _currency()) ?? String(value),
-                },
-              },
+              ...opts.plugins,
+              legend: { ...opts.plugins?.legend, display: models.length > 0 },
             },
           },
+          plugins: reportChartPlugins(),
         });
       }
 
@@ -749,22 +729,8 @@
                 },
               ],
             },
-            options: {
-              ...chartLineDefaults,
-              plugins: {
-                ...chartLineDefaults.plugins,
-                tooltip: { ...chartLineDefaults.plugins.tooltip, callbacks: { label: tooltipLabelCurrency } },
-              },
-              scales: {
-                ...chartLineDefaults.scales,
-                y: {
-                  ...chartLineDefaults.scales.y,
-                  ticks: {
-                    callback: (value) => window.AppMoney?.fmtCost(value, _currency()) ?? String(value),
-                  },
-                },
-              },
-            },
+            options: reportChartOpts(labels.length),
+            plugins: reportChartPlugins(),
           });
         }
 
@@ -1035,9 +1001,23 @@
         if (!validateDateRange()) return;
         if (reportLoading) return;
         const btn = document.getElementById('loadBtn');
+        const disableEls = [
+          btn,
+          document.getElementById('verifyBtn'),
+          document.getElementById('currencySelect'),
+          document.getElementById('startDate'),
+          document.getElementById('endDate'),
+          document.getElementById('projectDropdownBtn'),
+        ];
         reportLoading = true;
-        btn?.classList.add('is-loading');
-        btn?.setAttribute('disabled', 'disabled');
+        window.AppDashboardUi?.setPageLoading?.({
+          loading: true,
+          loadBtn: btn,
+          loadBtnLabel: 'Load report',
+          loadBtnLoadingLabel: 'Loading…',
+          pageRoot: reportPageRoot,
+          disableEls,
+        });
         try {
           const report = await fetchReport();
           applyReportPayload(report);
@@ -1045,8 +1025,13 @@
           console.error(e);
         } finally {
           reportLoading = false;
-          btn?.classList.remove('is-loading');
-          btn?.removeAttribute('disabled');
+          window.AppDashboardUi?.setPageLoading?.({
+            loading: false,
+            loadBtn: btn,
+            loadBtnLabel: 'Load report',
+            pageRoot: reportPageRoot,
+            disableEls,
+          });
         }
       }
 
@@ -1407,22 +1392,8 @@
               }
             ]
           },
-          options: {
-            ...chartLineDefaults,
-            plugins: {
-              ...chartLineDefaults.plugins,
-              tooltip: { ...chartLineDefaults.plugins.tooltip, callbacks: { label: tooltipLabelCurrency } },
-            },
-            scales: {
-              ...chartLineDefaults.scales,
-              y: {
-                ...chartLineDefaults.scales.y,
-                ticks: {
-                  callback: (value) => window.AppMoney?.fmtCost(value, _currency()) ?? String(value),
-                }
-              }
-            }
-          }
+          options: reportChartOpts(dailyLabels.length),
+          plugins: reportChartPlugins(),
         });
 
         // Monthly
@@ -1446,22 +1417,8 @@
               }
             ]
           },
-          options: {
-            ...chartLineDefaults,
-            plugins: {
-              ...chartLineDefaults.plugins,
-              tooltip: { ...chartLineDefaults.plugins.tooltip, callbacks: { label: tooltipLabelCurrency } },
-            },
-            scales: {
-              ...chartLineDefaults.scales,
-              y: {
-                ...chartLineDefaults.scales.y,
-                ticks: {
-                  callback: (value) => window.AppMoney?.fmtCost(value, _currency()) ?? String(value),
-                }
-              }
-            }
-          }
+          options: reportChartOpts(monthlyLabels.length),
+          plugins: reportChartPlugins(),
         });
 
         if (!showTokens) {
@@ -1485,6 +1442,11 @@
         });
         const dailyTokenCtx = document.getElementById('dailyTokenChart').getContext('2d');
         if (dailyTokenChart) dailyTokenChart.destroy();
+        const dailyTokenOpts = window.AppChartStyle?.buildChartOptionsForUnit?.({
+          unitType: 'tokens',
+          labelCount: dailyTokenLabels.length,
+          tooltipCallbacks: { label: tooltipLabelTokens },
+        });
         dailyTokenChart = new Chart(dailyTokenCtx, {
           type: 'line',
           data: {
@@ -1529,38 +1491,22 @@
             ]
           },
           options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            interaction: { mode: 'index', intersect: false },
-            plugins: {
-              decimation: { enabled: true, algorithm: 'min-max' },
-              legend: { position: 'top' },
-              tooltip: {
-                backgroundColor: 'rgba(11,18,32,0.92)',
-                borderColor: 'rgba(255,255,255,0.16)',
-                borderWidth: 1,
-                callbacks: {
-                  label: tooltipLabelTokens
-                }
-              }
-            },
+            ...dailyTokenOpts,
             scales: {
-              x: { ticks: { autoSkip: true, maxTicksLimit: 8, maxRotation: 0 } },
+              x: {
+                ticks: window.AppChartStyle?.xAxisTicks?.(dailyTokenLabels.length),
+                grid: { drawOnChartArea: false },
+                border: { display: false },
+              },
               y: { display: false },
               yTokens: {
+                ...(window.AppChartStyle?.yAxisTokens?.() || {}),
                 position: 'right',
-                beginAtZero: true,
-                ticks: {
-                  callback: (value) => {
-                    const n = Math.round(Number(value));
-                    if (!Number.isFinite(n)) return String(value);
-                    return n.toLocaleString(undefined, { maximumFractionDigits: 0 });
-                  }
-                },
-                grid: { drawOnChartArea: false }
-              }
-            }
-          }
+                grid: { drawOnChartArea: false },
+              },
+            },
+          },
+          plugins: reportChartPlugins(),
         });
 
         // Daily Token Ratio (Output / Input)
@@ -1615,24 +1561,32 @@
               datasets: ratioDatasets
             },
             options: {
-              responsive: true,
-              maintainAspectRatio: false,
-              interaction: { mode: 'index', intersect: false },
+              ...window.AppChartStyle?.buildChartOptionsForUnit?.({
+                unitType: 'ratio',
+                labelCount: ratioLabels.length,
+                tooltipCallbacks: {
+                  label: (ctx) => {
+                    const v = ctx.parsed?.y;
+                    if (v === null || v === undefined || Number.isNaN(v)) return `${ctx.dataset.label}: -`;
+                    if (String(ctx.dataset.label || '').includes('Baseline')) return null;
+                    return `${ctx.dataset.label}: ${Number(v).toLocaleString(undefined, { maximumFractionDigits: 3 })}`;
+                  },
+                },
+              }),
               plugins: {
-                decimation: { enabled: true, algorithm: 'min-max' },
+                ...window.AppChartStyle?.buildChartOptionsForUnit?.({ unitType: 'ratio', labelCount: ratioLabels.length })
+                  ?.plugins,
                 legend: {
                   position: 'top',
-                  labels: { filter: (item) => !String(item?.text || '').includes('Baseline') }
+                  labels: { filter: (item) => !String(item?.text || '').includes('Baseline') },
                 },
-                tooltip: { callbacks: { label: (ctx) => {
-                  const v = ctx.parsed?.y;
-                  if (v === null || v === undefined || Number.isNaN(v)) return `${ctx.dataset.label}: -`;
-                  if (String(ctx.dataset.label || '').includes('Baseline')) return null;
-                  return `${ctx.dataset.label}: ${Number(v).toLocaleString(undefined, { maximumFractionDigits: 3 })}`;
-                } } }
               },
               scales: {
-                x: { ticks: { autoSkip: true, maxTicksLimit: 12, maxRotation: 0 } },
+                x: {
+                  ticks: window.AppChartStyle?.xAxisTicks?.(ratioLabels.length),
+                  grid: { drawOnChartArea: false },
+                  border: { display: false },
+                },
                 y: {
                   beginAtZero: false,
                   min: ratioYBounds && Number.isFinite(ratioYBounds.min) ? ratioYBounds.min : undefined,
@@ -1645,11 +1599,14 @@
                       const n = Number(value);
                       if (!Number.isFinite(n)) return String(value);
                       return n.toFixed(ratioYTickDec);
-                    }
-                  }
-                }
-              }
-            }
+                    },
+                  },
+                  grid: { color: 'rgba(148, 163, 184, 0.11)' },
+                  border: { display: false },
+                },
+              },
+            },
+            plugins: reportChartPlugins(),
           });
         }
 
@@ -1688,6 +1645,11 @@
         });
         const monthlyTokenCtx = document.getElementById('monthlyTokenChart').getContext('2d');
         if (monthlyTokenChart) monthlyTokenChart.destroy();
+        const monthlyTokenOpts = window.AppChartStyle?.buildChartOptionsForUnit?.({
+          unitType: 'tokens',
+          labelCount: monthlyTokenLabels.length,
+          tooltipCallbacks: { label: tooltipLabelTokens },
+        });
         monthlyTokenChart = new Chart(monthlyTokenCtx, {
           type: 'line',
           data: {
@@ -1732,38 +1694,22 @@
             ]
           },
           options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            interaction: { mode: 'index', intersect: false },
-            plugins: {
-              decimation: { enabled: true, algorithm: 'min-max' },
-              legend: { position: 'top' },
-              tooltip: {
-                backgroundColor: 'rgba(11,18,32,0.92)',
-                borderColor: 'rgba(255,255,255,0.16)',
-                borderWidth: 1,
-                callbacks: {
-                  label: tooltipLabelTokens
-                }
-              }
-            },
+            ...monthlyTokenOpts,
             scales: {
-              x: { ticks: { autoSkip: true, maxTicksLimit: 8, maxRotation: 0 } },
+              x: {
+                ticks: window.AppChartStyle?.xAxisTicks?.(monthlyTokenLabels.length),
+                grid: { drawOnChartArea: false },
+                border: { display: false },
+              },
               y: { display: false },
               yTokens: {
+                ...(window.AppChartStyle?.yAxisTokens?.() || {}),
                 position: 'right',
-                beginAtZero: true,
-                ticks: {
-                  callback: (value) => {
-                    const n = Math.round(Number(value));
-                    if (!Number.isFinite(n)) return String(value);
-                    return n.toLocaleString(undefined, { maximumFractionDigits: 0 });
-                  }
-                },
-                grid: { drawOnChartArea: false }
-              }
-            }
-          }
+                grid: { drawOnChartArea: false },
+              },
+            },
+          },
+          plugins: reportChartPlugins(),
         });
 
       }

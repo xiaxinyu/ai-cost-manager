@@ -36,9 +36,6 @@
         font-size: 12px;
         line-height: 1.35;
       }
-      #timeseriesChartMarket {
-        min-height: 280px;
-      }
       .costModelSection {
         margin-top: 14px;
         display: flex;
@@ -399,7 +396,7 @@
       .qualityBadge.qualityHigh { border-color: rgba(94,234,212,0.35); background: rgba(94,234,212,0.12); }
       .qualityBadge.qualityMedium { border-color: rgba(245,158,11,0.35); background: rgba(245,158,11,0.12); }
       .qualityBadge.qualityLow { border-color: rgba(248,113,113,0.35); background: rgba(248,113,113,0.12); }
-      canvas { width: 100% !important; height: 280px !important; }
+      .costDashboard .chartCanvasHost canvas { width: 100% !important; height: 100% !important; }
       @media (max-width: 980px) {
         .controls {
           justify-content: flex-start;
@@ -409,260 +406,686 @@
         }
       }
 
-/* Dashboard: finance-first MIS console */
-.contentArea .container {
+/* Cost dashboard — finance MIS layout */
+.costDashboard {
+  --cost-gap: 18px;
+  --cost-gap-sm: 14px;
+  --cost-chart-h: clamp(260px, 32vh, 336px);
+  --cost-chart-h-tall: clamp(280px, 34vh, 360px);
   display: grid;
-  gap: 12px;
+  gap: var(--cost-gap);
+  max-width: min(var(--content-max-width, 1440px), 100%);
 }
 
-.header.card {
+.costDashboard .dashboardHero {
   display: grid;
-  grid-template-columns: minmax(280px, 1fr) minmax(520px, 1.6fr);
-  align-items: end !important;
-  gap: 18px;
-  padding: 16px;
+  grid-template-columns: minmax(260px, 1fr) minmax(340px, 1.35fr);
+  align-items: end;
+  gap: 20px 24px;
+  padding: 18px 20px;
+  border-radius: 10px;
+  background: linear-gradient(165deg, rgba(26, 32, 42, 0.92), rgba(20, 26, 36, 0.88));
+  box-shadow: var(--shadow);
 }
 
-.header.card .title {
-  font-size: 20px;
+.costDashboard .dashboardHeroMain {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.costDashboard .breadcrumb {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-subtle);
+}
+
+.costDashboard .breadcrumb::after {
+  display: none;
+}
+
+.costDashboard .dashboardTitle {
+  margin: 0;
+  font-size: clamp(22px, 2.2vw, 28px);
   font-weight: 780;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  color: var(--text);
 }
 
-.header.card .muted {
-  margin-top: 4px;
+.costDashboard .dashboardDesc {
+  margin: 2px 0 0;
+  max-width: 52ch;
+  font-size: 13px;
+  line-height: 1.55;
   color: var(--text-muted);
 }
 
-.controls {
-  display: grid;
-  grid-template-columns: auto minmax(220px, 1.4fr) auto minmax(150px, 0.7fr) auto minmax(150px, 0.7fr) auto;
-  gap: 8px;
-  justify-content: stretch;
-  align-items: center;
+.costDashboard .dashboardDesc a {
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 650;
 }
 
-.controls label {
-  color: var(--text-subtle);
+.costDashboard .dashboardDesc a:hover {
+  text-decoration: underline;
+}
+
+.costDashboard .dashboardSource {
+  margin: 4px 0 0;
+  font-size: 12px;
+}
+
+.costDashboard .dashboardSource .pill {
   font-size: 11px;
-  font-weight: 720;
-  text-transform: uppercase;
+  padding: 3px 10px;
+  border-radius: 6px;
 }
 
-.controls select,
-.controls input[type="date"] {
-  min-height: 38px;
-  max-width: none;
+.costDashboard .filterBar {
+  display: grid;
+  grid-template-columns: minmax(180px, 1.6fr) repeat(2, minmax(132px, 0.85fr)) auto;
+  gap: 10px 12px;
+  align-items: end;
+  justify-content: stretch;
+}
+
+.costDashboard .filterField {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+
+.costDashboard .filterLabel {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-subtle);
+}
+
+.costDashboard .filterBar select,
+.costDashboard .filterBar input[type="date"] {
+  min-height: 40px;
+  width: 100%;
+  font-size: 13px;
+  border-radius: 8px;
   background: var(--surface-2);
   border-color: var(--border);
 }
 
-.controls .btn {
-  min-height: 38px;
-  padding-inline: 16px;
-  border-color: rgba(20, 184, 166, 0.48);
-  background: rgba(20, 184, 166, 0.16);
-  font-weight: 750;
+.costDashboard .filterBar .btnApply {
+  min-height: 40px;
+  align-self: end;
+  padding: 0 20px;
+  font-size: 13px;
+  font-weight: 700;
+  border-radius: 8px;
+  border-color: rgba(20, 184, 166, 0.5);
+  background: rgba(20, 184, 166, 0.18);
+  transition: background-color 140ms ease, border-color 140ms ease, opacity 140ms ease;
 }
 
-.grid {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
+.costDashboard .filterBar .btnApply:hover:not(:disabled) {
+  background: rgba(20, 184, 166, 0.26);
+  border-color: rgba(20, 184, 166, 0.62);
 }
 
-.grid .card {
-  min-height: 112px;
+.costDashboard .filterBar .btnApply:disabled,
+.costDashboard .filterBar .btnApply.is-loading {
+  opacity: 0.72;
+  cursor: wait;
+}
+
+.costDashboard .filterBar select:focus-visible,
+.costDashboard .filterBar input[type="date"]:focus-visible,
+.costDashboard .filterBar .btnApply:focus-visible {
+  outline: 2px solid rgba(20, 184, 166, 0.55);
+  outline-offset: 2px;
+}
+
+.costDashboard .kpiSection {
+  margin: 0;
+}
+
+.costDashboard .kpiGrid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: var(--cost-gap-sm);
+}
+
+.costDashboard .kpiCard {
+  min-height: 118px;
+  padding: 14px 16px 14px 18px;
   position: relative;
   overflow: hidden;
+  border-radius: 10px;
+  transition: border-color 140ms ease, box-shadow 140ms ease;
 }
 
-.grid .card::before {
+.costDashboard .kpiCard:hover {
+  border-color: rgba(148, 163, 184, 0.35);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.12);
+}
+
+.costDashboard .kpiCard::before {
   content: "";
   position: absolute;
   inset: 0 auto 0 0;
   width: 3px;
+  border-radius: 3px 0 0 3px;
   background: var(--finance);
 }
 
-.grid .card:nth-child(n + 4)::before {
+.costDashboard .kpiCard--catalog::before {
   background: var(--token);
 }
 
-.stat {
-  gap: 8px;
+.costDashboard .kpiCard--primary::before {
+  width: 4px;
+  background: linear-gradient(180deg, var(--accent), var(--finance));
 }
 
-.stat .label {
-  color: var(--text-subtle);
-  font-size: 11px;
-  font-weight: 760;
+.costDashboard .kpiCard .stat {
+  gap: 7px;
+}
+
+.costDashboard .kpiCard .label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
+  color: var(--text-subtle);
 }
 
-.stat .value {
-  color: var(--text);
-  font-size: 22px !important;
-  font-weight: 790;
-  letter-spacing: 0;
+.costDashboard .kpiCard .value {
+  font-size: clamp(20px, 1.8vw, 26px);
+  font-weight: 780;
+  line-height: 1.2;
   font-variant-numeric: tabular-nums;
+  color: var(--text);
 }
 
-.stat .sub {
+.costDashboard .kpiCard .value--md {
+  font-size: clamp(15px, 1.35vw, 18px);
+  font-weight: 720;
+  letter-spacing: 0.01em;
+}
+
+.costDashboard .kpiCard .value--positive {
+  color: #fbbf24;
+}
+
+.costDashboard .kpiCard .value--negative {
+  color: var(--accent);
+}
+
+.costDashboard .kpiCard .value--neutral {
   color: var(--text-muted);
-  font-size: 12px;
-  line-height: 1.45;
 }
 
-.dashSections {
-  grid-template-columns: minmax(0, 1fr);
-  gap: 12px;
+.costDashboard .kpiFootnote {
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+.costDashboard .kpiFootnote .mono {
+  font-size: 11px;
+}
+
+.costDashboard .dashSections {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cost-gap);
   margin-top: 0;
 }
 
-.dashSections section:only-child {
-  grid-column: 1 / -1;
+.costDashboard .sectionHeaderRow {
+  margin: 0 0 10px;
+  padding: 0 4px;
+  align-items: center;
 }
 
-.sectionHeaderRow {
-  margin: 2px 0 8px;
-  padding: 0 2px;
-}
-
-.sectionTitle {
+.costDashboard .sectionTitle {
+  margin: 0;
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  font-size: 14px;
-  font-weight: 800;
+  gap: 9px;
+  font-size: 15px;
+  font-weight: 780;
+  letter-spacing: 0.01em;
 }
 
-.sectionTitle::before {
-  content: "";
-  width: 8px;
-  height: 8px;
+.costDashboard .sectionTitle::before {
+  width: 7px;
+  height: 7px;
   border-radius: 999px;
   background: var(--finance);
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.15);
 }
 
-.chartStack {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-  align-items: stretch;
+.costDashboard .sectionMeta {
+  font-size: 12px;
+  font-weight: 600;
 }
 
-.chartStack .card.tight {
-  min-width: 0;
+.costDashboard .chartStack {
+  gap: var(--cost-gap-sm);
 }
 
-.chartStack canvas {
-  height: 280px !important;
-}
-
-.costModelSection {
-  margin-top: 14px;
+.costDashboard .chartPanel {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  padding: 15px 17px 13px;
+  min-width: 0;
+  transition: border-color 160ms ease, box-shadow 160ms ease;
 }
 
-.costModelSection[hidden] {
-  display: none !important;
+.costDashboard .chartPanel:hover {
+  border-color: rgba(148, 163, 184, 0.32);
+  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.14);
 }
 
-.modelSummaryTableWrap {
-  max-height: 320px;
-}
-
-#timeseriesChartInputByModel,
-#timeseriesChartOutputByModel {
-  min-height: 300px;
-}
-
-.modelCostDirCharts {
-  margin-top: 10px;
-}
-
-.meterTotalGrid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.meterTotalItem {
+.costDashboard .chartPanelHead {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  padding: 10px 12px;
-  border-radius: 8px;
-  border: 1px solid var(--border);
-  background: rgba(255, 255, 255, 0.03);
 }
 
-.meterTotalItemHighlight {
-  border-color: rgba(94, 234, 212, 0.28);
-  background: rgba(94, 234, 212, 0.06);
+.costDashboard .chartSectionTitle {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 740;
+  color: var(--text);
+  line-height: 1.35;
+  letter-spacing: 0.01em;
+}
+
+.costDashboard .marketChartHint {
+  margin: 0;
+  font-size: 11.5px;
+  line-height: 1.45;
+}
+
+.costDashboard .chartCanvasHost {
+  position: relative;
+  width: 100%;
+  height: var(--cost-chart-h);
+  min-height: 228px;
+  border-radius: 8px;
+  background: rgba(8, 12, 18, 0.35);
+  border: 1px solid rgba(148, 163, 184, 0.1);
+  padding: 6px 4px 2px;
+  cursor: crosshair;
+}
+
+.costDashboard .chartCanvasHost--tall {
+  height: var(--cost-chart-h-tall);
+}
+
+.costDashboard .chartCanvasHost canvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.costDashboard .chartCanvasHost.is-chartLoading::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: rgba(10, 14, 20, 0.55);
+  pointer-events: none;
+}
+
+.costDashboard .chartCanvasHost.is-chartLoading::before {
+  content: "Updating chart…";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 2;
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--text-muted);
+  letter-spacing: 0.02em;
+  pointer-events: none;
+}
+
+.costDashboard .costModelSection {
+  margin-top: 4px;
+  gap: var(--cost-gap-sm);
+}
+
+.costDashboard .costModelSection[hidden] {
+  display: none !important;
+}
+
+.costDashboard .meterTotalGrid {
+  gap: var(--cost-gap-sm);
+}
+
+.costDashboard .meterTotalLabel {
+  font-size: 11px;
+}
+
+.costDashboard .meterTotalValue {
+  font-size: 19px;
+}
+
+.costDashboard .modelSummaryHead {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+
+.costDashboard .modelTableHint {
+  margin: 0;
+  font-size: 11.5px;
+  line-height: 1.45;
+  max-width: 62ch;
+}
+
+.costDashboard .modelSummaryCard {
+  padding: 15px 17px 13px;
+}
+
+.costDashboard .modelSummaryTableWrap {
+  max-height: 380px;
+  margin-top: 0;
+  border-radius: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  background: rgba(8, 12, 18, 0.28);
+}
+
+.costDashboard .modelSummaryTable {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.costDashboard .modelSummaryTable thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  padding: 10px 10px 9px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-subtle);
+  background: #1c2430;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+  white-space: nowrap;
+}
+
+.costDashboard .modelSummaryTable thead th.sortable {
+  cursor: pointer;
+  user-select: none;
+  transition: color 120ms ease, background-color 120ms ease;
+}
+
+.costDashboard .modelSummaryTable thead th.sortable:hover {
+  color: var(--text);
+  background: #222b38;
+}
+
+.costDashboard .modelSummaryTable thead th.is-sorted {
+  color: var(--accent);
+}
+
+.costDashboard .modelSummaryTable thead th.is-sorted::after {
+  content: "";
+  display: inline-block;
+  width: 0;
+  height: 0;
+  margin-left: 5px;
+  vertical-align: middle;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 5px solid currentColor;
+  opacity: 0.85;
+}
+
+.costDashboard .modelSummaryTable thead th.is-sorted[aria-sort="ascending"]::after {
+  border-top: none;
+  border-bottom: 5px solid currentColor;
+}
+
+.costDashboard .modelSummaryTable thead th .thLabel {
+  display: block;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.costDashboard .modelSummaryTable thead th.num .thLabel,
+.costDashboard .modelSummaryTable thead th.num .thUnit {
+  display: block;
+  text-align: right;
+}
+
+.costDashboard .modelSummaryTable thead th .thUnit {
+  margin-top: 2px;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(127, 138, 154, 0.95);
+}
+
+.costDashboard .modelSummaryTable thead th.colCatalog {
+  min-width: 200px;
+}
+
+.costDashboard .modelSummaryTable tbody td,
+.costDashboard .modelSummaryTable tfoot td,
+.costDashboard .modelSummaryTable tfoot th {
+  padding: 10px 10px;
+  font-size: 12.5px;
+  line-height: 1.4;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+  vertical-align: middle;
+}
+
+.costDashboard .modelSummaryTable tbody tr.modelSummaryRow {
+  transition: background-color 120ms ease;
+}
+
+.costDashboard .modelSummaryTable tbody tr.modelSummaryRow:hover {
+  background: rgba(20, 184, 166, 0.06);
+}
+
+.costDashboard .modelSummaryTable tbody tr.modelSummaryRow:nth-child(even) {
+  background: rgba(255, 255, 255, 0.015);
+}
+
+.costDashboard .modelSummaryTable tbody tr.modelSummaryRow:nth-child(even):hover {
+  background: rgba(20, 184, 166, 0.06);
+}
+
+.costDashboard .modelSummaryTable .modelNameCell code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  background: transparent;
+  padding: 0;
+}
+
+.costDashboard .modelSummaryTable td.num {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.costDashboard .modelSummaryTable td.colEmphasis {
+  font-weight: 720;
+  color: var(--text);
+}
+
+.costDashboard .modelSummaryTable td.colDays {
+  text-align: right;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.costDashboard .modelSummaryTable .deltaCell--under {
+  color: var(--accent);
+  font-weight: 650;
+}
+
+.costDashboard .modelSummaryTable .deltaCell--over {
+  color: #fbbf24;
+  font-weight: 650;
+}
+
+.costDashboard .modelSummaryTable .deltaCell--flat,
+.costDashboard .modelSummaryTable .deltaCell--na {
+  color: var(--text-muted);
+}
+
+.costDashboard .modelSummaryTable .catalogSourceCell {
+  min-width: 188px;
+  max-width: 280px;
+  font-size: 11.5px;
+  vertical-align: middle;
+}
+
+.costDashboard .catalogRates {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.costDashboard .catalogRate {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr) auto auto auto;
+  gap: 6px;
+  align-items: center;
+}
+
+.costDashboard .catalogRateDir {
+  font-size: 9px;
+  font-weight: 750;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-subtle);
+}
+
+.costDashboard .catalogRateName {
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.costDashboard .catalogRateVal {
+  font-size: 11.5px;
+  font-weight: 650;
+  color: var(--text);
+}
+
+.costDashboard .catalogRateTier {
+  font-size: 9px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 4px;
+  color: var(--accent);
+  border: 1px solid rgba(20, 184, 166, 0.35);
+  background: rgba(20, 184, 166, 0.1);
+}
+
+.costDashboard .catalogRateFuzzy {
+  font-size: 11px;
+  font-weight: 700;
+  color: #fbbf24;
+}
+
+.costDashboard .catalogRate--empty .catalogRateMeta {
+  grid-column: 2 / -1;
+}
+
+.costDashboard .catalogRateEmpty {
+  font-size: 11px;
+}
+
+.costDashboard .modelSummaryTable tfoot .modelCostTotalRow th,
+.costDashboard .modelSummaryTable tfoot .modelCostTotalRow td {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  border-top: 1px solid rgba(20, 184, 166, 0.28);
+  background: #1a222e;
+  font-weight: 740;
+  font-size: 12px;
+  color: var(--text);
+}
+
+.costDashboard .modelSummaryTable tfoot .modelCostTotalRow th {
+  text-align: left;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  font-size: 12px;
+}
+
+@media (max-width: 1280px) {
+  .costDashboard .kpiGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .costDashboard .kpiCard--primary {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 1100px) {
+  .costDashboard .dashboardHero {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .costDashboard .filterBar {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .costDashboard .filterBar .btnApply {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
 }
 
 @media (max-width: 960px) {
-  .chartStack {
+  .costDashboard .chartStack {
     grid-template-columns: 1fr;
   }
 
-  .chartStack canvas {
-    height: 310px !important;
+  .costDashboard .kpiGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
-.card.tight {
-  padding: 14px;
-}
+@media (max-width: 640px) {
+  .costDashboard {
+    --cost-gap: 12px;
+  }
 
-.chartSectionTitle {
-  color: var(--text);
-  font-size: 12px;
-  font-weight: 760;
-}
-
-canvas {
-  height: 310px !important;
-}
-
-.forecastAssumptions {
-  border-color: var(--border);
-  background: rgba(255, 255, 255, 0.025);
-  border-radius: 8px;
-}
-
-.qualityBadge {
-  border-radius: 6px;
-  font-size: 11px;
-  letter-spacing: 0;
-}
-
-.tableScroll {
-  border-color: var(--border);
-  border-radius: 8px;
-}
-
-@media (max-width: 1180px) {
-  .header.card,
-  .dashSections {
+  .costDashboard .kpiGrid {
     grid-template-columns: 1fr;
   }
 
-  .controls {
-    grid-template-columns: auto minmax(180px, 1fr) auto minmax(150px, 0.7fr);
-  }
-}
-
-@media (max-width: 900px) {
-  .grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-@media (max-width: 720px) {
-  .controls {
+  .costDashboard .filterBar {
     grid-template-columns: 1fr;
   }
 }

@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="/static/css/pricing-surface.css" />
     <link rel="stylesheet" href="/static/css/pages/price-sources.css" />
     <link rel="stylesheet" href="/static/css/layout-pro.css" />
+    <link rel="stylesheet" href="/static/css/dashboard-shared.css" />
   </head>
   <body>
     {% set active_page = 'price_sources' %}
@@ -16,7 +17,7 @@
     {% include "_app_nav.html" %}
     <div class="appLayout">
       <main class="contentArea">
-        <div class="container">
+        <div class="container priceSourcesPage dashPage">
           <div class="pageHeader">
             <div class="breadcrumb">Home / Pricing / Sources</div>
             <div class="pageTitle">Price source catalog</div>
@@ -38,8 +39,8 @@
             <div class="psToolbar">
               <button id="refreshBtn" type="button" class="btnSecondary">Reload</button>
             </div>
-            <div class="pricingTableShell">
-              <table class="dataTable">
+            <div class="pricingTableShell dashTableShell">
+              <table class="dataTable dashTable">
                 <thead>
                   <tr>
                     <th>Title</th>

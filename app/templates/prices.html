@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="/static/css/pricing-surface.css" />
     <link rel="stylesheet" href="/static/css/pages/prices.css" />
     <link rel="stylesheet" href="/static/css/layout-pro.css" />
+    <link rel="stylesheet" href="/static/css/dashboard-shared.css" />
   </head>
   <body>
     {% set active_page = 'prices' %}
@@ -16,7 +17,7 @@
     {% include "_app_nav.html" %}
     <div class="appLayout">
       <main class="contentArea">
-        <div class="container">
+        <div class="container pricePage dashPage">
           <div class="pageHeader">
             <div class="breadcrumb">Home / Pricing / Model Catalog</div>
             <div class="pageTitle">Model Price Explorer</div>
@@ -68,8 +69,8 @@
             <div id="summary" class="toolbarSummary muted"></div>
           </div>
 
-          <div class="pricingTableShell" id="pricingTableShell">
-            <table class="dataTable">
+          <div class="pricingTableShell dashTableShell" id="pricingTableShell">
+            <table class="dataTable dashTable">
               <thead>
                 <tr>
                   <th class="num colRowNum" scope="col">#</th>

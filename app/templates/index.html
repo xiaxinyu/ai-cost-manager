@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" class="costPageRoot">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="/static/css/page-common.css" />
     <link rel="stylesheet" href="/static/css/pages/index.css" />
     <link rel="stylesheet" href="/static/css/layout-pro.css" />
+    <link rel="stylesheet" href="/static/css/dashboard-shared.css" />
   </head>
   <body>
     {% set active_page = 'cost' %}
@@ -15,86 +16,105 @@
     {% include "_app_nav.html" %}
     <div class="appLayout">
       <main class="contentArea">
-        <div class="container">
-          <div class="pageHeader">
-            <div class="breadcrumb">Home / Cost</div>
-            <div class="pageTitle">Cost Overview</div>
-            <p class="pageDesc">Daily billing cost (CostUSD) and catalog market price from token volume × list unit prices. Token detail is on the Tokens page.</p>
-          </div>
-          <div class="header card">
-        <div>
-          <div class="title">Cost</div>
-          <div class="muted">Billed from CSV files in <span class="pill">{{ default_bills_dir }}</span></div>
-        </div>
-        <div class="controls">
-          <label class="muted" for="projectSelect">Project</label>
-          <select id="projectSelect"></select>
-          <label class="muted" for="startDateInput">Start</label>
-          <input id="startDateInput" type="date" />
-          <label class="muted" for="endDateInput">End</label>
-          <input id="endDateInput" type="date" />
-          <button id="applyFiltersBtn" class="btn" type="button">Apply</button>
-        </div>
-      </div>
+        <div class="container costDashboard dashPage">
+          <header class="dashboardHero card" aria-label="Cost filters">
+            <div class="dashboardHeroMain">
+              <p class="breadcrumb">Home / Cost</p>
+              <h1 class="dashboardTitle">Cost</h1>
+              <p class="dashboardDesc">
+                Daily billing (CostUSD) and catalog market from token volume × list unit prices.
+                Detail on <a href="/tokens">Tokens</a>.
+              </p>
+              <p class="dashboardSource muted">
+                Source: CSV in <span class="pill">{{ default_bills_dir }}</span>
+              </p>
+            </div>
+            <div class="filterBar controls" role="group" aria-label="Scope filters">
+              <div class="filterField">
+                <label class="filterLabel" for="projectSelect">Project</label>
+                <select id="projectSelect"></select>
+              </div>
+              <div class="filterField">
+                <label class="filterLabel" for="startDateInput">Start</label>
+                <input id="startDateInput" type="date" lang="en" />
+              </div>
+              <div class="filterField">
+                <label class="filterLabel" for="endDateInput">End</label>
+                <input id="endDateInput" type="date" lang="en" />
+              </div>
+              <button id="applyFiltersBtn" class="btn btnApply" type="button" aria-busy="false">Apply</button>
+            </div>
+          </header>
 
-          <div class="grid">
-        <div class="card">
-          <div class="stat">
-            <div class="label">Actual Cost (CostUSD)</div>
-            <div class="value" id="actualCost">-</div>
-            <div class="sub tokenStats" id="costStats">Max: - · Mean: - · Min: -</div>
-          </div>
-        </div>
-        <div class="card">
-          <div class="stat">
-            <div class="label">Date Range</div>
-            <div class="value" id="dateRange" style="font-size:16px;">-</div>
-          </div>
-        </div>
-        <div class="card">
-          <div class="stat">
-            <div class="label">Days With Data</div>
-            <div class="value" id="daysCount" style="font-size:16px;">-</div>
-          </div>
-        </div>
-        <div class="card" id="catalogMarketCard">
-          <div class="stat">
-            <div class="label">Catalog market (list)</div>
-            <div class="value" id="catalogMarketTotal">-</div>
-            <div class="sub tokenStats" id="catalogMarketNote">Token volume × catalog USD/1M</div>
-          </div>
-        </div>
-        <div class="card" id="catalogVarianceCard">
-          <div class="stat">
-            <div class="label">Billing vs catalog</div>
-            <div class="value" id="catalogVariancePct" style="font-size:16px;">-</div>
-            <div class="sub tokenStats" id="catalogVarianceNote">Actual − catalog market</div>
-          </div>
-        </div>
-      </div>
+          <section class="kpiSection" aria-label="Summary metrics">
+            <div class="kpiGrid grid">
+              <article class="card kpiCard kpiCard--primary">
+                <div class="stat">
+                  <div class="label">Actual cost (CostUSD)</div>
+                  <div class="value" id="actualCost">-</div>
+                  <div class="sub tokenStats kpiFootnote" id="costStats">Max: - · Mean: - · Min: -</div>
+                </div>
+              </article>
+              <article class="card kpiCard">
+                <div class="stat">
+                  <div class="label">Date range</div>
+                  <div class="value value--md" id="dateRange">-</div>
+                </div>
+              </article>
+              <article class="card kpiCard">
+                <div class="stat">
+                  <div class="label">Days with data</div>
+                  <div class="value value--md" id="daysCount">-</div>
+                </div>
+              </article>
+              <article class="card kpiCard kpiCard--catalog" id="catalogMarketCard">
+                <div class="stat">
+                  <div class="label">Catalog market (list)</div>
+                  <div class="value" id="catalogMarketTotal">-</div>
+                  <div class="sub tokenStats kpiFootnote" id="catalogMarketNote">Imported tokens × catalog USD/1M</div>
+                </div>
+              </article>
+              <article class="card kpiCard kpiCard--catalog" id="catalogVarianceCard">
+                <div class="stat">
+                  <div class="label">Billing vs catalog</div>
+                  <div class="value value--md" id="catalogVariancePct">-</div>
+                  <div class="sub tokenStats kpiFootnote" id="catalogVarianceNote">Actual − catalog market</div>
+                </div>
+              </article>
+            </div>
+          </section>
 
           <div class="dashSections">
-            <section>
+            <section class="trendsSection" aria-label="Daily cost trends">
               <div class="sectionHeaderRow">
-                <div class="sectionTitle">Cost</div>
-                <div class="muted" id="currencyLabel"></div>
+                <h2 class="sectionTitle">Daily trends</h2>
+                <span class="sectionMeta muted" id="currencyLabel"></span>
               </div>
               <div class="chartStack">
-                <div class="card tight">
-                  <div class="chartSectionTitle">Actual cost (daily)</div>
-                  <canvas id="timeseriesChartActual"></canvas>
+                <div class="card tight chartPanel">
+                  <div class="chartPanelHead">
+                    <h3 class="chartSectionTitle">Actual cost (daily)</h3>
+                  </div>
+                  <div class="chartCanvasHost" data-chart-host>
+                    <canvas id="timeseriesChartActual" role="img" aria-label="Daily actual cost chart"></canvas>
+                  </div>
                 </div>
-                <div class="card tight" id="marketCompareSection">
-                  <div class="chartSectionTitle">Actual vs catalog market (daily)</div>
-                  <p class="muted marketChartHint" id="marketChartHint">Imported token volume × catalog list price (USD/1M) from Model Prices.</p>
-                  <canvas id="timeseriesChartMarket"></canvas>
+                <div class="card tight chartPanel" id="marketCompareSection">
+                  <div class="chartPanelHead">
+                    <h3 class="chartSectionTitle">Actual vs catalog market (daily)</h3>
+                    <p class="muted marketChartHint" id="marketChartHint">Imported token volume × catalog list price (USD/1M) from Model Prices.</p>
+                  </div>
+                  <div class="chartCanvasHost chartCanvasHost--tall" data-chart-host>
+                    <canvas id="timeseriesChartMarket" role="img" aria-label="Actual vs catalog market daily chart"></canvas>
+                  </div>
                 </div>
               </div>
+            </section>
 
             <section class="costModelSection" id="costModelSection" hidden aria-label="Cost by model">
               <div class="sectionHeaderRow">
-                <div class="sectionTitle">By model</div>
-                <span class="muted" id="modelSectionHint"></span>
+                <h2 class="sectionTitle">By model</h2>
+                <span class="sectionMeta muted" id="modelSectionHint"></span>
               </div>
               <div class="modelMeterTotals" id="modelMeterTotals" hidden>
                 <div class="card tight meterTotalCard">
@@ -116,20 +136,37 @@
                 </div>
               </div>
               <div class="card tight modelSummaryCard">
-                <div class="chartSectionTitle">Model totals (scope)</div>
-                <p class="muted modelTableHint">Actual = billing Meter (inp/opt). Catalog = tokens × list price from <a href="/prices">Model Prices</a>.</p>
+                <div class="modelSummaryHead">
+                  <h3 class="chartSectionTitle">Model totals</h3>
+                  <p class="modelTableHint muted">
+                    Actual = meter billing (inp/opt). Catalog = tokens × list price from
+                    <a href="/prices">Model Prices</a>. Click a column header to sort.
+                  </p>
+                </div>
                 <div class="tableScroll modelSummaryTableWrap">
-                  <table class="dataTable" id="modelCostSummaryTable">
+                  <table class="dataTable modelSummaryTable" id="modelCostSummaryTable">
                     <thead>
                       <tr>
-                        <th scope="col">Model (tokens)</th>
-                        <th scope="col">Catalog source (Model Prices)</th>
-                        <th class="num" scope="col">Input actual</th>
-                        <th class="num" scope="col">Output actual</th>
-                        <th class="num" scope="col">Total actual</th>
-                        <th class="num" scope="col">Catalog market</th>
-                        <th class="num" scope="col">Δ vs catalog</th>
-                        <th class="num" scope="col">Days</th>
+                        <th scope="col" class="sortable" data-sort-key="model_name">Model</th>
+                        <th scope="col" class="colCatalog">Catalog <span class="thUnit">USD/1M</span></th>
+                        <th class="num sortable" scope="col" data-sort-key="input_cost_usd">
+                          <span class="thLabel">Input</span><span class="thUnit">USD</span>
+                        </th>
+                        <th class="num sortable" scope="col" data-sort-key="output_cost_usd">
+                          <span class="thLabel">Output</span><span class="thUnit">USD</span>
+                        </th>
+                        <th class="num sortable" scope="col" data-sort-key="actual_cost_usd">
+                          <span class="thLabel">Total</span><span class="thUnit">USD</span>
+                        </th>
+                        <th class="num sortable" scope="col" data-sort-key="catalog_cost_usd">
+                          <span class="thLabel">Catalog</span><span class="thUnit">USD</span>
+                        </th>
+                        <th class="num sortable" scope="col" data-sort-key="variance_pct">
+                          <span class="thLabel">Δ</span><span class="thUnit">%</span>
+                        </th>
+                        <th class="num sortable" scope="col" data-sort-key="days_with_rows">
+                          <span class="thLabel">Days</span>
+                        </th>
                       </tr>
                     </thead>
                     <tbody id="modelCostSummaryTbody"></tbody>
@@ -138,18 +175,25 @@
                 </div>
               </div>
               <div class="chartStack modelCostDirCharts">
-                <div class="card tight">
-                  <div class="chartSectionTitle">Input cost by model (daily)</div>
-                  <p class="muted marketChartHint">Meter-matched input (inp) billing per model/day.</p>
-                  <canvas id="timeseriesChartInputByModel"></canvas>
+                <div class="card tight chartPanel">
+                  <div class="chartPanelHead">
+                    <h3 class="chartSectionTitle">Input cost by model (daily)</h3>
+                    <p class="muted marketChartHint">Meter-matched input (inp) billing per model/day.</p>
+                  </div>
+                  <div class="chartCanvasHost" data-chart-host>
+                    <canvas id="timeseriesChartInputByModel" role="img" aria-label="Input cost by model daily chart"></canvas>
+                  </div>
                 </div>
-                <div class="card tight">
-                  <div class="chartSectionTitle">Output cost by model (daily)</div>
-                  <p class="muted marketChartHint">Meter-matched output (opt) billing per model/day.</p>
-                  <canvas id="timeseriesChartOutputByModel"></canvas>
+                <div class="card tight chartPanel">
+                  <div class="chartPanelHead">
+                    <h3 class="chartSectionTitle">Output cost by model (daily)</h3>
+                    <p class="muted marketChartHint">Meter-matched output (opt) billing per model/day.</p>
+                  </div>
+                  <div class="chartCanvasHost" data-chart-host>
+                    <canvas id="timeseriesChartOutputByModel" role="img" aria-label="Output cost by model daily chart"></canvas>
+                  </div>
                 </div>
               </div>
-            </section>
             </section>
           </div>
         </div>
@@ -160,12 +204,13 @@
     <script src="/static/js/app-shell.js"></script>
     <script src="/static/js/money.js"></script>
     <script src="/static/js/http.js"></script>
+    <script src="/static/js/chart-plugins.js"></script>
     <script src="/static/js/chart-style.js"></script>
+    <script src="/static/js/dashboard-ui.js"></script>
     <script>
-      // Make fonts clearer for dark UI dashboards.
-      Chart.defaults.font.family = 'system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif';
-      Chart.defaults.color = '#e6edf3';
-      Chart.defaults.font.size = 13;
+      window.AppChartStyle?.applyDefaults?.();
+      const CHART_OPTS = window.AppChartStyle;
+      const CHART_PLUGINS = window.AppChartPlugins;
 
       const projectSelect = document.getElementById('projectSelect');
       const actualCostEl = document.getElementById('actualCost');
@@ -201,6 +246,9 @@
       const projectInputCostTotalEl = document.getElementById('projectInputCostTotal');
       const projectOutputCostTotalEl = document.getElementById('projectOutputCostTotal');
       const projectMeterCostTotalEl = document.getElementById('projectMeterCostTotal');
+      let lastModelSummaryRows = [];
+      let lastModelProjectSummary = {};
+      let modelTableSort = { key: 'actual_cost_usd', dir: 'desc' };
 
       const MODEL_CHART_COLORS = [
         { border: '#60a5fa', fill: 'rgba(96, 165, 250, 0.12)' },
@@ -219,8 +267,22 @@
           .replace(/"/g, '&quot;');
       }
 
+      function asModelSummaryRows(rows) {
+        if (Array.isArray(rows)) return rows.filter((r) => r && typeof r === 'object');
+        return [];
+      }
+
       function fmt2(n) {
         return window.AppMoney?.fmtCost(n, currentCurrency) ?? '-';
+      }
+
+      function fmtTableAmount(n) {
+        return window.AppMoney?.fmtCostAmount(n) ?? '—';
+      }
+
+      function fmtTableAmountTitle(n) {
+        const full = window.AppMoney?.fmtCost(n, currentCurrency);
+        return full && full !== '—' ? full : '';
       }
 
       function fmtInt(n) {
@@ -354,16 +416,42 @@
         };
       }
 
-      const chartLineDefaults = {
-        responsive: true,
-        maintainAspectRatio: false,
-        interaction: { mode: 'index', intersect: false },
-        animation: { duration: 450 },
-        elements: {
-          line: { capBezierPoints: true },
-          point: { hitRadius: 12 }
+      function setDashboardLoading(loading) {
+        document.querySelectorAll('[data-chart-host]').forEach((el) => {
+          el.classList.toggle('is-chartLoading', loading);
+        });
+        if (applyFiltersBtn) {
+          applyFiltersBtn.disabled = loading;
+          applyFiltersBtn.setAttribute('aria-busy', loading ? 'true' : 'false');
+          applyFiltersBtn.classList.toggle('is-loading', loading);
+          applyFiltersBtn.textContent = loading ? 'Loading…' : 'Apply';
         }
-      };
+        if (projectSelect) projectSelect.disabled = loading;
+        if (startDateInput) startDateInput.disabled = loading;
+        if (endDateInput) endDateInput.disabled = loading;
+      }
+
+      function chartPluginsExtra() {
+        const cross = CHART_PLUGINS?.hoverCrosshair?.({
+          color: CHART_OPTS?.theme?.crosshair,
+        });
+        return cross ? [cross] : [];
+      }
+
+      function buildCostLineOptions({
+        labelCount,
+        showLegend = true,
+        legendVariant = 'default',
+        tooltipCallbacks = {},
+      }) {
+        return CHART_OPTS?.buildLineChartOptions?.({
+          currency: currentCurrency,
+          labelCount,
+          showLegend,
+          legendVariant,
+          tooltipCallbacks,
+        }) ?? {};
+      }
 
       function renderCatalogMarketUi(catalogPayload, costPoints) {
         const summary = catalogPayload?.summary || {};
@@ -416,6 +504,16 @@
         if (catalogVariancePctEl) {
           catalogVariancePctEl.textContent =
             vPct === null || vPct === undefined ? '—' : `${vPct > 0 ? '+' : ''}${vPct}%`;
+          catalogVariancePctEl.classList.remove('value--positive', 'value--negative', 'value--neutral');
+          if (vPct === null || vPct === undefined) {
+            catalogVariancePctEl.classList.add('value--neutral');
+          } else if (vPct > 0) {
+            catalogVariancePctEl.classList.add('value--positive');
+          } else if (vPct < 0) {
+            catalogVariancePctEl.classList.add('value--negative');
+          } else {
+            catalogVariancePctEl.classList.add('value--neutral');
+          }
         }
         if (catalogVarianceNoteEl) {
           catalogVarianceNoteEl.textContent =
@@ -430,8 +528,12 @@
               : 'Estimated token volume from billing × catalog list price for the configured model.';
         }
 
-        renderMarketChart(costPoints, catalogPayload);
         renderModelCostSection(catalogPayload);
+        try {
+          renderMarketChart(costPoints, catalogPayload);
+        } catch (err) {
+          console.error('renderMarketChart failed', err);
+        }
       }
 
       function _unionSortedDates(...lists) {
@@ -461,10 +563,58 @@
         return map;
       }
 
+      function _modelSummaryFromDaily(dailyByModel) {
+        const byModel = new Map();
+        for (const row of dailyByModel || []) {
+          const name = String(row?.model_name || '').trim();
+          if (!name) continue;
+          let st = byModel.get(name);
+          if (!st) {
+            st = {
+              model_name: name,
+              actual_cost_usd: 0,
+              input_cost_usd: 0,
+              output_cost_usd: 0,
+              catalog_cost_usd: 0,
+              days: new Set(),
+            };
+            byModel.set(name, st);
+          }
+          const d = _safeDateStr(row?.date);
+          if (d) st.days.add(d);
+          for (const [key, target] of [
+            ['actual_cost_usd', 'actual_cost_usd'],
+            ['input_cost_usd', 'input_cost_usd'],
+            ['output_cost_usd', 'output_cost_usd'],
+            ['catalog_cost_usd', 'catalog_cost_usd'],
+          ]) {
+            const v = Number(row?.[key]);
+            if (Number.isFinite(v)) st[target] += v;
+          }
+        }
+        return [...byModel.values()].map((st) => ({
+          model_name: st.model_name,
+          actual_cost_usd: window.AppMoney?.roundCost(st.actual_cost_usd),
+          input_cost_usd: window.AppMoney?.roundCost(st.input_cost_usd),
+          output_cost_usd: window.AppMoney?.roundCost(st.output_cost_usd),
+          catalog_cost_usd: window.AppMoney?.roundCost(st.catalog_cost_usd),
+          variance_pct: null,
+          days_with_rows: st.days.size,
+          catalog_price_input: null,
+          catalog_price_output: null,
+        }));
+      }
+
       function renderModelCostSection(catalogPayload) {
-        const summary = catalogPayload?.model_summary || [];
-        const daily = catalogPayload?.daily_by_model || [];
-        const show = catalogPayload?.available === true && summary.length > 0;
+        let summary = asModelSummaryRows(catalogPayload?.model_summary);
+        const daily = Array.isArray(catalogPayload?.daily_by_model)
+          ? catalogPayload.daily_by_model
+          : [];
+        if (!summary.length && daily.length) {
+          summary = _modelSummaryFromDaily(daily);
+        }
+        const show =
+          catalogPayload?.available === true && (summary.length > 0 || daily.length > 0);
 
         if (costModelSectionEl) costModelSectionEl.hidden = !show;
         if (!show) {
@@ -490,9 +640,17 @@
             : `${n} model(s) in scope`;
         }
 
-        renderProjectMeterTotals(catalogPayload?.summary || {});
+        try {
+          renderProjectMeterTotals(catalogPayload?.summary || {});
+        } catch (err) {
+          console.error('renderProjectMeterTotals failed', err);
+        }
         renderModelSummaryTable(summary, catalogPayload?.summary || {});
-        renderModelDirCostCharts(daily);
+        try {
+          renderModelDirCostCharts(daily);
+        } catch (err) {
+          console.error('renderModelDirCostCharts failed', err);
+        }
       }
 
       function renderProjectMeterTotals(summary) {
@@ -511,68 +669,234 @@
         }
       }
 
-      function fmtCatalogPriceLine(src, metricLabel) {
+      function fmtCatalogPriceLine(src, dir) {
         if (!src || src.amount == null || !Number.isFinite(Number(src.amount))) {
-          return `<div class="catalogSourceLine muted"><span class="catalogSourceMetric">${metricLabel}</span> —</div>`;
+          return `<div class="catalogRate catalogRate--empty"><span class="catalogRateDir">${dir}</span><span class="catalogRateMeta muted">—</span></div>`;
         }
         const name = escapeHtml(src.catalog_model_name || '—');
-        const rate = window.AppMoney?.fmtCostPer1m(src.amount, currentCurrency) ?? String(src.amount);
-        const tier =
-          src.price_tier === 'global_standard'
-            ? ' <span class="catalogTierTag">global standard</span>'
-            : src.price_tier === 'standard'
-              ? ' <span class="catalogTierTag muted">standard</span>'
-              : '';
-        const kind = src.match_kind === 'exact' ? '' : ' <span class="catalogMatchTag">fuzzy</span>';
-        return `<div class="catalogSourceLine"><span class="catalogSourceMetric">${metricLabel}</span> <span class="catalogSourceName">${name}</span> · <span class="mono">${escapeHtml(rate)}</span>${tier}${kind}</div>`;
+        const rate = escapeHtml(window.AppMoney?.fmtCostAxis(src.amount) || '—');
+        const fullRate = escapeHtml(window.AppMoney?.fmtCostPer1m(src.amount, currentCurrency) || '');
+        let tierShort = '';
+        let tierTitle = '';
+        if (src.price_tier === 'global_standard') {
+          tierShort = 'GS';
+          tierTitle = 'Global standard';
+        } else if (src.price_tier === 'standard') {
+          tierShort = 'Std';
+          tierTitle = 'Standard';
+        }
+        const tier = tierShort
+          ? `<span class="catalogRateTier" title="${escapeHtml(tierTitle)}">${tierShort}</span>`
+          : '';
+        const fuzzy =
+          src.match_kind && src.match_kind !== 'exact'
+            ? '<span class="catalogRateFuzzy" title="Fuzzy catalog match">~</span>'
+            : '';
+        return `<div class="catalogRate" title="${fullRate}"><span class="catalogRateDir">${dir}</span><span class="catalogRateName">${name}</span><span class="catalogRateVal mono">${rate}</span>${tier}${fuzzy}</div>`;
       }
 
       function renderCatalogSourceCell(row) {
         const inp = row.catalog_price_input;
         const out = row.catalog_price_output;
         if (!inp && !out) {
-          return '<span class="muted">No match in Model Prices</span>';
+          return '<span class="catalogRateEmpty muted">No catalog match</span>';
         }
-        return `<div class="catalogSourceLines">${fmtCatalogPriceLine(inp, 'In')}${fmtCatalogPriceLine(out, 'Out')}</div>`;
+        return `<div class="catalogRates">${fmtCatalogPriceLine(inp, 'In')}${fmtCatalogPriceLine(out, 'Out')}</div>`;
+      }
+
+      function _deltaCellClass(vPct) {
+        if (vPct === null || vPct === undefined || Number.isNaN(Number(vPct))) return 'deltaCell deltaCell--na';
+        const v = Number(vPct);
+        if (v > 0) return 'deltaCell deltaCell--over';
+        if (v < 0) return 'deltaCell deltaCell--under';
+        return 'deltaCell deltaCell--flat';
+      }
+
+      function _sortModelSummaryRows(rows) {
+        const key = modelTableSort.key;
+        const dir = modelTableSort.dir === 'asc' ? 1 : -1;
+        return [...(rows || [])].sort((a, b) => {
+          if (key === 'model_name') {
+            return dir * String(a?.model_name ?? '').localeCompare(String(b?.model_name ?? ''));
+          }
+          const av = a?.[key];
+          const bv = b?.[key];
+          const an = av === null || av === undefined ? -Infinity : Number(av);
+          const bn = bv === null || bv === undefined ? -Infinity : Number(bv);
+          if (!Number.isFinite(an) && !Number.isFinite(bn)) return 0;
+          if (!Number.isFinite(an)) return 1;
+          if (!Number.isFinite(bn)) return -1;
+          return dir * (an - bn);
+        });
+      }
+
+      function _updateModelTableSortIndicators() {
+        const table = document.getElementById('modelCostSummaryTable');
+        if (!table) return;
+        table.querySelectorAll('thead th[data-sort-key]').forEach((th) => {
+          const k = th.getAttribute('data-sort-key');
+          const active = k === modelTableSort.key;
+          th.classList.toggle('is-sorted', active);
+          th.setAttribute('aria-sort', active ? (modelTableSort.dir === 'asc' ? 'ascending' : 'descending') : 'none');
+        });
+      }
+
+      function initModelSummaryTableSort() {
+        const table = document.getElementById('modelCostSummaryTable');
+        if (!table || table.dataset.sortBound === '1') return;
+        table.dataset.sortBound = '1';
+        table.querySelectorAll('thead th[data-sort-key]').forEach((th) => {
+          th.addEventListener('click', () => {
+            const key = th.getAttribute('data-sort-key');
+            if (!key || !lastModelSummaryRows.length) return;
+            if (modelTableSort.key === key) {
+              modelTableSort.dir = modelTableSort.dir === 'asc' ? 'desc' : 'asc';
+            } else {
+              modelTableSort.key = key;
+              modelTableSort.dir = key === 'model_name' ? 'asc' : 'desc';
+            }
+            renderModelSummaryTable(lastModelSummaryRows, lastModelProjectSummary);
+          });
+        });
+      }
+
+      function _appendModelNumCell(tr, value, { emphasize = false, extraClass = '' } = {}) {
+        const td = document.createElement('td');
+        td.className = ['num', 'mono', emphasize ? 'colEmphasis' : '', extraClass]
+          .filter(Boolean)
+          .join(' ');
+        td.textContent = fmtTableAmount(value);
+        const title = fmtTableAmountTitle(value);
+        if (title) td.title = title;
+        tr.appendChild(td);
+        return td;
+      }
+
+      function _buildModelSummaryRow(r) {
+        const tr = document.createElement('tr');
+        tr.className = 'modelSummaryRow';
+
+        const tdName = document.createElement('td');
+        tdName.className = 'modelNameCell';
+        const code = document.createElement('code');
+        code.textContent = String(r.model_name ?? '—');
+        tdName.appendChild(code);
+        tr.appendChild(tdName);
+
+        const tdCatalog = document.createElement('td');
+        tdCatalog.className = 'catalogSourceCell';
+        tdCatalog.innerHTML = renderCatalogSourceCell(r);
+        tr.appendChild(tdCatalog);
+
+        _appendModelNumCell(tr, r.input_cost_usd);
+        _appendModelNumCell(tr, r.output_cost_usd);
+        _appendModelNumCell(tr, r.actual_cost_usd, { emphasize: true });
+
+        const vPct = r.variance_pct;
+        const delta =
+          vPct === null || vPct === undefined
+            ? '—'
+            : `${vPct > 0 ? '+' : ''}${vPct}%`;
+        _appendModelNumCell(tr, r.catalog_cost_usd);
+        const tdDelta = document.createElement('td');
+        tdDelta.className = `num mono ${_deltaCellClass(vPct)}`;
+        tdDelta.textContent = delta;
+        tr.appendChild(tdDelta);
+
+        const tdDays = document.createElement('td');
+        tdDays.className = 'num colDays';
+        tdDays.textContent = String(r.days_with_rows ?? '—');
+        tr.appendChild(tdDays);
+
+        return tr;
+      }
+
+      function _renderModelSummaryFooter(projectSummary) {
+        if (!modelCostSummaryTfootEl) return;
+        const ps = projectSummary || {};
+        const vPct = ps.variance_pct;
+        const footerDelta =
+          vPct === null || vPct === undefined
+            ? '—'
+            : `${vPct > 0 ? '+' : ''}${vPct}%`;
+        const totalMeter = ps.total_meter_cost_usd ?? ps.total_actual_cost_usd;
+
+        modelCostSummaryTfootEl.replaceChildren();
+        const tr = document.createElement('tr');
+        tr.className = 'modelCostTotalRow';
+
+        const th = document.createElement('th');
+        th.scope = 'row';
+        th.colSpan = 2;
+        th.textContent = 'All models';
+        tr.appendChild(th);
+
+        _appendModelNumCell(tr, ps.total_input_cost_usd);
+        _appendModelNumCell(tr, ps.total_output_cost_usd);
+        _appendModelNumCell(tr, totalMeter, { emphasize: true });
+        _appendModelNumCell(tr, ps.total_catalog_cost_usd);
+
+        const tdDelta = document.createElement('td');
+        tdDelta.className = `num mono ${_deltaCellClass(vPct)}`;
+        tdDelta.textContent = footerDelta;
+        tr.appendChild(tdDelta);
+
+        const tdDays = document.createElement('td');
+        tdDays.className = 'num colDays';
+        tdDays.textContent = '—';
+        tr.appendChild(tdDays);
+
+        modelCostSummaryTfootEl.appendChild(tr);
       }
 
       function renderModelSummaryTable(rows, projectSummary) {
         if (!modelCostSummaryTbodyEl) return;
-        const sorted = [...(rows || [])].sort((a, b) => {
-          const av = Number(a?.actual_cost_usd ?? 0);
-          const bv = Number(b?.actual_cost_usd ?? 0);
-          return bv - av;
-        });
-        modelCostSummaryTbodyEl.innerHTML = sorted
-          .map((r) => {
-            const vPct = r.variance_pct;
-            const delta =
-              vPct === null || vPct === undefined
-                ? '—'
-                : `${vPct > 0 ? '+' : ''}${vPct}%`;
-            return `<tr>
-              <td>${escapeHtml(r.model_name)}</td>
-              <td class="catalogSourceCell">${renderCatalogSourceCell(r)}</td>
-              <td class="num mono">${fmt2(r.input_cost_usd)}</td>
-              <td class="num mono">${fmt2(r.output_cost_usd)}</td>
-              <td class="num mono">${fmt2(r.actual_cost_usd)}</td>
-              <td class="num mono">${fmt2(r.catalog_cost_usd)}</td>
-              <td class="num mono">${escapeHtml(delta)}</td>
-              <td class="num">${escapeHtml(String(r.days_with_rows ?? '—'))}</td>
-            </tr>`;
-          })
-          .join('');
-        if (modelCostSummaryTfootEl) {
-          const ps = projectSummary || {};
-          modelCostSummaryTfootEl.innerHTML = `<tr class="modelCostTotalRow">
-            <th scope="row" colspan="2">All models (total)</th>
-            <td class="num mono">${fmt2(ps.total_input_cost_usd)}</td>
-            <td class="num mono">${fmt2(ps.total_output_cost_usd)}</td>
-            <td class="num mono">${fmt2(ps.total_meter_cost_usd ?? ps.total_actual_cost_usd)}</td>
-            <td class="num mono">${fmt2(ps.total_catalog_cost_usd)}</td>
-            <td class="num mono">—</td>
-            <td class="num">—</td>
-          </tr>`;
+        lastModelSummaryRows = asModelSummaryRows(rows);
+        lastModelProjectSummary = projectSummary || {};
+        const sorted = _sortModelSummaryRows(lastModelSummaryRows);
+
+        const frag = document.createDocumentFragment();
+        let built = 0;
+        for (const r of sorted) {
+          try {
+            frag.appendChild(_buildModelSummaryRow(r));
+            built += 1;
+          } catch (err) {
+            console.error('model summary row failed', r?.model_name, err);
+          }
+        }
+
+        modelCostSummaryTbodyEl.replaceChildren(frag);
+        if (built === 0 && sorted.length > 0) {
+          const errTr = document.createElement('tr');
+          const errTd = document.createElement('td');
+          errTd.colSpan = 8;
+          errTd.className = 'muted';
+          errTd.textContent = 'Unable to render model rows. See browser console.';
+          errTr.appendChild(errTd);
+          modelCostSummaryTbodyEl.appendChild(errTr);
+        } else if (built === 0) {
+          const emptyTr = document.createElement('tr');
+          const emptyTd = document.createElement('td');
+          emptyTd.colSpan = 8;
+          emptyTd.className = 'muted';
+          emptyTd.textContent = 'No model rows in selected range.';
+          emptyTr.appendChild(emptyTd);
+          modelCostSummaryTbodyEl.appendChild(emptyTr);
+        }
+
+        try {
+          _renderModelSummaryFooter(lastModelProjectSummary);
+        } catch (err) {
+          console.error('model summary footer failed', err);
+          if (modelCostSummaryTfootEl) modelCostSummaryTfootEl.replaceChildren();
+        }
+
+        try {
+          initModelSummaryTableSort();
+          _updateModelTableSortIndicators();
+        } catch (err) {
+          console.error('model table sort UI failed', err);
         }
       }
 
@@ -614,60 +938,45 @@
         if (existingChart) existingChart.destroy();
         const ctx = document.getElementById(canvasId)?.getContext('2d');
         if (!ctx) return null;
+        const ptR = CHART_OPTS?.pointRadiusForCount?.(labels.length, { sparse: 2, dense: 0 }) ?? 2;
+        const styled = datasets.map((ds) => ({ ...ds, pointRadius: ptR, pointHoverRadius: 5 }));
         return new Chart(ctx, {
           type: 'line',
-          data: { labels, datasets },
-          options: {
-            ...chartLineDefaults,
-            plugins: {
-              decimation: { enabled: true, algorithm: 'min-max' },
-              legend: {
-                display: models.length > 0,
-                position: 'top',
-                labels: { color: '#e6edf3', font: { size: 12, weight: '600' }, boxWidth: 14 },
-              },
-              tooltip: {
-                enabled: true,
-                backgroundColor: 'rgba(11,18,32,0.92)',
-                borderColor: 'rgba(255,255,255,0.16)',
-                borderWidth: 1,
-                callbacks: { label: tooltipLabelForValue },
-              },
+          data: { labels, datasets: styled },
+          options: buildCostLineOptions({
+            labelCount: labels.length,
+            showLegend: models.length > 0,
+            legendVariant: 'compact',
+            tooltipCallbacks: {
+              title: (items) => (items?.[0] ? String(labels[items[0].dataIndex] ?? '') : ''),
+              label: tooltipLabelForValue,
             },
-            scales: {
-              x: {
-                ticks: { color: '#9fb2c7', maxTicksLimit: 12, maxRotation: 0 },
-                grid: { color: 'rgba(255,255,255,0.08)' },
-              },
-              y: {
-                ticks: {
-                  color: '#9fb2c7',
-                  callback: (value) => window.AppMoney?.fmtCost(value, currentCurrency) ?? String(value),
-                },
-                beginAtZero: true,
-                grid: { color: 'rgba(255,255,255,0.08)' },
-              },
-            },
-          },
-          plugins: [emptyStatePlugin(emptyMsg)],
+          }),
+          plugins: [emptyStatePlugin(emptyMsg), ...chartPluginsExtra()],
         });
       }
 
       function renderModelDirCostCharts(dailyByModel) {
-        chartInputByModel = _renderDirCostChart(
-          'timeseriesChartInputByModel',
-          chartInputByModel,
-          dailyByModel,
-          'input_cost_usd',
-          'No meter-matched input cost in range'
-        );
-        chartOutputByModel = _renderDirCostChart(
-          'timeseriesChartOutputByModel',
-          chartOutputByModel,
-          dailyByModel,
-          'output_cost_usd',
-          'No meter-matched output cost in range'
-        );
+        const run = () => {
+          chartInputByModel = _renderDirCostChart(
+            'timeseriesChartInputByModel',
+            chartInputByModel,
+            dailyByModel,
+            'input_cost_usd',
+            'No meter-matched input cost in range'
+          );
+          chartOutputByModel = _renderDirCostChart(
+            'timeseriesChartOutputByModel',
+            chartOutputByModel,
+            dailyByModel,
+            'output_cost_usd',
+            'No meter-matched output cost in range'
+          );
+          chartInputByModel?.resize?.();
+          chartOutputByModel?.resize?.();
+        };
+        if (costModelSectionEl && costModelSectionEl.hidden) return;
+        requestAnimationFrame(() => requestAnimationFrame(run));
       }
 
       function renderMarketChart(costPoints, catalogPayload) {
@@ -711,92 +1020,64 @@
         const ctx = document.getElementById('timeseriesChartMarket')?.getContext('2d');
         if (!ctx) return;
 
+        const ptR = CHART_OPTS?.pointRadiusForCount?.(labels.length, { sparse: 2, dense: 0 }) ?? 2;
         chartMarket = new Chart(ctx, {
           type: 'line',
           data: {
             labels,
             datasets: [
-              {
-                label: L.costActual || 'CostUSD (Actual)',
+              CHART_OPTS?.datasetLineCurrency?.({
+                label: L.costActual || 'Actual (CostUSD)',
                 data: actualData,
                 borderColor: C.cost || '#5eead4',
-                backgroundColor: 'rgba(94,234,212,0.12)',
-                fill: false,
-                tension: 0.25,
-                pointRadius: 2,
-                borderWidth: 2.4,
-                spanGaps: true,
-                unitType: 'currency',
+                backgroundColor: 'rgba(94,234,212,0.10)',
+                pointRadius: ptR,
+              }) ?? {
+                label: L.costActual,
+                data: actualData,
+                borderColor: C.cost,
               },
-              {
+              CHART_OPTS?.datasetLineCurrency?.({
+                label: L.catalogMarket || 'Catalog market (list)',
+                data: catalogData,
+                borderColor: C.catalog || '#60a5fa',
+                backgroundColor: 'rgba(96,165,250,0.08)',
+                dashed: true,
+                pointRadius: ptR,
+              }) ?? {
                 label: 'Catalog market (list)',
                 data: catalogData,
                 borderColor: '#60a5fa',
-                backgroundColor: 'rgba(96,165,250,0.10)',
-                fill: false,
-                tension: 0.25,
-                pointRadius: 2,
-                borderWidth: 2.2,
-                borderDash: [4, 3],
-                spanGaps: true,
-                unitType: 'currency',
               },
             ],
           },
-          options: {
-            ...chartLineDefaults,
-            plugins: {
-              decimation: { enabled: true, algorithm: 'min-max' },
-              legend: {
-                display: true,
-                position: 'top',
-                labels: { color: '#e6edf3', font: { size: 14, weight: '600' } },
-              },
-              tooltip: {
-                enabled: true,
-                backgroundColor: 'rgba(11,18,32,0.92)',
-                borderColor: 'rgba(255,255,255,0.16)',
-                borderWidth: 1,
-                callbacks: {
-                  label: tooltipLabelForValue,
-                  afterBody: (items) => {
-                    if (!items?.length) return [];
-                    const idx = items[0].dataIndex;
-                    const date = labels[idx];
-                    const rows = breakdownByDate.get(date);
-                    if (!rows?.length) return [];
-                    const lines = ['', 'By model (actual / catalog):'];
-                    const max = 8;
-                    for (const r of rows.slice(0, max)) {
-                      const name = String(r.model_name || 'model');
-                      lines.push(
-                        ` ${name}: ${fmt2(r.actual_cost_usd)} / ${fmt2(r.catalog_cost_usd)}`
-                      );
-                    }
-                    if (rows.length > max) {
-                      lines.push(` …+${rows.length - max} more`);
-                    }
-                    return lines;
-                  },
-                },
+          options: buildCostLineOptions({
+            labelCount: labels.length,
+            showLegend: true,
+            legendVariant: 'compact',
+            tooltipCallbacks: {
+              title: (items) => (items?.[0] ? String(labels[items[0].dataIndex] ?? '') : ''),
+              label: tooltipLabelForValue,
+              afterBody: (items) => {
+                if (!items?.length) return [];
+                const idx = items[0].dataIndex;
+                const date = labels[idx];
+                const rows = breakdownByDate.get(date);
+                if (!rows?.length) return [];
+                const lines = ['', 'By model (actual / catalog):'];
+                const max = 8;
+                for (const r of rows.slice(0, max)) {
+                  const name = String(r.model_name || 'model');
+                  lines.push(` ${name}: ${fmt2(r.actual_cost_usd)} / ${fmt2(r.catalog_cost_usd)}`);
+                }
+                if (rows.length > max) {
+                  lines.push(` …+${rows.length - max} more`);
+                }
+                return lines;
               },
             },
-            scales: {
-              x: {
-                ticks: { color: '#9fb2c7', maxTicksLimit: 12, maxRotation: 0 },
-                grid: { color: 'rgba(255,255,255,0.08)' },
-              },
-              y: {
-                ticks: {
-                  color: '#9fb2c7',
-                  callback: (value) => window.AppMoney?.fmtCost(value, currentCurrency) ?? String(value),
-                },
-                beginAtZero: true,
-                grid: { color: 'rgba(255,255,255,0.08)' },
-              },
-            },
-          },
-          plugins: [emptyStatePlugin('No catalog market data in range')],
+          }),
+          plugins: [emptyStatePlugin('No catalog market data in range'), ...chartPluginsExtra()],
         });
       }
 
@@ -819,58 +1100,35 @@
         gradient.addColorStop(0, 'rgba(94,234,212,0.28)');
         gradient.addColorStop(1, 'rgba(94,234,212,0.00)');
 
+        const ptR = CHART_OPTS?.pointRadiusForCount?.(labels.length, { sparse: 3, dense: 1 }) ?? 3;
+        const actualDs =
+          CHART_OPTS?.datasetLineCurrency?.({
+            label: L.costActual || 'Actual (CostUSD)',
+            data: costData,
+            borderColor: C.cost || '#5eead4',
+            backgroundColor: gradient,
+            fill: true,
+            pointRadius: ptR,
+          }) ?? {
+            label: L.costActual,
+            data: costData,
+            borderColor: C.cost,
+            backgroundColor: gradient,
+            fill: true,
+          };
+
         chartActual = new Chart(ctxA, {
           type: 'line',
-          data: {
-            labels,
-            datasets: [
-              {
-                label: L.costActual || 'CostUSD (Actual)',
-                data: costData,
-                borderColor: C.cost || '#5eead4',
-                backgroundColor: gradient,
-                fill: true,
-                tension: 0.25,
-                pointRadius: 3,
-                pointHoverRadius: 4,
-                borderWidth: 2.6,
-                spanGaps: true,
-                unitType: 'currency',
-              },
-            ],
-          },
-          options: {
-            ...chartLineDefaults,
-            plugins: {
-              decimation: { enabled: true, algorithm: 'min-max' },
-              legend: { display: true, position: 'top', labels: { color: '#e6edf3', font: { size: 15, weight: '600' } } },
-              tooltip: {
-                enabled: true,
-                backgroundColor: 'rgba(11,18,32,0.92)',
-                borderColor: 'rgba(255,255,255,0.16)',
-                borderWidth: 1,
-                titleFont: { size: 14, weight: '600' },
-                bodyFont: { size: 13 },
-                callbacks: { label: tooltipLabelForValue },
-              },
+          data: { labels, datasets: [actualDs] },
+          options: buildCostLineOptions({
+            labelCount: labels.length,
+            showLegend: true,
+            tooltipCallbacks: {
+              title: (items) => (items?.[0] ? String(labels[items[0].dataIndex] ?? '') : ''),
+              label: tooltipLabelForValue,
             },
-            scales: {
-              x: {
-                ticks: { color: '#9fb2c7', font: { size: 12, weight: '500' }, autoSkip: true, maxTicksLimit: 12, maxRotation: 0 },
-                grid: { color: 'rgba(255,255,255,0.08)' },
-              },
-              y: {
-                ticks: {
-                  color: '#9fb2c7',
-                  font: { size: 12, weight: '500' },
-                  callback: (value) => window.AppMoney?.fmtCost(value, currentCurrency) ?? String(value),
-                },
-                beginAtZero: true,
-                grid: { color: 'rgba(255,255,255,0.08)' },
-              },
-            },
-          },
-          plugins: [emptyStatePlugin('No data in selected range')],
+          }),
+          plugins: [emptyStatePlugin('No data in selected range'), ...chartPluginsExtra()],
         });
       }
 
@@ -896,7 +1154,7 @@
         if (data.projects.length > 0) {
           const chosen =
             (preferredProject && data.projects.includes(preferredProject)) ? preferredProject : data.projects[0];
-          await loadProject(chosen);
+          await loadProjectSafe(chosen);
         }
       }
 
@@ -925,6 +1183,15 @@
         daysCountEl.textContent = `Days: ${stats.actual_days}`;
         currencyLabelEl.textContent = `Currency: ${stats.currency ?? '-'}`;
         currentCurrency = stats.currency ?? null;
+
+        if (!startDateInput.value && stats.min_usage_date) {
+          startDateInput.value = stats.min_usage_date;
+        }
+        if (!endDateInput.value && stats.max_usage_date) {
+          endDateInput.value = stats.max_usage_date;
+        }
+        currentStartDate = startDateInput.value || null;
+        currentEndDate = endDateInput.value || null;
 
         const tsParams = new URLSearchParams();
         tsParams.set('granularity', 'day');
@@ -957,17 +1224,28 @@
         _renderCostStats(costStatsEl, costStats);
       }
 
-      projectSelect.addEventListener('change', (e) => {
-        loadProject(e.target.value).catch((err) => {
+      async function loadProjectSafe(projectName) {
+        setDashboardLoading(true);
+        try {
+          await loadProject(projectName);
+        } catch (err) {
           console.error(err);
-          // toast handled by AppHttp
-        });
+        } finally {
+          setDashboardLoading(false);
+        }
+      }
+
+      projectSelect.addEventListener('change', (e) => {
+        loadProjectSafe(e.target.value);
       });
       applyFiltersBtn.addEventListener('click', () => {
-        loadProject(projectSelect.value).catch((e) => {
-          console.error(e);
-          // toast handled by AppHttp
-        });
+        loadProjectSafe(projectSelect.value);
+      });
+      document.querySelector('.costDashboard .filterBar')?.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          loadProjectSafe(projectSelect.value);
+        }
       });
       async function bootstrap() {
         let preferred = null;

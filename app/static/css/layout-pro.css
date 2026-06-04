@@ -14,7 +14,7 @@
 }
 
 /* --- Page chrome: title band (standard pages, not token nested header) --- */
-.contentArea .pageHeader:not(.tokenPageHeader) {
+.contentArea .pageHeader:not(.tokenPageHeader):not(.dashboardHero) {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, min(44%, 40ch));
   grid-template-areas:
@@ -29,14 +29,14 @@
   border-radius: var(--lp-card-radius);
 }
 
-.contentArea .pageHeader:not(.tokenPageHeader) .breadcrumb {
+.contentArea .pageHeader:not(.tokenPageHeader):not(.dashboardHero) .breadcrumb {
   grid-area: crumb;
   white-space: normal;
   overflow: visible;
   text-overflow: unset;
 }
 
-.contentArea .pageHeader:not(.tokenPageHeader) .pageTitle {
+.contentArea .pageHeader:not(.tokenPageHeader):not(.dashboardHero) .pageTitle {
   grid-area: title;
   white-space: normal;
   overflow: visible;
@@ -46,7 +46,7 @@
   line-height: 1.25;
 }
 
-.contentArea .pageHeader:not(.tokenPageHeader) .pageDesc {
+.contentArea .pageHeader:not(.tokenPageHeader):not(.dashboardHero) .pageDesc {
   grid-area: desc;
   display: -webkit-box;
   -webkit-box-orient: vertical;
@@ -62,7 +62,7 @@
 }
 
 @media (max-width: 760px) {
-  .contentArea .pageHeader:not(.tokenPageHeader) {
+  .contentArea .pageHeader:not(.tokenPageHeader):not(.dashboardHero) {
     grid-template-columns: 1fr;
     grid-template-areas:
       "crumb"
@@ -70,7 +70,7 @@
       "desc";
   }
 
-  .contentArea .pageHeader:not(.tokenPageHeader) .pageDesc {
+  .contentArea .pageHeader:not(.tokenPageHeader):not(.dashboardHero) .pageDesc {
     text-align: left;
   }
 }
@@ -129,37 +129,39 @@
 }
 
 /* Cost dashboard */
-.dashSections {
+.costDashboard {
+  gap: var(--lp-section-gap-lg) !important;
+}
+
+.costDashboard .dashSections {
+  gap: var(--lp-section-gap-lg) !important;
+}
+
+.costDashboard .dashboardHero {
+  padding: 16px 18px !important;
+}
+
+.costDashboard .chartStack {
   gap: var(--lp-section-gap) !important;
 }
 
-.container .grid {
-  display: grid;
-  gap: 10px;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
-@media (max-width: 900px) {
-  .container .grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-.header.card {
-  padding: 9px 11px !important;
-}
-
-.chartStack {
-  gap: 9px !important;
-}
-
-.chartStack canvas {
+.costDashboard .chartCanvasHost {
   height: var(--lp-chart-h) !important;
   max-height: var(--lp-chart-h);
 }
 
+.costDashboard .chartCanvasHost--tall {
+  height: min(var(--lp-chart-h), 300px) !important;
+}
+
+.costDashboard .chartCanvasHost canvas {
+  height: 100% !important;
+  max-height: none;
+}
+
 @media (max-width: 960px) {
-  .chartStack canvas {
+  .costDashboard .chartCanvasHost,
+  .costDashboard .chartCanvasHost--tall {
     height: min(var(--lp-chart-h), 300px) !important;
   }
 }

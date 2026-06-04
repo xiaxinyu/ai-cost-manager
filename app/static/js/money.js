@@ -50,7 +50,7 @@
     return `${num} ${cur}/1M`;
   }
 
-  /** Chart axis: 2 decimals, no currency suffix (keeps Y-axis readable). */
+  /** Chart axis / dense tables: 2 decimals, no currency suffix. */
   function fmtCostAxis(n) {
     const x = roundCost(n);
     if (x === null) return "";
@@ -60,11 +60,18 @@
     });
   }
 
+  /** Table cells when currency is shown in column header. */
+  function fmtCostAmount(n) {
+    const t = fmtCostAxis(n);
+    return t === "" ? "—" : t;
+  }
+
   window.AppMoney = {
     COST_DECIMALS,
     roundCost,
     fmtCost,
     fmtCostPer1m,
     fmtCostAxis,
+    fmtCostAmount,
   };
 })();
