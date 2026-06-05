@@ -1,0 +1,203 @@
+/* Shared quick date range picker — Cost, Tokens, Reports */
+
+.dateRangePicker {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+}
+
+.dateRangePickerInputs {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr auto;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+}
+
+.dateRangePickerSep {
+  color: var(--text-subtle, #7a8fa8);
+  font-size: 13px;
+  font-weight: 600;
+  user-select: none;
+}
+
+.dateRangePickerInputs input[type="date"] {
+  min-width: 0;
+  width: 100%;
+}
+
+.dateRangePickerToggle {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  min-height: 40px;
+  padding: 0;
+  border-radius: 8px;
+  border: 1px solid var(--border, rgba(173, 196, 228, 0.22));
+  background: rgba(255, 255, 255, 0.06);
+  color: #d4e0ef;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.dateRangePickerToggle:hover {
+  background: rgba(20, 184, 166, 0.12);
+  border-color: rgba(20, 184, 166, 0.4);
+}
+
+.dateRangePickerToggle:focus-visible {
+  outline: 2px solid rgba(20, 184, 166, 0.55);
+  outline-offset: 2px;
+}
+
+.dateRangePickerToggleIcon {
+  display: block;
+  width: 14px;
+  height: 14px;
+  background:
+    linear-gradient(currentColor, currentColor) center 2px / 12px 2px no-repeat,
+    linear-gradient(currentColor, currentColor) 2px 6px / 10px 2px no-repeat,
+    linear-gradient(currentColor, currentColor) 2px 10px / 8px 2px no-repeat;
+  opacity: 0.9;
+}
+
+.dateRangePickerPanel {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 40;
+  width: min(320px, calc(100vw - 24px));
+  max-height: min(70vh, 520px);
+  overflow: auto;
+  padding: 6px 0 8px;
+  border-radius: 10px;
+  border: 1px solid rgba(173, 196, 228, 0.22);
+  background: var(--surface-1, #111a28);
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.42);
+}
+
+.dateRangePickerNav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 10px 8px;
+  border-bottom: 1px solid rgba(173, 196, 228, 0.12);
+  margin-bottom: 4px;
+}
+
+.dateRangePickerNavBtn {
+  border: none;
+  background: transparent;
+  color: #94a3b8;
+  font-size: 12px;
+  font-weight: 650;
+  font-family: inherit;
+  padding: 6px 4px;
+  cursor: pointer;
+  border-radius: 6px;
+}
+
+.dateRangePickerNavBtn:hover {
+  color: #e2e8f0;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.dateRangePickerNavBtn:focus-visible {
+  outline: 2px solid rgba(20, 184, 166, 0.55);
+  outline-offset: 1px;
+}
+
+.dateRangePickerSection {
+  padding: 4px 0;
+}
+
+.dateRangePickerSection + .dateRangePickerSection {
+  border-top: 1px solid rgba(173, 196, 228, 0.08);
+}
+
+.dateRangePickerSectionLabel {
+  padding: 8px 14px 4px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-subtle, #7a8fa8);
+}
+
+.dateRangePickerOption {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 9px 14px;
+  border: none;
+  background: transparent;
+  color: #e8eef6;
+  font-size: 13px;
+  font-weight: 560;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.dateRangePickerOption:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.dateRangePickerOption.is-active {
+  background: rgba(20, 184, 166, 0.14);
+  color: #f0fdfa;
+}
+
+.dateRangePickerOption:focus-visible {
+  outline: 2px solid rgba(20, 184, 166, 0.55);
+  outline-offset: -2px;
+}
+
+.dateRangePickerHint {
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-subtle, #7a8fa8);
+  font-variant-numeric: tabular-nums;
+}
+
+.dateRangePickerChevron {
+  flex-shrink: 0;
+  font-size: 14px;
+  color: var(--text-subtle, #7a8fa8);
+}
+
+.dateRangePickerFooter {
+  border-top: 1px solid rgba(173, 196, 228, 0.1);
+  margin-top: 2px;
+  padding-top: 2px;
+}
+
+.tokenPage .dateRangePickerToggle,
+.reportPage .dateRangePickerToggle {
+  min-height: 38px;
+  width: 34px;
+  border-radius: 7px;
+}
+
+.tokenPage .dateRangePickerInputs input[type="date"],
+.reportPage .dateRangePickerInputs input[type="date"] {
+  min-height: 38px;
+}
+
+@media (max-width: 720px) {
+  .costDashboard .filterFieldDateRange {
+    grid-column: 1 / -1;
+  }
+
+  .dateRangePickerPanel {
+    left: 0;
+    right: auto;
+    width: min(320px, 100%);
+  }
+}

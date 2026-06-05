@@ -6,9 +6,10 @@
     <title>Cost - Models Cost Management</title>
     <link rel="stylesheet" href="/static/css/app-shell.css" />
     <link rel="stylesheet" href="/static/css/page-common.css" />
-    <link rel="stylesheet" href="/static/css/pages/index.css?v=20260605-cost" />
+    <link rel="stylesheet" href="/static/css/pages/index.css?v=20260606-drp" />
     <link rel="stylesheet" href="/static/css/layout-pro.css" />
     <link rel="stylesheet" href="/static/css/dashboard-shared.css?v=20260605-cost" />
+    <link rel="stylesheet" href="/static/css/date-range-picker.css?v=20260606-drp" />
     <link rel="stylesheet" href="/static/css/insight-panel.css?v=20260605-insights" />
   </head>
   <body>
@@ -32,18 +33,17 @@
               </p>
             </div>
             <div class="filterBar controls" role="group" aria-label="Scope filters">
-              <div class="filterField">
+              <div class="filterField filterFieldProject">
                 <label class="filterLabel" for="projectSelect">Project</label>
+                <p id="projectModelHint" class="projectModelHint muted" aria-live="polite"></p>
                 <select id="projectSelect" title="Folder under bills/ — suffix shows primary deployment model"></select>
-                <p id="projectModelHint" class="muted filterHint" style="margin-top:6px;font-size:11px;"></p>
               </div>
-              <div class="filterField">
-                <label class="filterLabel" for="startDateInput">Start</label>
-                <input id="startDateInput" type="date" lang="en" />
-              </div>
-              <div class="filterField">
-                <label class="filterLabel" for="endDateInput">End</label>
-                <input id="endDateInput" type="date" lang="en" />
+              <div class="filterField filterFieldDateRange">
+                <label class="filterLabel" for="startDateInput">Date range</label>
+                <div class="dateRangePickerHost">
+                  <input id="startDateInput" type="date" lang="en" aria-label="Start date" />
+                  <input id="endDateInput" type="date" lang="en" aria-label="End date" />
+                </div>
               </div>
               <button id="applyFiltersBtn" class="btn btnApply" type="button" aria-busy="false">Apply</button>
             </div>
@@ -231,6 +231,7 @@
     <script src="/static/js/chart-style.js?v=20260605-dates"></script>
     <script src="/static/js/cost-semantics.js?v=20260605-cost"></script>
     <script src="/static/js/dashboard-ui.js"></script>
+    <script src="/static/js/date-range-picker.js?v=20260606-drp"></script>
     <script src="/static/js/insight-panel.js?v=20260605-insights"></script>
     <script>
       window.AppChartStyle?.applyDefaults?.();
@@ -1289,6 +1290,13 @@
           setDashboardLoading(false);
         }
       }
+
+      window.AppDateRangePicker?.mount({
+        startInput: startDateInput,
+        endInput: endDateInput,
+        autoApply: true,
+        onApply: () => loadProjectSafe(projectSelect.value),
+      });
 
       projectSelect.addEventListener('change', (e) => {
         loadProjectSafe(e.target.value);

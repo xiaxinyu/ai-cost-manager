@@ -6,9 +6,10 @@
     <title>Reports - Models Cost Management</title>
     <link rel="stylesheet" href="/static/css/app-shell.css" />
     <link rel="stylesheet" href="/static/css/page-common.css" />
-    <link rel="stylesheet" href="/static/css/pages/reports.css?v=20260605-raw-h" />
+    <link rel="stylesheet" href="/static/css/pages/reports.css?v=20260606-drp" />
     <link rel="stylesheet" href="/static/css/layout-pro.css" />
     <link rel="stylesheet" href="/static/css/dashboard-shared.css?v=20260605-cost" />
+    <link rel="stylesheet" href="/static/css/date-range-picker.css?v=20260606-drp" />
     <link rel="stylesheet" href="/static/css/insight-panel.css?v=20260605-insights" />
   </head>
   <body>
@@ -53,28 +54,17 @@
                   <select id="currencySelect" class="control"></select>
                 </div>
               </div>
-              <div class="field fieldDate">
-                <label for="startDate">Start date</label>
-                <div class="controlWrap">
-                  <input id="startDate" class="control controlDate" type="date" autocomplete="off" />
-                </div>
-              </div>
-              <div class="field fieldDate">
-                <label for="endDate">End date</label>
-                <div class="controlWrap">
-                  <input id="endDate" class="control controlDate" type="date" autocomplete="off" />
+              <div class="field fieldDateRange">
+                <label for="startDate">Date range</label>
+                <div class="controlWrap dateRangePickerHost">
+                  <input id="startDate" class="control controlDate" type="date" autocomplete="off" aria-label="Start date" />
+                  <input id="endDate" class="control controlDate" type="date" autocomplete="off" aria-label="End date" />
                 </div>
               </div>
               <div class="toolbarActions">
                 <button id="loadBtn" class="btnPrimary btnLoad" type="button">Load report</button>
                 <button id="verifyBtn" class="btnSecondary btnVerify" type="button">Verify data</button>
               </div>
-            </div>
-            <div class="dateRangeBar">
-              <span class="dateRangeLabel muted">Quick range</span>
-              <button id="dateLast7Btn" class="btnChip" type="button">Last 7 days</button>
-              <button id="dateLast30Btn" class="btnChip" type="button">Last 30 days</button>
-              <button id="dateClearBtn" class="btnChip btnChipGhost" type="button">All dates</button>
             </div>
             <div id="verifyResult" class="verifyBanner" hidden role="status"></div>
             <p class="tableNote reportSourceNote">Billing and token volumes are actuals from imported CSVs only; token-only projects stay visible in the selected scope.</p>
@@ -431,6 +421,7 @@
     <script src="/static/js/chart-style.js?v=20260605-dates"></script>
     <script src="/static/js/cost-semantics.js?v=20260605-cost"></script>
     <script src="/static/js/dashboard-ui.js?v=20260605-datesort"></script>
+    <script src="/static/js/date-range-picker.js?v=20260606-drp"></script>
     <script src="/static/js/insight-panel.js?v=20260605-insights"></script>
     <script>
       window.AppChartStyle?.applyDefaults?.();
@@ -904,33 +895,6 @@
           return false;
         }
         return true;
-      }
-
-      function setDateChipActive(activeId) {
-        for (const id of ['dateLast7Btn', 'dateLast30Btn', 'dateClearBtn']) {
-          document.getElementById(id)?.classList.toggle('is-active', id === activeId);
-        }
-      }
-
-      function applyDateRangePreset(preset) {
-        if (preset === 'clear') {
-          const startEl = document.getElementById('startDate');
-          const endEl = document.getElementById('endDate');
-          if (startEl) startEl.value = '';
-          if (endEl) endEl.value = '';
-          setDateChipActive('dateClearBtn');
-        } else {
-          const days = preset === '7' ? 7 : 30;
-          const end = new Date();
-          const start = new Date();
-          start.setDate(end.getDate() - (days - 1));
-          const startEl = document.getElementById('startDate');
-          const endEl = document.getElementById('endDate');
-          if (startEl) startEl.value = toYmd(start);
-          if (endEl) endEl.value = toYmd(end);
-          setDateChipActive(preset === '7' ? 'dateLast7Btn' : 'dateLast30Btn');
-        }
-        loadReportWithUi();
       }
 
       function updateReportStatusBar(report) {
@@ -1869,10 +1833,12 @@
             }
           });
         }
-        document.getElementById('dateLast7Btn')?.addEventListener('click', () => applyDateRangePreset('7'));
-        document.getElementById('dateLast30Btn')?.addEventListener('click', () => applyDateRangePreset('30'));
-        document.getElementById('dateClearBtn')?.addEventListener('click', () => applyDateRangePreset('clear'));
-        setDateChipActive('dateClearBtn');
+        window.AppDateRangePicker?.mount({
+          startInput: document.getElementById('startDate'),
+          endInput: document.getElementById('endDate'),
+          autoApply: true,
+          onApply: () => loadReportWithUi(),
+        });
 
         const report = await fetchReport();
         applyReportPayload(report);

@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="/static/css/pages/tokens.css?v=20260606-sticky" />
     <link rel="stylesheet" href="/static/css/layout-pro.css" />
     <link rel="stylesheet" href="/static/css/dashboard-shared.css?v=20260605-cost" />
+    <link rel="stylesheet" href="/static/css/date-range-picker.css?v=20260606-drp" />
     <link rel="stylesheet" href="/static/css/insight-panel.css?v=20260605-insights" />
   </head>
   <body>
@@ -45,28 +46,17 @@
                   <select id="projectSelect" class="control"></select>
                 </div>
               </div>
-              <div class="field fieldDate">
-                <label for="tokenStartDateInput">Start date</label>
-                <div class="controlWrap">
-                  <input id="tokenStartDateInput" class="control controlDate" type="date" autocomplete="off" />
-                </div>
-              </div>
-              <div class="field fieldDate">
-                <label for="tokenEndDateInput">End date</label>
-                <div class="controlWrap">
-                  <input id="tokenEndDateInput" class="control controlDate" type="date" autocomplete="off" />
+              <div class="field fieldDateRange">
+                <label for="tokenStartDateInput">Date range</label>
+                <div class="controlWrap dateRangePickerHost">
+                  <input id="tokenStartDateInput" class="control controlDate" type="date" autocomplete="off" aria-label="Start date" />
+                  <input id="tokenEndDateInput" class="control controlDate" type="date" autocomplete="off" aria-label="End date" />
                 </div>
               </div>
               <div class="toolbarActions">
                 <button id="loadTokensBtn" class="btnPrimary btnLoad" type="button">Load data</button>
                 <a href="/import" class="btnSecondary btnLinkQuiet">Import</a>
               </div>
-            </div>
-            <div class="dateRangeBar">
-              <span class="dateRangeLabel muted">Quick range</span>
-              <button id="dateLast7Btn" class="btnChip" type="button">Last 7 days</button>
-              <button id="dateLast30Btn" class="btnChip" type="button">Last 30 days</button>
-              <button id="dateClearBtn" class="btnChip btnChipGhost" type="button">All dates</button>
             </div>
             <p id="filterHint" class="filterHint muted" hidden></p>
           </section>
@@ -428,7 +418,8 @@
     <script src="/static/js/chart-style.js?v=20260605-perf2"></script>
     <script src="/static/js/cost-semantics.js?v=20260605-cost"></script>
     <script src="/static/js/dashboard-ui.js?v=20260605-datesort"></script>
+    <script src="/static/js/date-range-picker.js?v=20260606-drp"></script>
     <script src="/static/js/insight-panel.js?v=20260605-insights"></script>
-    <script src="/static/js/pages/tokens.js?v=20260605-perf2"></script>
+    <script src="/static/js/pages/tokens.js?v=20260606-drp"></script>
   </body>
 </html>

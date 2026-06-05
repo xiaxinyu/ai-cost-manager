@@ -57,9 +57,16 @@
 }
 
 .reportToolbarGrid {
-  grid-template-columns: minmax(300px, 2.4fr) minmax(108px, 0.55fr) minmax(132px, 0.65fr) minmax(132px, 0.65fr) auto;
+  grid-template-columns: minmax(300px, 2fr) minmax(108px, 0.55fr) minmax(280px, 1.2fr) auto;
   align-items: end;
   gap: 14px;
+}
+
+.reportPage .fieldDateRange .controlWrap {
+  padding: 0;
+  border: none;
+  background: transparent;
+  box-shadow: none;
 }
 
 .reportPage .fieldProject {

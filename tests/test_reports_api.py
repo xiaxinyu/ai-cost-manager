@@ -206,7 +206,8 @@ def test_reports_page_layout_without_token_forecast(tmp_path):
     assert "report-glance" in page.text
     assert "report-raw-data" in page.text
     assert "filterCard" in page.text
-    assert "dateLast7Btn" in page.text
+    assert "date-range-picker.js" in page.text
+    assert "dateRangePicker" in page.text
     assert "reportStatusBar" in page.text
     assert "reportToolbarGrid" in page.text
     assert "heroMetricGrid" in page.text

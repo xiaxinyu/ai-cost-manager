@@ -101,7 +101,8 @@ def test_tokens_page_redirect_and_access(tmp_path):
     assert "tokenAnalysisFlow" in page.text
     assert "flowBlock" in page.text
     assert "filterCard" in page.text
-    assert "dateLast7Btn" in page.text
+    assert "date-range-picker.js" in page.text
+    assert "dateRangePicker" in page.text
     assert 'src="/static/js/pages/tokens.js?v=' in page.text
     assert 'href="/tokens"' in page.text
     assert "flowStep" in page.text

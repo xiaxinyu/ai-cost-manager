@@ -488,7 +488,7 @@
 
 .costDashboard .filterBar {
   display: grid;
-  grid-template-columns: minmax(180px, 1.6fr) repeat(2, minmax(132px, 0.85fr)) auto;
+  grid-template-columns: minmax(180px, 1.5fr) minmax(280px, 1.35fr) auto;
   gap: 10px 12px;
   align-items: end;
   justify-content: stretch;
@@ -499,6 +499,19 @@
   flex-direction: column;
   gap: 5px;
   min-width: 0;
+}
+
+.costDashboard .filterFieldProject .projectModelHint {
+  margin: 0;
+  min-height: 0;
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--text-subtle, #7a8fa8);
+}
+
+.costDashboard .filterFieldProject .projectModelHint:not(:empty) {
+  min-height: 1.35em;
+  margin-bottom: 1px;
 }
 
 .costDashboard .filterLabel {

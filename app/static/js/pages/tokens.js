@@ -968,36 +968,6 @@
     return CHART?.chartPluginsExtra?.() || DASH?.crosshairPlugins?.() || [];
   }
 
-  function isoDateLocal(d) {
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, "0");
-    const day = String(d.getDate()).padStart(2, "0");
-    return `${y}-${m}-${day}`;
-  }
-
-  function setDateChipActive(activeId) {
-    for (const id of ["dateLast7Btn", "dateLast30Btn", "dateClearBtn"]) {
-      const el = document.getElementById(id);
-      if (el) el.classList.toggle("is-active", id === activeId);
-    }
-  }
-
-  function applyDateRangePreset(preset) {
-    if (preset === "clear") {
-      clearDateFilters();
-      setDateChipActive("dateClearBtn");
-    } else {
-      const days = preset === "7" ? 7 : 30;
-      const end = new Date();
-      const start = new Date();
-      start.setDate(end.getDate() - (days - 1));
-      if (els.startDate) els.startDate.value = isoDateLocal(start);
-      if (els.endDate) els.endDate.value = isoDateLocal(end);
-      setDateChipActive(preset === "7" ? "dateLast7Btn" : "dateLast30Btn");
-    }
-    loadTokenData();
-  }
-
   function seriesStats(points, key) {
     const vals = (points || [])
       .map((p) => p?.[key])
@@ -1920,12 +1890,16 @@
     }
   }
 
+  window.AppDateRangePicker?.mount({
+    startInput: els.startDate,
+    endInput: els.endDate,
+    autoApply: true,
+    onApply: () => loadTokenData(),
+  });
+
   DASH?.bindFilterEnter?.(
     document.querySelector(".tokenPage .filterCard"),
-    () => {
-      setDateChipActive(null);
-      loadTokenData();
-    }
+    () => loadTokenData()
   );
 
   els.loadBtn.addEventListener("click", loadTokenData);
@@ -1937,15 +1911,10 @@
     input?.addEventListener("keydown", (ev) => {
       if (ev.key === "Enter") {
         ev.preventDefault();
-        setDateChipActive(null);
         loadTokenData();
       }
     });
-    input?.addEventListener("change", () => setDateChipActive(null));
   }
-  document.getElementById("dateLast7Btn")?.addEventListener("click", () => applyDateRangePreset("7"));
-  document.getElementById("dateLast30Btn")?.addEventListener("click", () => applyDateRangePreset("30"));
-  document.getElementById("dateClearBtn")?.addEventListener("click", () => applyDateRangePreset("clear"));
   els.exportBtn.addEventListener("click", exportCsv);
 
   if (els.dailyPrevBtn) {
