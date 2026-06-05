@@ -437,9 +437,9 @@
       const col = MODEL_CHART_COLORS[idx % MODEL_CHART_COLORS.length];
       const name = model.model_name || "model";
       datasets.push({
-        label: `${name} (list)`,
+        label: `${name} (Market)`,
         data: (labels || []).map(() => y),
-        borderColor: col.border,
+        borderColor: window.AppCostSemantics?.market?.color || window.AppChartStyle?.colors?.market || "#c084fc",
         backgroundColor: "transparent",
         borderDash: [7, 5],
         borderWidth: 1.6,
@@ -520,7 +520,7 @@
       0
     );
     if (els.unitPriceNote) {
-      els.unitPriceNote.textContent = `Actual vs catalog · ${tStart} → ${tEnd} · ${overlapDays} model-days · ${ccy || "USD"}/1M`;
+      els.unitPriceNote.textContent = `Actual vs Market · ${tStart} → ${tEnd} · ${overlapDays} model-days · ${ccy || "USD"}/1M`;
     }
     const labels =
       chartLabels?.length > 0
@@ -644,7 +644,7 @@
                 label: (ctx2) => {
                   const v = ctx2.parsed?.y;
                   if (v === null || v === undefined || !Number.isFinite(Number(v))) return `${ctx2.dataset.label}: -`;
-                  const isList = ctx2.dataset.catalogReference === true || String(ctx2.dataset.label || "").includes("(list)");
+                  const isList = ctx2.dataset.catalogReference === true || /\(Market\)/i.test(String(ctx2.dataset.label || ""));
                   let line = `${ctx2.dataset.label}: ${fmtUsdPer1m(v, ccy)}`;
                   if (!isList && models.length) {
                     const modelLabel = String(ctx2.dataset.label || "");
@@ -657,7 +657,7 @@
                       const cat = m[catKey];
                       const pct = pctVsCatalog(v, cat);
                       if (pct != null) {
-                        line += ` (${pct >= 0 ? "+" : ""}${pct.toFixed(0)}% vs list)`;
+                        line += ` (${pct >= 0 ? "+" : ""}${pct.toFixed(0)}% vs Market)`;
                       }
                     }
                   }
@@ -1250,17 +1250,17 @@
               : null;
         tdRatio.textContent = fmtRatio(ratio);
         const tdInputCost = document.createElement("td");
-        tdInputCost.className = "num tdInputCost";
+        tdInputCost.className = "num tdInputCost tdCostActual";
         tdInputCost.textContent = fmtUsd(p.input_cost_usd, lastBillingCurrency);
         tdInputCost.title = p.allocation_method ? `allocation: ${p.allocation_method}` : "";
 
         const tdOutputCost = document.createElement("td");
-        tdOutputCost.className = "num tdOutputCost";
+        tdOutputCost.className = "num tdOutputCost tdCostActual";
         tdOutputCost.textContent = fmtUsd(p.output_cost_usd, lastBillingCurrency);
         tdOutputCost.title = p.allocation_method ? `allocation: ${p.allocation_method}` : "";
 
         const tdTotalCost = document.createElement("td");
-        tdTotalCost.className = "num tdTotalCost";
+        tdTotalCost.className = "num tdTotalCost tdCostActual";
         tdTotalCost.textContent = fmtUsd(p.total_cost_usd, lastBillingCurrency);
         tdTotalCost.title = p.allocation_method ? `allocation: ${p.allocation_method}` : "";
 

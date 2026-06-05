@@ -313,3 +313,205 @@
 .dashTable tfoot .num {
   font-variant-numeric: tabular-nums;
 }
+
+/* --- Actual vs Market cost semantics (Cost · Tokens · Reports) --- */
+:root {
+  --cost-actual: #5eead4;
+  --cost-actual-rgb: 94, 234, 212;
+  --cost-actual-bg: rgba(94, 234, 212, 0.1);
+  --cost-actual-border: rgba(94, 234, 212, 0.38);
+  --cost-market: #c084fc;
+  --cost-market-rgb: 192, 132, 252;
+  --cost-market-bg: rgba(192, 132, 252, 0.1);
+  --cost-market-border: rgba(192, 132, 252, 0.38);
+}
+
+.costTypeLegend {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.costPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 9px 2px 7px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.costPill::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
+.costPill--actual {
+  color: #b8fff0;
+  border: 1px solid var(--cost-actual-border);
+  background: var(--cost-actual-bg);
+}
+
+.costPill--actual::before {
+  background: var(--cost-actual);
+  box-shadow: 0 0 0 2px rgba(var(--cost-actual-rgb), 0.2);
+}
+
+.costPill--market {
+  color: #e9d5ff;
+  border: 1px solid var(--cost-market-border);
+  background: var(--cost-market-bg);
+}
+
+.costPill--market::before {
+  background: var(--cost-market);
+  box-shadow: 0 0 0 2px rgba(var(--cost-market-rgb), 0.2);
+}
+
+.costPill--market.costPill--dashed::before {
+  background: transparent;
+  border: 2px dashed var(--cost-market);
+  width: 10px;
+  height: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.dashboardDesc .costPill,
+.modelTableHint .costPill,
+.reportSectionLead .costPill,
+.flowBlockDesc .costPill {
+  font-size: 9px;
+  padding: 1px 7px 1px 5px;
+  vertical-align: middle;
+}
+
+.kpiCard--actual::before,
+.costDashboard .kpiCard--primary::before {
+  background: var(--cost-actual) !important;
+}
+
+.kpiCard--market::before,
+.costDashboard .kpiCard--catalog::before,
+.costDashboard .kpiCard--market::before {
+  background: var(--cost-market) !important;
+}
+
+.chartPanelHead--compare .costTypeLegend {
+  margin-top: 4px;
+}
+
+.dashTable thead th.colCostActual,
+.dashTable thead th.colCostMarket {
+  border-top: 2px solid transparent;
+}
+
+.dashTable thead th.colCostActual {
+  border-top-color: var(--cost-actual);
+  background: linear-gradient(180deg, rgba(var(--cost-actual-rgb), 0.12), rgba(14, 20, 28, 0.96) 55%);
+}
+
+.dashTable thead th.colCostMarket {
+  border-top-color: var(--cost-market);
+  background: linear-gradient(180deg, rgba(var(--cost-market-rgb), 0.12), rgba(14, 20, 28, 0.96) 55%);
+}
+
+.dashTable thead th.colCostActual .costPill,
+.dashTable thead th.colCostMarket .costPill {
+  display: block;
+  width: fit-content;
+  margin: 0 0 4px auto;
+}
+
+.dashTable thead th.colCostMarket .costPill {
+  margin-left: auto;
+  margin-right: 0;
+}
+
+.dashTable thead th.colCostActual .costPill {
+  margin-left: auto;
+}
+
+.dashTable thead th:not(.num).colCostMarket .costPill {
+  margin-left: 0;
+}
+
+.dashTable td.tdCostActual,
+.dashTable th.tdCostActual {
+  background: rgba(var(--cost-actual-rgb), 0.04);
+  box-shadow: inset 3px 0 0 rgba(var(--cost-actual-rgb), 0.45);
+}
+
+.dashTable td.tdCostMarket,
+.dashTable th.tdCostMarket {
+  background: rgba(var(--cost-market-rgb), 0.05);
+  box-shadow: inset 3px 0 0 rgba(var(--cost-market-rgb), 0.5);
+}
+
+.dashTable tbody tr:hover td.tdCostActual {
+  background: rgba(var(--cost-actual-rgb), 0.1);
+}
+
+.dashTable tbody tr:hover td.tdCostMarket {
+  background: rgba(var(--cost-market-rgb), 0.11);
+}
+
+.dashTable td.tdCostActual.colEmphasis,
+.dashTable td.tdCostActual.tdTotalCost {
+  font-weight: 720;
+  color: #f0fdfa;
+}
+
+.dashTable .catalogSourceCell,
+.dashTable .colCostMarketMeta {
+  box-shadow: inset 3px 0 0 rgba(var(--cost-market-rgb), 0.35);
+  background: rgba(var(--cost-market-rgb), 0.04);
+}
+
+.tokenPage .dashTable thead th.thInputCostCol,
+.tokenPage .dashTable thead th.thOutputCostCol,
+.tokenPage .dashTable thead th.thTotalCostCol {
+  border-top: 2px solid var(--cost-actual);
+  background: linear-gradient(180deg, rgba(var(--cost-actual-rgb), 0.1), rgba(14, 20, 28, 0.96) 55%);
+}
+
+.tokenPage .dashTable thead th.thUnitInCol,
+.tokenPage .dashTable thead th.thUnitOutCol {
+  border-top: 2px solid var(--cost-market);
+  background: linear-gradient(180deg, rgba(var(--cost-market-rgb), 0.1), rgba(14, 20, 28, 0.96) 55%);
+}
+
+.tokenPage .dashTable tbody td.tdInputCost,
+.tokenPage .dashTable tbody td.tdOutputCost,
+.tokenPage .dashTable tbody td.tdTotalCost {
+  background: rgba(var(--cost-actual-rgb), 0.04);
+  box-shadow: inset 3px 0 0 rgba(var(--cost-actual-rgb), 0.4);
+}
+
+.tokenPage .dashTable tbody td.tdUnitIn,
+.tokenPage .dashTable tbody td.tdUnitOut {
+  background: rgba(var(--cost-actual-rgb), 0.03);
+}
+
+.reportPage .meterTotalCard {
+  border-left: 3px solid var(--cost-actual);
+}
+
+.reportPage .heroMetricPrimary {
+  border-color: var(--cost-actual-border) !important;
+}
+
+.reportPage #heroCatalogCard {
+  border-color: var(--cost-market-border);
+  background: linear-gradient(145deg, rgba(var(--cost-market-rgb), 0.12), rgba(255, 255, 255, 0.02));
+}

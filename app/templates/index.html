@@ -22,7 +22,8 @@
               <p class="breadcrumb">Home / Cost</p>
               <h1 class="dashboardTitle">Cost</h1>
               <p class="dashboardDesc">
-                Daily billing (CostUSD) and catalog market from token volume × list unit prices.
+                <span class="costPill costPill--actual">Actual</span> meter billing vs
+                <span class="costPill costPill--market">Market</span> catalog list.
                 Detail on <a href="/tokens">Tokens</a>.
               </p>
               <p class="dashboardSource muted">
@@ -48,9 +49,9 @@
 
           <section class="kpiSection" aria-label="Summary metrics">
             <div class="kpiGrid grid">
-              <article class="card kpiCard kpiCard--primary">
+              <article class="card kpiCard kpiCard--primary kpiCard--actual">
                 <div class="stat">
-                  <div class="label">Actual cost (CostUSD)</div>
+                  <div class="label"><span class="costPill costPill--actual">Actual</span> CostUSD</div>
                   <div class="value" id="actualCost">-</div>
                   <div class="sub tokenStats kpiFootnote" id="costStats">Max: - · Mean: - · Min: -</div>
                 </div>
@@ -67,18 +68,18 @@
                   <div class="value value--md" id="daysCount">-</div>
                 </div>
               </article>
-              <article class="card kpiCard kpiCard--catalog" id="catalogMarketCard">
+              <article class="card kpiCard kpiCard--market" id="catalogMarketCard">
                 <div class="stat">
-                  <div class="label">Catalog market (list)</div>
+                  <div class="label"><span class="costPill costPill--market">Market</span> Catalog list</div>
                   <div class="value" id="catalogMarketTotal">-</div>
-                  <div class="sub tokenStats kpiFootnote" id="catalogMarketNote">Imported tokens × catalog USD/1M</div>
+                  <div class="sub tokenStats kpiFootnote" id="catalogMarketNote">Tokens × Model Prices USD/1M</div>
                 </div>
               </article>
-              <article class="card kpiCard kpiCard--catalog" id="catalogVarianceCard">
+              <article class="card kpiCard kpiCard--market" id="catalogVarianceCard">
                 <div class="stat">
-                  <div class="label">Billing vs catalog</div>
+                  <div class="label">Actual − Market</div>
                   <div class="value value--md" id="catalogVariancePct">-</div>
-                  <div class="sub tokenStats kpiFootnote" id="catalogVarianceNote">Actual − catalog market</div>
+                  <div class="sub tokenStats kpiFootnote" id="catalogVarianceNote">Billing vs catalog list</div>
                 </div>
               </article>
             </div>
@@ -93,16 +94,18 @@
               <div class="chartStack">
                 <div class="card tight chartPanel">
                   <div class="chartPanelHead">
-                    <h3 class="chartSectionTitle">Actual cost (daily)</h3>
+                    <h3 class="chartSectionTitle">Daily cost</h3>
+                    <div class="costTypeLegend" aria-label="Cost type"><span class="costPill costPill--actual">Actual</span></div>
                   </div>
                   <div class="chartCanvasHost" data-chart-host>
                     <canvas id="timeseriesChartActual" role="img" aria-label="Daily actual cost chart"></canvas>
                   </div>
                 </div>
-                <div class="card tight chartPanel" id="marketCompareSection">
+                <div class="card tight chartPanel chartPanelHead--compare" id="marketCompareSection">
                   <div class="chartPanelHead">
-                    <h3 class="chartSectionTitle">Actual vs catalog market (daily)</h3>
-                    <p class="muted marketChartHint" id="marketChartHint">Imported token volume × catalog list price (USD/1M) from Model Prices.</p>
+                    <h3 class="chartSectionTitle">Daily comparison</h3>
+                    <div class="costTypeLegend" aria-label="Cost type"><span class="costPill costPill--actual">Actual</span><span class="costPill costPill--market costPill--dashed">Market</span></div>
+                    <p class="muted marketChartHint" id="marketChartHint">Solid = Actual billing · dashed = Market (tokens × list USD/1M).</p>
                   </div>
                   <div class="chartCanvasHost chartCanvasHost--tall" data-chart-host>
                     <canvas id="timeseriesChartMarket" role="img" aria-label="Actual vs catalog market daily chart"></canvas>
@@ -139,27 +142,35 @@
                 <div class="modelSummaryHead">
                   <h3 class="chartSectionTitle">Model totals</h3>
                   <p class="modelTableHint muted">
-                    Actual = meter billing (inp/opt). Catalog = tokens × list price from
-                    <a href="/prices">Model Prices</a>. Click a column header to sort.
+                    <span class="costPill costPill--actual">Actual</span> meter billing ·
+                    <span class="costPill costPill--market">Market</span> catalog list from
+                    <a href="/prices">Model Prices</a>. Click headers to sort.
                   </p>
                 </div>
                 <div class="tableScroll modelSummaryTableWrap">
-                  <table class="dataTable modelSummaryTable" id="modelCostSummaryTable">
+                  <table class="dataTable dashTable modelSummaryTable" id="modelCostSummaryTable">
                     <thead>
                       <tr>
                         <th scope="col" class="sortable" data-sort-key="model_name">Model</th>
-                        <th scope="col" class="colCatalog">Catalog <span class="thUnit">USD/1M</span></th>
-                        <th class="num sortable" scope="col" data-sort-key="input_cost_usd">
+                        <th scope="col" class="colCostMarket colCostMarketMeta">
+                          <span class="costPill costPill--market">Market</span>
+                          <span class="thLabel">List rate</span><span class="thUnit">USD/1M</span>
+                        </th>
+                        <th class="num sortable colCostActual" scope="col" data-sort-key="input_cost_usd">
+                          <span class="costPill costPill--actual">Actual</span>
                           <span class="thLabel">Input</span><span class="thUnit">USD</span>
                         </th>
-                        <th class="num sortable" scope="col" data-sort-key="output_cost_usd">
+                        <th class="num sortable colCostActual" scope="col" data-sort-key="output_cost_usd">
+                          <span class="costPill costPill--actual">Actual</span>
                           <span class="thLabel">Output</span><span class="thUnit">USD</span>
                         </th>
-                        <th class="num sortable" scope="col" data-sort-key="actual_cost_usd">
+                        <th class="num sortable colCostActual" scope="col" data-sort-key="actual_cost_usd">
+                          <span class="costPill costPill--actual">Actual</span>
                           <span class="thLabel">Total</span><span class="thUnit">USD</span>
                         </th>
-                        <th class="num sortable" scope="col" data-sort-key="catalog_cost_usd">
-                          <span class="thLabel">Catalog</span><span class="thUnit">USD</span>
+                        <th class="num sortable colCostMarket" scope="col" data-sort-key="catalog_cost_usd">
+                          <span class="costPill costPill--market">Market</span>
+                          <span class="thLabel">Total</span><span class="thUnit">USD</span>
                         </th>
                         <th class="num sortable" scope="col" data-sort-key="variance_pct">
                           <span class="thLabel">Δ</span><span class="thUnit">%</span>
@@ -177,8 +188,9 @@
               <div class="chartStack modelCostDirCharts">
                 <div class="card tight chartPanel">
                   <div class="chartPanelHead">
-                    <h3 class="chartSectionTitle">Input cost by model (daily)</h3>
-                    <p class="muted marketChartHint">Meter-matched input (inp) billing per model/day.</p>
+                    <h3 class="chartSectionTitle">Input by model</h3>
+                    <div class="costTypeLegend" aria-label="Cost type"><span class="costPill costPill--actual">Actual</span></div>
+                    <p class="muted marketChartHint">Meter input (inp) billing per model/day.</p>
                   </div>
                   <div class="chartCanvasHost" data-chart-host>
                     <canvas id="timeseriesChartInputByModel" role="img" aria-label="Input cost by model daily chart"></canvas>
@@ -186,8 +198,9 @@
                 </div>
                 <div class="card tight chartPanel">
                   <div class="chartPanelHead">
-                    <h3 class="chartSectionTitle">Output cost by model (daily)</h3>
-                    <p class="muted marketChartHint">Meter-matched output (opt) billing per model/day.</p>
+                    <h3 class="chartSectionTitle">Output by model</h3>
+                    <div class="costTypeLegend" aria-label="Cost type"><span class="costPill costPill--actual">Actual</span></div>
+                    <p class="muted marketChartHint">Meter output (opt) billing per model/day.</p>
                   </div>
                   <div class="chartCanvasHost" data-chart-host>
                     <canvas id="timeseriesChartOutputByModel" role="img" aria-label="Output cost by model daily chart"></canvas>
@@ -206,6 +219,7 @@
     <script src="/static/js/http.js"></script>
     <script src="/static/js/chart-plugins.js"></script>
     <script src="/static/js/chart-style.js"></script>
+    <script src="/static/js/cost-semantics.js"></script>
     <script src="/static/js/dashboard-ui.js"></script>
     <script>
       window.AppChartStyle?.applyDefaults?.();
@@ -465,7 +479,7 @@
           if (catalogMarketNoteEl) {
             const reason = catalogPayload?.reason === 'no_token_volume'
               ? 'Import token CSVs or configure a model on Tokens.'
-              : 'No catalog market data for this scope.';
+              : 'No Market data for this scope.';
             catalogMarketNoteEl.textContent = reason;
           }
           if (catalogVariancePctEl) catalogVariancePctEl.textContent = '—';
@@ -760,9 +774,10 @@
         });
       }
 
-      function _appendModelNumCell(tr, value, { emphasize = false, extraClass = '' } = {}) {
+      function _appendModelNumCell(tr, value, { emphasize = false, extraClass = '', costKind = 'actual' } = {}) {
+        const kindCls = window.AppCostSemantics?.tdClass?.(costKind) || (costKind === 'market' ? 'tdCostMarket' : 'tdCostActual');
         const td = document.createElement('td');
-        td.className = ['num', 'mono', emphasize ? 'colEmphasis' : '', extraClass]
+        td.className = ['num', 'mono', kindCls, emphasize ? 'colEmphasis' : '', extraClass]
           .filter(Boolean)
           .join(' ');
         td.textContent = fmtTableAmount(value);
@@ -788,16 +803,16 @@
         tdCatalog.innerHTML = renderCatalogSourceCell(r);
         tr.appendChild(tdCatalog);
 
-        _appendModelNumCell(tr, r.input_cost_usd);
-        _appendModelNumCell(tr, r.output_cost_usd);
-        _appendModelNumCell(tr, r.actual_cost_usd, { emphasize: true });
+        _appendModelNumCell(tr, r.input_cost_usd, { costKind: 'actual' });
+        _appendModelNumCell(tr, r.output_cost_usd, { costKind: 'actual' });
+        _appendModelNumCell(tr, r.actual_cost_usd, { emphasize: true, costKind: 'actual' });
 
         const vPct = r.variance_pct;
         const delta =
           vPct === null || vPct === undefined
             ? '—'
             : `${vPct > 0 ? '+' : ''}${vPct}%`;
-        _appendModelNumCell(tr, r.catalog_cost_usd);
+        _appendModelNumCell(tr, r.catalog_cost_usd, { costKind: 'market' });
         const tdDelta = document.createElement('td');
         tdDelta.className = `num mono ${_deltaCellClass(vPct)}`;
         tdDelta.textContent = delta;
@@ -831,10 +846,10 @@
         th.textContent = 'All models';
         tr.appendChild(th);
 
-        _appendModelNumCell(tr, ps.total_input_cost_usd);
-        _appendModelNumCell(tr, ps.total_output_cost_usd);
-        _appendModelNumCell(tr, totalMeter, { emphasize: true });
-        _appendModelNumCell(tr, ps.total_catalog_cost_usd);
+        _appendModelNumCell(tr, ps.total_input_cost_usd, { costKind: 'actual' });
+        _appendModelNumCell(tr, ps.total_output_cost_usd, { costKind: 'actual' });
+        _appendModelNumCell(tr, totalMeter, { emphasize: true, costKind: 'actual' });
+        _appendModelNumCell(tr, ps.total_catalog_cost_usd, { costKind: 'market' });
 
         const tdDelta = document.createElement('td');
         tdDelta.className = `num mono ${_deltaCellClass(vPct)}`;
@@ -1027,25 +1042,25 @@
             labels,
             datasets: [
               CHART_OPTS?.datasetLineCurrency?.({
-                label: L.costActual || 'Actual (CostUSD)',
+                label: L.costActual || 'Actual',
                 data: actualData,
-                borderColor: C.cost || '#5eead4',
+                borderColor: C.actual || C.cost || '#5eead4',
                 backgroundColor: 'rgba(94,234,212,0.10)',
                 pointRadius: ptR,
               }) ?? {
                 label: L.costActual,
                 data: actualData,
-                borderColor: C.cost,
+                borderColor: C.actual || C.cost,
               },
               CHART_OPTS?.datasetLineCurrency?.({
-                label: L.catalogMarket || 'Catalog market (list)',
+                label: L.costMarket || L.catalogMarket || 'Market',
                 data: catalogData,
-                borderColor: C.catalog || '#60a5fa',
-                backgroundColor: 'rgba(96,165,250,0.08)',
+                borderColor: C.market || C.catalog || '#c084fc',
+                backgroundColor: 'rgba(192,132,252,0.08)',
                 dashed: true,
                 pointRadius: ptR,
               }) ?? {
-                label: 'Catalog market (list)',
+                label: L.costMarket || 'Market',
                 data: catalogData,
                 borderColor: '#60a5fa',
               },
@@ -1077,7 +1092,7 @@
               },
             },
           }),
-          plugins: [emptyStatePlugin('No catalog market data in range'), ...chartPluginsExtra()],
+          plugins: [emptyStatePlugin('No Market data in range'), ...chartPluginsExtra()],
         });
       }
 
@@ -1103,9 +1118,9 @@
         const ptR = CHART_OPTS?.pointRadiusForCount?.(labels.length, { sparse: 3, dense: 1 }) ?? 3;
         const actualDs =
           CHART_OPTS?.datasetLineCurrency?.({
-            label: L.costActual || 'Actual (CostUSD)',
+            label: L.costActual || 'Actual',
             data: costData,
-            borderColor: C.cost || '#5eead4',
+            borderColor: C.actual || C.cost || '#5eead4',
             backgroundColor: gradient,
             fill: true,
             pointRadius: ptR,

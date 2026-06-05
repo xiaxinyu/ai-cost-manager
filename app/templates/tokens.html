@@ -195,9 +195,9 @@
                       <th class="thModelCol" scope="col" title="Model name from imported token CSV">Model</th>
                       <th class="num thInputCol" scope="col">Input</th>
                       <th class="num thOutputCol" scope="col">Output</th>
-                      <th class="num thInputCostCol" scope="col">Input cost</th>
-                      <th class="num thOutputCostCol" scope="col">Output cost</th>
-                      <th class="num thTotalCostCol" scope="col">Total</th>
+                      <th class="num thInputCostCol colCostActual" scope="col"><span class="costPill costPill--actual">Actual</span><span class="thLabel">Input</span></th>
+                      <th class="num thOutputCostCol colCostActual" scope="col"><span class="costPill costPill--actual">Actual</span><span class="thLabel">Output</span></th>
+                      <th class="num thTotalCostCol colCostActual" scope="col"><span class="costPill costPill--actual">Actual</span><span class="thLabel">Total</span></th>
                       <th scope="col" title="How billing was matched">Billing</th>
                       <th class="num thUnitInCol" scope="col" title="Meter input cost ÷ input tokens × 1M">$/1M in</th>
                       <th class="num thUnitOutCol" scope="col" title="Meter output cost ÷ output tokens × 1M">$/1M out</th>
@@ -283,7 +283,8 @@
               <article class="card chartPanel chartWide">
                 <div class="chartHeader">
                   <div>
-                    <h3 class="chartCardTitle">Input cost (daily, by model)</h3>
+                    <h3 class="chartCardTitle">Input cost by model</h3>
+                    <div class="costTypeLegend" aria-label="Cost type"><span class="costPill costPill--actual">Actual</span></div>
                   </div>
                 </div>
                 <div class="chartCanvasHost" data-chart-host>
@@ -293,8 +294,9 @@
               <article class="card chartPanel chartWide">
                 <div class="chartHeader">
                   <div>
-                    <h3 class="chartCardTitle">Output cost (daily, by model)</h3>
-                    <p class="muted chartScaleHint">Billing currency per calendar day.</p>
+                    <h3 class="chartCardTitle">Output cost by model</h3>
+                    <div class="costTypeLegend" aria-label="Cost type"><span class="costPill costPill--actual">Actual</span></div>
+                    <p class="muted chartScaleHint">Meter billing per calendar day.</p>
                   </div>
                 </div>
                 <div class="chartCanvasHost" data-chart-host>
@@ -310,10 +312,10 @@
                   <span class="flowStepNum" aria-hidden="true">4</span>
                   <h2 id="flowUnitTitle" class="flowBlockTitle">Unit price</h2>
                 </div>
-                <p class="flowBlockDesc muted panelDesc" id="unitPriceNote">Solid = meter-matched $/1M (cost ÷ tokens) · dashed = Model Prices list.</p>
-                <div class="chartLegendKey flowBlockLegend" aria-hidden="true">
-                  <span class="legendKeyItem"><span class="legendKeyLine legendKeySolid"></span> Actual</span>
-                  <span class="legendKeyItem"><span class="legendKeyLine legendKeyDashed"></span> List price</span>
+                <p class="flowBlockDesc muted panelDesc" id="unitPriceNote">Solid = <span class="costPill costPill--actual">Actual</span> $/1M (meter ÷ tokens) · dashed = <span class="costPill costPill--market costPill--dashed">Market</span> catalog list.</p>
+                <div class="costTypeLegend flowBlockLegend" aria-label="Cost type">
+                  <span class="costPill costPill--actual">Actual</span>
+                  <span class="costPill costPill--market costPill--dashed">Market</span>
                 </div>
               </header>
               <div class="flowBlockBody card unitPriceSection">
@@ -347,6 +349,7 @@
     <script src="/static/js/forecasting.js?v=20260516-4"></script>
     <script src="/static/js/chart-plugins.js"></script>
     <script src="/static/js/chart-style.js"></script>
+    <script src="/static/js/cost-semantics.js"></script>
     <script src="/static/js/dashboard-ui.js"></script>
     <script src="/static/js/pages/tokens.js?v=20260604-1"></script>
   </body>

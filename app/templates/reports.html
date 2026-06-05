@@ -121,14 +121,14 @@
                 <span class="heroMetricSub" id="hero_output_sub">—</span>
               </article>
               <article class="heroMetric" id="heroMeterCard" hidden>
-                <span class="heroMetricLabel">Meter cost</span>
+                <span class="heroMetricLabel"><span class="costPill costPill--actual">Actual</span> Meter</span>
                 <span class="heroMetricValue" id="hero_meter_cost">—</span>
                 <span class="heroMetricSub" id="hero_meter_sub">inp + out (meter matched)</span>
               </article>
               <article class="heroMetric" id="heroCatalogCard" hidden>
-                <span class="heroMetricLabel">vs catalog</span>
+                <span class="heroMetricLabel"><span class="costPill costPill--actual">Actual</span> − <span class="costPill costPill--market">Market</span></span>
                 <span class="heroMetricValue" id="hero_catalog_delta">—</span>
-                <span class="heroMetricSub" id="hero_catalog_sub">actual − list price</span>
+                <span class="heroMetricSub" id="hero_catalog_sub">Billing vs catalog list</span>
               </article>
             </div>
             <details class="reportKpiDetails">
@@ -171,13 +171,15 @@
             </div>
             <div class="chartGrid chartGrid2">
               <article class="card chartCard">
-                <h3 class="chartCardTitle">Daily actual</h3>
-                <p class="chartCardHint muted">Line = each billing day; raw tables show day-over-day % and share.</p>
+                <h3 class="chartCardTitle">Daily cost</h3>
+                <div class="costTypeLegend" aria-label="Cost type"><span class="costPill costPill--actual">Actual</span></div>
+                <p class="chartCardHint muted">Billing CostUSD per day.</p>
                 <div class="chartCanvasHost chartPlot"><canvas id="dailyChart"></canvas></div>
               </article>
               <article class="card chartCard">
-                <h3 class="chartCardTitle">Monthly actual</h3>
-                <p class="chartCardHint muted">Bars = calendar month totals.</p>
+                <h3 class="chartCardTitle">Monthly cost</h3>
+                <div class="costTypeLegend" aria-label="Cost type"><span class="costPill costPill--actual">Actual</span></div>
+                <p class="chartCardHint muted">Calendar month billing totals.</p>
                 <div class="chartCanvasHost chartPlot"><canvas id="monthlyChart"></canvas></div>
               </article>
             </div>
@@ -188,7 +190,7 @@
               <span class="reportStep">3</span>
               <div class="reportExecutiveHead">
                 <h2 class="reportSectionTitle">By model</h2>
-                <p class="reportSectionLead muted">Meter-matched costs vs catalog list price; charts show daily drivers.</p>
+                <p class="reportSectionLead muted"><span class="costPill costPill--actual">Actual</span> meter billing vs <span class="costPill costPill--market">Market</span> catalog list.</p>
                 <span id="reportExecutiveHint" class="executiveHint muted"></span>
               </div>
             </div>
@@ -210,7 +212,7 @@
               <div class="rowsToolbar">
                 <div>
                   <h3 class="panelTitle">Cost by model</h3>
-                  <p class="tableNote panelDesc">Meter-matched input/output; catalog list price for variance.</p>
+                  <p class="tableNote panelDesc"><span class="costPill costPill--actual">Actual</span> inp/opt billing · <span class="costPill costPill--market">Market</span> catalog total.</p>
                 </div>
               </div>
               <div class="tableScroll reportTableScroll reportModelTableScroll">
@@ -218,11 +220,11 @@
                   <thead>
                     <tr>
                       <th scope="col">Model</th>
-                      <th class="num" scope="col">Input (USD)</th>
-                      <th class="num" scope="col">Output (USD)</th>
-                      <th class="num" scope="col">Meter total (USD)</th>
-                      <th class="num" scope="col">Catalog (USD)</th>
-                      <th class="num" scope="col">Δ vs catalog</th>
+                      <th class="num colCostActual" scope="col"><span class="costPill costPill--actual">Actual</span><span class="thLabel">Input</span></th>
+                      <th class="num colCostActual" scope="col"><span class="costPill costPill--actual">Actual</span><span class="thLabel">Output</span></th>
+                      <th class="num colCostActual" scope="col"><span class="costPill costPill--actual">Actual</span><span class="thLabel">Total</span></th>
+                      <th class="num colCostMarket" scope="col"><span class="costPill costPill--market">Market</span><span class="thLabel">Total</span></th>
+                      <th class="num" scope="col">Δ</th>
                       <th class="num" scope="col">Days</th>
                     </tr>
                   </thead>
@@ -233,15 +235,18 @@
             </article>
             <div class="chartGrid chartGrid3 reportExecutiveCharts">
               <article class="card chartCard">
-                <h3 class="chartCardTitle">Actual vs catalog (daily)</h3>
+                <h3 class="chartCardTitle">Daily comparison</h3>
+                <div class="costTypeLegend" aria-label="Cost type"><span class="costPill costPill--actual">Actual</span><span class="costPill costPill--market costPill--dashed">Market</span></div>
                 <div class="chartCanvasHost chartPlot"><canvas id="reportMarketChart"></canvas></div>
               </article>
               <article class="card chartCard">
-                <h3 class="chartCardTitle">Input cost by model</h3>
+                <h3 class="chartCardTitle">Input by model</h3>
+                <div class="costTypeLegend" aria-label="Cost type"><span class="costPill costPill--actual">Actual</span></div>
                 <div class="chartCanvasHost chartPlot"><canvas id="reportInputByModelChart"></canvas></div>
               </article>
               <article class="card chartCard">
-                <h3 class="chartCardTitle">Output cost by model</h3>
+                <h3 class="chartCardTitle">Output by model</h3>
+                <div class="costTypeLegend" aria-label="Cost type"><span class="costPill costPill--actual">Actual</span></div>
                 <div class="chartCanvasHost chartPlot"><canvas id="reportOutputByModelChart"></canvas></div>
               </article>
             </div>
@@ -277,7 +282,7 @@
                   <tr>
                     <th class="sortable" data-label="Project" data-sort-key="project_name" scope="col">Project</th>
                     <th data-label="Models" scope="col">Models</th>
-                    <th class="num sortable" data-label="Cost (USD)" data-sort-key="actual_cost_usd_total" scope="col">Cost (USD)</th>
+                    <th class="num sortable colCostActual" data-label="Actual (USD)" data-sort-key="actual_cost_usd_total" scope="col"><span class="costPill costPill--actual">Actual</span><span class="thLabel">Cost</span></th>
                     <th class="num" scope="col">Share</th>
                     <th class="num sortable" data-label="Days" data-sort-key="actual_days" scope="col">Days</th>
                     <th class="num sortable" data-label="Input tokens" data-sort-key="input_tokens" scope="col">Input tokens</th>
@@ -357,21 +362,21 @@
                   </div>
                 </div>
                 <div class="tableScroll">
-                  <table class="dataTable reportBillingTable">
+                  <table class="dataTable dashTable reportBillingTable">
                     <colgroup>
                       <col class="reportColPeriod" />
                       <col class="reportColMoney" />
                       <col class="reportColPct" />
                       <col class="reportColPct" />
                     </colgroup>
-                    <thead><tr><th>Date</th><th class="num">Actual (USD)</th><th class="num">Share</th><th class="num">Δ vs prior</th></tr></thead>
+                    <thead><tr><th>Date</th><th class="num colCostActual"><span class="costPill costPill--actual">Actual</span><span class="thLabel">USD</span></th><th class="num">Share</th><th class="num">Δ vs prior</th></tr></thead>
                     <tbody id="dailyTbody"></tbody>
                   </table>
                 </div>
               </article>
               <article class="card reportTableCard">
                 <div class="rowsToolbar">
-                  <h3 class="chartCardTitle">Monthly actual</h3>
+                  <h3 class="chartCardTitle">Monthly cost</h3>
                   <div class="pager">
                     <span class="muted">Page size</span>
                     <select id="monthlyPageSizeSelect" aria-label="Monthly page size">
@@ -389,14 +394,14 @@
                   </div>
                 </div>
                 <div class="tableScroll">
-                  <table class="dataTable reportBillingTable">
+                  <table class="dataTable dashTable reportBillingTable">
                     <colgroup>
                       <col class="reportColPeriod" />
                       <col class="reportColMoney" />
                       <col class="reportColPct" />
                       <col class="reportColPct" />
                     </colgroup>
-                    <thead><tr><th>Month</th><th class="num">Actual (USD)</th><th class="num">Share</th><th class="num">Δ vs prior</th></tr></thead>
+                    <thead><tr><th>Month</th><th class="num colCostActual"><span class="costPill costPill--actual">Actual</span><span class="thLabel">USD</span></th><th class="num">Share</th><th class="num">Δ vs prior</th></tr></thead>
                     <tbody id="monthlyTbody"></tbody>
                   </table>
                 </div>
@@ -415,6 +420,7 @@
     <script src="/static/js/forecasting.js"></script>
     <script src="/static/js/chart-plugins.js"></script>
     <script src="/static/js/chart-style.js"></script>
+    <script src="/static/js/cost-semantics.js"></script>
     <script src="/static/js/dashboard-ui.js"></script>
     <script>
       window.AppChartStyle?.applyDefaults?.();
@@ -645,10 +651,10 @@
               const name = escapeHtml(r.model_name || '—');
               return `<tr>
                 <td class="tdModelName" title="${name}">${name}</td>
-                <td class="num mono">${fmtCostCell(r.input_cost_usd)}</td>
-                <td class="num mono">${fmtCostCell(r.output_cost_usd)}</td>
-                <td class="num mono">${meterTotal != null ? fmtCostCell(meterTotal) : '—'}</td>
-                <td class="num mono">${fmtCostCell(r.catalog_cost_usd)}</td>
+                <td class="num mono tdCostActual">${fmtCostCell(r.input_cost_usd)}</td>
+                <td class="num mono tdCostActual">${fmtCostCell(r.output_cost_usd)}</td>
+                <td class="num mono tdCostActual">${meterTotal != null ? fmtCostCell(meterTotal) : '—'}</td>
+                <td class="num mono tdCostMarket">${fmtCostCell(r.catalog_cost_usd)}</td>
                 <td class="num mono">${escapeHtml(delta)}</td>
                 <td class="num">${escapeHtml(String(r.days_with_rows ?? '—'))}</td>
               </tr>`;
@@ -658,10 +664,10 @@
         if (tfoot) {
           tfoot.innerHTML = `<tr class="modelCostTotalRow">
             <th scope="row">All models</th>
-            <td class="num mono">${fmtCostCell(summary.total_input_cost_usd)}</td>
-            <td class="num mono">${fmtCostCell(summary.total_output_cost_usd)}</td>
-            <td class="num mono">${fmtCostCell(summary.total_meter_cost_usd)}</td>
-            <td class="num mono">${fmtCostCell(summary.total_catalog_cost_usd)}</td>
+            <td class="num mono tdCostActual">${fmtCostCell(summary.total_input_cost_usd)}</td>
+            <td class="num mono tdCostActual">${fmtCostCell(summary.total_output_cost_usd)}</td>
+            <td class="num mono tdCostActual">${fmtCostCell(summary.total_meter_cost_usd)}</td>
+            <td class="num mono tdCostMarket">${fmtCostCell(summary.total_catalog_cost_usd)}</td>
             <td class="num mono">${
               summary.variance_pct != null ? `${summary.variance_pct > 0 ? '+' : ''}${summary.variance_pct}%` : '—'
             }</td>
@@ -707,7 +713,7 @@
                 {
                   label: L.costActual || 'Actual',
                   data: actualData,
-                  borderColor: C.cost || '#5eead4',
+                  borderColor: C.actual || C.cost || '#5eead4',
                   backgroundColor: 'rgba(94,234,212,0.12)',
                   fill: true,
                   tension: 0.28,
@@ -716,15 +722,15 @@
                   spanGaps: true,
                 },
                 {
-                  label: L.costCatalog || 'Catalog market',
+                  label: L.costMarket || L.catalogMarket || 'Market',
                   data: catalogData,
-                  borderColor: C.catalog || '#a78bfa',
-                  backgroundColor: 'rgba(167,139,250,0.08)',
+                  borderColor: C.market || C.catalog || '#c084fc',
+                  backgroundColor: 'rgba(192,132,252,0.08)',
                   fill: false,
                   tension: 0.28,
                   pointRadius: 2,
                   borderWidth: 2,
-                  borderDash: [4, 3],
+                  borderDash: [6, 4],
                   spanGaps: true,
                 },
               ],
@@ -854,7 +860,7 @@
           set('hero_catalog_delta', fmtPct(summary.variance_pct));
           const sub = document.getElementById('hero_catalog_sub');
           if (sub) {
-            sub.textContent = `${fmtCost(summary.variance_usd)} vs catalog ${fmtCost(summary.total_catalog_cost_usd)}`;
+            sub.textContent = `${fmtCost(summary.variance_usd)} vs Market ${fmtCost(summary.total_catalog_cost_usd)}`;
           }
         } else if (catalogCard) {
           catalogCard.hidden = true;
@@ -1129,7 +1135,7 @@
           tr.innerHTML = `
             <td class="tdText">${escapeHtml(r.project_name || '')}</td>
             <td class="tdModelName" title="${escapeHtml(modelName)}">${modelHtml}</td>
-            <td class="num mono">${fmtCostCell(r.actual_cost_usd_total)}</td>
+            <td class="num mono tdCostActual">${fmtCostCell(r.actual_cost_usd_total)}</td>
             <td class="num shareCol">${renderShareBar(share)}</td>
             <td class="num">${fmt(r.actual_days)}</td>
             <td class="num">${inTok == null ? '—' : fmtInt(inTok)}</td>
@@ -1379,9 +1385,9 @@
             labels: dailyLabels,
             datasets: [
               {
-                label: L.costActual || 'CostUSD (Actual)',
+                label: L.costActual || 'Actual',
                 data: dailyActual,
-                borderColor: C.cost || '#5eead4',
+                borderColor: C.actual || C.cost || '#5eead4',
                 backgroundColor: dailyGradient,
                 fill: true,
                 tension: 0.28,
@@ -1407,10 +1413,10 @@
             labels: monthlyLabels,
             datasets: [
               {
-                label: L.costActual || 'CostUSD (Actual)',
+                label: L.costActual || 'Actual',
                 data: monthlyActual,
                 backgroundColor: 'rgba(94,234,212,0.28)',
-                borderColor: C.cost || '#5eead4',
+                borderColor: C.actual || C.cost || '#5eead4',
                 borderWidth: 1,
                 borderRadius: 6,
                 maxBarThickness: 42,
@@ -1729,7 +1735,7 @@
         } else {
           for (const p of slice) {
             const tr = document.createElement('tr');
-            tr.innerHTML = `<td class="tdText">${p.date ?? ''}</td><td class="num mono">${fmtCostCell(p.cost_usd)}</td><td class="num">${fmtPct(p.share_pct)}</td><td class="num">${fmtDeltaPct(p.change_pct)}</td>`;
+            tr.innerHTML = `<td class="tdText">${p.date ?? ''}</td><td class="num mono tdCostActual">${fmtCostCell(p.cost_usd)}</td><td class="num">${fmtPct(p.share_pct)}</td><td class="num">${fmtDeltaPct(p.change_pct)}</td>`;
             tbodyEl.appendChild(tr);
           }
         }

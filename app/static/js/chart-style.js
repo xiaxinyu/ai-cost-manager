@@ -3,16 +3,19 @@
 // Shared chart palette, typography, scales, and line-chart option builders.
 (function () {
   const colors = {
+    actual: '#5eead4',
+    market: '#c084fc',
     cost: '#5eead4',
-    catalog: '#60a5fa',
+    catalog: '#c084fc',
     input: '#60a5fa',
     output: '#a78bfa',
     total: '#f59e0b',
   };
 
   const labels = {
-    costActual: 'Actual (CostUSD)',
-    catalogMarket: 'Catalog market (list)',
+    costActual: 'Actual',
+    costMarket: 'Market',
+    catalogMarket: 'Market',
     costForecast: 'CostUSD (Forecast 7d)',
     tokenInput: 'Input tokens',
     tokenOutput: 'Output tokens',
