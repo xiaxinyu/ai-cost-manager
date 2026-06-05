@@ -6,9 +6,9 @@
     <title>Reports - Models Cost Management</title>
     <link rel="stylesheet" href="/static/css/app-shell.css" />
     <link rel="stylesheet" href="/static/css/page-common.css" />
-    <link rel="stylesheet" href="/static/css/pages/reports.css" />
+    <link rel="stylesheet" href="/static/css/pages/reports.css?v=20260605-cost" />
     <link rel="stylesheet" href="/static/css/layout-pro.css" />
-    <link rel="stylesheet" href="/static/css/dashboard-shared.css" />
+    <link rel="stylesheet" href="/static/css/dashboard-shared.css?v=20260605-cost" />
   </head>
   <body>
     {% set active_page = 'reports' %}
@@ -128,7 +128,7 @@
               <article class="heroMetric" id="heroCatalogCard" hidden>
                 <span class="heroMetricLabel"><span class="costPill costPill--actual">Actual</span> − <span class="costPill costPill--market">Market</span></span>
                 <span class="heroMetricValue" id="hero_catalog_delta">—</span>
-                <span class="heroMetricSub" id="hero_catalog_sub">Billing vs catalog list</span>
+                <span class="heroMetricSub" id="hero_catalog_sub">Actual vs Market</span>
               </article>
             </div>
             <details class="reportKpiDetails">
@@ -173,7 +173,7 @@
               <article class="card chartCard">
                 <h3 class="chartCardTitle">Daily cost</h3>
                 <div class="costTypeLegend" aria-label="Cost type"><span class="costPill costPill--actual">Actual</span></div>
-                <p class="chartCardHint muted">Billing CostUSD per day.</p>
+                <p class="chartCardHint muted">Meter billing per day.</p>
                 <div class="chartCanvasHost chartPlot"><canvas id="dailyChart"></canvas></div>
               </article>
               <article class="card chartCard">
@@ -190,7 +190,7 @@
               <span class="reportStep">3</span>
               <div class="reportExecutiveHead">
                 <h2 class="reportSectionTitle">By model</h2>
-                <p class="reportSectionLead muted"><span class="costPill costPill--actual">Actual</span> meter billing vs <span class="costPill costPill--market">Market</span> catalog list.</p>
+                <p class="reportSectionLead muted"><span class="costPill costPill--actual">Actual</span> meter billing vs <span class="costPill costPill--market">Market</span> list price.</p>
                 <span id="reportExecutiveHint" class="executiveHint muted"></span>
               </div>
             </div>
@@ -218,6 +218,12 @@
               <div class="tableScroll reportTableScroll reportModelTableScroll">
                 <table class="dataTable dashTable reportModelTable" id="reportModelCostTable">
                   <thead>
+                    <tr class="costColGroupRow">
+                      <th colspan="1" scope="colgroup" class="colGroupMeta"></th>
+                      <th colspan="3" scope="colgroup" class="colGroupActual"><span class="costPill costPill--actual">Actual</span></th>
+                      <th colspan="1" scope="colgroup" class="colGroupMarket"><span class="costPill costPill--market">Market</span></th>
+                      <th colspan="2" scope="colgroup" class="colGroupMeta"></th>
+                    </tr>
                     <tr>
                       <th scope="col">Model</th>
                       <th class="num colCostActual" scope="col"><span class="costPill costPill--actual">Actual</span><span class="thLabel">Input</span></th>
@@ -236,7 +242,7 @@
             <div class="chartGrid chartGrid3 reportExecutiveCharts">
               <article class="card chartCard">
                 <h3 class="chartCardTitle">Daily comparison</h3>
-                <div class="costTypeLegend" aria-label="Cost type"><span class="costPill costPill--actual">Actual</span><span class="costPill costPill--market costPill--dashed">Market</span></div>
+                <div class="costTypeLegend" aria-label="Cost type"><span class="costPill costPill--actual">Actual</span><span class="costLegendSep" aria-hidden="true"></span><span class="costPill costPill--market costPill--dashed">Market</span></div>
                 <div class="chartCanvasHost chartPlot"><canvas id="reportMarketChart"></canvas></div>
               </article>
               <article class="card chartCard">
@@ -299,7 +305,7 @@
               <span class="reportStep">5</span>
               <div>
                 <h2 class="reportSectionTitle">Token usage</h2>
-                <p class="reportSectionLead muted" id="tokenSectionInsight">Imported token CSV totals by day (actual usage).</p>
+                <p class="reportSectionLead muted" id="tokenSectionInsight">Imported token CSV totals by day.</p>
               </div>
             </div>
             <div class="chartGrid chartGrid2">
@@ -419,8 +425,8 @@
     <script src="/static/js/http.js"></script>
     <script src="/static/js/forecasting.js"></script>
     <script src="/static/js/chart-plugins.js"></script>
-    <script src="/static/js/chart-style.js"></script>
-    <script src="/static/js/cost-semantics.js"></script>
+    <script src="/static/js/chart-style.js?v=20260605-cost"></script>
+    <script src="/static/js/cost-semantics.js?v=20260605-cost"></script>
     <script src="/static/js/dashboard-ui.js"></script>
     <script>
       window.AppChartStyle?.applyDefaults?.();
@@ -620,7 +626,7 @@
         if (hint) {
           const unpriced = catalog.unpriced_models || [];
           hint.textContent = unpriced.length
-            ? `${models.length} models · ${projCount} projects · ${unpriced.length} without catalog price`
+            ? `${models.length} models · ${projCount} projects · ${unpriced.length} without Market price`
             : `${models.length} models · ${projCount} projects with token imports`;
         }
 
@@ -705,32 +711,28 @@
         const marketCtx = document.getElementById('reportMarketChart')?.getContext('2d');
         if (marketCtx) {
           if (reportMarketChart) reportMarketChart.destroy();
+          const costDs = window.AppCostSemantics?.chartDataset;
+          const ptR = 2;
           reportMarketChart = new Chart(marketCtx, {
             type: 'line',
             data: {
               labels,
               datasets: [
-                {
-                  label: L.costActual || 'Actual',
+                costDs?.('actual', { data: actualData, fill: true, pointRadius: ptR }) ?? {
+                  label: 'Actual',
                   data: actualData,
-                  borderColor: C.actual || C.cost || '#5eead4',
+                  borderColor: C.actual || '#5eead4',
                   backgroundColor: 'rgba(94,234,212,0.12)',
                   fill: true,
-                  tension: 0.28,
-                  pointRadius: 2,
-                  borderWidth: 2.2,
+                  pointRadius: ptR,
                   spanGaps: true,
                 },
-                {
-                  label: L.costMarket || L.catalogMarket || 'Market',
+                costDs?.('market', { data: catalogData, dashed: true, pointRadius: ptR }) ?? {
+                  label: 'Market',
                   data: catalogData,
-                  borderColor: C.market || C.catalog || '#c084fc',
-                  backgroundColor: 'rgba(192,132,252,0.08)',
-                  fill: false,
-                  tension: 0.28,
-                  pointRadius: 2,
-                  borderWidth: 2,
+                  borderColor: C.market || '#c084fc',
                   borderDash: [6, 4],
+                  pointRadius: ptR,
                   spanGaps: true,
                 },
               ],

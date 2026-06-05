@@ -219,7 +219,7 @@
       title.textContent = m.model_name || "model";
       const prices = document.createElement("div");
       prices.className = "catalogRefPrices";
-      prices.textContent = `List: in ${cin} · out ${cout}`;
+      prices.textContent = `Market: in ${cin} · out ${cout}`;
       item.append(title, prices);
       if (last) {
         const pin = pctVsCatalog(last.usd_per_1m_input, m.catalog_usd_per_1m_input);
@@ -230,7 +230,7 @@
         if (bits.length) {
           const delta = document.createElement("div");
           delta.className = "catalogRefDelta";
-          delta.textContent = `Latest vs list: ${bits.join(", ")}`;
+          delta.textContent = `Latest vs Market: ${bits.join(", ")}`;
           item.appendChild(delta);
         }
       }
@@ -788,7 +788,7 @@
       const models = (series.import_meta?.models || []).length;
       els.filterHint.textContent = imported
         ? `Imported CSV · ${models} model column(s) · bills/<project>/token/`
-        : "Derived from billing × catalog price (no token CSV).";
+        : "Derived from billing × Market price (no token CSV).";
     }
 
     if (els.tokenModel) {

@@ -807,13 +807,14 @@
 
 /* Billing detail: fixed columns so model names are not squeezed to "gpt…" */
 .tokenPage .dataTable.tokenBillingTable {
+  --col-date-w: 6.5rem;
   table-layout: fixed;
   min-width: 1320px;
   width: max(100%, 1320px);
 }
 
 .tokenPage .dataTable.tokenBillingTable col.colDate {
-  width: 6.5rem;
+  width: var(--col-date-w);
 }
 
 .tokenPage .dataTable.tokenBillingTable col.colModel {
@@ -885,8 +886,11 @@
 }
 
 .thDateCol {
-  width: 6.5rem;
+  width: var(--col-date-w, 6.5rem);
+  min-width: var(--col-date-w, 6.5rem);
+  max-width: var(--col-date-w, 6.5rem);
   white-space: nowrap;
+  box-sizing: border-box;
 }
 
 .thModelCol {
@@ -896,8 +900,14 @@
 .tokenPage .dataTable.tokenBillingTable thead th.thModelCol,
 .tokenPage .dataTable.tokenBillingTable tbody td.tdModel {
   position: sticky;
-  left: 6.5rem; /* matches colDate width */
+  left: var(--col-date-w);
   z-index: 3;
+  width: 18rem;
+  min-width: 18rem;
+  max-width: 18rem;
+  text-align: left;
+  padding-left: 10px;
+  padding-right: 10px;
   background: var(--table-header-bg, rgba(7, 14, 26, 0.96));
   box-shadow: 3px 0 8px rgba(0, 0, 0, 0.22);
 }
@@ -916,6 +926,10 @@
   position: sticky;
   left: 0;
   z-index: 4;
+  width: var(--col-date-w, 6.5rem);
+  min-width: var(--col-date-w, 6.5rem);
+  max-width: var(--col-date-w, 6.5rem);
+  box-sizing: border-box;
   background: var(--table-header-bg, rgba(7, 14, 26, 0.96));
   box-shadow: 3px 0 8px rgba(0, 0, 0, 0.18);
 }
@@ -928,11 +942,30 @@
 .tokenPage .dataTable.tokenBillingTable .tdModel,
 .tokenPage .dataTable.tokenBillingTable .thModelCol {
   min-width: 18rem;
-  max-width: none;
+  max-width: 18rem;
   width: 18rem;
-  overflow: visible;
-  text-overflow: clip;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.tokenPage .dataTable.tokenBillingTable thead th .thLabel {
+  display: block;
+  margin-top: 3px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #94a8c0;
+}
+
+.tokenPage .dataTable.tokenBillingTable thead th.num .thLabel {
+  text-align: right;
+}
+
+.tokenPage .chartHeader .costTypeLegend,
+.tokenPage .chartPanel .costTypeLegend {
+  margin: 4px 0 0;
 }
 
 .tokenTablePanel .tdModel,

@@ -1002,9 +1002,9 @@
   font-weight: 700;
   padding: 1px 5px;
   border-radius: 4px;
-  color: var(--accent);
-  border: 1px solid rgba(20, 184, 166, 0.35);
-  background: rgba(20, 184, 166, 0.1);
+  color: #e9d5ff;
+  border: 1px solid var(--cost-market-border, rgba(192, 132, 252, 0.38));
+  background: var(--cost-market-bg, rgba(192, 132, 252, 0.1));
 }
 
 .costDashboard .catalogRateFuzzy {

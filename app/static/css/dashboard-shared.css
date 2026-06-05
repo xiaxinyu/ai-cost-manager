@@ -327,11 +327,23 @@
 }
 
 .costTypeLegend {
-  display: inline-flex;
+  display: flex !important;
   align-items: center;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 10px;
   margin-top: 6px;
+}
+
+.costLegendSep {
+  display: inline-block;
+  width: 1px;
+  height: 14px;
+  background: rgba(148, 163, 184, 0.28);
+  flex-shrink: 0;
+}
+
+.costTypeLegend > .costPill + .costPill {
+  margin-left: 0;
 }
 
 .costPill {
@@ -426,11 +438,44 @@
   background: linear-gradient(180deg, rgba(var(--cost-market-rgb), 0.12), rgba(14, 20, 28, 0.96) 55%);
 }
 
+.dashTable thead tr.costColGroupRow th {
+  padding: 6px 10px 4px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+  vertical-align: bottom;
+}
+
+.dashTable thead tr.costColGroupRow .colGroupActual {
+  border-top: 2px solid var(--cost-actual);
+  background: linear-gradient(180deg, rgba(var(--cost-actual-rgb), 0.14), rgba(14, 20, 28, 0.96) 70%);
+  text-align: center;
+}
+
+.dashTable thead tr.costColGroupRow .colGroupMarket {
+  border-top: 2px solid var(--cost-market);
+  background: linear-gradient(180deg, rgba(var(--cost-market-rgb), 0.14), rgba(14, 20, 28, 0.96) 70%);
+  text-align: center;
+}
+
+.dashTable thead tr.costColGroupRow .colGroupMeta {
+  background: rgba(14, 20, 28, 0.96);
+}
+
 .dashTable thead th.colCostActual .costPill,
 .dashTable thead th.colCostMarket .costPill {
-  display: block;
+  display: inline-flex;
   width: fit-content;
-  margin: 0 0 4px auto;
+  margin: 0 0 4px;
+}
+
+.dashTable thead th.num.colCostActual .costPill,
+.dashTable thead th.num.colCostMarket .costPill {
+  margin-left: auto;
+  margin-right: 0;
+  display: inline-flex;
 }
 
 .dashTable thead th.colCostMarket .costPill {
@@ -487,8 +532,8 @@
 
 .tokenPage .dashTable thead th.thUnitInCol,
 .tokenPage .dashTable thead th.thUnitOutCol {
-  border-top: 2px solid var(--cost-market);
-  background: linear-gradient(180deg, rgba(var(--cost-market-rgb), 0.1), rgba(14, 20, 28, 0.96) 55%);
+  border-top: 2px solid var(--cost-actual);
+  background: linear-gradient(180deg, rgba(var(--cost-actual-rgb), 0.1), rgba(14, 20, 28, 0.96) 55%);
 }
 
 .tokenPage .dashTable tbody td.tdInputCost,
