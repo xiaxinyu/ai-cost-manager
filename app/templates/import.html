@@ -151,7 +151,11 @@
         refreshBtn.classList.add('is-loading');
         refreshBtn.disabled = true;
         const data = await window.AppHttp.getJson('/api/import/missing-files');
-        const missing = data.missing_files || [];
+        const missing = (window.AppDashboardUi?.sortByDateDesc?.(data.missing_files || [], {
+          dateKey: 'source_last_modified',
+        }) || (data.missing_files || []).slice().sort(
+          (a, b) => String(b.source_last_modified || '').localeCompare(String(a.source_last_modified || ''))
+        ));
 
         const billingMissing = Number(data.missing_billing_count ?? 0);
         const tokenMissing = Number(data.missing_token_count ?? 0);
@@ -256,7 +260,11 @@
       async function loadIngestedFiles() {
         try {
           const data = await window.AppHttp.getJson('/api/import/ingested-files?limit=50');
-          const files = data.files || [];
+          const files = (window.AppDashboardUi?.sortByDateDesc?.(data.files || [], {
+            dateKey: 'ingested_at',
+          }) || (data.files || []).slice().sort(
+            (a, b) => String(b.ingested_at || '').localeCompare(String(a.ingested_at || ''))
+          ));
 
           ingestedCountEl.textContent = String(files.length);
           selectedVerifyFiles.clear();

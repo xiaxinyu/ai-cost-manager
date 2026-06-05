@@ -1,0 +1,120 @@
+/* Shared insight cards — Cost, Tokens, Reports */
+
+.insightPanel {
+  margin-top: var(--dash-gap-sm, 14px);
+}
+
+.insightPanelTitle {
+  margin: 0 0 10px;
+  font-size: 13px;
+  font-weight: 740;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgba(148, 163, 184, 0.92);
+}
+
+.insightCardGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
+  gap: 12px;
+}
+
+.insightCard {
+  border-radius: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  background: rgba(15, 23, 42, 0.55);
+  padding: 12px 14px;
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.insightCard:hover {
+  border-color: rgba(148, 163, 184, 0.28);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.12);
+}
+
+.insightCard--info {
+  border-left: 3px solid rgba(94, 234, 212, 0.65);
+}
+
+.insightCard--watch {
+  border-left: 3px solid rgba(251, 191, 36, 0.75);
+}
+
+.insightCard--action {
+  border-left: 3px solid rgba(248, 113, 113, 0.8);
+}
+
+.insightCardHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.insightSeverity {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.insightSeverity--info {
+  color: #5eead4;
+  background: rgba(94, 234, 212, 0.12);
+}
+
+.insightSeverity--watch {
+  color: #fbbf24;
+  background: rgba(251, 191, 36, 0.12);
+}
+
+.insightSeverity--action {
+  color: #f87171;
+  background: rgba(248, 113, 113, 0.12);
+}
+
+.insightCategory {
+  font-size: 11px;
+  text-transform: capitalize;
+}
+
+.insightCardTitle {
+  margin: 0 0 4px;
+  font-size: 14px;
+  font-weight: 720;
+  line-height: 1.35;
+}
+
+.insightCardSummary {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: rgba(226, 232, 240, 0.88);
+}
+
+.insightCardRec {
+  margin: 8px 0 0;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.insightPanelEmpty {
+  margin: 0;
+  font-size: 13px;
+}
+
+.reportAtAGlance .insightPanel {
+  margin-top: 16px;
+}
+
+.costDashboard .insightPanel {
+  margin-bottom: var(--dash-gap, 18px);
+}
+
+.tokenPage .insightPanel {
+  margin-bottom: var(--dash-gap-sm, 14px);
+}

@@ -54,6 +54,19 @@
     }
   }
 
+  /** Newest period first; optional stable tie-break (e.g. model name A→Z). */
+  function sortByDateDesc(rows, { dateKey = "date", tieBreak } = {}) {
+    const list = [...(rows || [])];
+    return list.sort((a, b) => {
+      const da = String(a?.[dateKey] ?? "");
+      const db = String(b?.[dateKey] ?? "");
+      const byDate = db.localeCompare(da);
+      if (byDate !== 0) return byDate;
+      if (typeof tieBreak === "function") return tieBreak(a, b);
+      return 0;
+    });
+  }
+
   function bindFilterEnter(filterRoot, onSubmit) {
     if (!filterRoot || typeof onSubmit !== 'function') return;
     filterRoot.addEventListener('keydown', (e) => {
@@ -69,5 +82,6 @@
     crosshairPlugins,
     setPageLoading,
     bindFilterEnter,
+    sortByDateDesc,
   };
 })();

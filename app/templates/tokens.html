@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="/static/css/pages/tokens.css?v=20260605-cost" />
     <link rel="stylesheet" href="/static/css/layout-pro.css" />
     <link rel="stylesheet" href="/static/css/dashboard-shared.css?v=20260605-cost" />
+    <link rel="stylesheet" href="/static/css/insight-panel.css?v=20260605-insights" />
   </head>
   <body>
     {% set active_page = 'tokens' %}
@@ -71,6 +72,7 @@
           </section>
 
           <div id="dataStatusBar" class="dataStatusBar" hidden aria-live="polite" aria-label="Load summary"></div>
+          <div id="tokenInsightPanel" class="insightPanel" hidden aria-label="Token insights"></div>
 
           <div id="noImportState" class="card emptyState" hidden>
             <div class="title">No imported token data</div>
@@ -167,7 +169,7 @@
                   <span class="flowStepNum" aria-hidden="true">1</span>
                   <h2 id="flowDetailTitle" class="flowBlockTitle">Billing detail</h2>
                 </div>
-                <p class="flowBlockDesc muted" id="tableHint">Costs and $/1M come only from billing Meter rows (inp/opt) matched to each model — not estimated from daily totals.</p>
+                <p class="flowBlockDesc muted" id="tableHint">Newest first. Costs and $/1M come only from billing Meter rows (inp/opt) matched to each model — not estimated from daily totals.</p>
                 <div class="flowBlockActions">
                   <span id="tableRowBadge" class="tableRowBadge muted" hidden></span>
                   <button id="exportTokensBtn" class="btnSmall btnExport" type="button">Export CSV</button>
@@ -351,7 +353,8 @@
     <script src="/static/js/chart-plugins.js"></script>
     <script src="/static/js/chart-style.js?v=20260605-dates"></script>
     <script src="/static/js/cost-semantics.js?v=20260605-cost"></script>
-    <script src="/static/js/dashboard-ui.js"></script>
-    <script src="/static/js/pages/tokens.js?v=20260605-cost"></script>
+    <script src="/static/js/dashboard-ui.js?v=20260605-datesort"></script>
+    <script src="/static/js/insight-panel.js?v=20260605-insights"></script>
+    <script src="/static/js/pages/tokens.js?v=20260605-insights"></script>
   </body>
 </html>

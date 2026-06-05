@@ -22,6 +22,7 @@
     sourceBadgeText: document.getElementById("tokenSourceBadgeText"),
     filterHint: document.getElementById("filterHint"),
     dataStatusBar: document.getElementById("dataStatusBar"),
+    insightPanel: document.getElementById("tokenInsightPanel"),
     tableRowBadge: document.getElementById("tableRowBadge"),
     labelInput: document.getElementById("labelInputTokens"),
     labelOutput: document.getElementById("labelOutputTokens"),
@@ -1173,9 +1174,17 @@
     });
   }
 
+  function sortDailyModelRows(rows) {
+    const tieBreak = (a, b) =>
+      String(a.model_name || "").localeCompare(String(b.model_name || ""), undefined, {
+        sensitivity: "base",
+      });
+    return DASH?.sortByDateDesc?.(rows, { tieBreak }) || (rows || []).slice();
+  }
+
   function renderTable(dailyByModel) {
     if (dailyByModel !== undefined) {
-      lastDailyModelRows = (dailyByModel || []).slice();
+      lastDailyModelRows = sortDailyModelRows(dailyByModel);
     }
 
     if (!lastDailyModelRows.length) {
@@ -1454,6 +1463,7 @@
       if (!imported) {
         if (els.sourceBadge) els.sourceBadge.hidden = true;
         if (els.dataStatusBar) els.dataStatusBar.hidden = true;
+        if (els.insightPanel) els.insightPanel.hidden = true;
         clearUnitPriceUi();
         if (els.noImportHint) {
           const others = projectsWithImportedTokens.filter((p) => p !== project);
@@ -1469,6 +1479,10 @@
       }
       applySourceUi(source, series, stats);
       updateDataStatusBar(project, stats, series);
+      window.AppInsightPanel?.render?.(els.insightPanel, series.insights || [], {
+        title: "Insights",
+        limit: 5,
+      });
 
       const points = series.points || [];
       dailyPage = 1;

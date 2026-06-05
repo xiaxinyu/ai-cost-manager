@@ -38,6 +38,17 @@ EXPECTED_CSV_COLUMNS = [
 ]
 
 
+def _sort_rows_by_date_desc(
+    rows: list[dict[str, object]],
+    *,
+    date_key: str = "date",
+    tie_key: str = "model_name",
+) -> None:
+    """Stable sort: newest date first, then tie_key ascending."""
+    rows.sort(key=lambda r: str(r.get(tie_key) or ""))
+    rows.sort(key=lambda r: str(r.get(date_key) or ""), reverse=True)
+
+
 def ensure_parent_dir(db_path: str | os.PathLike[str]) -> None:
     Path(db_path).expanduser().resolve().parent.mkdir(parents=True, exist_ok=True)
 
@@ -2249,7 +2260,7 @@ def get_catalog_market_cost_timeseries(
             }
         )
 
-    daily_by_model.sort(key=lambda r: (str(r["date"]), str(r["model_name"])))
+    _sort_rows_by_date_desc(daily_by_model)
 
     total_catalog = sum(float(c) for c in catalog_by_date.values())
     total_actual = sum(actual_by_date.values())
@@ -2487,7 +2498,7 @@ def get_all_catalog_market_breakdown(
                 )
 
     daily_by_model = list(merged_daily.values())
-    daily_by_model.sort(key=lambda r: (str(r["date"]), str(r["model_name"])))
+    _sort_rows_by_date_desc(daily_by_model)
 
     if not daily_by_model and not points_by_date:
         return {

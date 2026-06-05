@@ -110,6 +110,15 @@ def test_all_financial_report_stats(tmp_path):
     assert all(p["total_tokens"] is None for p in payload["token_daily_points"])
     assert payload["token_actual"]["input_tokens_total"] == 0.0
 
+    assert "insights" in payload
+    assert isinstance(payload["insights"], list)
+    assert len(payload["insights"]) >= 1
+    first = payload["insights"][0]
+    assert "id" in first
+    assert "severity" in first
+    assert "title" in first
+    assert "summary" in first
+
     # Verify consistency between report-scoped aggregation and per-project dashboard calculations.
     ver = client.get("/api/verify/reports-all-financial-consistency?currency=USD&mode=deep")
     assert ver.status_code == 200

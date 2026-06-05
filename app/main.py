@@ -58,6 +58,12 @@ from .token_ingest import (
 )
 from .auth import authenticate_user, require_active_user
 from .cost_pipeline import COST_PIPELINE_VERSION, cost_debug_enabled, summarize_daily_cost_rows
+from .insights import (
+    compute_cost_insights,
+    compute_report_insights,
+    compute_token_insights,
+    insight_cards_to_dicts,
+)
 
 
 class ImportRunRequest(BaseModel):
@@ -445,6 +451,21 @@ def create_app(
                 end_date=end_date,
                 currency=currency,
             )
+            points, _ = get_timeseries(
+                conn,
+                project_name,
+                start_date=start_date,
+                end_date=end_date,
+                granularity="day",
+                currency=currency or payload.get("currency"),
+            )
+            payload["insights"] = insight_cards_to_dicts(
+                compute_cost_insights(
+                    project=project_name,
+                    points=points,
+                    catalog_market=payload,
+                )
+            )
             return JSONResponse(payload)
         finally:
             conn.close()
@@ -533,6 +554,18 @@ def create_app(
             else:
                 available = [currency]
 
+            catalog_payload: dict[str, object] = {"available": False}
+            try:
+                catalog_payload = get_catalog_market_cost_timeseries(
+                    conn,
+                    project_name,
+                    start_date=start_date,
+                    end_date=end_date,
+                    currency=chosen_currency,
+                )
+            except Exception:
+                pass
+
             return JSONResponse(
                 {
                     "project": project_name,
@@ -540,6 +573,13 @@ def create_app(
                     "available_currencies": available,
                     "granularity": granularity,
                     "points": points,
+                    "insights": insight_cards_to_dicts(
+                        compute_cost_insights(
+                            project=project_name,
+                            points=points,
+                            catalog_market=catalog_payload,
+                        )
+                    ),
                 }
             )
         finally:
@@ -630,6 +670,24 @@ def create_app(
                     start_date=start_date,
                     end_date=end_date,
                 )
+            catalog_payload: dict[str, object] = {"available": False}
+            try:
+                catalog_payload = get_catalog_market_cost_timeseries(
+                    conn,
+                    project_name,
+                    start_date=start_date,
+                    end_date=end_date,
+                    currency=chosen_currency,
+                )
+            except Exception:
+                pass
+            payload["insights"] = insight_cards_to_dicts(
+                compute_token_insights(
+                    project=project_name,
+                    payload=payload,
+                    catalog_market=catalog_payload,
+                )
+            )
             return JSONResponse(payload)
         finally:
             conn.close()
@@ -946,19 +1004,21 @@ def create_app(
                 currency=chosen_currency,
                 project_names=project_names,
             )
-            return JSONResponse(
-                {
-                    "currency_options": currencies,
-                    **stats,
-                    "token_daily_points": token_daily_points,
-                    "token_monthly_points": token_monthly_points,
-                    "token_models_display": token_model_display,
-                    "token_import_path": token_region_display,
-                    "token_data_source": token_data_source,
-                    "has_imported_tokens": token_data_source == "imported",
-                    "catalog_market": catalog_market,
-                }
+            report_body = {
+                "currency_options": currencies,
+                **stats,
+                "token_daily_points": token_daily_points,
+                "token_monthly_points": token_monthly_points,
+                "token_models_display": token_model_display,
+                "token_import_path": token_region_display,
+                "token_data_source": token_data_source,
+                "has_imported_tokens": token_data_source == "imported",
+                "catalog_market": catalog_market,
+            }
+            report_body["insights"] = insight_cards_to_dicts(
+                compute_report_insights(report_body)
             )
+            return JSONResponse(report_body)
         finally:
             conn.close()
 

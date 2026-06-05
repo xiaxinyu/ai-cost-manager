@@ -28,6 +28,12 @@ def test_chart_style_x_axis_uses_date_labels():
     assert "labelAtTick(this, value)" in text
 
 
+def test_dashboard_ui_sort_by_date_desc():
+    ui = Path(__file__).resolve().parents[1] / "app" / "static" / "js" / "dashboard-ui.js"
+    text = ui.read_text(encoding="utf-8")
+    assert "function sortByDateDesc" in text
+
+
 def test_ratio_bounds_include_full_data_range():
     """Ratio Y-axis must not IQR-clip spikes so the chart shows every point."""
     forecasting = Path(__file__).resolve().parents[1] / "app" / "static" / "js" / "forecasting.js"

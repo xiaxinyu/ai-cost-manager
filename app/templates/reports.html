@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="/static/css/pages/reports.css?v=20260605-raw-h" />
     <link rel="stylesheet" href="/static/css/layout-pro.css" />
     <link rel="stylesheet" href="/static/css/dashboard-shared.css?v=20260605-cost" />
+    <link rel="stylesheet" href="/static/css/insight-panel.css?v=20260605-insights" />
   </head>
   <body>
     {% set active_page = 'reports' %}
@@ -96,7 +97,7 @@
               <span class="reportStep">1</span>
               <div>
                 <h2 class="reportSectionTitle">At a glance</h2>
-                <p class="reportSectionLead muted" id="reportInsightLine">Load a report to see spend, tokens, and how they compare in scope.</p>
+                <p class="reportSectionLead muted" id="reportInsightLine">Executive insights for the selected scope — Actual vs Market, concentration, and data quality.</p>
               </div>
             </div>
             <div class="heroMetricGrid">
@@ -131,6 +132,7 @@
                 <span class="heroMetricSub" id="hero_catalog_sub">Actual vs Market</span>
               </article>
             </div>
+            <div id="reportInsightPanel" class="insightPanel" hidden aria-label="Executive insights"></div>
             <details class="reportKpiDetails">
               <summary>More statistics (daily / monthly / variance)</summary>
               <div class="gridStats reportKpis reportKpisCompact">
@@ -166,7 +168,7 @@
               <span class="reportStep">2</span>
               <div>
                 <h2 class="reportSectionTitle">Spend trends</h2>
-                <p class="reportSectionLead muted" id="costTrendInsight">Daily and monthly billing actuals for the selected scope.</p>
+                <p class="reportSectionLead muted" id="costTrendInsight">Daily and monthly <span class="costPill costPill--actual">Actual</span> billing for the selected scope.</p>
               </div>
             </div>
             <div class="chartGrid chartGrid2">
@@ -427,7 +429,8 @@
     <script src="/static/js/chart-plugins.js"></script>
     <script src="/static/js/chart-style.js?v=20260605-dates"></script>
     <script src="/static/js/cost-semantics.js?v=20260605-cost"></script>
-    <script src="/static/js/dashboard-ui.js"></script>
+    <script src="/static/js/dashboard-ui.js?v=20260605-datesort"></script>
+    <script src="/static/js/insight-panel.js?v=20260605-insights"></script>
     <script>
       window.AppChartStyle?.applyDefaults?.();
 
@@ -787,21 +790,21 @@
         return `<span class="deltaCell ${cls}">${fmtPct(v)}</span>`;
       }
 
-      function enrichCostPoints(points, { chronological = false } = {}) {
+      function enrichCostPoints(points, { newestFirst = true } = {}) {
         const rows = (points || []).map((p) => ({
           date: p.date,
           cost_usd: Number(p.cost_usd ?? 0),
         }));
-        const ordered = chronological
-          ? [...rows].sort((a, b) => String(a.date).localeCompare(String(b.date)))
-          : [...rows].sort((a, b) => String(b.date).localeCompare(String(a.date)));
+        const ordered = newestFirst
+          ? [...rows].sort((a, b) => String(b.date).localeCompare(String(a.date)))
+          : [...rows].sort((a, b) => String(a.date).localeCompare(String(b.date)));
         const total = ordered.reduce((s, r) => s + r.cost_usd, 0);
         return ordered.map((r, i) => {
           const share_pct = total > 0 ? (r.cost_usd / total) * 100 : null;
-          const prev = ordered[i + 1];
+          const prior = newestFirst ? ordered[i + 1] : ordered[i - 1];
           const change_pct =
-            prev && prev.cost_usd > 0
-              ? ((r.cost_usd - prev.cost_usd) / prev.cost_usd) * 100
+            prior && prior.cost_usd > 0
+              ? ((r.cost_usd - prior.cost_usd) / prior.cost_usd) * 100
               : null;
           return { ...r, share_pct, change_pct };
         });
@@ -868,28 +871,10 @@
           catalogCard.hidden = true;
         }
 
-        const insight = document.getElementById('reportInsightLine');
-        if (insight) {
-          const projects = (report?.project_breakdown || []).length;
-          const top = [...(report?.project_breakdown || [])].sort(
-            (a, b) => Number(b.actual_cost_usd_total ?? 0) - Number(a.actual_cost_usd_total ?? 0)
-          )[0];
-          const topName = top?.project_name ? escapeHtml(top.project_name) : '—';
-          const topCost = top ? fmtCost(top.actual_cost_usd_total) : '—';
-          insight.innerHTML = `<strong>${projects}</strong> projects · total <strong>${fmtCost(d.total_actual)}</strong> · largest contributor <strong>${topName}</strong> (${topCost}). Scroll for trends, model split, and exportable tables.`;
-        }
-
-        const costInsight = document.getElementById('costTrendInsight');
-        if (costInsight && (report.daily_points || []).length) {
-          const enriched = enrichCostPoints(report.daily_points, { chronological: true });
-          const max = enriched.reduce(
-            (best, r) => (r.cost_usd > (best?.cost_usd ?? -1) ? r : best),
-            null
-          );
-          costInsight.textContent = max
-            ? `Peak day ${max.date}: ${fmtCost(max.cost_usd)} (${fmtPct(max.share_pct)} of period). Charts below; section ⑥ adds share and day-over-day %.`
-            : costInsight.textContent;
-        }
+        window.AppInsightPanel?.render?.('reportInsightPanel', report?.insights || [], {
+          title: 'Insights',
+          limit: 7,
+        });
       }
 
       function toYmd(d) {
@@ -1628,8 +1613,8 @@
             tr.innerHTML = `<td colspan="2" class="muted">No ratio data in selected range.</td>`;
             ratioTbody.appendChild(tr);
           } else {
-            for (let i = ratioRows.length - 1; i >= 0; i--) {
-              const r = ratioRows[i];
+            const ratioSorted = window.AppDashboardUi?.sortByDateDesc?.(ratioRows) || ratioRows.slice().sort((a, b) => String(b.date).localeCompare(String(a.date)));
+            for (const r of ratioSorted) {
               const tr = document.createElement('tr');
               const val = r.ratio === null || r.ratio === undefined ? '-' : Number(r.ratio).toLocaleString(undefined, { maximumFractionDigits: 3 });
               tr.innerHTML = `<td class="tdText">${r.date}</td><td class="num">${val}</td>`;
@@ -1751,8 +1736,8 @@
       }
 
       function renderTables(report) {
-        const daily = enrichCostPoints(report.daily_points || [], { chronological: true });
-        const monthly = enrichCostPoints(report.monthly_points || [], { chronological: true });
+        const daily = enrichCostPoints(report.daily_points || []);
+        const monthly = enrichCostPoints(report.monthly_points || []);
         const note = document.getElementById('tableAnalysisNote');
         if (note && daily.length) {
           const top = daily.reduce((b, r) => (r.cost_usd > (b?.cost_usd ?? -1) ? r : b), null);

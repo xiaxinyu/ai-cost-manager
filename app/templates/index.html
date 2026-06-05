@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="/static/css/pages/index.css?v=20260605-cost" />
     <link rel="stylesheet" href="/static/css/layout-pro.css" />
     <link rel="stylesheet" href="/static/css/dashboard-shared.css?v=20260605-cost" />
+    <link rel="stylesheet" href="/static/css/insight-panel.css?v=20260605-insights" />
   </head>
   <body>
     {% set active_page = 'cost' %}
@@ -84,6 +85,8 @@
               </article>
             </div>
           </section>
+
+          <div id="costInsightPanel" class="insightPanel" hidden aria-label="Cost insights"></div>
 
           <div class="dashSections">
             <section class="trendsSection" aria-label="Daily cost trends">
@@ -227,6 +230,7 @@
     <script src="/static/js/chart-style.js?v=20260605-dates"></script>
     <script src="/static/js/cost-semantics.js?v=20260605-cost"></script>
     <script src="/static/js/dashboard-ui.js"></script>
+    <script src="/static/js/insight-panel.js?v=20260605-insights"></script>
     <script>
       window.AppChartStyle?.applyDefaults?.();
       const CHART_OPTS = window.AppChartStyle;
@@ -1231,6 +1235,11 @@
 
         const costStats = _calcSeriesStatsFloat(costPts, 'cost_usd');
         _renderCostStats(costStatsEl, costStats);
+
+        window.AppInsightPanel?.render?.('costInsightPanel', ts.insights || [], {
+          title: 'Insights',
+          limit: 4,
+        });
       }
 
       async function loadProjectSafe(projectName) {
