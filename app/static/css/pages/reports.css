@@ -562,6 +562,30 @@
   background: rgba(96, 165, 250, 0.06);
 }
 
+.reportPage .dataTable tbody tr.tokenOnlyRow td {
+  background: rgba(251, 191, 36, 0.035);
+}
+
+.reportPage .dataTable tbody tr.tokenOnlyRow:hover td {
+  background: rgba(251, 191, 36, 0.075);
+}
+
+.rowBadge {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 8px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  border: 1px solid rgba(251, 191, 36, 0.32);
+  background: rgba(251, 191, 36, 0.1);
+  color: #fde68a;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0;
+  white-space: nowrap;
+}
+
 .reportPage .dataTable .emptyRow {
   text-align: center;
   padding: 16px 8px;
@@ -1045,6 +1069,35 @@
   font-size: 11px;
   color: #9fb2c7;
   line-height: 1.35;
+}
+
+.qualityStrip {
+  display: flex;
+  align-items: stretch;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.qualityPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 34px;
+  padding: 7px 10px;
+  border-radius: var(--control-radius);
+  border: 1px solid rgba(173, 196, 228, 0.16);
+  background: rgba(255, 255, 255, 0.035);
+  color: #aebfd3;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.qualityPill strong {
+  color: #e7edf6;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 .reportKpiDetails {

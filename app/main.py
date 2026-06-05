@@ -1015,6 +1015,35 @@ def create_app(
                 "has_imported_tokens": token_data_source == "imported",
                 "catalog_market": catalog_market,
             }
+            breakdown = report_body.get("project_breakdown") or []
+            daily_points = report_body.get("daily_points") or []
+            token_points_with_data = [
+                p
+                for p in token_daily_points
+                if p.get("input_tokens") is not None or p.get("output_tokens") is not None
+            ]
+            report_body["scope_quality"] = {
+                "projects_in_scope": len(project_names) if project_names else len(list_projects(conn)),
+                "projects_with_billing": sum(
+                    1 for p in breakdown if float(p.get("actual_cost_usd_total") or 0.0) > 0
+                ),
+                "projects_with_tokens": int(
+                    (report_body.get("token_actual") or {}).get("projects_with_imported_tokens") or 0
+                ),
+                "token_only_projects": sum(
+                    1
+                    for p in breakdown
+                    if float(p.get("actual_cost_usd_total") or 0.0) <= 0
+                    and (
+                        float(p.get("input_tokens") or 0.0) > 0
+                        or float(p.get("output_tokens") or 0.0) > 0
+                    )
+                ),
+                "cost_start_date": daily_points[0].get("date") if daily_points else None,
+                "cost_end_date": daily_points[-1].get("date") if daily_points else None,
+                "token_start_date": token_points_with_data[0].get("date") if token_points_with_data else None,
+                "token_end_date": token_points_with_data[-1].get("date") if token_points_with_data else None,
+            }
             report_body["insights"] = insight_cards_to_dicts(
                 compute_report_insights(report_body)
             )

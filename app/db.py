@@ -3617,20 +3617,24 @@ def verify_all_financial_consistency(
 
     report_dates_day = [p["date"] for p in daily_points]
     report_dates_month = [p["date"] for p in monthly_points]
+    report_token_dates_day = [p["date"] for p in token_daily_points]
+    report_token_dates_month = [p["date"] for p in token_monthly_points]
     day_set = set(report_dates_day)
     month_set = set(report_dates_month)
+    token_day_set = set(report_token_dates_day)
+    token_month_set = set(report_token_dates_month)
 
     # Compute sum across per-project endpoints' underlying functions.
     cost_day_sum: dict[str, float] = {d: 0.0 for d in report_dates_day}
     cost_month_sum: dict[str, float] = {d: 0.0 for d in report_dates_month}
 
-    token_day_has: dict[str, bool] = {d: False for d in report_dates_day}
-    token_day_input_sum: dict[str, float] = {d: 0.0 for d in report_dates_day}
-    token_day_output_sum: dict[str, float] = {d: 0.0 for d in report_dates_day}
+    token_day_has: dict[str, bool] = {d: False for d in report_token_dates_day}
+    token_day_input_sum: dict[str, float] = {d: 0.0 for d in report_token_dates_day}
+    token_day_output_sum: dict[str, float] = {d: 0.0 for d in report_token_dates_day}
 
-    token_month_has: dict[str, bool] = {d: False for d in report_dates_month}
-    token_month_input_sum: dict[str, float] = {d: 0.0 for d in report_dates_month}
-    token_month_output_sum: dict[str, float] = {d: 0.0 for d in report_dates_month}
+    token_month_has: dict[str, bool] = {d: False for d in report_token_dates_month}
+    token_month_input_sum: dict[str, float] = {d: 0.0 for d in report_token_dates_month}
+    token_month_output_sum: dict[str, float] = {d: 0.0 for d in report_token_dates_month}
 
     token_models: set[str] = set()
 
@@ -3677,7 +3681,7 @@ def verify_all_financial_consistency(
             granularity="day",
         ):
             d = p["date"]
-            if d not in day_set:
+            if d not in token_day_set:
                 continue
             in_tok = p.get("input_tokens")
             if in_tok is None:
@@ -3699,7 +3703,7 @@ def verify_all_financial_consistency(
             granularity="month",
         ):
             d = p["date"]
-            if d not in month_set:
+            if d not in token_month_set:
                 continue
             in_tok = p.get("input_tokens")
             if in_tok is None:
@@ -3769,7 +3773,10 @@ def verify_all_financial_consistency(
         )
     else:
         # Deep mode: per-period points must match.
-        for i, p in enumerate(daily_points):
+        token_daily_by_date = {p["date"]: p for p in token_daily_points}
+        token_monthly_by_date = {p["date"]: p for p in token_monthly_points}
+
+        for p in daily_points:
             d = p["date"]
             computed_cost = cost_day_sum.get(d, 0.0)
             report_cost = float(p["cost_usd"] or 0.0)
@@ -3779,20 +3786,17 @@ def verify_all_financial_consistency(
                 f"report={report_cost}, computed={computed_cost}",
             )
 
-            tp = token_daily_points[i] if i < len(token_daily_points) else None
-            if tp is None or tp.get("date") != d:
-                add_check(f"token_daily_point_alignment:{d}", False, "token points mismatch")
-                continue
-
+        for d in report_token_dates_day:
+            tp = token_daily_by_date.get(d)
             if not token_day_has[d]:
                 add_check(
                     f"token_daily_point_none:{d}",
-                    tp.get("input_tokens") is None and tp.get("output_tokens") is None,
+                    tp is not None and tp.get("input_tokens") is None and tp.get("output_tokens") is None,
                 )
                 continue
 
-            report_in = tp.get("input_tokens")
-            report_out = tp.get("output_tokens")
+            report_in = tp.get("input_tokens") if tp else None
+            report_out = tp.get("output_tokens") if tp else None
             computed_in = token_day_input_sum[d]
             computed_out = token_day_output_sum[d]
 
@@ -3807,7 +3811,7 @@ def verify_all_financial_consistency(
                 f"report={report_out}, computed={computed_out}",
             )
 
-        for i, p in enumerate(monthly_points):
+        for p in monthly_points:
             d = p["date"]
             computed_cost = cost_month_sum.get(d, 0.0)
             report_cost = float(p["cost_usd"] or 0.0)
@@ -3817,20 +3821,17 @@ def verify_all_financial_consistency(
                 f"report={report_cost}, computed={computed_cost}",
             )
 
-            tp = token_monthly_points[i] if i < len(token_monthly_points) else None
-            if tp is None or tp.get("date") != d:
-                add_check(f"token_monthly_point_alignment:{d}", False, "token points mismatch")
-                continue
-
+        for d in report_token_dates_month:
+            tp = token_monthly_by_date.get(d)
             if not token_month_has[d]:
                 add_check(
                     f"token_monthly_point_none:{d}",
-                    tp.get("input_tokens") is None and tp.get("output_tokens") is None,
+                    tp is not None and tp.get("input_tokens") is None and tp.get("output_tokens") is None,
                 )
                 continue
 
-            report_in = tp.get("input_tokens")
-            report_out = tp.get("output_tokens")
+            report_in = tp.get("input_tokens") if tp else None
+            report_out = tp.get("output_tokens") if tp else None
             computed_in = token_month_input_sum[d]
             computed_out = token_month_output_sum[d]
 
@@ -3903,8 +3904,10 @@ def get_financial_project_breakdown(
     project_names: list[str] | None = None,
 ) -> list[dict]:
     """
-    Per-project cost in the same scope as all-financial reports, plus token estimates
-    when a project has an associated model and matching rows in `model_prices`.
+    Per-project cost and imported token volume in the same report scope.
+
+    Include token-only projects so the report does not hide usage just because a
+    selected period has no matching billing rows.
     """
     _, chosen_currency = get_all_timeseries(
         conn,
@@ -3914,44 +3917,49 @@ def get_financial_project_breakdown(
         currency=currency,
         project_names=project_names,
     )
-    if chosen_currency is None:
-        return []
 
-    where: list[str] = []
-    params: list[object] = []
-    project_sql, project_params = _project_where(project_names)
-    if project_sql != "1=1":
-        where.append(project_sql)
-        params.extend(project_params)
-    where.append("currency = ?")
-    params.append(chosen_currency)
-    if start_date:
-        where.append("usage_date >= ?")
-        params.append(start_date)
-    if end_date:
-        where.append("usage_date <= ?")
-        params.append(end_date)
-    where_sql = " AND ".join(where)
+    cost_by_project: dict[str, dict[str, object]] = {}
+    if chosen_currency is not None:
+        where: list[str] = []
+        params: list[object] = []
+        project_sql, project_params = _project_where(project_names)
+        if project_sql != "1=1":
+            where.append(project_sql)
+            params.extend(project_params)
+        where.append("currency = ?")
+        params.append(chosen_currency)
+        if start_date:
+            where.append("usage_date >= ?")
+            params.append(start_date)
+        if end_date:
+            where.append("usage_date <= ?")
+            params.append(end_date)
+        where_sql = " AND ".join(where)
 
-    rows = conn.execute(
-        f"""
-        SELECT
-            project_name,
-            COALESCE(SUM(cost_usd), 0) AS cost_usd_total,
-            COUNT(DISTINCT CASE WHEN cost_usd IS NOT NULL THEN usage_date END) AS actual_days
-        FROM transactions
-        WHERE {where_sql}
-        GROUP BY project_name
-        HAVING COALESCE(SUM(cost_usd), 0) > 0
-        ORDER BY cost_usd_total DESC
-        """,
-        tuple(params),
-    ).fetchall()
+        rows = conn.execute(
+            f"""
+            SELECT
+                project_name,
+                COALESCE(SUM(cost_usd), 0) AS cost_usd_total,
+                COUNT(DISTINCT CASE WHEN cost_usd IS NOT NULL THEN usage_date END) AS actual_days
+            FROM transactions
+            WHERE {where_sql}
+            GROUP BY project_name
+            HAVING COALESCE(SUM(cost_usd), 0) > 0
+            """,
+            tuple(params),
+        ).fetchall()
+        for r in rows:
+            cost_by_project[str(r["project_name"])] = {
+                "actual_cost_usd_total": round_cost(_safe_float(r["cost_usd_total"])) or 0.0,
+                "actual_days": int(r["actual_days"]),
+            }
 
+    scoped_projects = project_names if project_names else list_projects(conn)
     out: list[dict] = []
-    for r in rows:
-        pn = r["project_name"]
-        total = round_cost(_safe_float(r["cost_usd_total"])) or 0.0
+    for pn in scoped_projects:
+        cost_row = cost_by_project.get(pn) or {}
+        total = float(cost_row.get("actual_cost_usd_total") or 0.0)
         in_tok: float | None = None
         out_tok: float | None = None
         model_names: list[str] = []
@@ -3965,17 +3973,28 @@ def get_financial_project_breakdown(
                 conn, pn, start_date=start_date, end_date=end_date
             )
             model_names = [str(m) for m in (meta.get("models") or []) if m]
+        has_cost = total > 0
+        has_tokens = (in_tok is not None and in_tok > 0) or (out_tok is not None and out_tok > 0)
+        if not has_cost and not has_tokens:
+            continue
         out.append(
             {
                 "project_name": pn,
                 "actual_cost_usd_total": total,
-                "actual_days": int(r["actual_days"]),
+                "actual_days": int(cost_row.get("actual_days") or 0),
                 "currency": chosen_currency,
                 "input_tokens": in_tok,
                 "output_tokens": out_tok,
                 "token_models": model_names,
             }
         )
+    out.sort(
+        key=lambda r: (
+            -float(r.get("actual_cost_usd_total") or 0.0),
+            -float(r.get("input_tokens") or 0.0) - float(r.get("output_tokens") or 0.0),
+            str(r.get("project_name") or ""),
+        )
+    )
     return out
 
 

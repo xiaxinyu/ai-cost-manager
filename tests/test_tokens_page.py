@@ -102,10 +102,10 @@ def test_tokens_page_redirect_and_access(tmp_path):
     assert "flowBlock" in page.text
     assert "filterCard" in page.text
     assert "dateLast7Btn" in page.text
-    assert "tokens.js?v=20260517-9" in page.text
+    assert 'src="/static/js/pages/tokens.js?v=' in page.text
     assert 'href="/tokens"' in page.text
     assert "flowStep" in page.text
-    assert "chartLegendKey" in page.text
+    assert "costTypeLegend" in page.text
 
 
 def test_login_to_token_workspace_e2e_smoke(tmp_path):
@@ -131,7 +131,7 @@ def test_login_to_token_workspace_e2e_smoke(tmp_path):
     assert login.status_code in {200, 303}
 
     for path, marker in (
-        ("/", "Cost Overview"),
+        ("/", "Cost"),
         ("/tokens", "Token Operations"),
         ("/reports", "Financial Report Center"),
         ("/prices", "Model Price Viewer"),

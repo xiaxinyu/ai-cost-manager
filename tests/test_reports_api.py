@@ -8,6 +8,7 @@ from app.auth import create_user
 from app.db import init_db
 from app.ingest import ingest_all
 from app.main import create_app
+from app.token_ingest import ingest_token_all
 
 
 def _create_admin(db_path: str) -> None:
@@ -120,6 +121,65 @@ def test_all_financial_report_stats(tmp_path):
     assert "summary" in first
 
     # Verify consistency between report-scoped aggregation and per-project dashboard calculations.
+    ver = client.get("/api/verify/reports-all-financial-consistency?currency=USD&mode=deep")
+    assert ver.status_code == 200
+    ver_payload = ver.json()
+    assert ver_payload["ok"] is True
+    assert ver_payload["failed_count"] == 0
+    assert payload["scope_quality"]["projects_in_scope"] == 2
+    assert payload["scope_quality"]["projects_with_billing"] == 2
+
+
+def test_all_financial_report_includes_token_only_projects_and_verifies(tmp_path):
+    bills_dir = tmp_path / "bills"
+
+    billing_project = bills_dir / "projBill"
+    token_project = bills_dir / "projTokenOnly" / "token"
+    billing_project.mkdir(parents=True, exist_ok=True)
+    token_project.mkdir(parents=True, exist_ok=True)
+
+    (billing_project / "2026.csv").write_text(
+        '"UsageDate","CostUSD","Cost","ForecastCost","Currency"\n'
+        '"2026-01-01","5.0","5.0","","USD"\n',
+        encoding="utf-8",
+    )
+    (token_project / "input-tokens.csv").write_text(
+        '"Time","gpt-5.3-codex"\n'
+        "2026-01-03 10:00:00,1 K\n",
+        encoding="utf-8",
+    )
+    (token_project / "output-tokens.csv").write_text(
+        '"Time","gpt-5.3-codex"\n'
+        "2026-01-03 10:00:00,2 K\n",
+        encoding="utf-8",
+    )
+
+    db_path = tmp_path / "cost_mgmt.sqlite3"
+    ingest_all(bills_dir=bills_dir, db_path=db_path, reimport_changed=False)
+    ingest_token_all(bills_dir=bills_dir, db_path=db_path, reimport_changed=False)
+
+    app = create_app(db_path=str(db_path), bills_dir=str(bills_dir), auto_ingest=False)
+    client = TestClient(app)
+
+    _create_admin(str(db_path))
+    client.post("/auth/login", data={"username": "admin", "password": "admin12345"})
+
+    res = client.get("/api/reports/all-financial?currency=USD")
+    assert res.status_code == 200
+    payload = res.json()
+
+    by_name = {r["project_name"]: r for r in payload["project_breakdown"]}
+    assert by_name["projBill"]["actual_cost_usd_total"] == 5.0
+    assert by_name["projTokenOnly"]["actual_cost_usd_total"] == 0.0
+    assert by_name["projTokenOnly"]["input_tokens"] == 1000.0
+    assert by_name["projTokenOnly"]["output_tokens"] == 2000.0
+    assert payload["scope_quality"]["token_only_projects"] == 1
+
+    token_by_date = {p["date"]: p for p in payload["token_daily_points"]}
+    assert token_by_date["2026-01-01"]["input_tokens"] is None
+    assert token_by_date["2026-01-03"]["input_tokens"] == 1000.0
+    assert payload["token_actual"]["input_tokens_total"] == 1000.0
+
     ver = client.get("/api/verify/reports-all-financial-consistency?currency=USD&mode=deep")
     assert ver.status_code == 200
     ver_payload = ver.json()
