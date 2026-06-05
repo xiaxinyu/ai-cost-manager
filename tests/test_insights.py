@@ -3,6 +3,7 @@ from __future__ import annotations
 from app.insights import (
     InsightCard,
     compute_cost_insights,
+    compute_performance_insights,
     compute_report_insights,
     compute_token_insights,
     insight_cards_to_dicts,
@@ -133,6 +134,91 @@ def test_missing_token_csv_when_billing_without_import():
     }
     cards = compute_report_insights(report)
     assert "missing_token_csv" in _ids(cards)
+
+
+def test_performance_cache_insight():
+    token_metrics = {
+        "available": True,
+        "metrics": {
+            "cache_match_rate": {
+                "metric_name": "cache_match_rate",
+                "unit": "pct",
+                "models": ["gpt-a", "gpt-b"],
+                "points": [
+                    {
+                        "recorded_at": "2026-06-04 18:00:00",
+                        "usage_date": "2026-06-04",
+                        "values": {"gpt-a": 4.2, "gpt-b": 0.5},
+                    }
+                ],
+            }
+        },
+    }
+    cards = compute_performance_insights(token_metrics=token_metrics)
+    assert any(c.id == "perf_cache_low" for c in cards)
+
+
+def test_performance_latency_and_requests():
+    token_metrics = {
+        "available": True,
+        "metrics": {
+            "avg_latency": {
+                "metric_name": "avg_latency",
+                "unit": "ms",
+                "models": ["m1", "m2"],
+                "points": [
+                    {
+                        "recorded_at": "2026-06-04 18:00:00",
+                        "usage_date": "2026-06-04",
+                        "values": {"m1": 45_000, "m2": 5_000},
+                    }
+                ],
+            },
+            "model_requests": {
+                "metric_name": "model_requests",
+                "unit": "count",
+                "models": ["m1", "m2"],
+                "points": [
+                    {
+                        "recorded_at": "2026-06-04 18:00:00",
+                        "usage_date": "2026-06-04",
+                        "values": {"m1": 800, "m2": 200},
+                    }
+                ],
+            },
+        },
+    }
+    cards = compute_performance_insights(token_metrics=token_metrics)
+    assert any(c.id == "perf_latency_spread" for c in cards)
+    assert any(c.id == "perf_request_mix" for c in cards)
+
+
+def test_token_insights_include_performance():
+    payload = {
+        "points": [{"date": "2026-01-01", "input_tokens": 100, "output_tokens": 50}],
+        "daily_by_model": [{"date": "2026-01-01", "model_name": "m1", "cost_usd": 10}],
+        "_cost_meta": {"row_count": 10, "rows_meter_matched": 10, "rows_meter_partial": 0},
+        "token_data_source": "imported",
+        "token_metrics": {
+            "available": True,
+            "metrics": {
+                "model_requests": {
+                    "metric_name": "model_requests",
+                    "unit": "count",
+                    "models": ["m1"],
+                    "points": [
+                        {
+                            "recorded_at": "2026-06-04 18:00:00",
+                            "usage_date": "2026-06-04",
+                            "values": {"m1": 100},
+                        }
+                    ],
+                }
+            },
+        },
+    }
+    cards = compute_token_insights(project="p1", payload=payload)
+    assert any(c.id.startswith("perf_") for c in cards)
 
 
 def test_insight_cards_to_dicts_roundtrip():

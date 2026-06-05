@@ -49,6 +49,7 @@ from .db import (
     update_price_source_catalog_row,
     upsert_project_model_config,
 )
+from .import_listing import count_all_ingested_files, list_all_ingested_files
 from .ingest import ingest_all, ingest_selected, list_ingested_files, list_missing_files, verify_ingested_files
 from .token_ingest import (
     ingest_token_all,
@@ -68,6 +69,7 @@ from .auth import authenticate_user, require_active_user
 from .cost_pipeline import COST_PIPELINE_VERSION, cost_debug_enabled, summarize_daily_cost_rows
 from .insights import (
     compute_cost_insights,
+    compute_performance_insights,
     compute_report_insights,
     compute_token_insights,
     insight_cards_to_dicts,
@@ -695,6 +697,12 @@ def create_app(
                 start_date=start_date,
                 end_date=end_date,
             )
+            payload["performance_insights"] = insight_cards_to_dicts(
+                compute_performance_insights(
+                    token_metrics=payload["token_metrics"],
+                    daily_by_model=daily_by_model if token_data_source == "imported" else None,
+                )
+            )
             payload["insights"] = insight_cards_to_dicts(
                 compute_token_insights(
                     project=project_name,
@@ -877,6 +885,10 @@ def create_app(
                     "billing_rows_updated": billing_result.rows_updated,
                     "token_rows_ingested": token_result.rows_ingested,
                     "token_metric_rows_ingested": metric_result.rows_ingested,
+                    "token_metric_files_failed": metric_result.files_failed,
+                    "token_metric_errors": [
+                        {"file_path_rel": path, "error": err} for path, err in metric_result.errors
+                    ],
                     "price_source_catalog": _price_source_catalog_snapshot(),
                 }
             )
@@ -998,18 +1010,26 @@ def create_app(
 
     @app.get("/api/import/ingested-files")
     def api_ingested_files(
-        limit: int = Query(default=50, ge=1, le=200),
+        limit: int = Query(default=2000, ge=1, le=5000),
+        offset: int = Query(default=0, ge=0),
         _: str = Depends(_auth_dep),
     ) -> JSONResponse:
-        billing = list_ingested_files(db_path=db_path, limit=limit)
-        token = list_ingested_token_files(db_path=db_path, limit=limit)
-        token_metrics = list_ingested_token_metric_files(db_path=db_path, limit=limit)
-        files = sorted(
-            [*billing, *token, *token_metrics],
-            key=lambda x: str(x.get("ingested_at") or ""),
-            reverse=True,
-        )[:limit]
-        return JSONResponse({"limit": limit, "files": files})
+        counts = count_all_ingested_files(db_path)
+        files = list_all_ingested_files(db_path, limit=limit, offset=offset)
+        return JSONResponse(
+            {
+                "limit": limit,
+                "offset": offset,
+                "total_count": counts["total"],
+                "shown_count": len(files),
+                "counts_by_kind": {
+                    "billing": counts["billing"],
+                    "token": counts["token"],
+                    "token_metric": counts["token_metric"],
+                },
+                "files": files,
+            }
+        )
 
     @app.get("/api/reports/all-financial")
     def api_all_financial_reports(

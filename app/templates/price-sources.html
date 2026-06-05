@@ -39,16 +39,16 @@
             <div class="psToolbar">
               <button id="refreshBtn" type="button" class="btnSecondary">Reload</button>
             </div>
-            <div class="pricingTableShell dashTableShell">
-              <table class="dataTable dashTable">
+            <div class="pricingTableShell dashTableShell" data-table-host>
+              <table class="dataTable dashTable" id="priceSourcesTable">
                 <thead>
                   <tr>
-                    <th>Title</th>
-                    <th>Key</th>
-                    <th>Reference URL</th>
-                    <th>API URL</th>
-                    <th>Notes</th>
-                    <th style="width: 88px" class="colAction">Edit</th>
+                    <th data-sortable data-sort-type="text" scope="col"><span class="thLabel">Title</span></th>
+                    <th data-sortable data-sort-type="text" scope="col"><span class="thLabel">Key</span></th>
+                    <th data-sortable data-sort-type="text" scope="col"><span class="thLabel">Reference URL</span></th>
+                    <th data-sortable data-sort-type="text" scope="col"><span class="thLabel">API URL</span></th>
+                    <th data-sortable data-sort-type="text" scope="col"><span class="thLabel">Notes</span></th>
+                    <th style="width: 88px" class="colAction" scope="col"><span class="thLabel">Edit</span></th>
                   </tr>
                 </thead>
                 <tbody id="srcTbody"></tbody>
@@ -90,6 +90,7 @@
 
     <script src="/static/js/app-shell.js"></script>
     <script src="/static/js/http.js"></script>
+    <script src="/static/js/dashboard-ui.js"></script>
     <script src="/static/js/pages/price-sources.js"></script>
   </body>
 </html>

@@ -48,15 +48,15 @@
           </div>
         </div>
 
-        <div class="tableScroll dashTableShell">
-          <table class="dashTable">
+        <div class="tableScroll dashTableShell" data-table-host id="missingTableHost">
+          <table class="dashTable" id="missingFilesTable">
             <thead>
               <tr>
-                <th style="width:56px; text-align:center;">Pick</th>
-                <th style="width:90px;">Type</th>
-                <th style="width:180px;">Project</th>
-                <th>File</th>
-                <th style="width:200px;">Last Modified</th>
+                <th style="width:56px; text-align:center;" scope="col"><span class="thLabel">Pick</span></th>
+                <th style="width:90px;" data-sortable data-sort-type="text" scope="col"><span class="thLabel">Type</span></th>
+                <th style="width:180px;" data-sortable data-sort-type="text" scope="col"><span class="thLabel">Project</span></th>
+                <th data-sortable data-sort-type="text" scope="col"><span class="thLabel">File</span></th>
+                <th style="width:200px;" data-sortable data-sort-type="date" scope="col"><span class="thLabel">Last Modified</span></th>
               </tr>
             </thead>
             <tbody id="missingFilesTbody"></tbody>
@@ -64,27 +64,43 @@
         </div>
       </div>
 
-          <div class="card" style="margin-top: 14px;">
-        <div class="muted">Imported files (latest)</div>
+          <div class="card">
+        <div class="muted">Imported files</div>
         <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; margin-top:10px;">
-          <div class="muted">Count</div>
-          <div style="font-size:20px; font-weight:750;" id="ingestedCount">-</div>
+          <div>
+            <div class="muted">Total ingested</div>
+            <div style="font-size:20px; font-weight:750;" id="ingestedCount">-</div>
+            <div class="muted" id="ingestedBreakdown" style="margin-top:4px; font-size:12px;">-</div>
+            <div class="muted" id="ingestedShownNote" style="margin-top:2px; font-size:12px;">-</div>
+          </div>
           <div style="margin-left:auto;">
             <button id="verifyImportedBtn" class="btnSecondary" type="button" disabled>Verify Imported</button>
           </div>
         </div>
         <div id="verifyImportedStatus" class="muted" style="display:none; margin-top:10px;"></div>
 
-        <div class="tableScroll dashTableShell">
-          <table class="dashTable">
+        <div class="ingestedToolbar">
+          <div class="fieldInline">
+            <label class="muted" for="ingestedPageSize">Page size</label>
+            <select id="ingestedPageSize">
+              <option value="25" selected>25</option>
+              <option value="50">50</option>
+              <option value="100">100</option>
+            </select>
+          </div>
+          <div id="ingestedPagination" class="ingestedPagination" aria-label="Imported files pagination"></div>
+        </div>
+
+        <div class="tableScroll dashTableShell" data-table-host id="ingestedTableHost">
+          <table class="dashTable" id="ingestedFilesTable">
             <thead>
               <tr>
-                <th style="width:56px; text-align:center;">Verify</th>
-                <th style="width:90px;">Type</th>
-                <th style="width:180px;">Project</th>
-                <th>File</th>
-                <th style="width:120px; text-align:right;">Rows</th>
-                <th style="width:200px;">IngestedAt</th>
+                <th style="width:56px; text-align:center;" scope="col"><span class="thLabel">Verify</span></th>
+                <th style="width:90px;" scope="col"><span class="thLabel">Type</span></th>
+                <th style="width:180px;" scope="col"><span class="thLabel">Project</span></th>
+                <th scope="col"><span class="thLabel">File</span></th>
+                <th class="num" style="width:120px;" scope="col"><span class="thLabel">Rows</span><span class="thUnit">count</span></th>
+                <th class="is-sorted" aria-sort="descending" style="width:200px;" scope="col"><span class="thLabel">Ingested</span><span class="thUnit">local time</span></th>
               </tr>
             </thead>
             <tbody id="ingestedFilesTbody"></tbody>
@@ -110,6 +126,8 @@
 
       const ingestedFilesTbody = document.getElementById('ingestedFilesTbody');
       const ingestedCountEl = document.getElementById('ingestedCount');
+      const ingestedBreakdownEl = document.getElementById('ingestedBreakdown');
+      const ingestedShownNoteEl = document.getElementById('ingestedShownNote');
       const verifyImportedBtn = document.getElementById('verifyImportedBtn');
       const verifyImportedStatus = document.getElementById('verifyImportedStatus');
 
@@ -136,24 +154,118 @@
         }
       }
 
+      /** SQLite stores ingested_at as UTC without a timezone suffix. */
+      function parseUtcSqliteDatetime(value, epoch) {
+        if (epoch != null && Number.isFinite(Number(epoch))) {
+          return new Date(Number(epoch) * 1000);
+        }
+        if (!value) return null;
+        const text = String(value).trim();
+        if (!text) return null;
+        try {
+          const iso = text.includes('T') ? text : `${text.replace(' ', 'T')}Z`;
+          const d = new Date(iso);
+          return Number.isNaN(d.getTime()) ? null : d;
+        } catch (e) {
+          return null;
+        }
+      }
+
+      function fmtIngestedAt(value, epoch) {
+        const d = parseUtcSqliteDatetime(value, epoch);
+        if (!d) return value || '-';
+        return d.toLocaleString(undefined, {
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+          hour12: false,
+        });
+      }
+
       const importPageRoot = document.querySelector('.importPage.dashPage');
 
-      function setImportLoading(loading) {
+      const missingTableHost = document.getElementById('missingTableHost');
+      const ingestedTableHost = document.getElementById('ingestedTableHost');
+      const missingFilesTable = document.getElementById('missingFilesTable');
+      const ingestedFilesTable = document.getElementById('ingestedFilesTable');
+      const ingestedPaginationEl = document.getElementById('ingestedPagination');
+      const ingestedPageSizeSelect = document.getElementById('ingestedPageSize');
+
+      let ingestedPage = 1;
+      let ingestedTotal = 0;
+
+      function ingestedPageSize() {
+        const v = Number(ingestedPageSizeSelect && ingestedPageSizeSelect.value);
+        return Number.isFinite(v) && v > 0 ? v : 25;
+      }
+
+      function ingestedTotalPages() {
+        return Math.max(1, Math.ceil(ingestedTotal / ingestedPageSize()));
+      }
+
+      function renderIngestedPagination() {
+        if (!ingestedPaginationEl) return;
+        const ps = ingestedPageSize();
+        const tp = ingestedTotalPages();
+        const from = ingestedTotal === 0 ? 0 : (ingestedPage - 1) * ps + 1;
+        const to = Math.min(ingestedTotal, ingestedPage * ps);
+        ingestedPaginationEl.innerHTML = '';
+
+        const info = document.createElement('span');
+        info.className = 'pgInfo';
+        info.textContent = `Showing ${from}–${to} of ${ingestedTotal} (newest first)`;
+        ingestedPaginationEl.appendChild(info);
+
+        const prev = document.createElement('button');
+        prev.type = 'button';
+        prev.className = 'pgBtn';
+        prev.textContent = 'Previous';
+        prev.disabled = ingestedPage <= 1;
+        prev.addEventListener('click', () => {
+          if (ingestedPage > 1) {
+            ingestedPage -= 1;
+            loadIngestedFiles({ withOverlay: true }).catch((e) => console.error(e));
+          }
+        });
+
+        const next = document.createElement('button');
+        next.type = 'button';
+        next.className = 'pgBtn';
+        next.textContent = 'Next';
+        next.disabled = ingestedPage >= tp;
+        next.addEventListener('click', () => {
+          if (ingestedPage < tp) {
+            ingestedPage += 1;
+            loadIngestedFiles({ withOverlay: true }).catch((e) => console.error(e));
+          }
+        });
+
+        ingestedPaginationEl.appendChild(prev);
+        ingestedPaginationEl.appendChild(next);
+      }
+
+      function setImportLoading(loading, { activeBtn = importBtn, btnLabel = 'Import Selected', btnLoadingLabel = 'Importing…' } = {}) {
         window.AppDashboardUi?.setPageLoading?.({
           loading,
-          loadBtn: importBtn,
-          loadBtnLabel: 'Import Selected',
-          loadBtnLoadingLabel: 'Importing…',
+          loadBtn: activeBtn,
+          loadBtnLabel: btnLabel,
+          loadBtnLoadingLabel: btnLoadingLabel,
           pageRoot: importPageRoot,
-          disableEls: [refreshBtn, verifyImportedBtn],
+          disableEls: [importBtn, refreshBtn, verifyImportedBtn],
         });
-        if (!loading) refreshBtn.disabled = false;
+        window.AppDashboardUi?.setTableLoading?.({
+          loading,
+          tableHosts: [missingTableHost, ingestedTableHost],
+        });
       }
 
       async function loadMissingFiles() {
+        setImportLoading(true, { activeBtn: refreshBtn, btnLabel: 'Refresh', btnLoadingLabel: 'Loading…' });
         importStatus.textContent = 'Loading...';
-        refreshBtn.classList.add('is-loading');
-        refreshBtn.disabled = true;
+        try {
         const data = await window.AppHttp.getJson('/api/import/missing-files');
         const missing = (window.AppDashboardUi?.sortByDateDesc?.(data.missing_files || [], {
           dateKey: 'source_last_modified',
@@ -174,7 +286,7 @@
             </td>
             <td>${fmtKind(f)}</td>
             <td>${f.project_name}</td>
-            <td class="cellFile">${f.file_path_rel}</td>
+            <td class="cellFile" title="${String(f.file_path_rel || '').replace(/"/g, '&quot;')}">${f.file_path_rel}</td>
             <td>${fmtTs(f.source_last_modified)}</td>
           `;
           missingFilesTbody.appendChild(tr);
@@ -183,8 +295,13 @@
         const empty = missing.length === 0;
         importBtn.disabled = empty || selectedFiles.size === 0;
         importStatus.textContent = empty ? 'Up to date' : 'Ready';
-        refreshBtn.classList.remove('is-loading');
-        refreshBtn.disabled = false;
+        window.AppDashboardUi?.applyTruncationTitles?.(missingFilesTbody);
+        } catch (e) {
+          console.error(e);
+          importStatus.textContent = 'Failed to load missing files';
+        } finally {
+          setImportLoading(false);
+        }
       }
 
       async function runImport() {
@@ -201,13 +318,21 @@
             reimport_changed: false,
             file_path_rels: chosen,
           });
+          const metricN = data.token_metric_files_ingested ?? 0;
+          const metricFail = data.token_metric_files_failed ?? 0;
+          const metricErrs = Array.isArray(data.token_metric_errors) ? data.token_metric_errors : [];
           if (data?.verification_passed) {
             const billingN = data.billing_files_ingested ?? 0;
             const tokenN = data.token_files_ingested ?? 0;
-            importStatus.textContent = `Imported: ${data.files_ingested} file(s) (billing ${billingN}, token ${tokenN}), ${data.rows_ingested} row(s) total (billing: ${data.billing_rows_inserted ?? 0} inserted, ${data.billing_rows_updated ?? 0} updated). Verified: ${data.files_verified} file(s).`;
+            importStatus.textContent = `Imported: ${data.files_ingested} file(s) (billing ${billingN}, token ${tokenN}, metrics ${metricN}), ${data.rows_ingested} row(s) total (billing: ${data.billing_rows_inserted ?? 0} inserted, ${data.billing_rows_updated ?? 0} updated). Verified: ${data.files_verified} file(s).`;
           } else {
-            const err = data?.import_error ? String(data.import_error) : 'Unknown verification error';
-            importStatus.textContent = `Audit failed: ${err}`;
+            const err = data?.import_error
+              ? String(data.import_error)
+              : metricErrs.length
+                ? metricErrs.map((e) => `${e.file_path_rel}: ${e.error}`).join(' · ')
+                : 'Unknown verification error';
+            const partial = (data.files_ingested ?? 0) > 0 ? ` Partial: ${data.files_ingested} file(s) imported (metrics ${metricN}, failed ${metricFail}).` : '';
+            importStatus.textContent = `Audit failed: ${err}.${partial}`;
           }
         } catch (e) {
           console.error(e);
@@ -215,6 +340,7 @@
         } finally {
           setImportLoading(false);
           selectedFiles.clear();
+          ingestedPage = 1;
           await loadMissingFiles();
           bindPickEvents();
           await loadIngestedFiles();
@@ -262,20 +388,42 @@
         }
       }
 
-      async function loadIngestedFiles() {
+      async function loadIngestedFiles({ withOverlay = false } = {}) {
+        if (withOverlay) {
+          window.AppDashboardUi?.setTableLoading?.({
+            loading: true,
+            tableHosts: [ingestedTableHost],
+          });
+        }
         try {
-          const data = await window.AppHttp.getJson('/api/import/ingested-files?limit=50');
-          const files = (window.AppDashboardUi?.sortByDateDesc?.(data.files || [], {
-            dateKey: 'ingested_at',
-          }) || (data.files || []).slice().sort(
-            (a, b) => String(b.ingested_at || '').localeCompare(String(a.ingested_at || ''))
-          ));
+          const limit = ingestedPageSize();
+          const offset = (ingestedPage - 1) * limit;
+          const data = await window.AppHttp.getJson(
+            `/api/import/ingested-files?limit=${limit}&offset=${offset}`
+          );
+          const files = data.files || [];
+          ingestedTotal = Number(data.total_count ?? files.length);
+          const byKind = data.counts_by_kind || {};
+          const tp = ingestedTotalPages();
+          if (ingestedTotal > 0 && ingestedPage > tp) {
+            ingestedPage = tp;
+            return loadIngestedFiles({ withOverlay });
+          }
 
-          ingestedCountEl.textContent = String(files.length);
+          ingestedCountEl.textContent = String(ingestedTotal);
+          if (ingestedBreakdownEl) {
+            ingestedBreakdownEl.textContent =
+              `billing ${byKind.billing ?? 0} · token ${byKind.token ?? 0} · metrics ${byKind.token_metric ?? 0}`;
+          }
+          if (ingestedShownNoteEl) {
+            ingestedShownNoteEl.textContent = 'Sorted by ingest time (newest first, local timezone)';
+          }
           selectedVerifyFiles.clear();
           if (verifyImportedBtn) verifyImportedBtn.disabled = selectedVerifyFiles.size === 0 || files.length === 0;
           ingestedFilesTbody.innerHTML = '';
           for (const f of files) {
+            const ingestedLabel = fmtIngestedAt(f.ingested_at, f.ingested_at_epoch);
+            const ingestedEpoch = f.ingested_at_epoch ?? '';
             const tr = document.createElement('tr');
             tr.innerHTML = `
               <td style="text-align:center;">
@@ -283,15 +431,27 @@
               </td>
               <td>${fmtKind(f)}</td>
               <td>${f.project_name}</td>
-              <td class="cellFile">${f.file_path_rel}</td>
-              <td style="text-align:right;">${f.row_count}</td>
-              <td>${f.ingested_at ?? ''}</td>
+              <td class="cellFile" title="${String(f.file_path_rel || '').replace(/"/g, '&quot;')}">${f.file_path_rel}</td>
+              <td class="num">${f.row_count}</td>
+              <td title="${String(ingestedLabel).replace(/"/g, '&quot;')}">${ingestedLabel}</td>
             `;
+            if (ingestedEpoch !== '') {
+              tr.querySelector('td:last-child').dataset.sortValue = String(ingestedEpoch);
+            }
             ingestedFilesTbody.appendChild(tr);
           }
           bindVerifyPickEvents();
+          window.AppDashboardUi?.applyTruncationTitles?.(ingestedFilesTbody);
+          renderIngestedPagination();
         } catch (e) {
           console.error(e);
+        } finally {
+          if (withOverlay) {
+            window.AppDashboardUi?.setTableLoading?.({
+              loading: false,
+              tableHosts: [ingestedTableHost],
+            });
+          }
         }
       }
 
@@ -322,9 +482,17 @@
       async function refreshAll() {
         selectedFiles.clear();
         selectedVerifyFiles.clear();
+        ingestedPage = 1;
         await loadMissingFiles();
         bindPickEvents();
-        await loadIngestedFiles();
+        await loadIngestedFiles({ withOverlay: true });
+      }
+
+      if (ingestedPageSizeSelect) {
+        ingestedPageSizeSelect.addEventListener('change', () => {
+          ingestedPage = 1;
+          loadIngestedFiles({ withOverlay: true }).catch((e) => console.error(e));
+        });
       }
 
       importBtn.addEventListener('click', () => runImport());
@@ -335,6 +503,8 @@
         refreshBtn.addEventListener('click', () => refreshAll().catch((e) => console.error(e)));
       }
 
+      window.AppDashboardUi?.makeSortableTable?.(missingFilesTable);
+
       loadMissingFiles()
         .then(() => {
           bindPickEvents();
@@ -343,6 +513,7 @@
         .catch((e) => {
         console.error(e);
         importStatus.textContent = 'Failed to load missing files';
+        setImportLoading(false);
       });
 
       const logoutBtn = document.getElementById('logoutBtn');

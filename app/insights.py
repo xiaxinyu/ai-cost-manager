@@ -456,6 +456,218 @@ def compute_cost_insights(
     return cards[:7]
 
 
+def _latest_metric_point(metric: dict[str, Any] | None) -> dict[str, Any] | None:
+    if not metric:
+        return None
+    pts = metric.get("points") or []
+    return pts[0] if pts else None
+
+
+def _metric_model_values(point: dict[str, Any] | None) -> dict[str, float]:
+    if not point:
+        return {}
+    out: dict[str, float] = {}
+    for k, v in (point.get("values") or {}).items():
+        fv = _safe_float(v)
+        if fv is not None:
+            out[str(k)] = fv
+    return out
+
+
+def _perf_cache_insight(token_metrics: dict[str, Any] | None) -> InsightCard | None:
+    if not token_metrics or token_metrics.get("available") is not True:
+        return None
+    cache = (token_metrics.get("metrics") or {}).get("cache_match_rate")
+    latest = _latest_metric_point(cache)
+    vals = _metric_model_values(latest)
+    if not vals:
+        return None
+    ranked = sorted(vals.items(), key=lambda x: x[1], reverse=True)
+    best_model, best_pct = ranked[0]
+    worst_model, worst_pct = ranked[-1]
+    active = [m for m, v in vals.items() if v > 0]
+    if not active:
+        return InsightCard(
+            id="perf_cache_zero",
+            category="quality",
+            severity="watch",
+            title="Cache match rate at zero",
+            summary=(
+                f"Latest bucket ({latest.get('usage_date') or '—'}): all models report 0% cache match. "
+                "Prompt caching may be unused or not exported in metrics."
+            ),
+            metrics={"usage_date": latest.get("usage_date"), "models": list(vals.keys())},
+            recommendation="Review prompt design for cacheable prefixes; confirm metrics CSV covers cached tokens.",
+        )
+    if best_pct < 5.0:
+        return InsightCard(
+            id="perf_cache_low",
+            category="quality",
+            severity="watch",
+            title="Low cache match rate",
+            summary=(
+                f"Latest: best {best_model} at {best_pct:.2f}% · lowest {worst_model} at {worst_pct:.2f}%. "
+                "Caching headroom may reduce input-token cost."
+            ),
+            metrics={"best_model": best_model, "best_pct": best_pct, "worst_pct": worst_pct},
+            recommendation="Stabilize system prompts and reuse context blocks to lift cache hit rate.",
+        )
+    return InsightCard(
+        id="perf_cache_leader",
+        category="quality",
+        severity="info",
+        title="Cache match leader",
+        summary=(
+            f"Latest: {best_model} leads at {best_pct:.2f}% · spread to {worst_model} ({worst_pct:.2f}%)."
+        ),
+        metrics={"best_model": best_model, "best_pct": best_pct, "worst_model": worst_model, "worst_pct": worst_pct},
+    )
+
+
+def _perf_latency_insight(token_metrics: dict[str, Any] | None) -> InsightCard | None:
+    if not token_metrics or token_metrics.get("available") is not True:
+        return None
+    lat = (token_metrics.get("metrics") or {}).get("avg_latency")
+    latest = _latest_metric_point(lat)
+    vals = _metric_model_values(latest)
+    active = {m: v for m, v in vals.items() if v > 0}
+    if not active:
+        return None
+    ranked = sorted(active.items(), key=lambda x: x[1], reverse=True)
+    slow_model, slow_ms = ranked[0]
+    fast_model, fast_ms = ranked[-1]
+    severity = "watch" if slow_ms >= 30_000 else "info"
+    ratio = slow_ms / fast_ms if fast_ms > 0 else None
+    ratio_txt = f" · {ratio:.1f}× vs fastest ({fast_model})" if ratio and ratio > 1.5 else ""
+    return InsightCard(
+        id="perf_latency_spread",
+        category="quality",
+        severity=severity,
+        title="Latency spread by model",
+        summary=(
+            f"Latest avg latency: {slow_model} {slow_ms:,.0f} ms (slowest){ratio_txt} · "
+            f"fastest {fast_model} {fast_ms:,.0f} ms."
+        ),
+        metrics={"slow_model": slow_model, "slow_ms": slow_ms, "fast_model": fast_model, "fast_ms": fast_ms},
+        recommendation="Shift latency-sensitive traffic toward faster models when quality allows.",
+    )
+
+
+def _perf_requests_insight(token_metrics: dict[str, Any] | None) -> InsightCard | None:
+    if not token_metrics or token_metrics.get("available") is not True:
+        return None
+    req = (token_metrics.get("metrics") or {}).get("model_requests")
+    latest = _latest_metric_point(req)
+    vals = _metric_model_values(latest)
+    total = sum(vals.values())
+    if total <= 0:
+        return None
+    ranked = sorted(vals.items(), key=lambda x: x[1], reverse=True)
+    top_model, top_n = ranked[0]
+    share = top_n / total * 100.0
+    severity = "watch" if share >= 70 and len(ranked) > 1 else "info"
+    others = ", ".join(f"{m} {n:,.0f}" for m, n in ranked[1:3])
+    tail = f" · also {others}" if others else ""
+    return InsightCard(
+        id="perf_request_mix",
+        category="trend",
+        severity=severity,
+        title="Request volume concentration",
+        summary=(
+            f"Latest bucket: {top_model} {top_n:,.0f} requests ({share:.0f}% of {total:,.0f} total){tail}."
+        ),
+        metrics={"top_model": top_model, "top_share_pct": round(share, 1), "total_requests": total},
+        recommendation="High concentration increases blast radius — validate capacity and fallback models.",
+    )
+
+
+def _perf_cost_link_insight(
+    token_metrics: dict[str, Any] | None,
+    daily_by_model: list[dict[str, Any]] | None,
+) -> InsightCard | None:
+    """Link high-traffic models to token cost share when both datasets exist."""
+    if not token_metrics or token_metrics.get("available") is not True:
+        return None
+    req = (token_metrics.get("metrics") or {}).get("model_requests")
+    latest = _latest_metric_point(req)
+    req_vals = _metric_model_values(latest)
+    if not req_vals or not daily_by_model:
+        return None
+    by_model_cost: dict[str, float] = {}
+    for row in daily_by_model:
+        name = str(row.get("model_name") or "")
+        if not name:
+            continue
+        cost = _safe_float(row.get("cost_usd")) or 0.0
+        by_model_cost[name] = by_model_cost.get(name, 0.0) + cost
+    if not by_model_cost:
+        return None
+    total_cost = sum(by_model_cost.values())
+    if total_cost <= 0:
+        return None
+    top_req_model = max(req_vals.items(), key=lambda x: x[1])[0]
+    req_share = req_vals[top_req_model] / sum(req_vals.values()) * 100.0
+    cost_share = by_model_cost.get(top_req_model, 0.0) / total_cost * 100.0
+    if cost_share < 1 and req_share > 40:
+        return InsightCard(
+            id="perf_cost_request_skew",
+            category="spend",
+            severity="watch",
+            title="Traffic vs spend mismatch",
+            summary=(
+                f"{top_req_model} drives {req_share:.0f}% of latest requests but only "
+                f"{cost_share:.0f}% of meter cost in range — check token mix and pricing tier."
+            ),
+            metrics={
+                "model": top_req_model,
+                "request_share_pct": round(req_share, 1),
+                "cost_share_pct": round(cost_share, 1),
+            },
+        )
+    top_cost_model = max(by_model_cost.items(), key=lambda x: x[1])[0]
+    if top_cost_model == top_req_model:
+        return InsightCard(
+            id="perf_cost_request_aligned",
+            category="spend",
+            severity="info",
+            title="Top traffic aligns with top spend",
+            summary=(
+                f"{top_req_model} is both the busiest model (latest requests) and largest cost driver "
+                f"({cost_share:.0f}% of range spend) — optimize here first."
+            ),
+            metrics={"model": top_req_model, "cost_share_pct": round(cost_share, 1)},
+            recommendation="Tune cache rate and latency for this model before smaller models.",
+        )
+    return InsightCard(
+        id="perf_cost_request_split",
+        category="spend",
+        severity="info",
+        title="Cost vs traffic split",
+        summary=(
+            f"Latest requests peak on {top_req_model} ({req_share:.0f}%) but spend leader is "
+            f"{top_cost_model} ({by_model_cost[top_cost_model] / total_cost * 100:.0f}% of cost)."
+        ),
+        metrics={
+            "top_request_model": top_req_model,
+            "top_cost_model": top_cost_model,
+        },
+        recommendation="Compare $/1M and output ratio between these models when rightsizing.",
+    )
+
+
+def compute_performance_insights(
+    *,
+    token_metrics: dict[str, Any] | None,
+    daily_by_model: list[dict[str, Any]] | None = None,
+) -> list[InsightCard]:
+    cards: list[InsightCard] = []
+    _append(cards, _perf_cache_insight(token_metrics))
+    _append(cards, _perf_latency_insight(token_metrics))
+    _append(cards, _perf_requests_insight(token_metrics))
+    _append(cards, _perf_cost_link_insight(token_metrics, daily_by_model))
+    return cards[:4]
+
+
 def compute_token_insights(
     *,
     project: str,
@@ -467,6 +679,7 @@ def compute_token_insights(
     daily_by_model = payload.get("daily_by_model") or []
     cost_meta = payload.get("_cost_meta")
     token_source = payload.get("token_data_source")
+    token_metrics = payload.get("token_metrics")
 
     _append(cards, _meter_coverage_insight(cost_meta))
     _append(
@@ -481,8 +694,13 @@ def compute_token_insights(
     _append(cards, _unit_price_drift_insight(daily_by_model))
     _append(cards, _market_variance_insight(catalog_market))
     _append(cards, _unpriced_models_insight(catalog_market))
+    for perf in compute_performance_insights(
+        token_metrics=token_metrics if isinstance(token_metrics, dict) else None,
+        daily_by_model=daily_by_model,
+    ):
+        _append(cards, perf)
 
-    return cards[:7]
+    return cards[:9]
 
 
 def compute_report_insights(report: dict[str, Any]) -> list[InsightCard]:

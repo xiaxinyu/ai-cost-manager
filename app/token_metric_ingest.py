@@ -37,7 +37,9 @@ class TokenMetricIngestResult:
     rows_ingested: int
     rows_replaced: int
     files_verified: int
+    files_failed: int
     verification_passed: bool
+    errors: tuple[tuple[str, str], ...] = ()
 
 
 @dataclass(frozen=True)
@@ -84,7 +86,10 @@ def _parse_recorded_at(raw_time: str) -> tuple[str, str]:
 
 
 _PCT_RE = re.compile(r"^\s*([+-]?\d+(?:\.\d+)?)\s*%\s*$")
-_LAT_RE = re.compile(r"^\s*([+-]?\d+(?:\.\d+)?)\s*(ms|s)\s*$", re.IGNORECASE)
+_LAT_RE = re.compile(
+    r"^\s*([+-]?\d+(?:\.\d+)?)\s*(ms|s|mins?|minutes?|hrs?|hours?)\s*$",
+    re.IGNORECASE,
+)
 
 _COUNT_SUFFIX_MULTIPLIERS: dict[str, float] = {
     "k": 1_000.0,
@@ -110,9 +115,13 @@ def _parse_metric_value(raw: Any, *, metric_name: str) -> tuple[float, str]:
     m = _LAT_RE.match(s)
     if m:
         v = float(m.group(1))
-        unit = m.group(2).lower()
+        unit = m.group(2).lower().rstrip(".")
         if unit == "s":
             return v * 1000.0, "ms"
+        if unit in {"min", "mins", "minute", "minutes"}:
+            return v * 60_000.0, "ms"
+        if unit in {"h", "hr", "hrs", "hour", "hours"}:
+            return v * 3_600_000.0, "ms"
         return v, "ms"
 
     # Count-like values (e.g. "3.61 K", "935 K", plain integer)
@@ -401,7 +410,9 @@ def ingest_token_metric_selected(
         rows_ingested = 0
         rows_replaced = 0
         files_verified = 0
+        files_failed = 0
         verification_passed = True
+        errors: list[tuple[str, str]] = []
         projects: set[str] = set()
 
         for project_name, csv_path_abs, file_path_rel, metric_name in files:
@@ -430,9 +441,11 @@ def ingest_token_metric_selected(
                     metric_name=metric_name,
                     reimport_changed=reimport_changed,
                 )
-            except Exception:
+            except Exception as e:
                 verification_passed = False
-                raise
+                files_failed += 1
+                errors.append((file_path_rel, str(e)))
+                continue
 
             if not ingested:
                 files_skipped += 1
@@ -451,7 +464,9 @@ def ingest_token_metric_selected(
             rows_ingested=rows_ingested,
             rows_replaced=rows_replaced,
             files_verified=files_verified,
+            files_failed=files_failed,
             verification_passed=verification_passed,
+            errors=tuple(errors),
         )
     finally:
         conn.close()

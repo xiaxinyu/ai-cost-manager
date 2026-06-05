@@ -3,7 +3,13 @@ from __future__ import annotations
 import sqlite3
 
 from app.db import init_db
-from app.token_metric_ingest import ingest_token_metric_all
+from app.token_metric_ingest import _parse_metric_value, ingest_token_metric_all
+
+
+def test_parse_latency_mins_to_ms():
+    v, unit = _parse_metric_value("1.29 mins", metric_name="avg_latency")
+    assert unit == "ms"
+    assert abs(v - 77_400.0) < 1e-6
 
 
 def test_token_metric_ingest_upsert_and_repeat_import(tmp_path):

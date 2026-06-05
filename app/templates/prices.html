@@ -38,7 +38,7 @@
             </div>
           </div>
 
-          <div class="card">
+          <div class="card filterCard opsFilterCard" data-filter-root>
             <div class="toolbarRow">
               <div class="field fieldCompact">
                 <label class="muted" for="vendorSelect">Vendor</label>
@@ -69,24 +69,24 @@
             <div id="summary" class="toolbarSummary muted"></div>
           </div>
 
-          <div class="pricingTableShell dashTableShell" id="pricingTableShell">
-            <table class="dataTable dashTable">
+          <div class="pricingTableShell dashTableShell" id="pricingTableShell" data-table-host>
+            <table class="dataTable dashTable" id="pricesTable">
               <thead>
                 <tr>
-                  <th class="num colRowNum" scope="col">#</th>
-                  <th>Item</th>
-                  <th>Scope</th>
-                  <th>Mode</th>
-                  <th>Metric</th>
-                  <th>Region</th>
-                  <th>Currency</th>
-                  <th class="num">Amount</th>
-                  <th>Unit</th>
-                  <th>Series</th>
-                  <th>Platform</th>
-                  <th>Vendor</th>
-                  <th>Effective Date</th>
-                  <th class="colDetail">Details</th>
+                  <th class="num colRowNum" scope="col"><span class="thLabel">#</span></th>
+                  <th data-sortable data-sort-type="text" scope="col"><span class="thLabel">Item</span></th>
+                  <th data-sortable data-sort-type="text" scope="col"><span class="thLabel">Scope</span></th>
+                  <th data-sortable data-sort-type="text" scope="col"><span class="thLabel">Mode</span></th>
+                  <th data-sortable data-sort-type="text" scope="col"><span class="thLabel">Metric</span></th>
+                  <th data-sortable data-sort-type="text" scope="col"><span class="thLabel">Region</span></th>
+                  <th data-sortable data-sort-type="text" scope="col"><span class="thLabel">Currency</span></th>
+                  <th class="num" data-sortable data-sort-type="number" scope="col"><span class="thLabel">Amount</span><span class="thUnit">value</span></th>
+                  <th data-sortable data-sort-type="text" scope="col"><span class="thLabel">Unit</span></th>
+                  <th data-sortable data-sort-type="text" scope="col"><span class="thLabel">Series</span></th>
+                  <th data-sortable data-sort-type="text" scope="col"><span class="thLabel">Platform</span></th>
+                  <th data-sortable data-sort-type="text" scope="col"><span class="thLabel">Vendor</span></th>
+                  <th data-sortable data-sort-type="date" scope="col"><span class="thLabel">Effective Date</span></th>
+                  <th class="colDetail" scope="col"><span class="thLabel">Details</span></th>
                 </tr>
               </thead>
               <tbody id="tbody"></tbody>
@@ -143,6 +143,7 @@
 
     <script src="/static/js/app-shell.js"></script>
     <script src="/static/js/http.js"></script>
+    <script src="/static/js/dashboard-ui.js"></script>
     <script src="/static/js/pages/prices.js"></script>
   </body>
 </html>

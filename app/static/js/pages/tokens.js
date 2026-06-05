@@ -60,6 +60,10 @@
     dailyPageInfo: document.getElementById("dailyPageInfo"),
     exportBtn: document.getElementById("exportTokensBtn"),
     perfRowsTbody: document.getElementById("perfRowsTbody"),
+    perfRowsTfoot: document.getElementById("perfRowsTfoot"),
+    perfFootMetricCount: document.getElementById("perfFootMetricCount"),
+    perfFootRowNote: document.getElementById("perfFootRowNote"),
+    perfRowsTable: document.getElementById("perfRowsTable"),
   };
 
   let tokenInputChart = null;
@@ -106,72 +110,208 @@
     };
   }
 
+  let perfModelColorMap = {};
+  let perfHiddenModels = new Set();
+  let perfHighlightKey = null;
+
+  function escHtml(s) {
+    return String(s ?? "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
   function _metricChartUnitLabel(unit) {
     if (unit === "pct") return "%";
     if (unit === "ms") return "ms";
     return "count";
   }
 
-  function _metricSeriesToChart(metric) {
-    const pts = [...(metric?.points || [])].slice().reverse(); // chart oldest -> newest
-    const models = metric?.models || [];
-    const labels = pts.map((p) => String(p.usage_date || "").slice(5));
-    const datasets = models.map((name, i) => {
-      const col = window.AppCostSemantics?.chartDataset?.("actual", i) || {};
-      return {
-        label: name,
-        data: pts.map((p) => Number(p?.values?.[name] ?? 0)),
-        borderColor: col.borderColor || C.actual,
-        backgroundColor: col.backgroundColor || "rgba(94,234,212,0.16)",
-        tension: 0.22,
-        pointRadius: 0,
-        pointHoverRadius: 3,
-        borderWidth: 2,
-        fill: false,
-      };
-    });
-    return { labels, datasets };
+  function _fmtPerfValue(v, unit) {
+    const n = Number(v);
+    if (!Number.isFinite(n)) return "—";
+    if (unit === "pct") return `${n.toLocaleString(undefined, { maximumFractionDigits: 2 })}%`;
+    if (unit === "ms") {
+      if (n >= 60_000) return `${(n / 60_000).toFixed(2)} min`;
+      if (n >= 1000) return `${(n / 1000).toFixed(2)} s`;
+      return `${Math.round(n)} ms`;
+    }
+    if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(2)}M`;
+    if (n >= 1000) return `${(n / 1000).toFixed(2)}K`;
+    return Math.round(n).toLocaleString();
   }
 
-  function renderPerfCharts(series) {
-    const metricRoot = series?.token_metrics;
+  function _collectPerfModels(metricRoot) {
+    const models = new Set();
     const metrics = metricRoot?.metrics || {};
-    const cache = metrics.cache_match_rate;
-    const lat = metrics.avg_latency;
-    const req = metrics.model_requests;
+    for (const m of Object.values(metrics)) {
+      for (const name of m.models || []) models.add(String(name));
+    }
+    return [...models].sort();
+  }
 
+  function _buildPerfModelColorMap(models) {
+    perfModelColorMap = {};
+    models.forEach((name, i) => {
+      perfModelColorMap[name] = CHART?.modelColorAt?.(i) || { border: C.actual, bg: "rgba(94,234,212,0.16)" };
+    });
+  }
+
+  function _metricSeriesToChart(metric, modelsOrder) {
+    const pts = [...(metric?.points || [])].slice().reverse();
+    const models = modelsOrder || metric?.models || [];
+    const labels = pts.map((p) => String(p.usage_date || p.recorded_at || "").slice(0, 10));
+    const fullLabels = pts.map((p) => String(p.recorded_at || p.usage_date || ""));
+    const n = pts.length;
+    const pointRadius = CHART?.pointRadiusForCount?.(n) ?? (n <= 45 ? 3 : 0);
+    const datasets = models.map((name) => {
+      const i = modelsOrder ? modelsOrder.indexOf(name) : (metric?.models || []).indexOf(name);
+      const ds =
+        CHART?.datasetLineSeries?.({
+          label: name,
+          data: pts.map((p) => Number(p?.values?.[name] ?? 0)),
+          seriesIndex: i >= 0 ? i : 0,
+          pointRadius,
+        }) || {};
+      return { ...ds, perfModel: name, hidden: perfHiddenModels.has(name) };
+    });
+    return { labels, fullLabels, datasets, points: pts };
+  }
+
+  function _yAxisForPerfUnit(unit, datasets) {
+    const flat = (datasets || []).flatMap((ds) => ds.data || []).filter((v) => Number.isFinite(Number(v)));
+    const maxV = flat.length ? Math.max(...flat.map(Number)) : 0;
+    if (unit === "pct") {
+      const cap = maxV <= 100 ? Math.max(5, Math.ceil(maxV * 1.2)) : Math.ceil(maxV * 1.12);
+      const suggestedMax = maxV <= 100 ? Math.min(100, cap) : cap;
+      return CHART?.yAxisPct?.({ suggestedMax }) || { beginAtZero: true };
+    }
+    if (unit === "ms") return CHART?.yAxisMs?.() || { beginAtZero: true };
+    return CHART?.yAxisCount?.() || { beginAtZero: true };
+  }
+
+  function _perfLegendClick(_e, legendItem) {
+    const label = legendItem?.text;
+    if (!label || !lastPerfSeries) return;
+    if (perfHiddenModels.has(label)) perfHiddenModels.delete(label);
+    else perfHiddenModels.add(label);
+    renderPerfCharts(lastPerfSeries);
+  }
+
+  function mergeTokenInsights(series) {
+    const seen = new Set();
+    const merged = [];
+    for (const c of [...(series?.insights || []), ...(series?.performance_insights || [])]) {
+      const id = c?.id;
+      if (!id || seen.has(id)) continue;
+      seen.add(id);
+      merged.push(c);
+    }
+    return merged;
+  }
+
+  function _perfRowKey(recordedAt, metricName) {
+    return `${String(recordedAt || "")}||${String(metricName || "")}`;
+  }
+
+  function highlightPerfTableRow(key) {
+    perfHighlightKey = key || null;
+    if (!els.perfRowsTbody) return;
+    for (const tr of els.perfRowsTbody.querySelectorAll("tr[data-perf-key]")) {
+      const match = key && tr.dataset.perfKey === key;
+      tr.classList.toggle("is-perfHighlight", !!match);
+      tr.classList.toggle("is-perfDim", !!key && !match);
+    }
+    if (key) {
+      const row = els.perfRowsTbody.querySelector(`tr[data-perf-key="${CSS.escape(key)}"]`);
+      row?.scrollIntoView?.({ block: "nearest", behavior: "smooth" });
+    }
+  }
+
+  function _perfChartOptions(unit, labelCount, metricName, fullLabels, datasets) {
+    const unitType = unit === "pct" ? "pct" : unit === "ms" ? "ms" : "count";
+    return CHART?.buildSeriesLineChartOptions?.({
+      unitType,
+      labelCount,
+      yScale: _yAxisForPerfUnit(unit, datasets),
+      legendOnClick: _perfLegendClick,
+      onHover: (_ev, elements) => {
+        if (!elements?.length) {
+          highlightPerfTableRow(null);
+          return;
+        }
+        const idx = elements[0].index;
+        const recordedAt = fullLabels[idx];
+        if (recordedAt) highlightPerfTableRow(_perfRowKey(recordedAt, metricName));
+      },
+      tooltipCallbacks: {
+        title: (items) => {
+          const idx = items?.[0]?.dataIndex;
+          const full = idx != null ? fullLabels[idx] : items?.[0]?.label;
+          return CHART?.formatFullDate?.(full) || String(full || "");
+        },
+        label: (ctx) => {
+          const v = ctx.parsed?.y;
+          return `${ctx.dataset.label}: ${_fmtPerfValue(v, unit)}`;
+        },
+      },
+    }) || chartLineDefaults;
+  }
+
+  let lastPerfSeries = null;
+
+  function renderPerfCharts(series) {
+    lastPerfSeries = series;
+    const metricRoot = series?.token_metrics;
+    if (!metricRoot?.available) {
+      [cacheMatchChart, avgLatencyChart, modelRequestsChart].forEach((ch) => ch?.destroy?.());
+      cacheMatchChart = avgLatencyChart = modelRequestsChart = null;
+      return;
+    }
+    const modelsOrder = _collectPerfModels(metricRoot);
+    _buildPerfModelColorMap(modelsOrder);
+
+    const metrics = metricRoot.metrics || {};
     const charts = [
-      { key: "cache_match_rate", metric: cache, id: "cacheMatchChart", unit: "pct" },
-      { key: "avg_latency", metric: lat, id: "avgLatencyChart", unit: "ms" },
-      { key: "model_requests", metric: req, id: "modelRequestsChart", unit: "count" },
+      { key: "cache_match_rate", metric: metrics.cache_match_rate, id: "cacheMatchChart", unit: "pct" },
+      { key: "avg_latency", metric: metrics.avg_latency, id: "avgLatencyChart", unit: "ms" },
+      { key: "model_requests", metric: metrics.model_requests, id: "modelRequestsChart", unit: "count" },
     ];
 
     for (const c of charts) {
       const ctx = document.getElementById(c.id)?.getContext?.("2d");
-      if (!ctx) continue;
-      const chartData = _metricSeriesToChart(c.metric);
-      const yTitle = _metricChartUnitLabel(c.metric?.unit || c.unit);
-      const opts = {
-        ...chartLineDefaults,
-        scales: {
-          x: { ticks: { color: "rgba(226,232,240,0.75)" } },
-          y: { ticks: { color: "rgba(226,232,240,0.75)" }, title: { display: true, text: yTitle } },
-        },
-        plugins: {
-          legend: { display: true, position: "bottom" },
-          tooltip: { enabled: true },
-        },
-      };
+      if (!ctx || !c.metric?.points?.length) {
+        if (c.key === "cache_match_rate" && cacheMatchChart) cacheMatchChart.destroy();
+        if (c.key === "avg_latency" && avgLatencyChart) avgLatencyChart.destroy();
+        if (c.key === "model_requests" && modelRequestsChart) modelRequestsChart.destroy();
+        continue;
+      }
+      const chartData = _metricSeriesToChart(c.metric, modelsOrder);
+      const unit = c.metric?.unit || c.unit;
+      const opts = _perfChartOptions(
+        unit,
+        chartData.labels.length,
+        c.key,
+        chartData.fullLabels,
+        chartData.datasets
+      );
 
       if (c.key === "cache_match_rate" && cacheMatchChart) cacheMatchChart.destroy();
       if (c.key === "avg_latency" && avgLatencyChart) avgLatencyChart.destroy();
       if (c.key === "model_requests" && modelRequestsChart) modelRequestsChart.destroy();
 
-      const ch = new Chart(ctx, { type: "line", data: chartData, options: opts });
+      const ch = new Chart(ctx, {
+        type: "line",
+        data: { labels: chartData.labels, datasets: chartData.datasets },
+        options: opts,
+        plugins: [...(DASH?.crosshairPlugins?.() || [])],
+      });
       if (c.key === "cache_match_rate") cacheMatchChart = ch;
       if (c.key === "avg_latency") avgLatencyChart = ch;
       if (c.key === "model_requests") modelRequestsChart = ch;
     }
+    highlightPerfTableRow(perfHighlightKey);
   }
 
   function renderPerfTable(series) {
@@ -198,18 +338,40 @@
       els.perfRowsTbody.appendChild(tr);
       return;
     }
-    for (const r of rows.slice(0, 60)) {
+    const modelsOrder = _collectPerfModels(metricRoot);
+    _buildPerfModelColorMap(modelsOrder);
+    const shown = rows.slice(0, 80);
+    const metricKinds = new Set(shown.map((r) => r.metric_name));
+    for (const r of shown) {
       const tr = document.createElement("tr");
-      const kv = Object.entries(r.values)
-        .map(([k, v]) => `${k}: ${Number(v).toLocaleString()}${r.unit === "pct" ? "%" : r.unit === "ms" ? " ms" : ""}`)
-        .join(" · ");
+      const key = _perfRowKey(r.recorded_at, r.metric_name);
+      tr.dataset.perfKey = key;
+      tr.dataset.sortValue = String(r.recorded_at || "");
+      const chips = modelsOrder
+        .filter((name) => r.values[name] !== undefined && r.values[name] !== null)
+        .map((name) => {
+          const col = perfModelColorMap[name] || CHART?.modelColorAt?.(0);
+          const val = _fmtPerfValue(r.values[name], r.unit);
+          return `<span class="perfModelChip" title="${escHtml(name)}: ${escHtml(val)}"><span class="perfSwatch" style="background:${col.border}"></span><code class="modelId">${escHtml(name)}</code> ${escHtml(val)}</span>`;
+        })
+        .join("");
       tr.innerHTML = `
-        <td>${String(r.recorded_at || "")}</td>
-        <td>${String(r.metric_name || "").replace(/_/g, "-")}</td>
-        <td class="muted">${kv || "—"}</td>
+        <td title="${escHtml(r.recorded_at)}">${escHtml(r.recorded_at)}</td>
+        <td><code class="modelId">${escHtml(String(r.metric_name || "").replace(/_/g, "-"))}</code></td>
+        <td><div class="perfModelChips">${chips || '<span class="muted">—</span>'}</div></td>
       `;
+      tr.addEventListener("mouseenter", () => highlightPerfTableRow(key));
+      tr.addEventListener("mouseleave", () => highlightPerfTableRow(null));
       els.perfRowsTbody.appendChild(tr);
     }
+    if (els.perfRowsTfoot) {
+      els.perfRowsTfoot.hidden = !shown.length;
+      if (els.perfFootMetricCount) els.perfFootMetricCount.textContent = String(metricKinds.size);
+      if (els.perfFootRowNote) {
+        els.perfFootRowNote.textContent = `${shown.length} row(s) shown · newest first · hover chart to sync`;
+      }
+    }
+    highlightPerfTableRow(perfHighlightKey);
   }
   let lastDailyModelRows = [];
   let lastSource = "estimated";
@@ -1589,11 +1751,13 @@
       }
       applySourceUi(source, series, stats);
       updateDataStatusBar(project, stats, series);
-      window.AppInsightPanel?.render?.(els.insightPanel, series.insights || [], {
+      window.AppInsightPanel?.render?.(els.insightPanel, mergeTokenInsights(series), {
         title: "Insights",
-        limit: 5,
+        limit: 8,
       });
       try {
+        perfHiddenModels = new Set();
+        perfHighlightKey = null;
         renderPerfCharts(series);
         renderPerfTable(series);
       } catch (e) {
@@ -1810,6 +1974,8 @@
       renderModelBreakdown(lastModelBreakdown);
     });
   }
+
+  DASH?.makeSortableTable?.(els.perfRowsTable);
 
   init();
 })();

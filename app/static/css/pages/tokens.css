@@ -368,6 +368,53 @@
   grid-column: 1 / -1;
 }
 
+#perfSection .chartCanvasHostShort {
+  min-height: 248px;
+  height: clamp(248px, 30vh, 300px);
+}
+
+.perfTableShell {
+  max-height: min(52vh, 480px);
+}
+
+.perfTableShell .perfTableTotalRow th,
+.perfTableShell .perfTableTotalRow td {
+  font-weight: 750;
+}
+
+.perfModelChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+}
+
+.perfModelChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  padding: 2px 7px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(148, 163, 184, 0.14);
+}
+
+.perfModelChip .perfSwatch {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+}
+
+#perfRowsTbody tr.is-perfHighlight td {
+  background: rgba(94, 234, 212, 0.1) !important;
+  box-shadow: inset 3px 0 0 rgba(94, 234, 212, 0.55);
+}
+
+#perfRowsTbody tr.is-perfDim td {
+  opacity: 0.45;
+}
+
 .flowStepNum {
   display: inline-flex;
   align-items: center;
@@ -385,8 +432,9 @@
 
 .chartCardTitle {
   margin: 0;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 750;
+  line-height: 1.35;
   color: var(--text, #e7edf6);
 }
 

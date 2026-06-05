@@ -21,6 +21,10 @@
   const syncProbeMarketing = document.getElementById("syncProbeMarketing");
   const retailSyncRun = document.getElementById("retailSyncRun");
   const syncArmRegionSelect = document.getElementById("syncArmRegionSelect");
+  const pageRoot = document.querySelector(".pricePage.dashPage");
+  const tableHost = document.getElementById("pricingTableShell");
+  const pricesTable = document.getElementById("pricesTable");
+  const filterRoot = document.querySelector("[data-filter-root]");
 
   let currentRows = [];
   let totalMatching = 0;
@@ -57,6 +61,34 @@
       .replaceAll("<", "&lt;")
       .replaceAll(">", "&gt;")
       .replaceAll('"', "&quot;");
+  }
+
+  function th(label, unit, { className = "", sortable = false, sortType = "text" } = {}) {
+    const cls = [className, sortable ? "sortable" : ""].filter(Boolean).join(" ");
+    const sortAttrs = sortable ? ` data-sortable data-sort-type="${sortType}"` : "";
+    const unitHtml = unit ? `<span class="thUnit">${unit}</span>` : "";
+    return `<th class="${cls}"${sortAttrs} scope="col"><span class="thLabel">${label}</span>${unitHtml}</th>`;
+  }
+
+  function setPricesLoading(loading, { btn = queryBtn, btnLabel = "Query", btnLoading = "Loading…" } = {}) {
+    window.AppDashboardUi?.setPageLoading?.({
+      loading,
+      loadBtn: btn,
+      loadBtnLabel: btnLabel,
+      loadBtnLoadingLabel: btnLoading,
+      pageRoot,
+      disableEls: [
+        vendorSelect,
+        platformSelect,
+        seriesSelect,
+        pageSizeSelect,
+        pivotBtn,
+        detailLayoutBtn,
+        exportBtn,
+        syncRetailBtn,
+      ],
+    });
+    window.AppDashboardUi?.setTableLoading?.({ loading, tableHosts: [tableHost] });
   }
 
   function pageSize() {
@@ -204,13 +236,13 @@
       i += 1;
       tr.innerHTML = `
         <td class="num colRowNum">${fmtInt(serial)}</td>
-        <td><div class="itemMain">${esc(item)}</div><div class="itemSub">${esc(r.metric_name || "")}</div></td>
+        <td><div class="itemMain tdModelName"><code class="modelId">${esc(item)}</code></div><div class="itemSub muted" title="${esc(r.metric_name || "")}">${esc(r.metric_name || "")}</div></td>
         <td>${esc(r.deployment_scope || "")}</td>
         <td>${esc(r.billing_mode || "")}</td>
         <td>${esc(r.metric_name || "")}</td>
         <td>${esc(r.price_region || "")}</td>
         <td>${esc(r.price_currency || "")}</td>
-        <td class="num">${fmt(r.amount)}</td>
+        <td class="num" data-sort-value="${Number(r.amount) || 0}">${fmt(r.amount)}</td>
         <td>${esc(r.unit_expression || "")}</td>
         <td>${esc(r.model_series || "")}</td>
         <td>${esc(r.platform || "")}</td>
@@ -222,6 +254,7 @@
       `;
       tbody.appendChild(tr);
     }
+    window.AppDashboardUi?.applyTruncationTitles?.(tbody);
   }
 
   function renderDetailCompact(rows, serialBase) {
@@ -243,17 +276,18 @@
       }
       tr.innerHTML = `
         <td class="num colRowNum">${fmtInt(serial)}</td>
-        <td><div class="itemMain">${esc(item)}</div></td>
+        <td><div class="itemMain tdModelName"><code class="modelId">${esc(item)}</code></div></td>
         <td>${esc(r.billing_mode || "")}</td>
         <td>${esc(r.metric_name || "")}</td>
         <td>${esc(r.price_region || "")}</td>
         <td>${esc(r.price_currency || "")}</td>
-        <td class="num">${fmt(r.amount)}</td>
+        <td class="num" data-sort-value="${Number(r.amount) || 0}">${fmt(r.amount)}</td>
         <td>${esc(r.unit_expression || "")}</td>
         <td>${esc(r.model_series || "")}</td>
       `;
       tbody.appendChild(tr);
     }
+    window.AppDashboardUi?.applyTruncationTitles?.(tbody);
   }
 
   function renderPivot(rows, serialBase) {
@@ -288,14 +322,14 @@
       i += 1;
       tr.innerHTML = `
         <td class="num colRowNum">${fmtInt(serial)}</td>
-        <td><div class="itemMain">${esc(item)}</div><div class="itemSub">${esc(r.billing_mode || "")}</div></td>
+        <td><div class="itemMain tdModelName"><code class="modelId">${esc(item)}</code></div><div class="itemSub muted" title="${esc(r.billing_mode || "")}">${esc(r.billing_mode || "")}</div></td>
         <td>${esc(r.deployment_scope || "")}</td>
         <td>${esc(r.billing_mode || "")}</td>
         <td>${esc(r.price_region || "")}</td>
         <td>${esc(r.price_currency || "")}</td>
-        <td class="num">${r.input == null ? "-" : fmt(r.input)}</td>
-        <td class="num">${r.cached_input == null ? "-" : fmt(r.cached_input)}</td>
-        <td class="num">${r.output == null ? "-" : fmt(r.output)}</td>
+        <td class="num" data-sort-value="${r.input == null ? -1 : Number(r.input)}">${r.input == null ? "-" : fmt(r.input)}</td>
+        <td class="num" data-sort-value="${r.cached_input == null ? -1 : Number(r.cached_input)}">${r.cached_input == null ? "-" : fmt(r.cached_input)}</td>
+        <td class="num" data-sort-value="${r.output == null ? -1 : Number(r.output)}">${r.output == null ? "-" : fmt(r.output)}</td>
         <td>${esc(r.unit_expression || "")}</td>
         <td>${esc(r.model_series || "")}</td>
         <td>${esc(r.platform || "")}</td>
@@ -306,6 +340,7 @@
       `;
       tbody.appendChild(tr);
     }
+    window.AppDashboardUi?.applyTruncationTitles?.(tbody);
   }
 
   function renderPagination() {
@@ -362,10 +397,20 @@
     if (isPivot) {
       if (tableShell) tableShell.classList.remove("is-compact");
       thead.innerHTML = `
-        <th class="num colRowNum" scope="col">#</th>
-        <th>Item</th><th>Scope</th><th>Mode</th><th>Region</th><th>Currency</th>
-        <th class="num">Input</th><th class="num">Cached Input</th><th class="num">Output</th><th>Unit</th>
-        <th>Series</th><th>Platform</th><th>Vendor</th><th class="colDetail">Details</th>
+        ${th("#", "", { className: "num colRowNum" })}
+        ${th("Item", "", { sortable: true })}
+        ${th("Scope", "", { sortable: true })}
+        ${th("Mode", "", { sortable: true })}
+        ${th("Region", "", { sortable: true })}
+        ${th("Currency", "", { sortable: true })}
+        ${th("Input", "per unit", { className: "num", sortable: true, sortType: "number" })}
+        ${th("Cached Input", "per unit", { className: "num", sortable: true, sortType: "number" })}
+        ${th("Output", "per unit", { className: "num", sortable: true, sortType: "number" })}
+        ${th("Unit", "", { sortable: true })}
+        ${th("Series", "", { sortable: true })}
+        ${th("Platform", "", { sortable: true })}
+        ${th("Vendor", "", { sortable: true })}
+        ${th("Details", "", { className: "colDetail" })}
       `;
       renderPivot(rows, serialBase);
       viewLabel.textContent = "View: Pivot";
@@ -373,9 +418,15 @@
     } else if (isCompactDetail) {
       if (tableShell) tableShell.classList.add("is-compact");
       thead.innerHTML = `
-        <th class="num colRowNum" scope="col">#</th>
-        <th>Item</th><th>Mode</th><th>Metric</th><th>Region</th><th>Currency</th>
-        <th class="num">Amount</th><th>Unit</th><th>Series</th>
+        ${th("#", "", { className: "num colRowNum" })}
+        ${th("Item", "", { sortable: true })}
+        ${th("Mode", "", { sortable: true })}
+        ${th("Metric", "", { sortable: true })}
+        ${th("Region", "", { sortable: true })}
+        ${th("Currency", "", { sortable: true })}
+        ${th("Amount", "value", { className: "num", sortable: true, sortType: "number" })}
+        ${th("Unit", "", { sortable: true })}
+        ${th("Series", "", { sortable: true })}
       `;
       renderDetailCompact(rows, serialBase);
       viewLabel.textContent = "View: Compact";
@@ -383,10 +434,20 @@
     } else {
       if (tableShell) tableShell.classList.remove("is-compact");
       thead.innerHTML = `
-        <th class="num colRowNum" scope="col">#</th>
-        <th>Item</th><th>Scope</th><th>Mode</th><th>Metric</th><th>Region</th><th>Currency</th>
-        <th class="num">Amount</th><th>Unit</th><th>Series</th><th>Platform</th><th>Vendor</th><th>Effective Date</th>
-        <th class="colDetail">Details</th>
+        ${th("#", "", { className: "num colRowNum" })}
+        ${th("Item", "", { sortable: true })}
+        ${th("Scope", "", { sortable: true })}
+        ${th("Mode", "", { sortable: true })}
+        ${th("Metric", "", { sortable: true })}
+        ${th("Region", "", { sortable: true })}
+        ${th("Currency", "", { sortable: true })}
+        ${th("Amount", "value", { className: "num", sortable: true, sortType: "number" })}
+        ${th("Unit", "", { sortable: true })}
+        ${th("Series", "", { sortable: true })}
+        ${th("Platform", "", { sortable: true })}
+        ${th("Vendor", "", { sortable: true })}
+        ${th("Effective Date", "", { sortable: true, sortType: "date" })}
+        ${th("Details", "", { className: "colDetail" })}
       `;
       renderDetail(rows, serialBase);
       viewLabel.textContent = "View: Detail";
@@ -394,6 +455,7 @@
     }
     if (!rows || rows.length === 0) {
       const tr = document.createElement("tr");
+      tr.className = "dashTableEmptyRow";
       const colspan = isPivot ? 14 : isCompactDetail ? 9 : 14;
       tr.innerHTML = `<td colspan="${colspan}" style="color:#9fb2c7;">No price rows for current filters.</td>`;
       tbody.appendChild(tr);
@@ -407,35 +469,43 @@
   }
 
   async function loadRows() {
-    const params = new URLSearchParams();
-    if (vendorSelect.value) params.set("vendor", vendorSelect.value);
-    if (platformSelect.value) params.set("platform", platformSelect.value);
-    if (seriesSelect.value) params.set("model_series", seriesSelect.value);
-    params.set("page", String(currentPage));
-    params.set("page_size", String(pageSize()));
-    const url = `/api/prices?${params.toString()}`;
-    let data = await window.AppHttp.getJson(url);
-    totalMatching = Number(data.total) || 0;
-    const tp = totalPages();
-    if (totalMatching === 0) {
-      currentPage = 1;
-    } else if (currentPage > tp) {
-      currentPage = tp;
-      const params2 = new URLSearchParams(params);
-      params2.set("page", String(currentPage));
-      data = await window.AppHttp.getJson(`/api/prices?${params2.toString()}`);
+    setPricesLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (vendorSelect.value) params.set("vendor", vendorSelect.value);
+      if (platformSelect.value) params.set("platform", platformSelect.value);
+      if (seriesSelect.value) params.set("model_series", seriesSelect.value);
+      params.set("page", String(currentPage));
+      params.set("page_size", String(pageSize()));
+      const url = `/api/prices?${params.toString()}`;
+      let data = await window.AppHttp.getJson(url);
+      totalMatching = Number(data.total) || 0;
+      const tp = totalPages();
+      if (totalMatching === 0) {
+        currentPage = 1;
+      } else if (currentPage > tp) {
+        currentPage = tp;
+        const params2 = new URLSearchParams(params);
+        params2.set("page", String(currentPage));
+        data = await window.AppHttp.getJson(`/api/prices?${params2.toString()}`);
+      }
+      currentRows = data.rows || [];
+      const ps = pageSize();
+      const from = totalMatching === 0 ? 0 : (currentPage - 1) * ps + 1;
+      const to = Math.min(totalMatching, currentPage * ps);
+      let sum = `This page: ${currentRows.length} detail row(s) — positions ${from}–${to} of ${fmtInt(totalMatching)} matching filters.`;
+      if (isPivot && totalMatching > currentRows.length) {
+        sum += " Pivot only merges metrics within this page.";
+      }
+      summary.textContent = sum;
+      renderRows(currentRows);
+      renderPagination();
+    } catch (e) {
+      console.error(e);
+      summary.textContent = "Failed to load prices.";
+    } finally {
+      setPricesLoading(false);
     }
-    currentRows = data.rows || [];
-    const ps = pageSize();
-    const from = totalMatching === 0 ? 0 : (currentPage - 1) * ps + 1;
-    const to = Math.min(totalMatching, currentPage * ps);
-    let sum = `This page: ${currentRows.length} detail row(s) — positions ${from}–${to} of ${fmtInt(totalMatching)} matching filters.`;
-    if (isPivot && totalMatching > currentRows.length) {
-      sum += " Pivot only merges metrics within this page.";
-    }
-    summary.textContent = sum;
-    renderRows(currentRows);
-    renderPagination();
   }
 
   function openDialog() {
@@ -531,12 +601,14 @@
     }
   }
 
-  queryBtn.addEventListener("click", () => {
+  function submitQuery() {
     currentPage = 1;
-    loadRows().catch((e) => {
-      console.error(e);
-    });
-  });
+    loadRows().catch((e) => console.error(e));
+  }
+
+  queryBtn.addEventListener("click", submitQuery);
+  window.AppDashboardUi?.bindFilterEnter?.(filterRoot, submitQuery);
+  window.AppDashboardUi?.makeSortableTable?.(pricesTable);
 
   if (pageSizeSelect) {
     pageSizeSelect.addEventListener("change", () => {
@@ -636,5 +708,6 @@
     await loadRows();
   })().catch((e) => {
     console.error(e);
+    setPricesLoading(false);
   });
 })();

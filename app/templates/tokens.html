@@ -346,7 +346,7 @@
                   <span class="flowStepNum" aria-hidden="true">5</span>
                   <h2 id="flowPerfTitle" class="flowBlockTitle">Performance</h2>
                 </div>
-                <p class="flowBlockDesc muted">Time-series metrics from <code>bills/&lt;project&gt;/performance/</code> and <code>bills/&lt;project&gt;/token/cache-match-rate-*.csv</code>.</p>
+                <p class="flowBlockDesc muted">Time-series metrics from <code>bills/&lt;project&gt;/performance/</code> and <code>bills/&lt;project&gt;/token/cache-match-rate-*.csv</code>. Hover a chart point to highlight the matching row below; click legend entries to show or hide models across all charts.</p>
               </header>
               <div class="flowChartGrid" aria-label="Performance metrics">
                 <article class="card chartPanel chartWide">
@@ -390,18 +390,25 @@
                     <p class="muted panelDesc">Newest first.</p>
                   </div>
                 </div>
-                <div class="tableScroll dataTableWrap dashTableShell">
-                  <table class="dataTable dashTable">
+                <div class="tableScroll dataTableWrap dashTableShell perfTableShell" data-table-host>
+                  <table class="dataTable dashTable" id="perfRowsTable">
                     <thead>
                       <tr>
-                        <th style="width: 160px;">Time</th>
-                        <th style="width: 140px;">Metric</th>
-                        <th>Values (by model)</th>
+                        <th class="is-sorted" aria-sort="descending" style="width: 168px;" data-sortable data-sort-type="date" scope="col"><span class="thLabel">Time</span><span class="thUnit">local</span></th>
+                        <th style="width: 148px;" data-sortable data-sort-type="text" scope="col"><span class="thLabel">Metric</span></th>
+                        <th scope="col"><span class="thLabel">Models</span><span class="thUnit">by series</span></th>
                       </tr>
                     </thead>
                     <tbody id="perfRowsTbody">
-                      <tr><td colspan="3" class="muted">Load data to view performance metrics.</td></tr>
+                      <tr class="dashTableEmptyRow"><td colspan="3" class="muted">Load data to view performance metrics.</td></tr>
                     </tbody>
+                    <tfoot id="perfRowsTfoot" hidden>
+                      <tr class="perfTableTotalRow">
+                        <th scope="row">Total</th>
+                        <td id="perfFootMetricCount" class="num">—</td>
+                        <td id="perfFootRowNote" class="muted">—</td>
+                      </tr>
+                    </tfoot>
                   </table>
                 </div>
               </div>
@@ -418,10 +425,10 @@
     <script src="/static/js/http.js"></script>
     <script src="/static/js/forecasting.js?v=20260605-ratio"></script>
     <script src="/static/js/chart-plugins.js"></script>
-    <script src="/static/js/chart-style.js?v=20260605-dates"></script>
+    <script src="/static/js/chart-style.js?v=20260605-perf2"></script>
     <script src="/static/js/cost-semantics.js?v=20260605-cost"></script>
     <script src="/static/js/dashboard-ui.js?v=20260605-datesort"></script>
     <script src="/static/js/insight-panel.js?v=20260605-insights"></script>
-    <script src="/static/js/pages/tokens.js?v=20260605-insights"></script>
+    <script src="/static/js/pages/tokens.js?v=20260605-perf2"></script>
   </body>
 </html>

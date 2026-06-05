@@ -193,30 +193,97 @@
     return { x, y };
   }
 
-  /** Minimal legend: small colored dots + short labels (no wide line swatches). */
-  function pluginsLegend({ show = true, position = 'top', variant = 'default' } = {}) {
+  /** Legend — use pointStyle `line` for multi-series charts, `circle` for compact single-metric views. */
+  function pluginsLegend({
+    show = true,
+    position = 'top',
+    variant = 'default',
+    pointStyle = 'circle',
+    onClick = undefined,
+  } = {}) {
     const compact = variant === 'compact';
+    const isLine = pointStyle === 'line';
     return {
       legend: {
         display: show,
         position,
         align: 'start',
-        maxHeight: compact ? 36 : 48,
+        maxHeight: isLine ? 56 : compact ? 36 : 48,
         labels: {
           color: theme.legend,
-          font: { size: compact ? 10.5 : 11, weight: '500' },
+          font: { size: 12, weight: '500' },
           usePointStyle: true,
-          pointStyle: 'circle',
-          boxWidth: compact ? 6 : 8,
-          boxHeight: compact ? 6 : 8,
-          padding: compact ? 6 : 10,
+          pointStyle,
+          boxWidth: isLine ? 14 : compact ? 6 : 8,
+          boxHeight: isLine ? 3 : compact ? 6 : 8,
+          padding: isLine ? 12 : compact ? 6 : 10,
         },
+        onClick,
         onHover: (e) => {
           if (e?.native?.target) e.native.target.style.cursor = 'pointer';
         },
         onLeave: (e) => {
           if (e?.native?.target) e.native.target.style.cursor = 'default';
         },
+      },
+    };
+  }
+
+  /** Standard multi-series line chart options (perf metrics, model breakdowns). */
+  function buildSeriesLineChartOptions({
+    unitType = 'count',
+    currency = null,
+    labelCount = 0,
+    yScale = null,
+    tooltipCallbacks = {},
+    legendOnClick = undefined,
+    onHover = undefined,
+  } = {}) {
+    const n = Number(labelCount) || 0;
+    const pointRadius = pointRadiusForCount(n);
+    const callbacks = {
+      title: tooltipTitleFullDate,
+      ...tooltipCallbacks,
+    };
+    let y = yScale;
+    if (!y) {
+      if (unitType === 'pct') y = yAxisPct();
+      else if (unitType === 'ms') y = yAxisMs();
+      else if (unitType === 'tokens') y = yAxisTokens();
+      else if (unitType === 'currency') y = yAxisCost(currency);
+      else y = yAxisCount();
+    }
+    return {
+      ...lineInteractionDefaults(),
+      onHover,
+      elements: {
+        line: { borderJoinStyle: 'round', capBezierPoints: true },
+        point: {
+          radius: pointRadius,
+          hoverRadius: 6,
+          hitRadius: 16,
+          hoverBorderWidth: 2,
+          borderWidth: 0,
+        },
+      },
+      layout: { padding: { top: 10, right: 14, bottom: 8, left: 10 } },
+      plugins: {
+        decimation: { enabled: true, algorithm: 'min-max', threshold: 80 },
+        ...pluginsLegend({
+          show: true,
+          position: 'bottom',
+          pointStyle: 'line',
+          onClick: legendOnClick,
+        }),
+        ...pluginsTooltip(callbacks),
+      },
+      scales: {
+        x: {
+          ticks: xAxisTicks(labelCount),
+          grid: { color: theme.grid, drawOnChartArea: false },
+          border: { display: false },
+        },
+        y,
       },
     };
   }
@@ -318,6 +385,104 @@
     return count <= 45 ? sparse : dense;
   }
 
+  /** Distinct colors for multi-model performance / breakdown series. */
+  const modelSeriesPalette = [
+    { border: '#5eead4', bg: 'rgba(94,234,212,0.18)' },
+    { border: '#60a5fa', bg: 'rgba(96,165,250,0.18)' },
+    { border: '#c084fc', bg: 'rgba(192,132,252,0.18)' },
+    { border: '#fbbf24', bg: 'rgba(251,191,36,0.18)' },
+    { border: '#f87171', bg: 'rgba(248,113,113,0.18)' },
+    { border: '#34d399', bg: 'rgba(52,211,153,0.18)' },
+    { border: '#fb923c', bg: 'rgba(251,146,60,0.18)' },
+    { border: '#a78bfa', bg: 'rgba(167,139,250,0.18)' },
+  ];
+
+  function modelColorAt(index) {
+    const i = Number(index) || 0;
+    return modelSeriesPalette[((i % modelSeriesPalette.length) + modelSeriesPalette.length) % modelSeriesPalette.length];
+  }
+
+  function datasetLineSeries({ label, data, seriesIndex = 0, pointRadius = 0, fill = false } = {}) {
+    const col = modelColorAt(seriesIndex);
+    return {
+      label,
+      data,
+      borderColor: col.border,
+      backgroundColor: col.bg,
+      fill,
+      tension: 0.22,
+      pointRadius,
+      pointHoverRadius: 5,
+      pointHoverBorderColor: '#f3f6fa',
+      pointHoverBackgroundColor: col.border,
+      borderWidth: 2,
+      spanGaps: true,
+      unitType: 'series',
+    };
+  }
+
+  function yAxisPct({ maxTicks = 6, suggestedMax = 100 } = {}) {
+    return {
+      ticks: {
+        color: theme.tick,
+        font: { size: 11, weight: '500' },
+        maxTicksLimit: maxTicks,
+        padding: 8,
+        callback: (value) => {
+          const n = Number(value);
+          if (!Number.isFinite(n)) return '';
+          return `${n}%`;
+        },
+      },
+      suggestedMax,
+      beginAtZero: true,
+      grid: { color: theme.grid, drawTicks: false },
+      border: { display: false },
+    };
+  }
+
+  function yAxisMs({ maxTicks = 6 } = {}) {
+    return {
+      ticks: {
+        color: theme.tick,
+        font: { size: 11, weight: '500' },
+        maxTicksLimit: maxTicks,
+        padding: 8,
+        callback: (value) => {
+          const n = Number(value);
+          if (!Number.isFinite(n)) return '';
+          if (n >= 60_000) return `${(n / 60_000).toFixed(1)}m`;
+          if (n >= 1000) return `${(n / 1000).toFixed(1)}s`;
+          return `${Math.round(n)}ms`;
+        },
+      },
+      beginAtZero: true,
+      grid: { color: theme.grid, drawTicks: false },
+      border: { display: false },
+    };
+  }
+
+  function yAxisCount({ maxTicks = 6 } = {}) {
+    return {
+      ticks: {
+        color: theme.tick,
+        font: { size: 11, weight: '500' },
+        maxTicksLimit: maxTicks,
+        padding: 8,
+        callback: (value) => {
+          const n = Number(value);
+          if (!Number.isFinite(n)) return '';
+          if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+          if (n >= 1000) return `${(n / 1000).toFixed(1)}K`;
+          return Math.round(n).toLocaleString();
+        },
+      },
+      beginAtZero: true,
+      grid: { color: theme.grid, drawTicks: false },
+      border: { display: false },
+    };
+  }
+
   function datasetLineCurrency({
     label,
     data,
@@ -364,9 +529,16 @@
     pluginsTooltip,
     lineInteractionDefaults,
     buildLineChartOptions,
+    buildSeriesLineChartOptions,
     buildChartOptionsForUnit,
     chartPluginsExtra,
     pointRadiusForCount,
     datasetLineCurrency,
+    modelSeriesPalette,
+    modelColorAt,
+    datasetLineSeries,
+    yAxisPct,
+    yAxisMs,
+    yAxisCount,
   };
 })();
