@@ -18,3 +18,19 @@ def test_chart_js_served_locally(tmp_path):
     bundle = Path(__file__).resolve().parents[1] / "app" / "static" / "js" / "chart.umd.min.js"
     assert bundle.is_file()
     assert bundle.stat().st_size > 100_000
+
+
+def test_chart_style_x_axis_uses_date_labels():
+    """Category x-axis ticks must map indices to chart date labels, not show 0/5/10."""
+    style = Path(__file__).resolve().parents[1] / "app" / "static" / "js" / "chart-style.js"
+    text = style.read_text(encoding="utf-8")
+    assert "function labelAtTick" in text
+    assert "labelAtTick(this, value)" in text
+
+
+def test_ratio_bounds_include_full_data_range():
+    """Ratio Y-axis must not IQR-clip spikes so the chart shows every point."""
+    forecasting = Path(__file__).resolve().parents[1] / "app" / "static" / "js" / "forecasting.js"
+    text = forecasting.read_text(encoding="utf-8")
+    assert "always include every data point" in text
+    assert "guardHi" not in text

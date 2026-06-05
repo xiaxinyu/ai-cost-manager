@@ -85,70 +85,27 @@
     return { valid_days: valid, above_1_days: above, below_1_days: below, above_1_pct: abovePct, below_1_pct: belowPct };
   }
 
-  function _quantile(sorted, q) {
-    if (!sorted.length) return null;
-    const pos = (sorted.length - 1) * q;
-    const base = Math.floor(pos);
-    const rest = pos - base;
-    if (sorted[base + 1] === undefined) return sorted[base];
-    return sorted[base] + rest * (sorted[base + 1] - sorted[base]);
-  }
-
-  // Y-range for output/input ratio: tight around the data so small day-to-day changes stay visible.
-  // (Older logic forced max ≥ 1 whenever max(data) ≥ 0.25, which flattened typical low ratios.)
+  // Y-range for output/input ratio: always include every data point (no IQR tail clipping).
   function ratioSuggestedBounds(ratioRows) {
     const xs = (ratioRows || [])
       .map((r) => r?.ratio)
       .filter((v) => v !== null && v !== undefined && Number.isFinite(Number(v)))
-      .map((v) => Number(v))
-      .sort((a, b) => a - b);
+      .map((v) => Number(v));
     if (!xs.length) return { min: 0, max: 2 };
 
-    const n = xs.length;
-    const rawMin = xs[0];
-    const rawMax = xs[n - 1];
-    let lo = n < 5 ? rawMin : _quantile(xs, 0.1);
-    let hi = n < 5 ? rawMax : _quantile(xs, 0.9);
-    if (lo == null || hi == null || !Number.isFinite(lo) || !Number.isFinite(hi)) {
-      lo = rawMin;
-      hi = rawMax;
-    }
-    if (lo > hi) {
-      const t = lo;
-      lo = hi;
-      hi = t;
-    }
-
-    // Robustly clip long tails so a single spike does not flatten the curve.
-    if (n >= 6) {
-      const q1 = _quantile(xs, 0.25);
-      const q3 = _quantile(xs, 0.75);
-      if (q1 != null && q3 != null && Number.isFinite(q1) && Number.isFinite(q3) && q3 >= q1) {
-        const iqr = q3 - q1;
-        if (iqr > 0) {
-          const guardLo = Math.max(rawMin, q1 - 1.5 * iqr);
-          const guardHi = Math.min(rawMax, q3 + 1.5 * iqr);
-          lo = Math.max(lo, guardLo);
-          hi = Math.min(hi, guardHi);
-          if (lo > hi) {
-            lo = Math.min(guardLo, guardHi);
-            hi = Math.max(guardLo, guardHi);
-          }
-        }
-      }
-    }
-
-    const spread = Math.max(hi - lo, 0);
-    const anchor = Math.max(Math.abs((hi + lo) / 2), hi, 1e-12);
-    let pad = Math.max(spread * 0.22, anchor * 0.03, 1e-9);
+    const rawMin = Math.min(...xs);
+    const rawMax = Math.max(...xs);
+    const spread = Math.max(rawMax - rawMin, 0);
+    const anchor = Math.max(Math.abs((rawMax + rawMin) / 2), rawMax, 1e-12);
+    let pad = Math.max(spread * 0.1, anchor * 0.06, 1e-9);
     if (spread === 0) pad = Math.max(anchor * 0.12, 0.0005);
 
-    let minV = Math.max(0, lo - pad);
-    let maxV = hi + pad;
+    let minV = Math.max(0, rawMin - pad);
+    let maxV = rawMax + pad;
     if (maxV <= minV) maxV = minV + Math.max(anchor * 0.15, 0.001);
 
-    // Only pull in parity (1.0) when the series already approaches parity.
-    if (hi >= 0.8) {
+    // Include parity reference when the series approaches 1.0.
+    if (rawMax >= 0.8) {
       maxV = Math.max(maxV, 1.0);
       minV = Math.min(minV, 1.0);
       minV = Math.max(0, minV);

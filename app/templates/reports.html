@@ -6,7 +6,7 @@
     <title>Reports - Models Cost Management</title>
     <link rel="stylesheet" href="/static/css/app-shell.css" />
     <link rel="stylesheet" href="/static/css/page-common.css" />
-    <link rel="stylesheet" href="/static/css/pages/reports.css?v=20260605-cost" />
+    <link rel="stylesheet" href="/static/css/pages/reports.css?v=20260605-raw-h" />
     <link rel="stylesheet" href="/static/css/layout-pro.css" />
     <link rel="stylesheet" href="/static/css/dashboard-shared.css?v=20260605-cost" />
   </head>
@@ -347,15 +347,15 @@
               </span>
             </summary>
             <p class="reportSectionLead muted tableAnalysisNote" id="tableAnalysisNote">Sorted newest first. Δ day = vs previous calendar day; share = % of total in range.</p>
-            <div class="chartGrid chartGrid2">
-              <article class="card reportTableCard">
-                <div class="rowsToolbar">
+            <div class="chartGrid chartGrid2 reportRawTablesGrid">
+              <article class="card reportTableCard reportRawTableCard">
+                <div class="rowsToolbar reportRawToolbar">
                   <h3 class="chartCardTitle">Daily actual</h3>
-                  <div class="pager">
+                  <div class="pager reportRawPager">
                     <span class="muted">Page size</span>
                     <select id="dailyPageSizeSelect" aria-label="Daily page size">
-                      <option value="25">25</option>
-                      <option value="50" selected>50</option>
+                      <option value="25" selected>25</option>
+                      <option value="50">50</option>
                       <option value="100">100</option>
                       <option value="200">200</option>
                     </select>
@@ -367,27 +367,27 @@
                     <button id="dailyGoBtn" class="btnSmall" type="button">Go</button>
                   </div>
                 </div>
-                <div class="tableScroll">
+                <div class="tableScroll reportRawTableScroll dashTableShell">
                   <table class="dataTable dashTable reportBillingTable">
                     <colgroup>
                       <col class="reportColPeriod" />
                       <col class="reportColMoney" />
                       <col class="reportColPct" />
-                      <col class="reportColPct" />
+                      <col class="reportColDelta" />
                     </colgroup>
                     <thead><tr><th>Date</th><th class="num colCostActual"><span class="costPill costPill--actual">Actual</span><span class="thLabel">USD</span></th><th class="num">Share</th><th class="num">Δ vs prior</th></tr></thead>
                     <tbody id="dailyTbody"></tbody>
                   </table>
                 </div>
               </article>
-              <article class="card reportTableCard">
-                <div class="rowsToolbar">
+              <article class="card reportTableCard reportRawTableCard">
+                <div class="rowsToolbar reportRawToolbar">
                   <h3 class="chartCardTitle">Monthly cost</h3>
-                  <div class="pager">
+                  <div class="pager reportRawPager">
                     <span class="muted">Page size</span>
                     <select id="monthlyPageSizeSelect" aria-label="Monthly page size">
-                      <option value="25">25</option>
-                      <option value="50" selected>50</option>
+                      <option value="25" selected>25</option>
+                      <option value="50">50</option>
                       <option value="100">100</option>
                       <option value="200">200</option>
                     </select>
@@ -399,13 +399,13 @@
                     <button id="monthlyGoBtn" class="btnSmall" type="button">Go</button>
                   </div>
                 </div>
-                <div class="tableScroll">
+                <div class="tableScroll reportRawTableScroll dashTableShell">
                   <table class="dataTable dashTable reportBillingTable">
                     <colgroup>
                       <col class="reportColPeriod" />
                       <col class="reportColMoney" />
                       <col class="reportColPct" />
-                      <col class="reportColPct" />
+                      <col class="reportColDelta" />
                     </colgroup>
                     <thead><tr><th>Month</th><th class="num colCostActual"><span class="costPill costPill--actual">Actual</span><span class="thLabel">USD</span></th><th class="num">Share</th><th class="num">Δ vs prior</th></tr></thead>
                     <tbody id="monthlyTbody"></tbody>
@@ -423,9 +423,9 @@
     <script src="/static/js/app-shell.js"></script>
     <script src="/static/js/money.js"></script>
     <script src="/static/js/http.js"></script>
-    <script src="/static/js/forecasting.js"></script>
+    <script src="/static/js/forecasting.js?v=20260605-ratio"></script>
     <script src="/static/js/chart-plugins.js"></script>
-    <script src="/static/js/chart-style.js?v=20260605-cost"></script>
+    <script src="/static/js/chart-style.js?v=20260605-dates"></script>
     <script src="/static/js/cost-semantics.js?v=20260605-cost"></script>
     <script src="/static/js/dashboard-ui.js"></script>
     <script>
@@ -443,9 +443,9 @@
       let lastTokenRatioRows = [];
 
       let dailyPage = 1;
-      let dailyPageSize = 50;
+      let dailyPageSize = 25;
       let monthlyPage = 1;
-      let monthlyPageSize = 50;
+      let monthlyPageSize = 25;
 
       let projectBreakdownRows = [];
       let pbSortKey = 'actual_cost_usd_total';
@@ -1280,7 +1280,8 @@
 
         for (const p of projects) {
           const label = document.createElement('label');
-          label.className = 'dropdownItem';
+          label.className = 'dropdownItem dropdownItem--project';
+          label.title = p;
 
           const cb = document.createElement('input');
           cb.type = 'checkbox';
@@ -1298,6 +1299,7 @@
           });
 
           const span = document.createElement('span');
+          span.className = 'dropdownItemLabel';
           span.textContent = p;
 
           label.appendChild(cb);
@@ -1912,7 +1914,7 @@
         const dailyGoBtn = document.getElementById('dailyGoBtn');
 
         dailyPageSizeSelect.addEventListener('change', () => {
-          dailyPageSize = Math.max(1, Math.min(200, Number(dailyPageSizeSelect.value || 50)));
+          dailyPageSize = Math.max(1, Math.min(200, Number(dailyPageSizeSelect.value || 25)));
           dailyPage = 1;
           if (lastReport) renderTables(lastReport);
         });
@@ -1938,7 +1940,7 @@
         const monthlyGoBtn = document.getElementById('monthlyGoBtn');
 
         monthlyPageSizeSelect.addEventListener('change', () => {
-          monthlyPageSize = Math.max(1, Math.min(200, Number(monthlyPageSizeSelect.value || 50)));
+          monthlyPageSize = Math.max(1, Math.min(200, Number(monthlyPageSizeSelect.value || 25)));
           monthlyPage = 1;
           if (lastReport) renderTables(lastReport);
         });

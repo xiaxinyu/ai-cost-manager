@@ -65,12 +65,25 @@
     Chart.defaults.plugins.tooltip.cornerRadius = 8;
   }
 
-  /** Shorten YYYY-MM-DD for dense x-axes. */
+  /** Shorten YYYY-MM-DD (or YYYY-MM) for dense x-axes. */
   function formatDateTick(raw) {
     const s = String(raw ?? '').trim();
-    const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
-    if (!m) return s;
-    return `${m[2]}/${m[3]}`;
+    const day = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (day) return `${day[2]}/${day[3]}`;
+    const month = s.match(/^(\d{4})-(\d{2})$/);
+    if (month) return `${month[1]}-${month[2]}`;
+    return s;
+  }
+
+  /** Resolve category-scale tick value (index) to the chart label string. */
+  function labelAtTick(scale, tickValue) {
+    if (scale && typeof scale.getLabelForValue === 'function') {
+      const fromScale = scale.getLabelForValue(tickValue);
+      if (fromScale !== undefined && fromScale !== null && fromScale !== '') return fromScale;
+    }
+    const labels = scale?.chart?.data?.labels;
+    if (Array.isArray(labels) && labels[tickValue] !== undefined) return labels[tickValue];
+    return tickValue;
   }
 
   /** Full date for tooltip titles. */
@@ -99,7 +112,7 @@
       minRotation: 0,
       padding: 8,
       callback(value) {
-        return formatDateTick(value);
+        return formatDateTick(labelAtTick(this, value));
       },
     };
   }
@@ -338,6 +351,7 @@
     theme,
     applyDefaults,
     formatDateTick,
+    labelAtTick,
     formatFullDate,
     tooltipTitleFullDate,
     xAxisTicks,

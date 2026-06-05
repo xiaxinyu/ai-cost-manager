@@ -57,9 +57,13 @@
 }
 
 .reportToolbarGrid {
-  grid-template-columns: minmax(240px, 1.6fr) minmax(120px, 0.7fr) minmax(140px, 0.75fr) minmax(140px, 0.75fr) auto;
+  grid-template-columns: minmax(300px, 2.4fr) minmax(108px, 0.55fr) minmax(132px, 0.65fr) minmax(132px, 0.65fr) auto;
   align-items: end;
   gap: 14px;
+}
+
+.reportPage .fieldProject {
+  min-width: 0;
 }
 
 .reportPage .field {
@@ -164,18 +168,21 @@
 .reportPage .dropdownMenu {
   position: absolute;
   left: 0;
-  right: 0;
+  right: auto;
   top: calc(100% + 6px);
   z-index: 300;
   display: none;
-  max-height: 280px;
+  width: max(100%, 28rem);
+  max-width: min(36rem, calc(100vw - 2rem));
+  max-height: min(360px, 52vh);
   overflow: auto;
-  padding: 8px;
+  padding: 6px;
   background: rgba(11, 18, 32, 0.98);
-  border: 1px solid rgba(173, 196, 228, 0.22);
-  border-radius: var(--control-radius);
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
-  backdrop-filter: blur(8px);
+  border: 1px solid rgba(173, 196, 228, 0.24);
+  border-radius: 10px;
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(10px);
+  scrollbar-gutter: stable;
 }
 
 .reportPage .dropdownWrap.is-open .dropdownMenu {
@@ -186,14 +193,41 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 8px 10px;
-  border-radius: 6px;
+  padding: 9px 12px;
+  border-radius: 7px;
   cursor: pointer;
   margin-bottom: 0;
+  min-width: 0;
 }
 
 .reportPage .dropdownItem:hover {
   background: rgba(255, 255, 255, 0.08);
+}
+
+.reportPage .dropdownItem span {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 12.5px;
+  line-height: 1.35;
+  color: #e8eef6;
+}
+
+.reportPage .projectCheckboxList .dropdownItem span {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+  letter-spacing: 0.01em;
+}
+
+.reportPage .dropdownItem:has(input:checked) {
+  background: rgba(94, 234, 212, 0.1);
+}
+
+.reportPage .dropdownItem:has(input:checked) span {
+  color: #f0fdfa;
+  font-weight: 600;
 }
 
 .reportPage .dropdownDivider {
@@ -205,7 +239,8 @@
 .reportPage .projectCheckboxList {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 1px;
+  padding: 2px 0;
 }
 
 .reportPage .dropdownItem input[type="checkbox"] {
@@ -495,6 +530,30 @@
   width: 26%;
 }
 
+.reportColPct {
+  width: 22%;
+}
+
+.reportColDelta {
+  width: 24%;
+}
+
+.reportBillingTable .reportColPeriod {
+  width: 24%;
+}
+
+.reportBillingTable .reportColMoney {
+  width: 30%;
+}
+
+.reportBillingTable .reportColPct {
+  width: 22%;
+}
+
+.reportBillingTable .reportColDelta {
+  width: 24%;
+}
+
 .reportPage .dataTable tbody tr:nth-child(even) {
   background: rgba(255, 255, 255, 0.02);
 }
@@ -646,6 +705,103 @@
 
 .reportTableCard {
   padding: 14px 16px;
+}
+
+/* Raw billing tables (section 6) */
+.reportRawTablesGrid {
+  --report-raw-table-h: clamp(360px, 42vh, 440px);
+  gap: 16px;
+  align-items: stretch;
+}
+
+.reportRawTableCard {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  height: 100%;
+}
+
+.reportRawToolbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px 14px;
+  margin-bottom: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(173, 196, 228, 0.12);
+}
+
+.reportRawToolbar .chartCardTitle {
+  margin: 0;
+}
+
+.reportRawPager {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.reportRawPager select {
+  min-height: 32px;
+  padding: 0 28px 0 10px;
+  font-size: 12px;
+  font-weight: 600;
+  appearance: none;
+  background: var(--control-bg);
+  border: 1px solid var(--control-border);
+  border-radius: var(--control-radius);
+  color: #e2e8f0;
+}
+
+.reportRawPager .btnSmall {
+  min-width: 3.5rem;
+  min-height: 32px;
+  padding: 0 10px;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.reportRawPager .pageInfo {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: #9fb2c7;
+  white-space: nowrap;
+}
+
+.reportPage .reportRawTableScroll {
+  flex: 1 1 auto;
+  height: var(--report-raw-table-h);
+  min-height: var(--report-raw-table-h);
+  max-height: var(--report-raw-table-h);
+  overflow: auto;
+  margin-top: 0;
+  scrollbar-gutter: stable;
+}
+
+.reportBillingTable thead th.colCostActual {
+  vertical-align: bottom;
+  white-space: nowrap;
+}
+
+.reportBillingTable thead th.colCostActual .costPill {
+  display: inline-flex;
+  margin: 0 0 4px;
+}
+
+.reportBillingTable thead th.colCostActual .thLabel {
+  display: block;
+  margin-top: 2px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #94a8c0;
+}
+
+.reportBillingTable tbody td.tdCostActual {
+  font-weight: 650;
 }
 
 .reportPage .btnLinkQuiet {
@@ -1009,6 +1165,22 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .reportPage .fieldProject {
+    grid-column: 1 / -1;
+  }
+
+  .reportRawTablesGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .reportRawToolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .reportRawPager {
+    justify-content: flex-start;
+  }
+
   .chartGrid3 {
     grid-template-columns: 1fr;
   }
@@ -1031,7 +1203,8 @@
   .reportToolbarGrid,
   .chartGrid2,
   .reportKpis,
-  .heroMetricGrid {
+  .heroMetricGrid,
+  .reportRawTablesGrid {
     grid-template-columns: 1fr;
   }
 
