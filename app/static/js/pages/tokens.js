@@ -59,6 +59,7 @@
     dailyNextBtn: document.getElementById("dailyNextBtn"),
     dailyPageInfo: document.getElementById("dailyPageInfo"),
     exportBtn: document.getElementById("exportTokensBtn"),
+    perfRowsTbody: document.getElementById("perfRowsTbody"),
   };
 
   let tokenInputChart = null;
@@ -68,6 +69,9 @@
   let tokenOutputCostChart = null;
   let chartImpliedUnitInput = null;
   let chartImpliedUnitOutput = null;
+  let cacheMatchChart = null;
+  let avgLatencyChart = null;
+  let modelRequestsChart = null;
 
   const chartLineDefaults = {
     responsive: true,
@@ -100,6 +104,112 @@
         x.restore();
       },
     };
+  }
+
+  function _metricChartUnitLabel(unit) {
+    if (unit === "pct") return "%";
+    if (unit === "ms") return "ms";
+    return "count";
+  }
+
+  function _metricSeriesToChart(metric) {
+    const pts = [...(metric?.points || [])].slice().reverse(); // chart oldest -> newest
+    const models = metric?.models || [];
+    const labels = pts.map((p) => String(p.usage_date || "").slice(5));
+    const datasets = models.map((name, i) => {
+      const col = window.AppCostSemantics?.chartDataset?.("actual", i) || {};
+      return {
+        label: name,
+        data: pts.map((p) => Number(p?.values?.[name] ?? 0)),
+        borderColor: col.borderColor || C.actual,
+        backgroundColor: col.backgroundColor || "rgba(94,234,212,0.16)",
+        tension: 0.22,
+        pointRadius: 0,
+        pointHoverRadius: 3,
+        borderWidth: 2,
+        fill: false,
+      };
+    });
+    return { labels, datasets };
+  }
+
+  function renderPerfCharts(series) {
+    const metricRoot = series?.token_metrics;
+    const metrics = metricRoot?.metrics || {};
+    const cache = metrics.cache_match_rate;
+    const lat = metrics.avg_latency;
+    const req = metrics.model_requests;
+
+    const charts = [
+      { key: "cache_match_rate", metric: cache, id: "cacheMatchChart", unit: "pct" },
+      { key: "avg_latency", metric: lat, id: "avgLatencyChart", unit: "ms" },
+      { key: "model_requests", metric: req, id: "modelRequestsChart", unit: "count" },
+    ];
+
+    for (const c of charts) {
+      const ctx = document.getElementById(c.id)?.getContext?.("2d");
+      if (!ctx) continue;
+      const chartData = _metricSeriesToChart(c.metric);
+      const yTitle = _metricChartUnitLabel(c.metric?.unit || c.unit);
+      const opts = {
+        ...chartLineDefaults,
+        scales: {
+          x: { ticks: { color: "rgba(226,232,240,0.75)" } },
+          y: { ticks: { color: "rgba(226,232,240,0.75)" }, title: { display: true, text: yTitle } },
+        },
+        plugins: {
+          legend: { display: true, position: "bottom" },
+          tooltip: { enabled: true },
+        },
+      };
+
+      if (c.key === "cache_match_rate" && cacheMatchChart) cacheMatchChart.destroy();
+      if (c.key === "avg_latency" && avgLatencyChart) avgLatencyChart.destroy();
+      if (c.key === "model_requests" && modelRequestsChart) modelRequestsChart.destroy();
+
+      const ch = new Chart(ctx, { type: "line", data: chartData, options: opts });
+      if (c.key === "cache_match_rate") cacheMatchChart = ch;
+      if (c.key === "avg_latency") avgLatencyChart = ch;
+      if (c.key === "model_requests") modelRequestsChart = ch;
+    }
+  }
+
+  function renderPerfTable(series) {
+    if (!els.perfRowsTbody) return;
+    const metricRoot = series?.token_metrics;
+    const metrics = metricRoot?.metrics || {};
+    const metricList = Object.values(metrics);
+    const rows = [];
+    for (const m of metricList) {
+      for (const p of m.points || []) {
+        rows.push({
+          recorded_at: p.recorded_at,
+          metric_name: m.metric_name,
+          unit: m.unit,
+          values: p.values || {},
+        });
+      }
+    }
+    rows.sort((a, b) => String(b.recorded_at || "").localeCompare(String(a.recorded_at || "")));
+    els.perfRowsTbody.innerHTML = "";
+    if (!rows.length) {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `<td colspan="3" class="muted">No performance metrics imported for this project.</td>`;
+      els.perfRowsTbody.appendChild(tr);
+      return;
+    }
+    for (const r of rows.slice(0, 60)) {
+      const tr = document.createElement("tr");
+      const kv = Object.entries(r.values)
+        .map(([k, v]) => `${k}: ${Number(v).toLocaleString()}${r.unit === "pct" ? "%" : r.unit === "ms" ? " ms" : ""}`)
+        .join(" · ");
+      tr.innerHTML = `
+        <td>${String(r.recorded_at || "")}</td>
+        <td>${String(r.metric_name || "").replace(/_/g, "-")}</td>
+        <td class="muted">${kv || "—"}</td>
+      `;
+      els.perfRowsTbody.appendChild(tr);
+    }
   }
   let lastDailyModelRows = [];
   let lastSource = "estimated";
@@ -1483,6 +1593,12 @@
         title: "Insights",
         limit: 5,
       });
+      try {
+        renderPerfCharts(series);
+        renderPerfTable(series);
+      } catch (e) {
+        console.error("renderPerf failed", e);
+      }
 
       const points = series.points || [];
       dailyPage = 1;

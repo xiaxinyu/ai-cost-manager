@@ -21,7 +21,7 @@ from .meter_match import (
 )
 
 
-SCHEMA_VERSION = 8
+SCHEMA_VERSION = 9
 
 EXPECTED_CSV_COLUMNS = [
     "UsageDate",
@@ -210,6 +210,43 @@ def init_db(conn: sqlite3.Connection) -> None:
 
         CREATE INDEX IF NOT EXISTS idx_ingested_token_files_project_name
             ON ingested_token_files(project_name);
+
+        CREATE TABLE IF NOT EXISTS ingested_token_metric_files (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            project_name TEXT NOT NULL,
+            file_path TEXT NOT NULL UNIQUE,
+            metric_name TEXT NOT NULL,
+            checksum_sha256 TEXT NOT NULL,
+            schema_version INTEGER NOT NULL,
+            row_count INTEGER NOT NULL,
+            ingested_at TEXT NOT NULL DEFAULT (datetime('now')),
+            source_last_modified REAL,
+            raw_columns TEXT
+        );
+
+        CREATE TABLE IF NOT EXISTS token_metric_points (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            project_name TEXT NOT NULL,
+            recorded_at TEXT NOT NULL,
+            usage_date TEXT NOT NULL,
+            model_name TEXT NOT NULL,
+            metric_name TEXT NOT NULL,
+            metric_value REAL NOT NULL,
+            metric_unit TEXT NOT NULL,
+            source_file TEXT NOT NULL,
+            source_row_index INTEGER NOT NULL,
+            ingested_at TEXT NOT NULL DEFAULT (datetime('now')),
+            UNIQUE(project_name, metric_name, recorded_at, model_name)
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_token_metric_project_date
+            ON token_metric_points(project_name, usage_date);
+
+        CREATE INDEX IF NOT EXISTS idx_token_metric_natural
+            ON token_metric_points(project_name, metric_name, recorded_at, model_name);
+
+        CREATE INDEX IF NOT EXISTS idx_ingested_token_metric_files_project_name
+            ON ingested_token_metric_files(project_name);
         """
     )
     conn.execute(
@@ -3337,6 +3374,96 @@ def get_token_timeseries(
             }
         )
     return rows, chosen_currency, str(price_model["model_name"]), price_model.get("price_region"), "estimated"
+
+
+def get_token_metric_points(
+    conn: sqlite3.Connection,
+    project_name: str,
+    *,
+    start_date: str | None = None,
+    end_date: str | None = None,
+) -> dict[str, object]:
+    """
+    Return token/performance metric time-series points for a project.
+
+    Shape:
+      {
+        "available": bool,
+        "metrics": {
+          <metric_name>: {
+            "metric_name": str,
+            "unit": "pct"|"ms"|"count",
+            "models": [str],
+            "points": [{"recorded_at": "...", "usage_date": "YYYY-MM-DD", "values": {model: value}}]
+          }
+        }
+      }
+    """
+    where = ["project_name = ?"]
+    params: list[object] = [project_name]
+    if start_date:
+        where.append("usage_date >= ?")
+        params.append(start_date)
+    if end_date:
+        where.append("usage_date <= ?")
+        params.append(end_date)
+
+    rows = conn.execute(
+        f"""
+        SELECT
+          recorded_at,
+          usage_date,
+          model_name,
+          metric_name,
+          metric_value,
+          metric_unit
+        FROM token_metric_points
+        WHERE {' AND '.join(where)}
+        ORDER BY recorded_at ASC, model_name ASC
+        """,
+        tuple(params),
+    ).fetchall()
+
+    if not rows:
+        return {"available": False, "metrics": {}}
+
+    metrics: dict[str, dict[str, object]] = {}
+    for r in rows:
+        mn = str(r["metric_name"])
+        unit = str(r["metric_unit"] or "count")
+        metric = metrics.get(mn)
+        if metric is None:
+            metric = {
+                "metric_name": mn,
+                "unit": unit,
+                "models": [],
+                "points": [],
+            }
+            metrics[mn] = metric
+        if str(r["model_name"]) not in metric["models"]:
+            metric["models"].append(str(r["model_name"]))
+
+    # group by (metric_name, recorded_at)
+    idx: dict[tuple[str, str], dict[str, object]] = {}
+    for r in rows:
+        mn = str(r["metric_name"])
+        ra = str(r["recorded_at"])
+        key = (mn, ra)
+        p = idx.get(key)
+        if p is None:
+            p = {"recorded_at": ra, "usage_date": str(r["usage_date"]), "values": {}}
+            idx[key] = p
+            metrics[mn]["points"].append(p)
+        p["values"][str(r["model_name"])] = float(r["metric_value"] or 0.0)
+
+    # Ensure consistent ordering newest first for UI tables, while charts can reverse.
+    for m in metrics.values():
+        pts = list(m["points"])
+        pts.sort(key=lambda x: str(x.get("recorded_at") or ""), reverse=True)
+        m["points"] = pts
+        m["models"] = sorted(list(m["models"]))
+
+    return {"available": True, "metrics": metrics}
 
 
 def _project_where(project_names: list[str] | None) -> tuple[str, list[object]]:

@@ -119,6 +119,10 @@
           const dir = f.token_direction ? ` (${f.token_direction})` : '';
           return `Token${dir}`;
         }
+        if (kind === 'token_metric') {
+          const metric = f.metric_name ? ` (${String(f.metric_name).replace(/_/g, '-')})` : '';
+          return `Metric${metric}`;
+        }
         return 'Billing';
       }
 
@@ -159,7 +163,8 @@
 
         const billingMissing = Number(data.missing_billing_count ?? 0);
         const tokenMissing = Number(data.missing_token_count ?? 0);
-        missingCountEl.textContent = `${missing.length} (billing ${billingMissing}, token ${tokenMissing})`;
+        const metricMissing = Number(data.missing_token_metric_count ?? 0);
+        missingCountEl.textContent = `${missing.length} (billing ${billingMissing}, token ${tokenMissing}, metrics ${metricMissing})`;
         missingFilesTbody.innerHTML = '';
         for (const f of missing) {
           const tr = document.createElement('tr');

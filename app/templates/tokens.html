@@ -339,6 +339,73 @@
               </div>
               </div>
             </section>
+
+            <section id="perfSection" class="flowBlock" aria-labelledby="flowPerfTitle">
+              <header class="flowBlockHead flowBlockHeadStack">
+                <div class="flowBlockIdentity">
+                  <span class="flowStepNum" aria-hidden="true">5</span>
+                  <h2 id="flowPerfTitle" class="flowBlockTitle">Performance</h2>
+                </div>
+                <p class="flowBlockDesc muted">Time-series metrics from <code>bills/&lt;project&gt;/performance/</code> and <code>bills/&lt;project&gt;/token/cache-match-rate-*.csv</code>.</p>
+              </header>
+              <div class="flowChartGrid" aria-label="Performance metrics">
+                <article class="card chartPanel chartWide">
+                  <div class="chartHeader">
+                    <div>
+                      <h3 class="chartCardTitle">Cache match rate</h3>
+                      <p class="muted chartScaleHint">Higher is better. Unit = %.</p>
+                    </div>
+                  </div>
+                  <div class="chartCanvasHost chartCanvasHostShort" data-chart-host>
+                    <canvas id="cacheMatchChart"></canvas>
+                  </div>
+                </article>
+                <article class="card chartPanel chartWide">
+                  <div class="chartHeader">
+                    <div>
+                      <h3 class="chartCardTitle">Avg latency</h3>
+                      <p class="muted chartScaleHint">Unit = ms (converted from s/ms in CSV).</p>
+                    </div>
+                  </div>
+                  <div class="chartCanvasHost chartCanvasHostShort" data-chart-host>
+                    <canvas id="avgLatencyChart"></canvas>
+                  </div>
+                </article>
+                <article class="card chartPanel chartWide chartFull">
+                  <div class="chartHeader">
+                    <div>
+                      <h3 class="chartCardTitle">Model requests</h3>
+                      <p class="muted chartScaleHint">Count per time bucket.</p>
+                    </div>
+                  </div>
+                  <div class="chartCanvasHost chartCanvasHostShort" data-chart-host>
+                    <canvas id="modelRequestsChart"></canvas>
+                  </div>
+                </article>
+              </div>
+              <div class="flowBlockBody card" style="margin-top: 12px;">
+                <div class="panelHead">
+                  <div>
+                    <h2 class="sectionTitle">Performance raw points</h2>
+                    <p class="muted panelDesc">Newest first.</p>
+                  </div>
+                </div>
+                <div class="tableScroll dataTableWrap dashTableShell">
+                  <table class="dataTable dashTable">
+                    <thead>
+                      <tr>
+                        <th style="width: 160px;">Time</th>
+                        <th style="width: 140px;">Metric</th>
+                        <th>Values (by model)</th>
+                      </tr>
+                    </thead>
+                    <tbody id="perfRowsTbody">
+                      <tr><td colspan="3" class="muted">Load data to view performance metrics.</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </section>
             </div>
           </div>
         </div>

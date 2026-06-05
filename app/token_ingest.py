@@ -184,6 +184,12 @@ def discover_token_csv_files(bills_dir: str | os.PathLike[str]) -> list[tuple[st
         if not token_dir.is_dir():
             continue
         for csv_path in sorted(token_dir.glob("*.csv"), key=_file_sort_key):
+            # Token usage CSVs must be input/output direction files.
+            # Other time-series CSVs may live under token/ (e.g. cache match rate) and are handled elsewhere.
+            try:
+                infer_token_direction(csv_path.name)
+            except ValueError:
+                continue
             rel_path = str(csv_path.relative_to(bills_path))
             results.append((project_name, csv_path, rel_path))
     return results

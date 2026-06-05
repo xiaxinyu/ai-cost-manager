@@ -33,6 +33,7 @@ from .db import (
     get_imported_token_models_with_prices,
     get_imported_token_meta,
     get_token_timeseries,
+    get_token_metric_points,
     get_all_token_timeseries,
     verify_all_financial_consistency,
     get_billing_token_bridge,
@@ -55,6 +56,13 @@ from .token_ingest import (
     list_ingested_token_files,
     list_missing_token_files,
     verify_ingested_token_files,
+)
+from .token_metric_ingest import (
+    ingest_token_metric_all,
+    ingest_token_metric_selected,
+    list_ingested_token_metric_files,
+    list_missing_token_metric_files,
+    verify_ingested_token_metric_files,
 )
 from .auth import authenticate_user, require_active_user
 from .cost_pipeline import COST_PIPELINE_VERSION, cost_debug_enabled, summarize_daily_cost_rows
@@ -681,6 +689,12 @@ def create_app(
                 )
             except Exception:
                 pass
+            payload["token_metrics"] = get_token_metric_points(
+                conn,
+                project_name,
+                start_date=start_date,
+                end_date=end_date,
+            )
             payload["insights"] = insight_cards_to_dicts(
                 compute_token_insights(
                     project=project_name,
@@ -761,8 +775,9 @@ def create_app(
     def api_missing_files(_: str = Depends(_auth_dep)) -> JSONResponse:
         billing = list_missing_files(bills_dir=bills_dir, db_path=db_path)
         token = list_missing_token_files(bills_dir=bills_dir, db_path=db_path)
+        token_metrics = list_missing_token_metric_files(bills_dir=bills_dir, db_path=db_path)
         missing = sorted(
-            [*billing, *token],
+            [*billing, *token, *token_metrics],
             key=lambda x: float(x.get("source_last_modified") or 0),
             reverse=True,
         )
@@ -771,13 +786,26 @@ def create_app(
                 "missing_count": len(missing),
                 "missing_billing_count": len(billing),
                 "missing_token_count": len(token),
+                "missing_token_metric_count": len(token_metrics),
                 "missing_files": missing,
             }
         )
 
-    def _is_token_file_path(file_path_rel: str) -> bool:
+    def _is_token_usage_file_path(file_path_rel: str) -> bool:
         parts = Path(file_path_rel).parts
         return len(parts) >= 2 and parts[1].lower() == "token"
+
+    def _is_token_metric_file_path(file_path_rel: str) -> bool:
+        parts = Path(file_path_rel).parts
+        if len(parts) < 2:
+            return False
+        p1 = parts[1].lower()
+        if p1 == "performance":
+            return True
+        if p1 == "token" and len(parts) >= 3:
+            # metric CSVs under token/ (e.g. cache-match-rate-*.csv)
+            return parts[-1].lower().startswith("cache-match-rate-")
+        return False
 
     @app.post("/api/import/run")
     def api_import_run(
@@ -787,15 +815,22 @@ def create_app(
         try:
             billing_paths: list[str] | None = None
             token_paths: list[str] | None = None
+            token_metric_paths: list[str] | None = None
             if req.file_path_rels is not None:
-                billing_paths = [p for p in req.file_path_rels if not _is_token_file_path(p)]
-                token_paths = [p for p in req.file_path_rels if _is_token_file_path(p)]
+                billing_paths = [
+                    p for p in req.file_path_rels if not _is_token_usage_file_path(p) and not _is_token_metric_file_path(p)
+                ]
+                token_paths = [p for p in req.file_path_rels if _is_token_usage_file_path(p) and not _is_token_metric_file_path(p)]
+                token_metric_paths = [p for p in req.file_path_rels if _is_token_metric_file_path(p)]
 
             if req.file_path_rels is None:
                 billing_result = ingest_all(
                     bills_dir=bills_dir, db_path=db_path, reimport_changed=req.reimport_changed
                 )
                 token_result = ingest_token_all(
+                    bills_dir=bills_dir, db_path=db_path, reimport_changed=req.reimport_changed
+                )
+                metric_result = ingest_token_metric_all(
                     bills_dir=bills_dir, db_path=db_path, reimport_changed=req.reimport_changed
                 )
             else:
@@ -811,26 +846,37 @@ def create_app(
                     file_path_rels=token_paths,
                     reimport_changed=req.reimport_changed,
                 )
+                metric_result = ingest_token_metric_selected(
+                    bills_dir=bills_dir,
+                    db_path=db_path,
+                    file_path_rels=token_metric_paths,
+                    reimport_changed=req.reimport_changed,
+                )
 
             verification_passed = (
-                billing_result.verification_passed and token_result.verification_passed
+                billing_result.verification_passed
+                and token_result.verification_passed
+                and metric_result.verification_passed
             )
             return JSONResponse(
                 {
                     "projects_discovered": billing_result.projects_discovered
-                    + token_result.projects_discovered,
+                    + token_result.projects_discovered
+                    + metric_result.projects_discovered,
                     "files_discovered": billing_result.files_discovered + token_result.files_discovered,
                     "files_skipped": billing_result.files_skipped + token_result.files_skipped,
-                    "files_ingested": billing_result.files_ingested + token_result.files_ingested,
-                    "rows_ingested": billing_result.rows_ingested + token_result.rows_ingested,
-                    "files_verified": billing_result.files_verified + token_result.files_verified,
+                    "files_ingested": billing_result.files_ingested + token_result.files_ingested + metric_result.files_ingested,
+                    "rows_ingested": billing_result.rows_ingested + token_result.rows_ingested + metric_result.rows_ingested,
+                    "files_verified": billing_result.files_verified + token_result.files_verified + metric_result.files_verified,
                     "verification_passed": verification_passed,
                     "billing_files_ingested": billing_result.files_ingested,
                     "token_files_ingested": token_result.files_ingested,
+                    "token_metric_files_ingested": metric_result.files_ingested,
                     "billing_rows_ingested": billing_result.rows_ingested,
                     "billing_rows_inserted": billing_result.rows_inserted,
                     "billing_rows_updated": billing_result.rows_updated,
                     "token_rows_ingested": token_result.rows_ingested,
+                    "token_metric_rows_ingested": metric_result.rows_ingested,
                     "price_source_catalog": _price_source_catalog_snapshot(),
                 }
             )
@@ -864,9 +910,13 @@ def create_app(
         try:
             billing_paths: list[str] | None = None
             token_paths: list[str] | None = None
+            metric_paths: list[str] | None = None
             if file_path_rels is not None:
-                billing_paths = [p for p in file_path_rels if not _is_token_file_path(p)]
-                token_paths = [p for p in file_path_rels if _is_token_file_path(p)]
+                billing_paths = [
+                    p for p in file_path_rels if not _is_token_usage_file_path(p) and not _is_token_metric_file_path(p)
+                ]
+                token_paths = [p for p in file_path_rels if _is_token_usage_file_path(p) and not _is_token_metric_file_path(p)]
+                metric_paths = [p for p in file_path_rels if _is_token_metric_file_path(p)]
 
             items: list[dict[str, object]] = []
             pass_count = 0
@@ -907,6 +957,24 @@ def create_app(
                     }
                     for it in token_result.items
                 )
+
+            if file_path_rels is None or metric_paths:
+                metric_result = verify_ingested_token_metric_files(
+                    bills_dir=bills_dir,
+                    db_path=db_path,
+                    limit=limit,
+                    file_path_rels=metric_paths,
+                )
+                pass_count += metric_result.pass_count
+                fail_count += metric_result.fail_count
+                items.extend(
+                    {
+                        "file_path_rel": it.file_path_rel,
+                        "pass": it.pass_check,
+                        "error": it.error,
+                    }
+                    for it in metric_result.items
+                )
             return JSONResponse(
                 {
                     "limit": limit,
@@ -935,8 +1003,9 @@ def create_app(
     ) -> JSONResponse:
         billing = list_ingested_files(db_path=db_path, limit=limit)
         token = list_ingested_token_files(db_path=db_path, limit=limit)
+        token_metrics = list_ingested_token_metric_files(db_path=db_path, limit=limit)
         files = sorted(
-            [*billing, *token],
+            [*billing, *token, *token_metrics],
             key=lambda x: str(x.get("ingested_at") or ""),
             reverse=True,
         )[:limit]
