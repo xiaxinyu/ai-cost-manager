@@ -44,6 +44,7 @@ from .db import (
     get_timeseries,
     init_db,
     list_price_source_catalog,
+    list_project_details,
     list_projects,
     list_projects_with_imported_tokens,
     update_price_source_catalog_row,
@@ -333,10 +334,12 @@ def create_app(
         try:
             projects = list_projects(conn)
             token_projects = list_projects_with_imported_tokens(conn)
+            details = list_project_details(conn)
             return JSONResponse(
                 {
                     "projects": projects,
                     "projects_with_imported_tokens": token_projects,
+                    "project_details": details,
                 }
             )
         finally:

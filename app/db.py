@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import sqlite3
 from dataclasses import dataclass
 from datetime import date, timedelta
@@ -607,10 +608,122 @@ def list_projects(conn: sqlite3.Connection) -> list[str]:
         SELECT name AS project_name FROM projects
         UNION
         SELECT DISTINCT project_name FROM token_usage_points
+        UNION
+        SELECT DISTINCT project_name FROM transactions
         ORDER BY project_name
         """
     ).fetchall()
     return [r["project_name"] for r in rows]
+
+
+def list_token_models_for_project(conn: sqlite3.Connection, project_name: str) -> list[str]:
+    rows = conn.execute(
+        """
+        SELECT DISTINCT model_name
+        FROM token_usage_points
+        WHERE project_name = ?
+        ORDER BY model_name ASC
+        """,
+        (project_name,),
+    ).fetchall()
+    return [str(r["model_name"]) for r in rows if r["model_name"]]
+
+
+def _pick_primary_token_model(models: list[str], project_name: str) -> str:
+    """Choose a display / config primary model from imported token columns."""
+    unique = sorted({str(m).strip() for m in models if m})
+    if not unique:
+        return ""
+
+    for m in unique:
+        ml = m.lower()
+        if ml == "gpt-4o" or ml.startswith("gpt-4o-"):
+            return m
+
+    folder_match = re.search(r"gpt-?(\d+(?:\.\d+)?)", project_name, re.IGNORECASE)
+    if folder_match:
+        ver = folder_match.group(1)
+        needle = f"gpt-{ver}".lower()
+        for m in unique:
+            ml = m.lower()
+            if ml == needle or ml.startswith(needle + "-"):
+                return m
+
+    return unique[0]
+
+
+def ensure_project_model_config_from_tokens(
+    conn: sqlite3.Connection,
+    project_name: str,
+    *,
+    overwrite: bool = False,
+) -> str | None:
+    """
+    Seed ``project_model_configs`` from imported token CSV model columns when missing.
+
+    Returns the primary model name if a config row exists or was created.
+    """
+    if not overwrite and get_project_model_config(conn, project_name) is not None:
+        cfg = get_project_model_config(conn, project_name)
+        return str(cfg["model_name"]) if cfg else None
+
+    models = list_token_models_for_project(conn, project_name)
+    primary = _pick_primary_token_model(models, project_name)
+    if not primary:
+        return None
+
+    upsert_project_model_config(
+        conn,
+        project_name=project_name,
+        model_name=primary,
+        api_version=None,
+        azure_endpoint=None,
+    )
+    return primary
+
+
+def sync_missing_project_model_configs(conn: sqlite3.Connection) -> int:
+    """Backfill configs for projects that have token imports but no config row."""
+    rows = conn.execute(
+        """
+        SELECT DISTINCT t.project_name
+        FROM token_usage_points t
+        LEFT JOIN project_model_configs c ON c.project_name = t.project_name
+        WHERE c.project_name IS NULL
+        ORDER BY t.project_name
+        """
+    ).fetchall()
+    n = 0
+    for r in rows:
+        if ensure_project_model_config_from_tokens(conn, str(r["project_name"])):
+            n += 1
+    return n
+
+
+def list_project_details(conn: sqlite3.Connection) -> list[dict[str, object]]:
+    """Project folder ids with primary (configured) and token (imported) model names."""
+    sync_missing_project_model_configs(conn)
+    out: list[dict[str, object]] = []
+    for name in list_projects(conn):
+        cfg = get_project_model_config(conn, name)
+        token_models = list_token_models_for_project(conn, name)
+        primary = str(cfg["model_name"]) if cfg and cfg.get("model_name") else None
+        if not primary and token_models:
+            primary = _pick_primary_token_model(token_models, name)
+        label = name
+        if primary:
+            label = f"{name} · {primary}"
+        elif token_models:
+            label = f"{name} · {token_models[0]}"
+        out.append(
+            {
+                "name": name,
+                "primary_model": primary,
+                "token_models": token_models,
+                "display_label": label,
+            }
+        )
+    return out
 
 
 def project_has_imported_tokens(conn: sqlite3.Connection, project_name: str) -> bool:

@@ -1857,6 +1857,9 @@
     try {
       const data = await window.AppHttp.getJson("/api/projects");
       const projects = data.projects || [];
+      const detailsByName = Object.fromEntries(
+        (data.project_details || []).filter((d) => d?.name).map((d) => [d.name, d])
+      );
       projectsWithImportedTokens = data.projects_with_imported_tokens || [];
       const hasProjects = projects.length > 0;
       els.emptyState.hidden = hasProjects;
@@ -1865,7 +1868,14 @@
       for (const p of projects) {
         const opt = document.createElement("option");
         opt.value = p;
-        opt.textContent = projectsWithImportedTokens.includes(p) ? `${p} · tokens` : p;
+        const detail = detailsByName[p];
+        const baseLabel = detail?.display_label || p;
+        opt.textContent = projectsWithImportedTokens.includes(p)
+          ? `${baseLabel} · tokens`
+          : baseLabel;
+        if (detail) {
+          opt.title = `Folder: ${p}\nPrimary: ${detail.primary_model || "—"}\nToken models: ${(detail.token_models || []).join(", ") || "—"}`;
+        }
         els.projectSelect.appendChild(opt);
       }
       if (!hasProjects) {

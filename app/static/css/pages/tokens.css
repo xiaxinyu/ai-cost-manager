@@ -898,8 +898,10 @@
 .tokenPage .dataTable thead th {
   position: sticky;
   top: 0;
-  z-index: 2;
-  padding: 10px 10px;
+  z-index: 20;
+  padding: 11px 10px;
+  min-height: 42px;
+  box-sizing: border-box;
   font-size: 10px;
   font-weight: 750;
   letter-spacing: 0.05em;
@@ -908,6 +910,13 @@
   background: var(--table-header-bg);
   border-bottom: 1px solid rgba(173, 196, 228, 0.18);
   box-shadow: 0 1px 0 rgba(0, 0, 0, 0.2);
+}
+
+/* Billing detail: header must sit above horizontally sticky body cells */
+.tokenPage .dataTable.tokenBillingTable thead th {
+  z-index: 24;
+  background: var(--table-header-bg);
+  backdrop-filter: blur(6px);
 }
 
 .tokenPage .dataTable thead th.thInputCostCol {
@@ -949,15 +958,19 @@
 .tokenPage .dataTable.tokenBillingTable tbody td.tdModel {
   position: sticky;
   left: var(--col-date-w);
-  z-index: 3;
   width: 18rem;
   min-width: 18rem;
   max-width: 18rem;
   text-align: left;
   padding-left: 10px;
   padding-right: 10px;
-  background: var(--table-header-bg, rgba(7, 14, 26, 0.96));
   box-shadow: 3px 0 8px rgba(0, 0, 0, 0.22);
+}
+
+.tokenPage .dataTable.tokenBillingTable thead th.thModelCol {
+  top: 0;
+  z-index: 26;
+  background: var(--table-header-bg);
 }
 
 .tokenPage .dataTable.tokenBillingTable tbody td.tdModel {
@@ -973,16 +986,20 @@
 .tokenPage .dataTable.tokenBillingTable tbody td.tdDate {
   position: sticky;
   left: 0;
-  z-index: 4;
   width: var(--col-date-w, 6.5rem);
   min-width: var(--col-date-w, 6.5rem);
   max-width: var(--col-date-w, 6.5rem);
   box-sizing: border-box;
-  background: var(--table-header-bg, rgba(7, 14, 26, 0.96));
   box-shadow: 3px 0 8px rgba(0, 0, 0, 0.18);
 }
 
-.tokenPage .dataTable tbody td.tdDate {
+.tokenPage .dataTable.tokenBillingTable thead th.thDateCol {
+  top: 0;
+  z-index: 27;
+  background: var(--table-header-bg);
+}
+
+.tokenPage .dataTable.tokenBillingTable tbody td.tdDate {
   z-index: 1;
   background: rgba(8, 14, 26, 0.98);
 }

@@ -9,7 +9,14 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from .db import SCHEMA_VERSION, ensure_parent_dir, ensure_project, get_connection, init_db
+from .db import (
+    SCHEMA_VERSION,
+    ensure_parent_dir,
+    ensure_project,
+    ensure_project_model_config_from_tokens,
+    get_connection,
+    init_db,
+)
 from .ingest import _sha256_file
 
 # Grafana token CSV units: K/thousand, Mil/M/million (see parse_token_quantity).
@@ -644,6 +651,9 @@ def ingest_token_selected(
         rows_ingested += row_count
         rows_replaced += replaced
         files_verified += 1
+
+    for pn in projects:
+        ensure_project_model_config_from_tokens(conn, pn)
 
     conn.close()
     return TokenIngestResult(

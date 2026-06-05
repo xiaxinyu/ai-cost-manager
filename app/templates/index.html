@@ -34,7 +34,8 @@
             <div class="filterBar controls" role="group" aria-label="Scope filters">
               <div class="filterField">
                 <label class="filterLabel" for="projectSelect">Project</label>
-                <select id="projectSelect"></select>
+                <select id="projectSelect" title="Folder under bills/ — suffix shows primary deployment model"></select>
+                <p id="projectModelHint" class="muted filterHint" style="margin-top:6px;font-size:11px;"></p>
               </div>
               <div class="filterField">
                 <label class="filterLabel" for="startDateInput">Start</label>
@@ -1155,18 +1156,50 @@
         }
       }
 
+      let projectDetailsByName = {};
+
+      function projectDisplayLabel(name) {
+        const d = projectDetailsByName[name];
+        return d?.display_label || name;
+      }
+
+      function updateProjectModelHint(projectName) {
+        const hintEl = document.getElementById('projectModelHint');
+        if (!hintEl) return;
+        const d = projectDetailsByName[projectName];
+        if (!d) {
+          hintEl.textContent = '';
+          return;
+        }
+        const primary = d.primary_model ? `Primary model: ${d.primary_model}` : '';
+        const tokens = (d.token_models || []).length
+          ? `Token CSV models: ${d.token_models.join(', ')}`
+          : 'No token CSV imported yet';
+        hintEl.textContent = [primary, tokens].filter(Boolean).join(' · ');
+      }
+
       async function loadProjects(preferredProject) {
         const data = await window.AppHttp.getJson('/api/projects');
+        projectDetailsByName = {};
+        for (const d of data.project_details || []) {
+          if (d?.name) projectDetailsByName[d.name] = d;
+        }
         projectSelect.innerHTML = '';
         for (const p of data.projects) {
           const opt = document.createElement('option');
           opt.value = p;
-          opt.textContent = p;
+          opt.textContent = projectDisplayLabel(p);
+          const d = projectDetailsByName[p];
+          if (d) {
+            opt.title = `Folder: ${p}\nPrimary: ${d.primary_model || '—'}\nToken models: ${(d.token_models || []).join(', ') || '—'}`;
+          }
           projectSelect.appendChild(opt);
         }
         if (data.projects.length > 0) {
           const chosen =
             (preferredProject && data.projects.includes(preferredProject)) ? preferredProject : data.projects[0];
+          projectSelect.value = chosen;
+          updateProjectModelHint(chosen);
           await loadProjectSafe(chosen);
         }
       }
@@ -1174,6 +1207,10 @@
       async function loadProject(projectName) {
         if (!projectName) return;
         currentProjectName = projectName;
+        if (projectSelect && projectSelect.value !== projectName) {
+          projectSelect.value = projectName;
+        }
+        updateProjectModelHint(projectName);
         const startDate = startDateInput.value || null;
         const endDate = endDateInput.value || null;
         if (startDate && endDate && startDate > endDate) {
