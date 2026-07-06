@@ -14,7 +14,7 @@
 }
 
 /* --- Page chrome: title band (standard pages, not token nested header) --- */
-.contentArea .pageHeader:not(.tokenPageHeader):not(.dashboardHero) {
+.contentArea .pageHeader:not(.tokenPageHeader):not(.dashboardHero):not(.costPageHeader) {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, min(44%, 40ch));
   grid-template-areas:
@@ -62,7 +62,7 @@
 }
 
 @media (max-width: 760px) {
-  .contentArea .pageHeader:not(.tokenPageHeader):not(.dashboardHero) {
+  .contentArea .pageHeader:not(.tokenPageHeader):not(.dashboardHero):not(.costPageHeader) {
     grid-template-columns: 1fr;
     grid-template-areas:
       "crumb"
@@ -133,16 +133,12 @@
   gap: var(--lp-section-gap-lg) !important;
 }
 
-.costDashboard .dashSections {
-  gap: var(--lp-section-gap-lg) !important;
-}
-
-.costDashboard .dashboardHero {
-  padding: 16px 18px !important;
+.costDashboard .costZones {
+  gap: calc(var(--lp-section-gap-lg) + 6px) !important;
 }
 
 .costDashboard .chartStack {
-  gap: var(--lp-section-gap) !important;
+  gap: var(--cost-gutter, 14px) !important;
 }
 
 .costDashboard .chartCanvasHost {

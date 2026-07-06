@@ -6,7 +6,7 @@
     <title>Cost - Models Cost Management</title>
     <link rel="stylesheet" href="/static/css/app-shell.css" />
     <link rel="stylesheet" href="/static/css/page-common.css" />
-    <link rel="stylesheet" href="/static/css/pages/index.css?v=20260706-align" />
+    <link rel="stylesheet" href="/static/css/pages/index.css?v=20260706-layout" />
     <link rel="stylesheet" href="/static/css/layout-pro.css" />
     <link rel="stylesheet" href="/static/css/dashboard-shared.css?v=20260605-cost" />
     <link rel="stylesheet" href="/static/css/date-range-picker.css?v=20260606-drp" />
@@ -19,82 +19,125 @@
     <div class="appLayout">
       <main class="contentArea">
         <div class="container costDashboard dashPage">
-          <header class="dashboardHero card" aria-label="Cost filters">
-            <div class="dashboardHeroMain">
-              <p class="breadcrumb">Home / Cost</p>
-              <h1 class="dashboardTitle">Cost</h1>
-              <p class="dashboardDesc">
-                <span class="costPill costPill--actual">Actual</span> meter billing vs
-                <span class="costPill costPill--market">Market</span> list price.
-                Detail on <a href="/tokens">Tokens</a>.
-              </p>
-              <p class="dashboardSource muted">
+          <header class="pageHeader costPageHeader">
+            <div class="breadcrumb">Home / Cost</div>
+            <div class="costTitleRow">
+              <div>
+                <h1 class="pageTitle">Cost overview</h1>
+                <p class="pageDesc">
+                  Read top → bottom: scope summary, daily trends, billing breakdown, then model detail.
+                  <span class="costPill costPill--actual">Actual</span> billing vs
+                  <span class="costPill costPill--market">Market</span> list price · token detail on
+                  <a href="/tokens">Tokens</a>.
+                </p>
+              </div>
+              <p class="costSourceNote muted">
                 Source: CSV in <span class="pill">{{ default_bills_dir }}</span>
               </p>
             </div>
-            <div class="filterBar controls" role="group" aria-label="Scope filters">
-              <div class="filterField filterFieldProject">
+          </header>
+
+          <section class="card costFilterCard filterCard" aria-label="Filters">
+            <div class="filterCardHead">
+              <h2 class="filterCardTitle">Scope</h2>
+              <p class="filterCardHint muted">Project and date range · Enter or Apply to load</p>
+            </div>
+            <div class="filterBar controls costToolbarGrid" role="group" aria-label="Scope filters">
+              <div class="field filterField filterFieldProject">
                 <label class="filterLabel" for="projectSelect">Project</label>
                 <p id="projectModelHint" class="projectModelHint muted" aria-live="polite"></p>
                 <select id="projectSelect" title="Folder under bills/ — suffix shows primary deployment model"></select>
               </div>
-              <div class="filterField filterFieldDateRange">
+              <div class="field filterField filterFieldDateRange">
                 <label class="filterLabel" for="startDateInput">Date range</label>
                 <div class="dateRangePickerHost">
                   <input id="startDateInput" type="date" lang="en" aria-label="Start date" />
                   <input id="endDateInput" type="date" lang="en" aria-label="End date" />
                 </div>
               </div>
-              <button id="applyFiltersBtn" class="btn btnApply" type="button" aria-busy="false">Apply</button>
-            </div>
-          </header>
-
-          <section class="kpiSection" aria-label="Summary metrics">
-            <div class="kpiGrid">
-              <article class="card kpiCard kpiCard--primary kpiCard--actual">
-                <div class="stat">
-                  <div class="label"><span class="costPill costPill--actual">Actual</span> CostUSD</div>
-                  <div class="value" id="actualCost">-</div>
-                  <div class="sub tokenStats kpiFootnote" id="actualCostNote">All billing meters</div>
-                  <div class="sub tokenStats kpiFootnote" id="costStats">Max: - · Mean: - · Min: -</div>
-                </div>
-              </article>
-              <article class="card kpiCard">
-                <div class="stat">
-                  <div class="label">Date range</div>
-                  <div class="value value--md" id="dateRange">-</div>
-                </div>
-              </article>
-              <article class="card kpiCard">
-                <div class="stat">
-                  <div class="label">Days with data</div>
-                  <div class="value value--md" id="daysCount">-</div>
-                </div>
-              </article>
-              <article class="card kpiCard kpiCard--market" id="catalogMarketCard">
-                <div class="stat">
-                  <div class="label"><span class="costPill costPill--market">Market</span> Catalog list</div>
-                  <div class="value" id="catalogMarketTotal">-</div>
-                  <div class="sub tokenStats kpiFootnote" id="catalogMarketNote">Tokens × Model Prices USD/1M</div>
-                </div>
-              </article>
-              <article class="card kpiCard kpiCard--market" id="catalogVarianceCard">
-                <div class="stat">
-                  <div class="label">Actual − Market</div>
-                  <div class="value value--md" id="catalogVariancePct">-</div>
-                  <div class="sub tokenStats kpiFootnote" id="catalogVarianceNote">Actual vs Market</div>
-                </div>
-              </article>
+              <div class="toolbarActions">
+                <button id="applyFiltersBtn" class="btn btnPrimary btnApply" type="button" aria-busy="false">Apply</button>
+              </div>
             </div>
           </section>
 
-          <div id="costInsightPanel" class="insightPanel" hidden aria-label="Cost insights"></div>
+          <nav class="costNav card" aria-label="Cost sections">
+            <span class="costNavLabel muted">Jump to</span>
+            <a class="costNavLink" href="#cost-summary">① Summary</a>
+            <a class="costNavLink" href="#cost-trends">② Trends</a>
+            <a class="costNavLink" href="#costResourceSection">③ Billing</a>
+            <a class="costNavLink" href="#costModelSection">④ Models</a>
+          </nav>
 
-          <div class="dashSections">
-            <section class="trendsSection" aria-label="Daily cost trends">
-              <div class="sectionHeaderRow">
-                <h2 class="sectionTitle">Daily trends</h2>
-                <span class="sectionMeta muted" id="currencyLabel"></span>
+          <section id="cost-summary" class="costZone costZone--summary" aria-label="Summary">
+            <div class="costSectionHead">
+              <span class="costStep" aria-hidden="true">1</span>
+              <div class="costSectionHeadMain">
+                <h2 class="costSectionTitle">Summary</h2>
+                <p class="costSectionLead muted">Total billing for the selected project and dates, with market benchmark.</p>
+              </div>
+            </div>
+            <div class="costKpiBoard">
+              <div class="costKpiGroup costKpiGroup--billing">
+                <p class="costKpiGroupLabel">Total billing</p>
+                <article class="card kpiCard kpiCard--hero kpiCard--primary kpiCard--actual">
+                  <div class="stat">
+                    <div class="label"><span class="costPill costPill--actual">Actual</span> Cost USD</div>
+                    <div class="value" id="actualCost">-</div>
+                    <div class="sub tokenStats kpiFootnote" id="actualCostNote">All billing meters</div>
+                    <div class="sub tokenStats kpiFootnote" id="costStats">Max: - · Mean: - · Min: -</div>
+                  </div>
+                </article>
+              </div>
+              <div class="costKpiGroup costKpiGroup--scope">
+                <p class="costKpiGroupLabel">Scope</p>
+                <div class="costKpiGroupCards">
+                  <article class="card kpiCard">
+                    <div class="stat">
+                      <div class="label">Date range</div>
+                      <div class="value value--md" id="dateRange">-</div>
+                    </div>
+                  </article>
+                  <article class="card kpiCard">
+                    <div class="stat">
+                      <div class="label">Days with data</div>
+                      <div class="value value--md" id="daysCount">-</div>
+                    </div>
+                  </article>
+                </div>
+              </div>
+              <div class="costKpiGroup costKpiGroup--market">
+                <p class="costKpiGroupLabel">Market benchmark</p>
+                <div class="costKpiGroupCards">
+                  <article class="card kpiCard kpiCard--market" id="catalogMarketCard">
+                    <div class="stat">
+                      <div class="label"><span class="costPill costPill--market">Market</span> Catalog list</div>
+                      <div class="value" id="catalogMarketTotal">-</div>
+                      <div class="sub tokenStats kpiFootnote" id="catalogMarketNote">Tokens × Model Prices USD/1M</div>
+                    </div>
+                  </article>
+                  <article class="card kpiCard kpiCard--market" id="catalogVarianceCard">
+                    <div class="stat">
+                      <div class="label">Actual − Market</div>
+                      <div class="value value--md" id="catalogVariancePct">-</div>
+                      <div class="sub tokenStats kpiFootnote" id="catalogVarianceNote">Actual vs Market</div>
+                    </div>
+                  </article>
+                </div>
+              </div>
+            </div>
+            <div id="costInsightPanel" class="insightPanel" hidden aria-label="Cost insights"></div>
+          </section>
+
+          <div class="costZones">
+            <section id="cost-trends" class="costZone costZone--trends" aria-label="Daily cost trends">
+              <div class="costSectionHead">
+                <span class="costStep" aria-hidden="true">2</span>
+                <div class="costSectionHeadMain">
+                  <h2 class="costSectionTitle">Daily trends</h2>
+                  <p class="costSectionLead muted">Actual billing per day and comparison to market list price.</p>
+                </div>
+                <span class="costSectionMeta muted" id="currencyLabel"></span>
               </div>
               <div class="chartStack">
                 <div class="card tight chartPanel">
@@ -119,14 +162,20 @@
               </div>
             </section>
 
-            <section class="costResourceSection" id="costResourceSection" hidden aria-label="Billing by resource">
-              <div class="sectionHeaderRow">
-                <h2 class="sectionTitle">Billing by resource</h2>
-                <span class="sectionMeta muted" id="resourceBillingHint"></span>
+            <section class="costZone costZone--billing costResourceSection" id="costResourceSection" hidden aria-label="Billing breakdown">
+              <div class="costSectionHead">
+                <span class="costStep" aria-hidden="true">3</span>
+                <div class="costSectionHeadMain">
+                  <h2 class="costSectionTitle">Billing breakdown</h2>
+                  <p class="costSectionLead muted">Resource and service totals from imported billing CSV, plus line-level detail.</p>
+                </div>
+                <span class="costSectionMeta muted" id="resourceBillingHint"></span>
               </div>
-              <div class="card tight resourceBillingCard">
-                <p class="resourceBillingLead muted">
-                  Actual costs from imported billing CSV — each Azure resource and service in scope.
+              <div class="costDetailStack">
+              <div class="card tight costDetailCard resourceBillingCard">
+                <h3 class="costDetailTitle">By resource</h3>
+                <p class="costDetailLead muted">
+                  Aggregated actual cost per Azure resource and service.
                 </p>
                 <div class="tableScroll resourceBillingTableWrap" data-table-host>
                   <table class="dataTable dashTable resourceBillingTable" id="resourceBillingTable">
@@ -146,10 +195,10 @@
                   </table>
                 </div>
               </div>
-              <div class="card tight resourceRawCard">
+              <div class="card tight costDetailCard resourceRawCard">
                 <div class="resourceRawHead">
-                  <h3 class="chartSectionTitle">Raw billing lines</h3>
-                  <p class="resourceBillingLead muted">Imported CSV rows — basic fields, newest first.</p>
+                  <h3 class="costDetailTitle">Line items</h3>
+                  <p class="costDetailLead muted">Imported CSV rows — basic fields, newest first.</p>
                 </div>
                 <div class="resourceRawToolbar" aria-label="Raw billing pagination">
                   <label class="resourceRawPageSizeLabel muted" for="billingRawPageSize">Page size</label>
@@ -180,12 +229,17 @@
                   </table>
                 </div>
               </div>
+              </div>
             </section>
 
-            <section class="costModelSection" id="costModelSection" hidden aria-label="Cost by model">
-              <div class="sectionHeaderRow">
-                <h2 class="sectionTitle">By model</h2>
-                <span class="sectionMeta muted" id="modelSectionHint"></span>
+            <section class="costZone costZone--models costModelSection" id="costModelSection" hidden aria-label="Model breakdown">
+              <div class="costSectionHead">
+                <span class="costStep" aria-hidden="true">4</span>
+                <div class="costSectionHeadMain">
+                  <h2 class="costSectionTitle">Model breakdown</h2>
+                  <p class="costSectionLead muted">Token-meter matched billing by model; Others rows reconcile to total billing.</p>
+                </div>
+                <span class="costSectionMeta muted" id="modelSectionHint"></span>
               </div>
               <div class="modelMeterTotals" id="modelMeterTotals" hidden>
                 <div class="card tight meterTotalCard">
@@ -213,7 +267,7 @@
               </div>
               <div class="card tight modelSummaryCard">
                 <div class="modelSummaryHead">
-                  <h3 class="chartSectionTitle">Model totals</h3>
+                  <h3 class="costDetailTitle">Model totals</h3>
                   <p class="modelTableHint muted">
                     Model rows = token-meter matched billing.
                     <span class="costPill costPill--actual">Others</span> rows reconcile to top Actual total.

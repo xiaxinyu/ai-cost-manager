@@ -416,9 +416,10 @@
 
 /* Cost dashboard — finance MIS layout */
 .costDashboard {
-  --cost-gap: 18px;
-  --cost-gutter: 18px;
+  --cost-gap: 16px;
+  --cost-gutter: 14px;
   --cost-gap-sm: var(--cost-gutter);
+  --cost-control-h: 40px;
   --cost-chart-h: clamp(260px, 32vh, 336px);
   --cost-chart-h-tall: clamp(280px, 34vh, 360px);
   display: grid;
@@ -427,86 +428,285 @@
   max-width: 100%;
 }
 
-.costDashboard .dashboardHero {
-  display: grid;
-  grid-template-columns: 1fr;
-  grid-template-areas:
-    "hero-main"
-    "hero-filters";
-  align-items: stretch;
-  gap: 16px;
-  padding: 16px 18px;
-  border-radius: 10px;
-  background: linear-gradient(165deg, rgba(26, 32, 42, 0.92), rgba(20, 26, 36, 0.88));
-  box-shadow: var(--shadow);
-}
-
-.costDashboard .dashboardHeroMain {
-  grid-area: hero-main;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  min-width: 0;
-}
-
-.costDashboard .breadcrumb {
+/* —— Page chrome —— */
+.costPageHeader {
   margin: 0;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--text-subtle);
+  padding: 6px 4px 2px;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  min-height: 0;
 }
 
-.costDashboard .breadcrumb::after {
+.costPageHeader .breadcrumb::after {
   display: none;
 }
 
-.costDashboard .dashboardTitle {
-  margin: 0;
-  font-size: clamp(22px, 2.2vw, 28px);
-  font-weight: 780;
-  line-height: 1.15;
-  letter-spacing: -0.02em;
-  color: var(--text);
+.costPageHeader .pageTitle {
+  font-size: clamp(20px, 2.4vw, 24px);
+  font-weight: 800;
+  margin: 4px 0 0;
 }
 
-.costDashboard .dashboardDesc {
-  margin: 2px 0 0;
-  max-width: 52ch;
-  font-size: 13px;
-  line-height: 1.55;
+.costPageHeader .pageDesc {
+  display: block;
+  margin: 6px 0 0;
+  max-width: 62ch;
+  line-height: 1.5;
+  font-size: 12px;
   color: var(--text-muted);
 }
 
-.costDashboard .dashboardDesc a {
+.costPageHeader .pageDesc a {
   color: var(--accent);
   text-decoration: none;
   font-weight: 650;
 }
 
-.costDashboard .dashboardDesc a:hover {
+.costPageHeader .pageDesc a:hover {
   text-decoration: underline;
 }
 
-.costDashboard .dashboardSource {
-  margin: 4px 0 0;
+.costTitleRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+.costSourceNote {
+  margin: 0;
+  font-size: 11.5px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  align-self: flex-start;
+  padding-top: 4px;
+}
+
+/* —— Filter card —— */
+.costDashboard .costFilterCard {
+  padding: 14px 16px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.03));
+}
+
+.costDashboard .filterCardHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(173, 196, 228, 0.12);
+}
+
+.costDashboard .filterCardTitle {
+  margin: 0;
   font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #e2e8f0;
 }
 
-.costDashboard .dashboardSource .pill {
-  font-size: 11px;
-  padding: 3px 10px;
-  border-radius: 6px;
+.costDashboard .filterCardHint {
+  margin: 0;
+  font-size: 11.5px;
 }
 
-.costDashboard .filterBar {
-  grid-area: hero-filters;
+.costDashboard .costToolbarGrid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.35fr) auto;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1.4fr) auto;
   gap: var(--cost-gutter);
   align-items: end;
-  width: 100%;
+}
+
+.costDashboard .toolbarActions {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+/* —— Section nav —— */
+.costNav {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  padding: 10px 14px;
+}
+
+.costNavLabel {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.costNavLink {
+  font-size: 12px;
+  font-weight: 650;
+  color: #c8d8ec;
+  text-decoration: none;
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  transition: background 0.14s ease, border-color 0.14s ease, color 0.14s ease;
+}
+
+.costNavLink:hover {
+  color: #f1f5f9;
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(173, 196, 228, 0.16);
+}
+
+/* —— Zones & section heads —— */
+.costZones {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--cost-gap) + 4px);
+}
+
+.costZone {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  scroll-margin-top: 72px;
+}
+
+.costSectionHead {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 10px 14px;
+  align-items: start;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(173, 196, 228, 0.12);
+}
+
+.costStep {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 800;
+  color: #5eead4;
+  background: rgba(94, 234, 212, 0.12);
+  border: 1px solid rgba(94, 234, 212, 0.28);
+  margin-top: 1px;
+}
+
+.costSectionTitle {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 780;
+  letter-spacing: 0.01em;
+  color: var(--text);
+  line-height: 1.25;
+}
+
+.costSectionLead {
+  margin: 4px 0 0;
+  font-size: 12px;
+  line-height: 1.45;
+  max-width: 62ch;
+}
+
+.costSectionMeta {
+  font-size: 12px;
+  font-weight: 600;
+  text-align: right;
+  align-self: center;
+  white-space: nowrap;
+}
+
+/* —— KPI board —— */
+.costKpiBoard {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) minmax(0, 1.1fr);
+  gap: var(--cost-gutter);
+  align-items: stretch;
+}
+
+.costKpiGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.costKpiGroupLabel {
+  margin: 0;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--text-subtle, #7a8fa8);
+}
+
+.costKpiGroupCards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--cost-gutter);
+  flex: 1;
+  align-content: stretch;
+}
+
+.costKpiGroup--billing .kpiCard--hero {
+  flex: 1;
+  min-height: 132px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.costKpiGroup--billing .kpiCard--hero .value {
+  font-size: clamp(24px, 2.4vw, 32px);
+}
+
+.costDashboard .insightPanel {
+  margin: 2px 0 0;
+}
+
+.costDashboard .insightCardGrid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--cost-gutter);
+}
+
+@media (max-width: 1100px) {
+  .costDashboard .insightCardGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .costDashboard .insightCardGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.costDetailStack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cost-gutter);
+}
+
+.costDetailTitle {
+  margin: 0 0 4px;
+  font-size: 13px;
+  font-weight: 740;
+  color: var(--text);
+  line-height: 1.35;
+}
+
+.costDetailLead {
+  margin: 0 0 10px;
+  font-size: 11.5px;
+  line-height: 1.45;
 }
 
 .costDashboard .filterField {
@@ -577,19 +777,9 @@
   outline-offset: 2px;
 }
 
-.costDashboard .kpiSection {
-  margin: 0;
-}
-
-.costDashboard .kpiGrid {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: var(--cost-gutter);
-}
-
 .costDashboard .kpiCard {
-  min-height: 118px;
-  padding: 14px 16px 14px 18px;
+  min-height: 100px;
+  padding: 12px 14px 12px 16px;
   position: relative;
   overflow: hidden;
   border-radius: 10px;
@@ -665,42 +855,6 @@
 
 .costDashboard .kpiFootnote .mono {
   font-size: 11px;
-}
-
-.costDashboard .dashSections {
-  display: flex;
-  flex-direction: column;
-  gap: var(--cost-gap);
-  margin-top: 0;
-}
-
-.costDashboard .sectionHeaderRow {
-  margin: 0 0 10px;
-  padding: 0;
-  align-items: center;
-}
-
-.costDashboard .sectionTitle {
-  margin: 0;
-  display: inline-flex;
-  align-items: center;
-  gap: 9px;
-  font-size: 15px;
-  font-weight: 780;
-  letter-spacing: 0.01em;
-}
-
-.costDashboard .sectionTitle::before {
-  width: 7px;
-  height: 7px;
-  border-radius: 999px;
-  background: var(--finance);
-  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.15);
-}
-
-.costDashboard .sectionMeta {
-  font-size: 12px;
-  font-weight: 600;
 }
 
 .costDashboard .chartStack {
@@ -1188,23 +1342,26 @@
   font-size: 12px;
 }
 
-@media (max-width: 1280px) {
-  .costDashboard .kpiGrid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+@media (max-width: 1100px) {
+  .costKpiBoard {
+    grid-template-columns: 1fr;
   }
 
-  .costDashboard .kpiCard--primary {
-    grid-column: 1 / -1;
+  .costKpiGroup--billing .kpiCard--hero {
+    min-height: 112px;
   }
 }
 
 @media (max-width: 900px) {
-  .costDashboard .filterBar {
+  .costDashboard .costToolbarGrid {
     grid-template-columns: 1fr 1fr;
   }
 
-  .costDashboard .filterBar .btnApply {
+  .costDashboard .toolbarActions {
     grid-column: 1 / -1;
+  }
+
+  .costDashboard .toolbarActions .btnApply {
     width: 100%;
   }
 }
@@ -1214,21 +1371,38 @@
     grid-template-columns: 1fr;
   }
 
-  .costDashboard .kpiGrid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .costSectionHead {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .costSectionMeta {
+    grid-column: 1 / -1;
+    text-align: left;
+    align-self: start;
   }
 }
 
 @media (max-width: 640px) {
   .costDashboard {
     --cost-gap: 12px;
+    --cost-gutter: 12px;
   }
 
-  .costDashboard .kpiGrid {
+  .costKpiGroupCards {
     grid-template-columns: 1fr;
   }
 
-  .costDashboard .filterBar {
+  .costDashboard .costToolbarGrid {
     grid-template-columns: 1fr;
+  }
+
+  .costTitleRow {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .costSourceNote {
+    white-space: normal;
+    padding-top: 0;
   }
 }
