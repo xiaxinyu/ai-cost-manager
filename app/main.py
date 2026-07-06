@@ -37,6 +37,7 @@ from .db import (
     get_all_token_timeseries,
     verify_all_financial_consistency,
     get_billing_token_bridge,
+    get_project_billing_by_resource,
     get_catalog_market_cost_timeseries,
     trace_transaction_cost_match,
     get_model_implied_usd_per_1m_analysis,
@@ -414,6 +415,33 @@ def create_app(
         finally:
             conn.close()
 
+    @app.get("/api/projects/{project_name}/billing-by-resource")
+    def api_billing_by_resource(
+        project_name: str,
+        start_date: Optional[str] = Query(default=None, description="YYYY-MM-DD"),
+        end_date: Optional[str] = Query(default=None, description="YYYY-MM-DD"),
+        currency: Optional[str] = Query(default=None, description="Currency code"),
+        _: str = Depends(_auth_dep),
+    ) -> JSONResponse:
+        start_date, end_date = _normalize_date_range(
+            start_date,
+            end_date,
+            start_name="start_date",
+            end_name="end_date",
+        )
+        conn = get_connection(db_path)
+        try:
+            payload = get_project_billing_by_resource(
+                conn,
+                project_name,
+                start_date=start_date,
+                end_date=end_date,
+                currency=currency,
+            )
+            return JSONResponse(payload)
+        finally:
+            conn.close()
+
     @app.get("/api/projects/{project_name}/model-unit-prices")
     def api_model_unit_prices(
         project_name: str,
@@ -725,7 +753,7 @@ def create_app(
         currency: Optional[str] = Query(default=None, description="Currency code"),
         page: int = Query(default=1, ge=1),
         page_size: int = Query(default=50, ge=1, le=200),
-        mode: str = Query(default="simple", description="simple|full"),
+        mode: str = Query(default="simple", description="simple|full|billing"),
         _: str = Depends(_auth_dep),
     ) -> JSONResponse:
         start_date, end_date = _normalize_date_range(

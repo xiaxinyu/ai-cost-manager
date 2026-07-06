@@ -81,6 +81,14 @@ def test_api_project_flow(tmp_path):
     assert len(data_full["rows"]) == 2
     assert data_full["rows"][0]["fields"]["UsageDate"] == "2026-03-02"
 
+    res_billing = client.get("/api/projects/projB/rows?page=1&page_size=10&mode=billing")
+    assert res_billing.status_code == 200
+    data_billing = res_billing.json()
+    assert data_billing["mode"] == "billing"
+    assert data_billing["total"] == 2
+    assert "resource_name" in data_billing["rows"][0]
+    assert "meter" in data_billing["rows"][0]
+
     latest = client.get("/api/projects/latest").json()
     assert latest["project_name"] == "projB"
 

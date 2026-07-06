@@ -6,11 +6,11 @@
     <title>Cost - Models Cost Management</title>
     <link rel="stylesheet" href="/static/css/app-shell.css" />
     <link rel="stylesheet" href="/static/css/page-common.css" />
-    <link rel="stylesheet" href="/static/css/pages/index.css?v=20260706-reconcile" />
+    <link rel="stylesheet" href="/static/css/pages/index.css?v=20260706-align" />
     <link rel="stylesheet" href="/static/css/layout-pro.css" />
     <link rel="stylesheet" href="/static/css/dashboard-shared.css?v=20260605-cost" />
     <link rel="stylesheet" href="/static/css/date-range-picker.css?v=20260606-drp" />
-    <link rel="stylesheet" href="/static/css/insight-panel.css?v=20260605-insights" />
+    <link rel="stylesheet" href="/static/css/insight-panel.css?v=20260706-align" />
   </head>
   <body>
     {% set active_page = 'cost' %}
@@ -50,7 +50,7 @@
           </header>
 
           <section class="kpiSection" aria-label="Summary metrics">
-            <div class="kpiGrid grid">
+            <div class="kpiGrid">
               <article class="card kpiCard kpiCard--primary kpiCard--actual">
                 <div class="stat">
                   <div class="label"><span class="costPill costPill--actual">Actual</span> CostUSD</div>
@@ -115,6 +115,69 @@
                   <div class="chartCanvasHost chartCanvasHost--tall" data-chart-host>
                     <canvas id="timeseriesChartMarket" role="img" aria-label="Actual vs catalog market daily chart"></canvas>
                   </div>
+                </div>
+              </div>
+            </section>
+
+            <section class="costResourceSection" id="costResourceSection" hidden aria-label="Billing by resource">
+              <div class="sectionHeaderRow">
+                <h2 class="sectionTitle">Billing by resource</h2>
+                <span class="sectionMeta muted" id="resourceBillingHint"></span>
+              </div>
+              <div class="card tight resourceBillingCard">
+                <p class="resourceBillingLead muted">
+                  Actual costs from imported billing CSV — each Azure resource and service in scope.
+                </p>
+                <div class="tableScroll resourceBillingTableWrap" data-table-host>
+                  <table class="dataTable dashTable resourceBillingTable" id="resourceBillingTable">
+                    <thead>
+                      <tr>
+                        <th scope="col" data-sortable data-sort-type="text">Resource</th>
+                        <th scope="col" data-sortable data-sort-type="text">Service</th>
+                        <th scope="col" data-sortable data-sort-type="text">Location</th>
+                        <th scope="col" data-sortable data-sort-type="text">Resource group</th>
+                        <th class="num" scope="col" data-sortable data-sort-type="number" aria-sort="descending">Actual USD</th>
+                        <th class="num" scope="col" data-sortable data-sort-type="number">Share %</th>
+                        <th class="num" scope="col" data-sortable data-sort-type="number">Days</th>
+                      </tr>
+                    </thead>
+                    <tbody id="resourceBillingTbody"></tbody>
+                    <tfoot id="resourceBillingTfoot"></tfoot>
+                  </table>
+                </div>
+              </div>
+              <div class="card tight resourceRawCard">
+                <div class="resourceRawHead">
+                  <h3 class="chartSectionTitle">Raw billing lines</h3>
+                  <p class="resourceBillingLead muted">Imported CSV rows — basic fields, newest first.</p>
+                </div>
+                <div class="resourceRawToolbar" aria-label="Raw billing pagination">
+                  <label class="resourceRawPageSizeLabel muted" for="billingRawPageSize">Page size</label>
+                  <select id="billingRawPageSize" class="resourceRawPageSize">
+                    <option value="25" selected>25</option>
+                    <option value="50">50</option>
+                    <option value="100">100</option>
+                  </select>
+                  <span id="billingRawPageInfo" class="resourceRawPageInfo muted">—</span>
+                  <button id="billingRawPrevBtn" class="pgBtn" type="button">Previous</button>
+                  <button id="billingRawNextBtn" class="pgBtn" type="button">Next</button>
+                </div>
+                <div class="tableScroll resourceRawTableWrap" data-table-host id="billingRawTableHost">
+                  <table class="dataTable dashTable resourceRawTable" id="billingRawTable">
+                    <thead>
+                      <tr>
+                        <th scope="col">Date</th>
+                        <th scope="col">Resource</th>
+                        <th scope="col">Service</th>
+                        <th scope="col">Tier</th>
+                        <th scope="col">Meter</th>
+                        <th class="num" scope="col">Cost USD</th>
+                        <th scope="col">Currency</th>
+                        <th scope="col">Source</th>
+                      </tr>
+                    </thead>
+                    <tbody id="billingRawTbody"></tbody>
+                  </table>
                 </div>
               </div>
             </section>
@@ -236,7 +299,7 @@
     <script src="/static/js/chart-plugins.js"></script>
     <script src="/static/js/chart-style.js?v=20260605-dates"></script>
     <script src="/static/js/cost-semantics.js?v=20260605-cost"></script>
-    <script src="/static/js/dashboard-ui.js"></script>
+    <script src="/static/js/dashboard-ui.js?v=20260706-resource"></script>
     <script src="/static/js/date-range-picker.js?v=20260606-drp"></script>
     <script src="/static/js/insight-panel.js?v=20260605-insights"></script>
     <script>
@@ -271,6 +334,21 @@
       const catalogMarketCard = document.getElementById('catalogMarketCard');
       const catalogVarianceCard = document.getElementById('catalogVarianceCard');
       const costModelSectionEl = document.getElementById('costModelSection');
+      const costResourceSectionEl = document.getElementById('costResourceSection');
+      const resourceBillingHintEl = document.getElementById('resourceBillingHint');
+      const resourceBillingTbodyEl = document.getElementById('resourceBillingTbody');
+      const resourceBillingTfootEl = document.getElementById('resourceBillingTfoot');
+      const resourceBillingTableEl = document.getElementById('resourceBillingTable');
+      let resourceBillingSortBound = false;
+      const billingRawTbodyEl = document.getElementById('billingRawTbody');
+      const billingRawPageInfoEl = document.getElementById('billingRawPageInfo');
+      const billingRawPageSizeEl = document.getElementById('billingRawPageSize');
+      const billingRawPrevBtn = document.getElementById('billingRawPrevBtn');
+      const billingRawNextBtn = document.getElementById('billingRawNextBtn');
+      const billingRawTableHostEl = document.getElementById('billingRawTableHost');
+      let billingRawPage = 1;
+      let billingRawTotal = 0;
+      let billingRawFetchKey = '';
       const modelSectionHintEl = document.getElementById('modelSectionHint');
       const modelCostSummaryTbodyEl = document.getElementById('modelCostSummaryTbody');
       const modelCostSummaryTfootEl = document.getElementById('modelCostSummaryTfoot');
@@ -1281,6 +1359,271 @@
         if (endDateInput) endDateInput.value = '';
       }
 
+      function _resourceTypeShort(resourceType) {
+        if (!resourceType) return '';
+        const parts = String(resourceType).split('/');
+        return parts[parts.length - 1] || String(resourceType);
+      }
+
+      function renderResourceBillingSection(payload) {
+        const rows = Array.isArray(payload?.rows) ? payload.rows : [];
+        const available = payload?.available === true && rows.length > 0;
+        if (costResourceSectionEl) costResourceSectionEl.hidden = !available;
+        if (!resourceBillingTbodyEl || !resourceBillingTfootEl) return;
+
+        if (!available) {
+          resourceBillingTbodyEl.replaceChildren();
+          resourceBillingTfootEl.replaceChildren();
+          if (resourceBillingHintEl) resourceBillingHintEl.textContent = '';
+          billingRawTotal = 0;
+          if (billingRawTbodyEl) {
+            billingRawTbodyEl.replaceChildren();
+            renderBillingRawPagination();
+          }
+          return;
+        }
+
+        const distinctResources = new Set(rows.map((r) => String(r.resource_name || ''))).size;
+        if (resourceBillingHintEl) {
+          resourceBillingHintEl.textContent =
+            `${distinctResources} resource(s) · ${rows.length} service line(s)`;
+        }
+
+        const frag = document.createDocumentFragment();
+        for (const r of rows) {
+          const tr = document.createElement('tr');
+          tr.className = 'resourceBillingRow';
+
+          const tdRes = document.createElement('td');
+          tdRes.className = 'resourceNameCell';
+          const name = document.createElement('div');
+          name.className = 'resourceNameMain';
+          const code = document.createElement('code');
+          code.textContent = String(r.resource_name || '—');
+          name.appendChild(code);
+          tdRes.appendChild(name);
+          const typeShort = _resourceTypeShort(r.resource_type);
+          if (typeShort) {
+            const meta = document.createElement('div');
+            meta.className = 'resourceNameMeta muted';
+            meta.textContent = typeShort;
+            tdRes.appendChild(meta);
+          }
+          if (r.resource_id) tdRes.title = String(r.resource_id);
+          tr.appendChild(tdRes);
+
+          const tdSvc = document.createElement('td');
+          tdSvc.textContent = String(r.service_name || '—');
+          tr.appendChild(tdSvc);
+
+          const tdLoc = document.createElement('td');
+          tdLoc.textContent = String(r.resource_location || '—');
+          tr.appendChild(tdLoc);
+
+          const tdRg = document.createElement('td');
+          tdRg.className = 'cellTruncate';
+          tdRg.textContent = String(r.resource_group_name || '—');
+          if (r.resource_group_name) tdRg.title = String(r.resource_group_name);
+          tr.appendChild(tdRg);
+
+          const tdCost = document.createElement('td');
+          tdCost.className = 'num mono tdCostActual colEmphasis';
+          tdCost.dataset.sortValue = String(r.cost_usd ?? '');
+          tdCost.textContent = fmtTableAmount(r.cost_usd);
+          const costTitle = fmtTableAmountTitle(r.cost_usd);
+          if (costTitle) tdCost.title = costTitle;
+          tr.appendChild(tdCost);
+
+          const tdShare = document.createElement('td');
+          tdShare.className = 'num mono';
+          const share = r.share_pct;
+          tdShare.dataset.sortValue = share == null ? '' : String(share);
+          tdShare.textContent =
+            share == null || share === undefined ? '—' : `${share}%`;
+          tr.appendChild(tdShare);
+
+          const tdDays = document.createElement('td');
+          tdDays.className = 'num';
+          tdDays.dataset.sortValue = String(r.days_with_cost ?? '');
+          tdDays.textContent = String(r.days_with_cost ?? '—');
+          tr.appendChild(tdDays);
+
+          frag.appendChild(tr);
+        }
+        resourceBillingTbodyEl.replaceChildren(frag);
+
+        resourceBillingTfootEl.replaceChildren();
+        const trFoot = document.createElement('tr');
+        trFoot.className = 'resourceBillingTotalRow';
+        const th = document.createElement('th');
+        th.scope = 'row';
+        th.colSpan = 4;
+        th.textContent = 'All billing';
+        trFoot.appendChild(th);
+
+        const tdTotal = document.createElement('td');
+        tdTotal.className = 'num mono tdCostActual colEmphasis';
+        tdTotal.dataset.sortValue = String(payload.total_cost_usd ?? '');
+        tdTotal.textContent = fmtTableAmount(payload.total_cost_usd);
+        trFoot.appendChild(tdTotal);
+
+        const tdShareFoot = document.createElement('td');
+        tdShareFoot.className = 'num mono';
+        tdShareFoot.textContent = '100%';
+        trFoot.appendChild(tdShareFoot);
+
+        const tdDaysFoot = document.createElement('td');
+        tdDaysFoot.className = 'num';
+        tdDaysFoot.textContent = '—';
+        trFoot.appendChild(tdDaysFoot);
+
+        resourceBillingTfootEl.appendChild(trFoot);
+
+        if (!resourceBillingSortBound && resourceBillingTableEl) {
+          window.AppDashboardUi?.makeSortableTable?.(resourceBillingTableEl);
+          resourceBillingSortBound = true;
+        }
+      }
+
+      function billingRawPageSize() {
+        const v = Number(billingRawPageSizeEl?.value);
+        return Number.isFinite(v) && v > 0 ? v : 25;
+      }
+
+      function billingRawTotalPages() {
+        return Math.max(1, Math.ceil(billingRawTotal / billingRawPageSize()));
+      }
+
+      function renderBillingRawPagination() {
+        const ps = billingRawPageSize();
+        const tp = billingRawTotalPages();
+        const from = billingRawTotal === 0 ? 0 : (billingRawPage - 1) * ps + 1;
+        const to = Math.min(billingRawTotal, billingRawPage * ps);
+        if (billingRawPageInfoEl) {
+          billingRawPageInfoEl.textContent =
+            billingRawTotal === 0
+              ? 'No rows'
+              : `Page ${billingRawPage} / ${tp} · ${from}–${to} of ${billingRawTotal}`;
+        }
+        if (billingRawPrevBtn) billingRawPrevBtn.disabled = billingRawPage <= 1;
+        if (billingRawNextBtn) billingRawNextBtn.disabled = billingRawPage >= tp;
+      }
+
+      function renderBillingRawTable(payload) {
+        if (!billingRawTbodyEl) return;
+        billingRawTotal = Number(payload?.total || 0);
+        const rows = Array.isArray(payload?.rows) ? payload.rows : [];
+        const frag = document.createDocumentFragment();
+
+        if (!rows.length) {
+          const tr = document.createElement('tr');
+          const td = document.createElement('td');
+          td.colSpan = 8;
+          td.className = 'muted';
+          td.textContent = 'No billing rows in selected range.';
+          tr.appendChild(td);
+          frag.appendChild(tr);
+        } else {
+          for (const r of rows) {
+            const tr = document.createElement('tr');
+            tr.className = 'billingRawRow';
+
+            const tdDate = document.createElement('td');
+            tdDate.className = 'mono';
+            tdDate.textContent = String(r.usage_date || '—');
+            tr.appendChild(tdDate);
+
+            const tdRes = document.createElement('td');
+            tdRes.className = 'cellTruncate';
+            const resCode = document.createElement('code');
+            resCode.textContent = String(r.resource_name || '—');
+            tdRes.appendChild(resCode);
+            if (r.resource_id) tdRes.title = String(r.resource_id);
+            tr.appendChild(tdRes);
+
+            const tdSvc = document.createElement('td');
+            tdSvc.className = 'cellTruncate';
+            tdSvc.textContent = String(r.service_name || '—');
+            tr.appendChild(tdSvc);
+
+            const tdTier = document.createElement('td');
+            tdTier.className = 'cellTruncate';
+            tdTier.textContent = String(r.service_tier || '—');
+            tr.appendChild(tdTier);
+
+            const tdMeter = document.createElement('td');
+            tdMeter.className = 'cellTruncate';
+            tdMeter.textContent = String(r.meter || '—');
+            if (r.meter) tdMeter.title = String(r.meter);
+            tr.appendChild(tdMeter);
+
+            const tdCost = document.createElement('td');
+            tdCost.className = 'num mono tdCostActual';
+            tdCost.textContent = fmtTableAmount(r.cost_usd);
+            const costTitle = fmtTableAmountTitle(r.cost_usd);
+            if (costTitle) tdCost.title = costTitle;
+            tr.appendChild(tdCost);
+
+            const tdCur = document.createElement('td');
+            tdCur.textContent = String(r.currency || '—');
+            tr.appendChild(tdCur);
+
+            const tdSrc = document.createElement('td');
+            tdSrc.className = 'cellFile cellTruncate';
+            const src = r.source_file
+              ? `${r.source_file}${r.source_row_index != null ? `#${r.source_row_index}` : ''}`
+              : '—';
+            tdSrc.textContent = src;
+            if (src !== '—') tdSrc.title = src;
+            tr.appendChild(tdSrc);
+
+            frag.appendChild(tr);
+          }
+        }
+
+        billingRawTbodyEl.replaceChildren(frag);
+        renderBillingRawPagination();
+        window.AppDashboardUi?.applyTruncationTitles?.(billingRawTableHostEl || billingRawTbodyEl);
+      }
+
+      async function loadBillingRawPage(projectName, { resetPage = false } = {}) {
+        if (!projectName) return;
+        if (resetPage) billingRawPage = 1;
+        const params = new URLSearchParams();
+        params.set('mode', 'billing');
+        params.set('page', String(billingRawPage));
+        params.set('page_size', String(billingRawPageSize()));
+        if (currentStartDate) params.set('start_date', currentStartDate);
+        if (currentEndDate) params.set('end_date', currentEndDate);
+        if (currentCurrency) params.set('currency', currentCurrency);
+
+        const fetchKey = `${projectName}|${params.toString()}`;
+        billingRawFetchKey = fetchKey;
+
+        window.AppDashboardUi?.setTableLoading?.({
+          loading: true,
+          tableHosts: billingRawTableHostEl ? [billingRawTableHostEl] : [],
+        });
+        try {
+          const payload = await window.AppHttp.getJson(
+            `/api/projects/${encodeURIComponent(projectName)}/rows?${params.toString()}`
+          );
+          if (billingRawFetchKey !== fetchKey) return;
+          renderBillingRawTable(payload);
+        } catch (e) {
+          console.error(e);
+          if (billingRawFetchKey === fetchKey) {
+            billingRawTotal = 0;
+            renderBillingRawTable({ total: 0, rows: [] });
+          }
+        } finally {
+          window.AppDashboardUi?.setTableLoading?.({
+            loading: false,
+            tableHosts: billingRawTableHostEl ? [billingRawTableHostEl] : [],
+          });
+        }
+      }
+
       async function loadProject(projectName, { skipRangeRecovery = false } = {}) {
         if (!projectName) return;
         currentProjectName = projectName;
@@ -1348,9 +1691,22 @@
         if (currentEndDate) tsParams.set('end_date', currentEndDate);
         if (currentCurrency) tsParams.set('currency', currentCurrency);
 
-        const ts = await window.AppHttp.getJson(
-          `/api/projects/${encodeURIComponent(projectName)}/timeseries?${tsParams.toString()}`
-        );
+        const billingResourceParams = new URLSearchParams();
+        if (currentStartDate) billingResourceParams.set('start_date', currentStartDate);
+        if (currentEndDate) billingResourceParams.set('end_date', currentEndDate);
+        if (currentCurrency) billingResourceParams.set('currency', currentCurrency);
+
+        const [ts, resourceBilling] = await Promise.all([
+          window.AppHttp.getJson(
+            `/api/projects/${encodeURIComponent(projectName)}/timeseries?${tsParams.toString()}`
+          ),
+          window.AppHttp.getJson(
+            `/api/projects/${encodeURIComponent(projectName)}/billing-by-resource?${billingResourceParams.toString()}`
+          ).catch((e) => {
+            console.error(e);
+            return { available: false, rows: [] };
+          }),
+        ]);
 
         const marketParams = new URLSearchParams();
         if (currentStartDate) marketParams.set('start_date', currentStartDate);
@@ -1367,6 +1723,8 @@
 
         const costPts = ts.points || [];
         renderChart(costPts);
+        renderResourceBillingSection(resourceBilling);
+        await loadBillingRawPage(projectName, { resetPage: true });
         renderCatalogMarketUi(catalogPayload, costPts);
 
         const costStats = _calcSeriesStatsFloat(costPts, 'cost_usd');
@@ -1409,6 +1767,24 @@
           loadProjectSafe(projectSelect.value);
         }
       });
+      billingRawPrevBtn?.addEventListener('click', () => {
+        if (billingRawPage > 1 && currentProjectName) {
+          billingRawPage -= 1;
+          loadBillingRawPage(currentProjectName).catch((e) => console.error(e));
+        }
+      });
+      billingRawNextBtn?.addEventListener('click', () => {
+        if (billingRawPage < billingRawTotalPages() && currentProjectName) {
+          billingRawPage += 1;
+          loadBillingRawPage(currentProjectName).catch((e) => console.error(e));
+        }
+      });
+      billingRawPageSizeEl?.addEventListener('change', () => {
+        if (currentProjectName) {
+          loadBillingRawPage(currentProjectName, { resetPage: true }).catch((e) => console.error(e));
+        }
+      });
+
       async function bootstrap() {
         let preferred = null;
         try {

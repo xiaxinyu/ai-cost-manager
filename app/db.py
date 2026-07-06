@@ -1684,6 +1684,130 @@ def _billing_transaction_rows(
     return [(str(r["usage_date"]), str(r["meter"] or ""), float(r["cost_usd"])) for r in rows]
 
 
+def resource_short_name(resource_id: str | None) -> str:
+    if not resource_id:
+        return "Unattributed"
+    rid = str(resource_id).strip().rstrip("/")
+    if not rid:
+        return "Unattributed"
+    return rid.split("/")[-1] or "Unattributed"
+
+
+def get_project_billing_by_resource(
+    conn: sqlite3.Connection,
+    project_name: str,
+    *,
+    start_date: str | None = None,
+    end_date: str | None = None,
+    currency: str | None = None,
+) -> dict[str, object]:
+    """Aggregate billing CSV costs per Azure resource and service."""
+    currency_filter = currency
+    if currency_filter is None:
+        currencies = get_available_currencies(conn, project_name)
+        currency_filter = currencies[0] if currencies else "USD"
+
+    where = ["project_name = ?"]
+    params: list[object] = [project_name]
+    if start_date:
+        where.append("usage_date >= ?")
+        params.append(start_date)
+    if end_date:
+        where.append("usage_date <= ?")
+        params.append(end_date)
+    if currency_filter:
+        where.append("currency = ?")
+        params.append(currency_filter)
+    where_sql = " AND ".join(where)
+
+    raw_rows = conn.execute(
+        f"""
+        SELECT
+            resource_id,
+            resource_type,
+            resource_location,
+            resource_group_name,
+            COALESCE(NULLIF(TRIM(service_name), ''), 'Unknown service') AS service_name,
+            usage_date,
+            COALESCE(cost_usd, 0) AS cost_usd
+        FROM transactions
+        WHERE {where_sql}
+        """,
+        tuple(params),
+    ).fetchall()
+
+    if not raw_rows:
+        return {
+            "available": False,
+            "project": project_name,
+            "currency": currency_filter,
+            "from_date": start_date,
+            "to_date": end_date,
+            "total_cost_usd": None,
+            "rows": [],
+        }
+
+    agg: dict[tuple[str, str], dict[str, object]] = {}
+    total = 0.0
+    for r in raw_rows:
+        rid = str(r["resource_id"] or "").strip()
+        svc = str(r["service_name"])
+        key = (rid, svc)
+        cost = float(r["cost_usd"])
+        total += cost
+        st = agg.setdefault(
+            key,
+            {
+                "resource_id": rid or None,
+                "resource_name": resource_short_name(rid or None),
+                "resource_type": r["resource_type"],
+                "resource_location": r["resource_location"],
+                "resource_group_name": r["resource_group_name"],
+                "service_name": svc,
+                "cost_usd": 0.0,
+                "days": set(),
+            },
+        )
+        st["cost_usd"] = float(st["cost_usd"]) + cost
+        days = st["days"]
+        assert isinstance(days, set)
+        days.add(str(r["usage_date"]))
+
+    out_rows: list[dict[str, object]] = []
+    for st in agg.values():
+        cost_raw = float(st["cost_usd"])
+        cost = round_cost(cost_raw) or 0.0
+        share = round(cost_raw / total * 100.0, 1) if total > 0 else None
+        days_set = st["days"]
+        assert isinstance(days_set, set)
+        out_rows.append(
+            {
+                "resource_id": st["resource_id"],
+                "resource_name": st["resource_name"],
+                "resource_type": st["resource_type"],
+                "resource_location": st["resource_location"],
+                "resource_group_name": st["resource_group_name"],
+                "service_name": st["service_name"],
+                "cost_usd": cost,
+                "share_pct": share,
+                "days_with_cost": len(days_set),
+            }
+        )
+
+    out_rows.sort(key=lambda row: float(row["cost_usd"] or 0.0), reverse=True)
+
+    return {
+        "available": True,
+        "project": project_name,
+        "currency": currency_filter,
+        "from_date": start_date,
+        "to_date": end_date,
+        "total_cost_usd": round_cost(total),
+        "row_count": len(out_rows),
+        "rows": out_rows,
+    }
+
+
 def _project_token_model_names(
     conn: sqlite3.Connection,
     project_name: str,
@@ -4432,8 +4556,8 @@ def get_rows(
     page = max(1, page)
     page_size = max(1, min(page_size, 200))
     mode = mode.strip().lower()
-    if mode not in {"simple", "full"}:
-        raise ValueError("mode must be 'simple' or 'full'")
+    if mode not in {"simple", "full", "billing"}:
+        raise ValueError("mode must be 'simple', 'full', or 'billing'")
 
     where = ["project_name = ?"]
     params: list[object] = [project_name]
@@ -4510,6 +4634,60 @@ def get_rows(
             "page_size": page_size,
             "mode": "simple",
             "rows": parsed_rows,
+        }
+
+    if mode == "billing":
+        rows = conn.execute(
+            f"""
+            SELECT
+                usage_date,
+                resource_id,
+                resource_type,
+                resource_location,
+                resource_group_name,
+                service_name,
+                service_tier,
+                meter,
+                cost_usd,
+                cost,
+                currency,
+                source_file,
+                source_row_index
+            FROM transactions
+            WHERE {where_sql}
+            ORDER BY usage_date DESC, id DESC
+            LIMIT ? OFFSET ?
+            """,
+            tuple([*params, page_size, offset]),
+        ).fetchall()
+        billing_rows: list[dict[str, object]] = []
+        for r in rows:
+            billing_rows.append(
+                {
+                    "usage_date": r["usage_date"],
+                    "resource_name": resource_short_name(r["resource_id"]),
+                    "resource_id": r["resource_id"],
+                    "resource_type": r["resource_type"],
+                    "resource_location": r["resource_location"],
+                    "resource_group_name": r["resource_group_name"],
+                    "service_name": r["service_name"],
+                    "service_tier": r["service_tier"],
+                    "meter": r["meter"],
+                    "cost_usd": round_cost(
+                        None if r["cost_usd"] is None else float(r["cost_usd"])
+                    ),
+                    "cost": round_cost(None if r["cost"] is None else float(r["cost"])),
+                    "currency": r["currency"],
+                    "source_file": r["source_file"],
+                    "source_row_index": r["source_row_index"],
+                }
+            )
+        return {
+            "total": int(total),
+            "page": page,
+            "page_size": page_size,
+            "mode": "billing",
+            "rows": billing_rows,
         }
 
     # Full mode: return all CSV columns (from raw_json) + source reference.
