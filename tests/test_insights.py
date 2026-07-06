@@ -47,6 +47,21 @@ def test_market_variance_above_market_watch():
     assert "Above Market" in market.title
 
 
+def test_billing_other_insight():
+    catalog = {
+        "available": True,
+        "summary": {
+            "total_actual_cost_usd": 135.43,
+            "total_meter_cost_usd": 75.62,
+            "billing_other_usd": 59.81,
+        },
+    }
+    cards = compute_cost_insights(project="p1", points=[], catalog_market=catalog)
+    other = next(c for c in cards if c.id == "billing_other")
+    assert "Non-model billing" in other.title
+    assert other.metrics["billing_other_usd"] == 59.81
+
+
 def test_unpriced_models_insight():
     catalog = {"available": True, "unpriced_models": ["gpt-x", "gpt-y"]}
     cards = compute_cost_insights(project="p1", points=[], catalog_market=catalog)

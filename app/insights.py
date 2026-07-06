@@ -264,6 +264,35 @@ def _concentration_insight(
     )
 
 
+def _billing_other_insight(catalog: dict[str, Any] | None) -> InsightCard | None:
+    if not catalog or catalog.get("available") is not True:
+        return None
+    summary = catalog.get("summary") or {}
+    other = _safe_float(summary.get("billing_other_usd"))
+    billing = _safe_float(summary.get("total_actual_cost_usd"))
+    meter = _safe_float(summary.get("total_meter_cost_usd"))
+    if other is None or other <= 0.5 or billing is None or meter is None:
+        return None
+    share = other / billing * 100.0 if billing > 0 else 0.0
+    return InsightCard(
+        id="billing_other",
+        category="quality",
+        severity="info" if share < 35 else "watch",
+        title="Non-model billing",
+        summary=(
+            f"{_fmt_cost(other)} ({share:.0f}%) of Actual is outside token meter match "
+            f"({_fmt_cost(meter)} matched vs {_fmt_cost(billing)} total billing)."
+        ),
+        metrics={
+            "billing_other_usd": other,
+            "total_billing_usd": billing,
+            "meter_matched_usd": meter,
+            "share_pct": round(share, 1),
+        },
+        recommendation="Defender, networking, Bing, or unmatched meters — see billing CSV.",
+    )
+
+
 def _model_concentration_from_catalog(catalog: dict[str, Any] | None) -> InsightCard | None:
     if not catalog or catalog.get("available") is not True:
         return None
@@ -436,6 +465,7 @@ def compute_cost_insights(
     has_billing = any((_safe_float(p.get("cost_usd")) or 0) > 0 for p in daily)
 
     _append(cards, _market_variance_insight(catalog_market))
+    _append(cards, _billing_other_insight(catalog_market))
     _append(cards, _unpriced_models_insight(catalog_market))
     _append(cards, _model_concentration_from_catalog(catalog_market))
     _append(cards, _io_cost_skew_insight(catalog_market))

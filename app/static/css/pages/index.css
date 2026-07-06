@@ -125,7 +125,7 @@
       }
       .meterTotalGrid {
         display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
         gap: 12px;
       }
       @media (max-width: 900px) {
@@ -145,6 +145,15 @@
       .meterTotalItemHighlight {
         border-color: rgba(94, 234, 212, 0.28);
         background: rgba(94, 234, 212, 0.08);
+      }
+      .meterTotalItemOther {
+        border-color: rgba(251, 191, 36, 0.28);
+        background: rgba(251, 191, 36, 0.06);
+      }
+      .meterTotalHint {
+        margin: 10px 0 0;
+        font-size: 11.5px;
+        line-height: 1.45;
       }
       .meterTotalLabel {
         font-size: 11px;
@@ -791,6 +800,20 @@
 
 .costDashboard .meterTotalValue {
   font-size: 19px;
+}
+
+.costDashboard .modelSummaryRow--other code {
+  color: #fbbf24;
+  font-weight: 600;
+}
+
+.costDashboard .modelSummaryRow--other td {
+  background: rgba(251, 191, 36, 0.04);
+}
+
+.costDashboard .modelCostTotalRow th,
+.costDashboard .modelCostTotalRow td {
+  border-top: 2px solid rgba(94, 234, 212, 0.35);
 }
 
 .costDashboard .modelSummaryHead {

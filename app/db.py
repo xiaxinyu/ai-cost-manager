@@ -2134,6 +2134,162 @@ def _catalog_cost_from_tokens(
     return round_cost(total)
 
 
+def _reconciled_meter_actual(input_t: float, output_t: float, summed_actual: float) -> float:
+    """Row total = input + output when split costs exist (matches column sums)."""
+    if input_t > 0 or output_t > 0:
+        return input_t + output_t
+    return summed_actual
+
+
+def _billing_other_rows_for_project(
+    conn: sqlite3.Connection,
+    project_name: str,
+    *,
+    start_date: str | None,
+    end_date: str | None,
+    currency: str | None,
+    meter_matched_usd: float,
+) -> list[dict[str, object]]:
+    """Non-token-meter billing lines that reconcile model rows to full billing total."""
+    where = ["project_name = ?"]
+    params: list[object] = [project_name]
+    if start_date:
+        where.append("usage_date >= ?")
+        params.append(start_date)
+    if end_date:
+        where.append("usage_date <= ?")
+        params.append(end_date)
+    if currency:
+        where.append("currency = ?")
+        params.append(currency)
+    where_sql = " AND ".join(where)
+    rows = conn.execute(
+        f"""
+        SELECT COALESCE(NULLIF(TRIM(service_name), ''), 'Other / unnamed') AS service_name,
+               COALESCE(SUM(cost_usd), 0) AS cost_usd
+        FROM transactions
+        WHERE {where_sql}
+        GROUP BY service_name
+        HAVING cost_usd > 0
+        ORDER BY cost_usd DESC
+        """,
+        tuple(params),
+    ).fetchall()
+    by_service = {str(r["service_name"]): float(r["cost_usd"]) for r in rows}
+    if not by_service:
+        return []
+
+    meter_matched = max(0.0, float(meter_matched_usd))
+    foundry_key = "Foundry Models"
+    foundry_total = by_service.pop(foundry_key, 0.0)
+    result: list[dict[str, object]] = []
+
+    unmatched_foundry = round_cost(max(0.0, foundry_total - meter_matched))
+    if unmatched_foundry is not None and unmatched_foundry > 0:
+        result.append(
+            {
+                "model_name": "Others · Foundry (unmatched meters)",
+                "row_kind": "billing_other",
+                "service_name": foundry_key,
+                "actual_cost_usd": unmatched_foundry,
+                "input_cost_usd": None,
+                "output_cost_usd": None,
+                "catalog_cost_usd": None,
+                "variance_pct": None,
+                "days_with_rows": None,
+                "catalog_price_input": None,
+                "catalog_price_output": None,
+            }
+        )
+
+    for svc, usd in sorted(by_service.items(), key=lambda item: item[1], reverse=True):
+        rc = round_cost(usd)
+        if rc is None or rc <= 0:
+            continue
+        result.append(
+            {
+                "model_name": f"Others · {svc}",
+                "row_kind": "billing_other",
+                "service_name": svc,
+                "actual_cost_usd": rc,
+                "input_cost_usd": None,
+                "output_cost_usd": None,
+                "catalog_cost_usd": None,
+                "variance_pct": None,
+                "days_with_rows": None,
+                "catalog_price_input": None,
+                "catalog_price_output": None,
+            }
+        )
+    return result
+
+
+def _model_summary_row_from_agg(st: dict[str, object], model_name: str) -> dict[str, object]:
+    input_t = float(st["input_cost_usd"])
+    output_t = float(st["output_cost_usd"])
+    actual_t = _reconciled_meter_actual(input_t, output_t, float(st["actual_cost_usd"]))
+    catalog_t = float(st["catalog_cost_usd"])
+    catalog_in_t = float(st["catalog_input_cost_usd"])
+    catalog_out_t = float(st["catalog_output_cost_usd"])
+    variance = round_cost(actual_t - catalog_t) if catalog_t > 0 or actual_t > 0 else None
+    variance_pct = None
+    if catalog_t > 0:
+        variance_pct = round((actual_t - catalog_t) / catalog_t * 100.0, 1)
+    return {
+        "model_name": model_name,
+        "row_kind": "model",
+        "actual_cost_usd": round_cost(actual_t) if actual_t > 0 else None,
+        "input_cost_usd": round_cost(input_t) if input_t > 0 else None,
+        "output_cost_usd": round_cost(output_t) if output_t > 0 else None,
+        "catalog_cost_usd": round_cost(catalog_t) if catalog_t > 0 else None,
+        "catalog_input_cost_usd": (
+            round_cost(catalog_in_t) if catalog_in_t > 0 else None
+        ),
+        "catalog_output_cost_usd": (
+            round_cost(catalog_out_t) if catalog_out_t > 0 else None
+        ),
+        "variance_usd": variance,
+        "variance_pct": variance_pct,
+        "days_with_rows": int(st["days_with_rows"]),
+        "catalog_usd_per_1m_input": st.get("catalog_usd_per_1m_input"),
+        "catalog_usd_per_1m_output": st.get("catalog_usd_per_1m_output"),
+        "catalog_price_input": st.get("catalog_price_input"),
+        "catalog_price_output": st.get("catalog_price_output"),
+    }
+
+
+def _catalog_market_summary_extras(
+    *,
+    total_actual: float,
+    total_catalog: float,
+    total_meter_raw: float,
+    days_with_catalog: int,
+) -> dict[str, object]:
+    """Full-billing vs Market variance plus meter-matched subset fields."""
+    variance_usd = round_cost(total_actual - total_catalog) if days_with_catalog else None
+    variance_pct = None
+    if days_with_catalog and total_catalog > 0:
+        variance_pct = round((total_actual - total_catalog) / total_catalog * 100.0, 1)
+    meter_variance_usd = None
+    meter_variance_pct = None
+    if days_with_catalog and total_catalog > 0 and total_meter_raw > 0:
+        meter_variance_usd = round_cost(total_meter_raw - total_catalog)
+        meter_variance_pct = round((total_meter_raw - total_catalog) / total_catalog * 100.0, 1)
+    billing_other_usd = None
+    if total_actual > 0 and total_meter_raw > 0:
+        other = round_cost(total_actual - total_meter_raw)
+        if other is not None and other > 0:
+            billing_other_usd = other
+    return {
+        "total_meter_cost_usd": round_cost(total_meter_raw) if total_meter_raw > 0 else None,
+        "billing_other_usd": billing_other_usd,
+        "variance_usd": variance_usd,
+        "variance_pct": variance_pct,
+        "meter_variance_usd": meter_variance_usd,
+        "meter_variance_pct": meter_variance_pct,
+    }
+
+
 def get_catalog_market_cost_timeseries(
     conn: sqlite3.Connection,
     project_name: str,
@@ -2376,44 +2532,20 @@ def get_catalog_market_cost_timeseries(
 
     model_summary: list[dict[str, object]] = []
     for m in sorted(summary_by_model.keys()):
-        st = summary_by_model[m]
-        actual_t = float(st["actual_cost_usd"])
-        input_t = float(st["input_cost_usd"])
-        output_t = float(st["output_cost_usd"])
-        catalog_t = float(st["catalog_cost_usd"])
-        catalog_in_t = float(st["catalog_input_cost_usd"])
-        catalog_out_t = float(st["catalog_output_cost_usd"])
-        variance = round_cost(actual_t - catalog_t) if catalog_t > 0 or actual_t > 0 else None
-        variance_pct = None
-        if catalog_t > 0:
-            variance_pct = round((actual_t - catalog_t) / catalog_t * 100.0, 1)
-        model_summary.append(
-            {
-                "model_name": m,
-                "actual_cost_usd": round_cost(actual_t) if actual_t > 0 else None,
-                "input_cost_usd": round_cost(input_t) if input_t > 0 else None,
-                "output_cost_usd": round_cost(output_t) if output_t > 0 else None,
-                "catalog_cost_usd": round_cost(catalog_t) if catalog_t > 0 else None,
-                "catalog_input_cost_usd": (
-                    round_cost(catalog_in_t) if catalog_in_t > 0 else None
-                ),
-                "catalog_output_cost_usd": (
-                    round_cost(catalog_out_t) if catalog_out_t > 0 else None
-                ),
-                "variance_usd": variance,
-                "variance_pct": variance_pct,
-                "days_with_rows": int(st["days_with_rows"]),
-                "catalog_usd_per_1m_input": st.get("catalog_usd_per_1m_input"),
-                "catalog_usd_per_1m_output": st.get("catalog_usd_per_1m_output"),
-                "catalog_price_input": st.get("catalog_price_input"),
-                "catalog_price_output": st.get("catalog_price_output"),
-            }
-        )
+        model_summary.append(_model_summary_row_from_agg(summary_by_model[m], m))
 
     _sort_rows_by_date_desc(daily_by_model)
 
     total_catalog = sum(float(c) for c in catalog_by_date.values())
     total_actual = sum(actual_by_date.values())
+    total_meter_raw = sum(
+        _reconciled_meter_actual(
+            float(st["input_cost_usd"]),
+            float(st["output_cost_usd"]),
+            float(st["actual_cost_usd"]),
+        )
+        for st in summary_by_model.values()
+    )
     total_input = sum(
         float(r["input_cost_usd"])
         for r in daily_by_model
@@ -2436,10 +2568,20 @@ def get_catalog_market_cost_timeseries(
     )
     days_with_catalog = sum(1 for d in all_dates if d in catalog_by_date)
 
-    variance_usd = round_cost(total_actual - total_catalog) if days_with_catalog else None
-    variance_pct = None
-    if days_with_catalog and total_catalog > 0:
-        variance_pct = round((total_actual - total_catalog) / total_catalog * 100.0, 1)
+    summary_extras = _catalog_market_summary_extras(
+        total_actual=total_actual,
+        total_catalog=total_catalog,
+        total_meter_raw=total_meter_raw,
+        days_with_catalog=days_with_catalog,
+    )
+    billing_other_rows = _billing_other_rows_for_project(
+        conn,
+        project_name,
+        start_date=start_date,
+        end_date=end_date,
+        currency=chosen_currency,
+        meter_matched_usd=total_meter_raw,
+    )
 
     return {
         "available": True,
@@ -2452,24 +2594,19 @@ def get_catalog_market_cost_timeseries(
         "points": points,
         "daily_by_model": daily_by_model,
         "model_summary": model_summary,
+        "billing_other_rows": billing_other_rows,
         "summary": {
             "total_catalog_cost_usd": round_cost(total_catalog) if days_with_catalog else None,
             "total_actual_cost_usd": round_cost(total_actual) if total_actual else None,
             "total_input_cost_usd": round_cost(total_input) if total_input > 0 else None,
             "total_output_cost_usd": round_cost(total_output) if total_output > 0 else None,
-            "total_meter_cost_usd": (
-                round_cost(total_input + total_output)
-                if (total_input + total_output) > 0
-                else None
-            ),
             "total_catalog_input_cost_usd": (
                 round_cost(total_catalog_input) if total_catalog_input > 0 else None
             ),
             "total_catalog_output_cost_usd": (
                 round_cost(total_catalog_output) if total_catalog_output > 0 else None
             ),
-            "variance_usd": variance_usd,
-            "variance_pct": variance_pct,
+            **summary_extras,
             "days_with_catalog": days_with_catalog,
             "model_count": len(model_summary),
         },
@@ -2547,39 +2684,7 @@ def _model_summary_from_daily_by_model(
 
     model_summary: list[dict[str, object]] = []
     for m in sorted(summary_by_model.keys()):
-        st = summary_by_model[m]
-        actual_t = float(st["actual_cost_usd"])
-        input_t = float(st["input_cost_usd"])
-        output_t = float(st["output_cost_usd"])
-        catalog_t = float(st["catalog_cost_usd"])
-        catalog_in_t = float(st["catalog_input_cost_usd"])
-        catalog_out_t = float(st["catalog_output_cost_usd"])
-        variance = round_cost(actual_t - catalog_t) if catalog_t > 0 or actual_t > 0 else None
-        variance_pct = None
-        if catalog_t > 0:
-            variance_pct = round((actual_t - catalog_t) / catalog_t * 100.0, 1)
-        model_summary.append(
-            {
-                "model_name": m,
-                "actual_cost_usd": round_cost(actual_t) if actual_t > 0 else None,
-                "input_cost_usd": round_cost(input_t) if input_t > 0 else None,
-                "output_cost_usd": round_cost(output_t) if output_t > 0 else None,
-                "catalog_cost_usd": round_cost(catalog_t) if catalog_t > 0 else None,
-                "catalog_input_cost_usd": (
-                    round_cost(catalog_in_t) if catalog_in_t > 0 else None
-                ),
-                "catalog_output_cost_usd": (
-                    round_cost(catalog_out_t) if catalog_out_t > 0 else None
-                ),
-                "variance_usd": variance,
-                "variance_pct": variance_pct,
-                "days_with_rows": int(st["days_with_rows"]),
-                "catalog_usd_per_1m_input": st.get("catalog_usd_per_1m_input"),
-                "catalog_usd_per_1m_output": st.get("catalog_usd_per_1m_output"),
-                "catalog_price_input": st.get("catalog_price_input"),
-                "catalog_price_output": st.get("catalog_price_output"),
-            }
-        )
+        model_summary.append(_model_summary_row_from_agg(summary_by_model[m], m))
     return model_summary
 
 
@@ -2725,10 +2830,15 @@ def get_all_catalog_market_breakdown(
     )
     days_with_catalog = len(catalog_by_date)
 
-    variance_usd = round_cost(total_actual - total_catalog) if days_with_catalog else None
-    variance_pct = None
-    if days_with_catalog and total_catalog > 0:
-        variance_pct = round((total_actual - total_catalog) / total_catalog * 100.0, 1)
+    total_meter_raw = sum(
+        float(m.get("actual_cost_usd") or 0.0) for m in model_summary
+    )
+    summary_extras = _catalog_market_summary_extras(
+        total_actual=total_actual,
+        total_catalog=total_catalog,
+        total_meter_raw=total_meter_raw,
+        days_with_catalog=days_with_catalog,
+    )
 
     if len(token_sources) == 1:
         token_data_source = next(iter(token_sources))
@@ -2753,19 +2863,13 @@ def get_all_catalog_market_breakdown(
             "total_actual_cost_usd": round_cost(total_actual) if total_actual else None,
             "total_input_cost_usd": round_cost(total_input) if total_input > 0 else None,
             "total_output_cost_usd": round_cost(total_output) if total_output > 0 else None,
-            "total_meter_cost_usd": (
-                round_cost(total_input + total_output)
-                if (total_input + total_output) > 0
-                else None
-            ),
             "total_catalog_input_cost_usd": (
                 round_cost(total_catalog_input) if total_catalog_input > 0 else None
             ),
             "total_catalog_output_cost_usd": (
                 round_cost(total_catalog_output) if total_catalog_output > 0 else None
             ),
-            "variance_usd": variance_usd,
-            "variance_pct": variance_pct,
+            **summary_extras,
             "days_with_catalog": days_with_catalog,
             "model_count": len(model_summary),
             "project_count": len(projects_with_data),

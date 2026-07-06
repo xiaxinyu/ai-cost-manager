@@ -6,7 +6,7 @@
     <title>Cost - Models Cost Management</title>
     <link rel="stylesheet" href="/static/css/app-shell.css" />
     <link rel="stylesheet" href="/static/css/page-common.css" />
-    <link rel="stylesheet" href="/static/css/pages/index.css?v=20260606-drp" />
+    <link rel="stylesheet" href="/static/css/pages/index.css?v=20260706-reconcile" />
     <link rel="stylesheet" href="/static/css/layout-pro.css" />
     <link rel="stylesheet" href="/static/css/dashboard-shared.css?v=20260605-cost" />
     <link rel="stylesheet" href="/static/css/date-range-picker.css?v=20260606-drp" />
@@ -55,6 +55,7 @@
                 <div class="stat">
                   <div class="label"><span class="costPill costPill--actual">Actual</span> CostUSD</div>
                   <div class="value" id="actualCost">-</div>
+                  <div class="sub tokenStats kpiFootnote" id="actualCostNote">All billing meters</div>
                   <div class="sub tokenStats kpiFootnote" id="costStats">Max: - · Mean: - · Min: -</div>
                 </div>
               </article>
@@ -139,16 +140,21 @@
                       <span class="meterTotalLabel">Input + output</span>
                       <span class="meterTotalValue mono" id="projectMeterCostTotal">—</span>
                     </div>
+                    <div class="meterTotalItem meterTotalItemOther" id="projectBillingOtherWrap" hidden>
+                      <span class="meterTotalLabel">Other billing</span>
+                      <span class="meterTotalValue mono" id="projectBillingOtherTotal">—</span>
+                    </div>
                   </div>
+                  <p class="meterTotalHint muted" id="modelMeterHint">Token-meter matched subset of top Actual total.</p>
                 </div>
               </div>
               <div class="card tight modelSummaryCard">
                 <div class="modelSummaryHead">
                   <h3 class="chartSectionTitle">Model totals</h3>
                   <p class="modelTableHint muted">
-                    <span class="costPill costPill--actual">Actual</span> meter billing ·
-                    <span class="costPill costPill--market">Market</span> list price from
-                    <a href="/prices">Model Prices</a>. Click headers to sort.
+                    Model rows = token-meter matched billing.
+                    <span class="costPill costPill--actual">Others</span> rows reconcile to top Actual total.
+                    Market list from <a href="/prices">Model Prices</a>.
                   </p>
                 </div>
                 <div class="tableScroll modelSummaryTableWrap">
@@ -272,7 +278,10 @@
       const projectInputCostTotalEl = document.getElementById('projectInputCostTotal');
       const projectOutputCostTotalEl = document.getElementById('projectOutputCostTotal');
       const projectMeterCostTotalEl = document.getElementById('projectMeterCostTotal');
+      const projectBillingOtherWrapEl = document.getElementById('projectBillingOtherWrap');
+      const projectBillingOtherTotalEl = document.getElementById('projectBillingOtherTotal');
       let lastModelSummaryRows = [];
+      let lastBillingOtherRows = [];
       let lastModelProjectSummary = {};
       let modelTableSort = { key: 'actual_cost_usd', dir: 'desc' };
 
@@ -544,8 +553,8 @@
         if (catalogVarianceNoteEl) {
           catalogVarianceNoteEl.textContent =
             vUsd === null || vUsd === undefined
-              ? 'Actual − Market'
-              : `Δ ${fmt2(vUsd)} (Actual − Market)`;
+              ? 'Full billing − Market'
+              : `Δ ${fmt2(vUsd)} (full billing − Market)`;
         }
         if (marketChartHintEl) {
           marketChartHintEl.textContent =
@@ -661,9 +670,14 @@
         if (modelSectionHintEl) {
           const n = summary.length;
           const unpriced = catalogPayload.unpriced_models || [];
-          modelSectionHintEl.textContent = unpriced.length
+          const other = catalogPayload?.summary?.billing_other_usd;
+          let hint = unpriced.length
             ? `${n} model(s) · ${unpriced.length} without Market match`
             : `${n} model(s) in scope`;
+          if (other != null && Number(other) > 0) {
+            hint += ` · ${fmt2(other)} other billing (Defender, network, etc.)`;
+          }
+          modelSectionHintEl.textContent = hint;
         }
 
         try {
@@ -671,7 +685,11 @@
         } catch (err) {
           console.error('renderProjectMeterTotals failed', err);
         }
-        renderModelSummaryTable(summary, catalogPayload?.summary || {});
+        renderModelSummaryTable(
+          summary,
+          catalogPayload?.summary || {},
+          asModelSummaryRows(catalogPayload?.billing_other_rows || [])
+        );
         try {
           renderModelDirCostCharts(daily);
         } catch (err) {
@@ -684,6 +702,7 @@
         const tin = summary.total_input_cost_usd;
         const tout = summary.total_output_cost_usd;
         const tmeter = summary.total_meter_cost_usd;
+        const other = summary.billing_other_usd;
         if (projectInputCostTotalEl) {
           projectInputCostTotalEl.textContent = tin != null ? fmt2(tin) : '—';
         }
@@ -692,6 +711,11 @@
         }
         if (projectMeterCostTotalEl) {
           projectMeterCostTotalEl.textContent = tmeter != null ? fmt2(tmeter) : '—';
+        }
+        if (projectBillingOtherWrapEl && projectBillingOtherTotalEl) {
+          const showOther = other != null && Number(other) > 0;
+          projectBillingOtherWrapEl.hidden = !showOther;
+          projectBillingOtherTotalEl.textContent = showOther ? fmt2(other) : '—';
         }
       }
 
@@ -781,7 +805,11 @@
               modelTableSort.key = key;
               modelTableSort.dir = key === 'model_name' ? 'asc' : 'desc';
             }
-            renderModelSummaryTable(lastModelSummaryRows, lastModelProjectSummary);
+            renderModelSummaryTable(
+              lastModelSummaryRows,
+              lastModelProjectSummary,
+              lastBillingOtherRows
+            );
           });
         });
       }
@@ -838,6 +866,40 @@
         return tr;
       }
 
+      function _buildBillingOtherRow(r) {
+        const tr = document.createElement('tr');
+        tr.className = 'modelSummaryRow modelSummaryRow--other';
+
+        const tdName = document.createElement('td');
+        tdName.className = 'modelNameCell';
+        const code = document.createElement('code');
+        code.textContent = String(r.model_name ?? 'Others');
+        tdName.appendChild(code);
+        tr.appendChild(tdName);
+
+        const tdCatalog = document.createElement('td');
+        tdCatalog.className = 'catalogSourceCell muted';
+        tdCatalog.textContent = 'Non-token meter billing';
+        tr.appendChild(tdCatalog);
+
+        _appendModelNumCell(tr, null, { costKind: 'actual' });
+        _appendModelNumCell(tr, null, { costKind: 'actual' });
+        _appendModelNumCell(tr, r.actual_cost_usd, { emphasize: true, costKind: 'actual' });
+        _appendModelNumCell(tr, null, { costKind: 'market' });
+
+        const tdDelta = document.createElement('td');
+        tdDelta.className = 'num mono deltaCell deltaCell--na';
+        tdDelta.textContent = '—';
+        tr.appendChild(tdDelta);
+
+        const tdDays = document.createElement('td');
+        tdDays.className = 'num colDays';
+        tdDays.textContent = '—';
+        tr.appendChild(tdDays);
+
+        return tr;
+      }
+
       function _renderModelSummaryFooter(projectSummary) {
         if (!modelCostSummaryTfootEl) return;
         const ps = projectSummary || {};
@@ -846,7 +908,7 @@
           vPct === null || vPct === undefined
             ? '—'
             : `${vPct > 0 ? '+' : ''}${vPct}%`;
-        const totalMeter = ps.total_meter_cost_usd ?? ps.total_actual_cost_usd;
+        const totalBilling = ps.total_actual_cost_usd;
 
         modelCostSummaryTfootEl.replaceChildren();
         const tr = document.createElement('tr');
@@ -855,12 +917,12 @@
         const th = document.createElement('th');
         th.scope = 'row';
         th.colSpan = 2;
-        th.textContent = 'All models';
+        th.textContent = 'All billing';
         tr.appendChild(th);
 
         _appendModelNumCell(tr, ps.total_input_cost_usd, { costKind: 'actual' });
         _appendModelNumCell(tr, ps.total_output_cost_usd, { costKind: 'actual' });
-        _appendModelNumCell(tr, totalMeter, { emphasize: true, costKind: 'actual' });
+        _appendModelNumCell(tr, totalBilling, { emphasize: true, costKind: 'actual' });
         _appendModelNumCell(tr, ps.total_catalog_cost_usd, { costKind: 'market' });
 
         const tdDelta = document.createElement('td');
@@ -876,9 +938,10 @@
         modelCostSummaryTfootEl.appendChild(tr);
       }
 
-      function renderModelSummaryTable(rows, projectSummary) {
+      function renderModelSummaryTable(rows, projectSummary, billingOtherRows = []) {
         if (!modelCostSummaryTbodyEl) return;
         lastModelSummaryRows = asModelSummaryRows(rows);
+        lastBillingOtherRows = asModelSummaryRows(billingOtherRows);
         lastModelProjectSummary = projectSummary || {};
         const sorted = _sortModelSummaryRows(lastModelSummaryRows);
 
@@ -890,6 +953,14 @@
             built += 1;
           } catch (err) {
             console.error('model summary row failed', r?.model_name, err);
+          }
+        }
+        for (const r of lastBillingOtherRows) {
+          try {
+            frag.appendChild(_buildBillingOtherRow(r));
+            built += 1;
+          } catch (err) {
+            console.error('billing other row failed', r?.model_name, err);
           }
         }
 
@@ -1205,7 +1276,12 @@
         }
       }
 
-      async function loadProject(projectName) {
+      function clearDateFilters() {
+        if (startDateInput) startDateInput.value = '';
+        if (endDateInput) endDateInput.value = '';
+      }
+
+      async function loadProject(projectName, { skipRangeRecovery = false } = {}) {
         if (!projectName) return;
         currentProjectName = projectName;
         if (projectSelect && projectSelect.value !== projectName) {
@@ -1228,6 +1304,28 @@
         const stats = await window.AppHttp.getJson(
           `/api/projects/${encodeURIComponent(projectName)}/stats?${statsParams.toString()}`
         );
+
+        if (
+          !skipRangeRecovery
+          && stats.actual_days === 0
+          && (startDate || endDate)
+        ) {
+          const fullStats = await window.AppHttp.getJson(
+            `/api/projects/${encodeURIComponent(projectName)}/stats`
+          );
+          if (fullStats.actual_days > 0 && fullStats.min_usage_date && fullStats.max_usage_date) {
+            const shown = `${fullStats.min_usage_date} – ${fullStats.max_usage_date}`;
+            const filtered = `${startDate || '…'} – ${endDate || '…'}`;
+            window.AppShell?.toast?.(
+              `No billing in ${filtered}. Showing project data: ${shown}.`,
+              'warn',
+              5200
+            );
+            startDateInput.value = fullStats.min_usage_date;
+            endDateInput.value = fullStats.max_usage_date;
+            return loadProject(projectName, { skipRangeRecovery: true });
+          }
+        }
 
         actualCostEl.textContent = fmt2(stats.actual_cost_usd_total);
         dateRangeEl.textContent = `${stats.min_usage_date ?? '-'} ~ ${stats.max_usage_date ?? '-'}`;
@@ -1299,6 +1397,7 @@
       });
 
       projectSelect.addEventListener('change', (e) => {
+        clearDateFilters();
         loadProjectSafe(e.target.value);
       });
       applyFiltersBtn.addEventListener('click', () => {
