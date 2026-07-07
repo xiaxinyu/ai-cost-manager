@@ -9,15 +9,20 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from .bills_layout import (
+    is_metric_csv_filename,
+    iter_project_csv_files,
+    subproject_from_relpath,
+)
 from .db import SCHEMA_VERSION, ensure_parent_dir, ensure_project, get_connection, init_db
 from .ingest import _sha256_file
 
 _METRIC_UPSERT_SQL = """
 INSERT INTO token_metric_points(
-    project_name, recorded_at, usage_date, model_name, metric_name,
+    project_name, subproject_name, recorded_at, usage_date, model_name, metric_name,
     metric_value, metric_unit, source_file, source_row_index
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-ON CONFLICT(project_name, metric_name, recorded_at, model_name)
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+ON CONFLICT(project_name, subproject_name, metric_name, recorded_at, model_name)
 DO UPDATE SET
     usage_date = excluded.usage_date,
     metric_value = excluded.metric_value,
@@ -162,19 +167,19 @@ def _infer_metric_from_filename(name: str) -> str | None:
     return None
 
 
-def discover_token_metric_csv_files(bills_dir: str | os.PathLike[str]) -> list[tuple[str, Path, str, str]]:
+def discover_token_metric_csv_files(
+    bills_dir: str | os.PathLike[str],
+) -> list[tuple[str, Path, str, str, str]]:
     """
-    Returns list of (project_name, csv_path_abs, file_path_rel, metric_name), oldest file first.
+    Returns list of (project_name, csv_path_abs, file_path_rel, metric_name, subproject_name).
 
-    file_path_rel formats:
-    - <project>/token/<filename>.csv (cache-match-rate-*.csv)
-    - <project>/performance/<filename>.csv (avg-latency-*.csv, model-requests-*.csv)
+    Supports flat and nested layouts under token/ and performance/.
     """
     bills_path = Path(bills_dir).expanduser().resolve()
     if not bills_path.exists():
         return []
 
-    results: list[tuple[str, Path, str, str]] = []
+    results: list[tuple[str, Path, str, str, str]] = []
     for project_dir in sorted(bills_path.glob("*")):
         if not project_dir.is_dir():
             continue
@@ -183,21 +188,27 @@ def discover_token_metric_csv_files(bills_dir: str | os.PathLike[str]) -> list[t
             continue
 
         for subdir in ("token", "performance"):
-            d = project_dir / subdir
-            if not d.is_dir():
-                continue
-            for csv_path in sorted(d.glob("*.csv"), key=_file_sort_key):
+            for csv_path, rel_path, subproject_name in iter_project_csv_files(
+                project_dir,
+                subdir_name=subdir,
+                accept_filename=is_metric_csv_filename,
+            ):
                 metric = _infer_metric_from_filename(csv_path.name)
                 if metric is None:
                     continue
-                rel_path = str(csv_path.relative_to(bills_path))
-                results.append((project_name, csv_path, rel_path, metric))
+                results.append((project_name, csv_path, rel_path, metric, subproject_name))
     return results
 
 
 def iter_token_metric_csv_points(
-    csv_path_abs: Path, *, project_name: str, file_path_rel: str, metric_name: str
+    csv_path_abs: Path,
+    *,
+    project_name: str,
+    file_path_rel: str,
+    metric_name: str,
+    subproject_name: str | None = None,
 ) -> tuple[list[dict[str, object]], list[str]]:
+    subproject = subproject_name if subproject_name is not None else subproject_from_relpath(file_path_rel)
     points: list[dict[str, object]] = []
     with csv_path_abs.open("r", newline="", encoding="utf-8-sig") as f:
         reader = csv.DictReader(f)
@@ -221,6 +232,7 @@ def iter_token_metric_csv_points(
                 points.append(
                     {
                         "project_name": project_name,
+                        "subproject_name": subproject,
                         "recorded_at": recorded_at,
                         "usage_date": usage_date,
                         "model_name": model_name,
@@ -238,11 +250,11 @@ def _delete_stale_keys_for_source_file(
     conn,
     *,
     file_path_rel: str,
-    new_keys: set[tuple[str, str, str, str]],
+    new_keys: set[tuple[str, str, str, str, str]],
 ) -> int:
     old_rows = conn.execute(
         """
-        SELECT project_name, metric_name, recorded_at, model_name
+        SELECT project_name, subproject_name, metric_name, recorded_at, model_name
         FROM token_metric_points
         WHERE source_file = ?
         """,
@@ -252,6 +264,7 @@ def _delete_stale_keys_for_source_file(
     for r in old_rows:
         key = (
             str(r["project_name"]),
+            str(r["subproject_name"]),
             str(r["metric_name"]),
             str(r["recorded_at"]),
             str(r["model_name"]),
@@ -262,6 +275,7 @@ def _delete_stale_keys_for_source_file(
             """
             DELETE FROM token_metric_points
             WHERE project_name = ?
+              AND subproject_name = ?
               AND metric_name = ?
               AND recorded_at = ?
               AND model_name = ?
@@ -302,7 +316,14 @@ def _ingest_one_token_metric_file(
         metric_name=metric_name,
     )
     new_keys = {
-        (str(p["project_name"]), str(p["metric_name"]), str(p["recorded_at"]), str(p["model_name"])) for p in points
+        (
+            str(p["project_name"]),
+            str(p["subproject_name"]),
+            str(p["metric_name"]),
+            str(p["recorded_at"]),
+            str(p["model_name"]),
+        )
+        for p in points
     }
 
     replaced = 0
@@ -319,6 +340,7 @@ def _ingest_one_token_metric_file(
     to_insert = [
         (
             p["project_name"],
+            p["subproject_name"],
             p["recorded_at"],
             p["usage_date"],
             p["model_name"],
@@ -342,12 +364,13 @@ def _ingest_one_token_metric_file(
     conn.execute(
         """
         INSERT INTO ingested_token_metric_files(
-            project_name, file_path, metric_name, checksum_sha256, schema_version,
+            project_name, subproject_name, file_path, metric_name, checksum_sha256, schema_version,
             row_count, source_last_modified, raw_columns
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             project_name,
+            subproject_from_relpath(file_path_rel),
             file_path_rel,
             metric_name,
             checksum,
@@ -415,7 +438,7 @@ def ingest_token_metric_selected(
         errors: list[tuple[str, str]] = []
         projects: set[str] = set()
 
-        for project_name, csv_path_abs, file_path_rel, metric_name in files:
+        for project_name, csv_path_abs, file_path_rel, metric_name, subproject_name in files:
             projects.add(project_name)
             ensure_project(conn, project_name)
 
@@ -486,7 +509,9 @@ def list_missing_token_metric_files(
         ingested_paths = {r["file_path"] for r in existing}
 
         missing: list[dict[str, object]] = []
-        for project_name, csv_path_abs, file_path_rel, metric_name in discover_token_metric_csv_files(bills_dir):
+        for project_name, csv_path_abs, file_path_rel, metric_name, subproject_name in discover_token_metric_csv_files(
+            bills_dir
+        ):
             if file_path_rel in ingested_paths:
                 continue
             missing.append(
@@ -495,6 +520,7 @@ def list_missing_token_metric_files(
                     "file_path_rel": file_path_rel,
                     "file_kind": "token_metric",
                     "metric_name": metric_name,
+                    "subproject_name": subproject_name,
                     "source_last_modified": float(csv_path_abs.stat().st_mtime),
                 }
             )

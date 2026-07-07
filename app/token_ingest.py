@@ -9,6 +9,11 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from .bills_layout import (
+    is_token_usage_csv_filename,
+    iter_project_csv_files,
+    subproject_from_relpath,
+)
 from .db import (
     SCHEMA_VERSION,
     ensure_parent_dir,
@@ -34,10 +39,10 @@ _TOKEN_QTY_RE = re.compile(
 
 _TOKEN_UPSERT_SQL = """
 INSERT INTO token_usage_points(
-    project_name, recorded_at, usage_date, model_name, token_direction,
+    project_name, subproject_name, recorded_at, usage_date, model_name, token_direction,
     token_count, source_file, source_row_index
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-ON CONFLICT(project_name, token_direction, recorded_at, model_name)
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+ON CONFLICT(project_name, subproject_name, token_direction, recorded_at, model_name)
 DO UPDATE SET
     usage_date = excluded.usage_date,
     token_count = excluded.token_count,
@@ -62,12 +67,19 @@ class TokenIngestResult:
 @dataclass(frozen=True)
 class TokenNaturalKey:
     project_name: str
+    subproject_name: str
     token_direction: str
     recorded_at: str
     model_name: str
 
-    def as_tuple(self) -> tuple[str, str, str, str]:
-        return (self.project_name, self.token_direction, self.recorded_at, self.model_name)
+    def as_tuple(self) -> tuple[str, str, str, str, str]:
+        return (
+            self.project_name,
+            self.subproject_name,
+            self.token_direction,
+            self.recorded_at,
+            self.model_name,
+        )
 
 
 @dataclass(frozen=True)
@@ -170,40 +182,42 @@ def _file_sort_key(csv_path: Path) -> tuple[float, str]:
     return (mtime, csv_path.name)
 
 
-def discover_token_csv_files(bills_dir: str | os.PathLike[str]) -> list[tuple[str, Path, str]]:
+def discover_token_csv_files(bills_dir: str | os.PathLike[str]) -> list[tuple[str, Path, str, str]]:
     """
-    Returns list of (project_name, csv_path_abs, file_path_rel), oldest file first.
+    Returns list of (project_name, csv_path_abs, file_path_rel, subproject_name), oldest first.
 
-    file_path_rel format: <project>/token/<filename>.csv
+    Supports flat ``<project>/token/*.csv`` and nested ``<project>/token/<subproject>/*.csv``.
     """
     bills_path = Path(bills_dir).expanduser().resolve()
     if not bills_path.exists():
         return []
 
-    results: list[tuple[str, Path, str]] = []
+    results: list[tuple[str, Path, str, str]] = []
     for project_dir in sorted(bills_path.glob("*")):
         if not project_dir.is_dir():
             continue
         project_name = project_dir.name
         if project_name.strip().lower() in {"price", "prices"}:
             continue
-        token_dir = project_dir / "token"
-        if not token_dir.is_dir():
-            continue
-        for csv_path in sorted(token_dir.glob("*.csv"), key=_file_sort_key):
-            # Token usage CSVs must be input/output direction files.
-            # Other time-series CSVs may live under token/ (e.g. cache match rate) and are handled elsewhere.
+        for csv_path, rel_path, subproject_name in iter_project_csv_files(
+            project_dir,
+            subdir_name="token",
+            accept_filename=is_token_usage_csv_filename,
+        ):
             try:
                 infer_token_direction(csv_path.name)
             except ValueError:
                 continue
-            rel_path = str(csv_path.relative_to(bills_path))
-            results.append((project_name, csv_path, rel_path))
+            results.append((project_name, csv_path, rel_path, subproject_name))
     return results
 
 
 def iter_token_csv_points(
-    csv_path_abs: Path, *, project_name: str, file_path_rel: str
+    csv_path_abs: Path,
+    *,
+    project_name: str,
+    file_path_rel: str,
+    subproject_name: str | None = None,
 ) -> tuple[str, list[dict[str, object]], list[str]]:
     """
     Parse a Grafana token CSV into point dicts.
@@ -211,6 +225,7 @@ def iter_token_csv_points(
     Natural identity: (Time, model column) per file direction (input/output).
     """
     token_direction = infer_token_direction(csv_path_abs.name)
+    subproject = subproject_name if subproject_name is not None else subproject_from_relpath(file_path_rel)
     points: list[dict[str, object]] = []
     with csv_path_abs.open("r", newline="", encoding="utf-8-sig") as f:
         reader = csv.DictReader(f)
@@ -234,6 +249,7 @@ def iter_token_csv_points(
                 points.append(
                     {
                         "project_name": project_name,
+                        "subproject_name": subproject,
                         "recorded_at": recorded_at,
                         "usage_date": usage_date,
                         "model_name": model_name,
@@ -242,7 +258,7 @@ def iter_token_csv_points(
                         "source_file": file_path_rel,
                         "source_row_index": row_index,
                         "natural_key": TokenNaturalKey(
-                            project_name, token_direction, recorded_at, model_name
+                            project_name, subproject, token_direction, recorded_at, model_name
                         ),
                     }
                 )
@@ -324,12 +340,14 @@ def _verify_token_ingestion_for_file(
             SELECT token_count, source_file
             FROM token_usage_points
             WHERE project_name = ?
+              AND subproject_name = ?
               AND token_direction = ?
               AND recorded_at = ?
               AND model_name = ?
             """,
             (
                 p["project_name"],
+                p["subproject_name"],
                 p["token_direction"],
                 p["recorded_at"],
                 p["model_name"],
@@ -424,12 +442,12 @@ def _delete_stale_keys_for_source_file(
     conn,
     *,
     file_path_rel: str,
-    new_keys: set[tuple[str, str, str, str]],
+    new_keys: set[tuple[str, str, str, str, str]],
 ) -> int:
     """Remove natural keys that belonged to this file but are absent in the new CSV."""
     old_rows = conn.execute(
         """
-        SELECT project_name, token_direction, recorded_at, model_name
+        SELECT project_name, subproject_name, token_direction, recorded_at, model_name
         FROM token_usage_points
         WHERE source_file = ?
         """,
@@ -439,6 +457,7 @@ def _delete_stale_keys_for_source_file(
     for r in old_rows:
         key = (
             str(r["project_name"]),
+            str(r["subproject_name"]),
             str(r["token_direction"]),
             str(r["recorded_at"]),
             str(r["model_name"]),
@@ -449,6 +468,7 @@ def _delete_stale_keys_for_source_file(
             """
             DELETE FROM token_usage_points
             WHERE project_name = ?
+              AND subproject_name = ?
               AND token_direction = ?
               AND recorded_at = ?
               AND model_name = ?
@@ -487,6 +507,7 @@ def _ingest_one_token_file(
     new_keys = {
         (
             str(p["project_name"]),
+            str(p["subproject_name"]),
             str(p["token_direction"]),
             str(p["recorded_at"]),
             str(p["model_name"]),
@@ -502,6 +523,7 @@ def _ingest_one_token_file(
     for p in points:
         key = (
             str(p["project_name"]),
+            str(p["subproject_name"]),
             str(p["token_direction"]),
             str(p["recorded_at"]),
             str(p["model_name"]),
@@ -510,7 +532,7 @@ def _ingest_one_token_file(
             """
             SELECT id, source_file, token_count
             FROM token_usage_points
-            WHERE project_name = ? AND token_direction = ? AND recorded_at = ? AND model_name = ?
+            WHERE project_name = ? AND subproject_name = ? AND token_direction = ? AND recorded_at = ? AND model_name = ?
             """,
             key,
         ).fetchone()
@@ -522,6 +544,7 @@ def _ingest_one_token_file(
         to_insert.append(
             (
                 p["project_name"],
+                p["subproject_name"],
                 p["recorded_at"],
                 p["usage_date"],
                 p["model_name"],
@@ -540,12 +563,13 @@ def _ingest_one_token_file(
     conn.execute(
         """
         INSERT INTO ingested_token_files(
-            project_name, file_path, token_direction, checksum_sha256, schema_version,
+            project_name, subproject_name, file_path, token_direction, checksum_sha256, schema_version,
             row_count, source_last_modified, raw_columns
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             project_name,
+            subproject_from_relpath(file_path_rel),
             file_path_rel,
             token_direction,
             checksum,
@@ -614,7 +638,7 @@ def ingest_token_selected(
     verification_passed = True
     projects: set[str] = set()
 
-    for project_name, csv_path_abs, file_path_rel in files:
+    for project_name, csv_path_abs, file_path_rel, subproject_name in files:
         projects.add(project_name)
         ensure_project(conn, project_name)
 
@@ -683,7 +707,7 @@ def list_missing_token_files(
         ingested_paths = {r["file_path"] for r in existing}
 
         missing: list[dict[str, object]] = []
-        for project_name, csv_path_abs, file_path_rel in discover_token_csv_files(bills_dir):
+        for project_name, csv_path_abs, file_path_rel, subproject_name in discover_token_csv_files(bills_dir):
             if file_path_rel in ingested_paths:
                 continue
             try:
@@ -696,6 +720,7 @@ def list_missing_token_files(
                     "file_path_rel": file_path_rel,
                     "file_kind": "token",
                     "token_direction": direction,
+                    "subproject_name": subproject_name,
                     "source_last_modified": float(csv_path_abs.stat().st_mtime),
                 }
             )

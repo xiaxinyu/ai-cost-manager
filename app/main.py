@@ -48,11 +48,13 @@ from .db import (
     list_project_details,
     list_projects,
     list_projects_with_imported_tokens,
+    list_subprojects_for_project,
     update_price_source_catalog_row,
     upsert_project_model_config,
 )
 from .import_listing import count_all_ingested_files, list_all_ingested_files
 from .ingest import ingest_all, ingest_selected, list_ingested_files, list_missing_files, verify_ingested_files
+from .bills_layout import is_token_metric_csv_relpath, is_token_usage_csv_relpath, token_import_path_display
 from .token_ingest import (
     ingest_token_all,
     ingest_token_selected,
@@ -336,6 +338,12 @@ def create_app(
             projects = list_projects(conn)
             token_projects = list_projects_with_imported_tokens(conn)
             details = list_project_details(conn)
+            for detail in details:
+                detail["subprojects"] = list_subprojects_for_project(
+                    conn,
+                    str(detail["name"]),
+                    bills_dir=bills_dir,
+                )
             return JSONResponse(
                 {
                     "projects": projects,
@@ -631,6 +639,10 @@ def create_app(
         project_name: str,
         start_date: Optional[str] = Query(default=None, description="YYYY-MM-DD"),
         end_date: Optional[str] = Query(default=None, description="YYYY-MM-DD"),
+        subproject: Optional[str] = Query(
+            default=None,
+            description="Optional subproject folder under token/ or performance/",
+        ),
         granularity: str = Query(default="day", description="day|month"),
         currency: Optional[str] = Query(default=None, description="Currency code"),
         cost_debug: bool = Query(
@@ -647,6 +659,7 @@ def create_app(
         )
         conn = get_connection(db_path)
         try:
+            subproject_name = subproject.strip() if subproject else None
             points, chosen_currency, model_name, token_region, token_data_source = get_token_timeseries(
                 conn,
                 project_name,
@@ -654,6 +667,7 @@ def create_app(
                 end_date=end_date,
                 granularity=granularity,
                 currency=currency,
+                subproject_name=subproject_name,
             )
             if token_data_source == "imported":
                 available = []
@@ -664,6 +678,8 @@ def create_app(
 
             payload: dict[str, object] = {
                 "project": project_name,
+                "subproject": subproject_name,
+                "token_import_path": token_import_path_display(subproject_name=subproject_name),
                 "currency": chosen_currency,
                 "available_currencies": available,
                 "granularity": granularity,
@@ -678,12 +694,14 @@ def create_app(
                     project_name,
                     start_date=start_date,
                     end_date=end_date,
+                    subproject_name=subproject_name,
                 )
                 payload["breakdown_by_model"] = get_imported_token_breakdown_by_model(
                     conn,
                     project_name,
                     start_date=start_date,
                     end_date=end_date,
+                    subproject_name=subproject_name,
                 )
                 daily_by_model = get_imported_token_daily_by_model(
                     conn,
@@ -691,6 +709,7 @@ def create_app(
                     start_date=start_date,
                     end_date=end_date,
                     currency=currency,
+                    subproject_name=subproject_name,
                 )
                 payload["daily_by_model"] = daily_by_model
                 payload["cost_pipeline_version"] = COST_PIPELINE_VERSION
@@ -710,6 +729,7 @@ def create_app(
                     project_name,
                     start_date=start_date,
                     end_date=end_date,
+                    subproject_name=subproject_name,
                 )
             catalog_payload: dict[str, object] = {"available": False}
             try:
@@ -727,6 +747,7 @@ def create_app(
                 project_name,
                 start_date=start_date,
                 end_date=end_date,
+                subproject_name=subproject_name,
             )
             payload["performance_insights"] = insight_cards_to_dicts(
                 compute_performance_insights(
@@ -831,20 +852,10 @@ def create_app(
         )
 
     def _is_token_usage_file_path(file_path_rel: str) -> bool:
-        parts = Path(file_path_rel).parts
-        return len(parts) >= 2 and parts[1].lower() == "token"
+        return is_token_usage_csv_relpath(file_path_rel)
 
     def _is_token_metric_file_path(file_path_rel: str) -> bool:
-        parts = Path(file_path_rel).parts
-        if len(parts) < 2:
-            return False
-        p1 = parts[1].lower()
-        if p1 == "performance":
-            return True
-        if p1 == "token" and len(parts) >= 3:
-            # metric CSVs under token/ (e.g. cache-match-rate-*.csv)
-            return parts[-1].lower().startswith("cache-match-rate-")
-        return False
+        return is_token_metric_csv_relpath(file_path_rel)
 
     @app.post("/api/import/run")
     def api_import_run(

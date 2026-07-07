@@ -22,7 +22,7 @@ from .meter_match import (
 )
 
 
-SCHEMA_VERSION = 9
+SCHEMA_VERSION = 10
 
 EXPECTED_CSV_COLUMNS = [
     "UsageDate",
@@ -179,6 +179,7 @@ def init_db(conn: sqlite3.Connection) -> None:
         CREATE TABLE IF NOT EXISTS ingested_token_files (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             project_name TEXT NOT NULL,
+            subproject_name TEXT NOT NULL DEFAULT '',
             file_path TEXT NOT NULL UNIQUE,
             token_direction TEXT NOT NULL,
             checksum_sha256 TEXT NOT NULL,
@@ -192,6 +193,7 @@ def init_db(conn: sqlite3.Connection) -> None:
         CREATE TABLE IF NOT EXISTS token_usage_points (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             project_name TEXT NOT NULL,
+            subproject_name TEXT NOT NULL DEFAULT '',
             recorded_at TEXT NOT NULL,
             usage_date TEXT NOT NULL,
             model_name TEXT NOT NULL,
@@ -200,14 +202,14 @@ def init_db(conn: sqlite3.Connection) -> None:
             source_file TEXT NOT NULL,
             source_row_index INTEGER NOT NULL,
             ingested_at TEXT NOT NULL DEFAULT (datetime('now')),
-            UNIQUE(project_name, token_direction, recorded_at, model_name)
+            UNIQUE(project_name, subproject_name, token_direction, recorded_at, model_name)
         );
 
         CREATE INDEX IF NOT EXISTS idx_token_usage_project_date
             ON token_usage_points(project_name, usage_date);
 
         CREATE INDEX IF NOT EXISTS idx_token_usage_natural
-            ON token_usage_points(project_name, token_direction, recorded_at, model_name);
+            ON token_usage_points(project_name, subproject_name, token_direction, recorded_at, model_name);
 
         CREATE INDEX IF NOT EXISTS idx_ingested_token_files_project_name
             ON ingested_token_files(project_name);
@@ -215,6 +217,7 @@ def init_db(conn: sqlite3.Connection) -> None:
         CREATE TABLE IF NOT EXISTS ingested_token_metric_files (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             project_name TEXT NOT NULL,
+            subproject_name TEXT NOT NULL DEFAULT '',
             file_path TEXT NOT NULL UNIQUE,
             metric_name TEXT NOT NULL,
             checksum_sha256 TEXT NOT NULL,
@@ -228,6 +231,7 @@ def init_db(conn: sqlite3.Connection) -> None:
         CREATE TABLE IF NOT EXISTS token_metric_points (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             project_name TEXT NOT NULL,
+            subproject_name TEXT NOT NULL DEFAULT '',
             recorded_at TEXT NOT NULL,
             usage_date TEXT NOT NULL,
             model_name TEXT NOT NULL,
@@ -237,14 +241,14 @@ def init_db(conn: sqlite3.Connection) -> None:
             source_file TEXT NOT NULL,
             source_row_index INTEGER NOT NULL,
             ingested_at TEXT NOT NULL DEFAULT (datetime('now')),
-            UNIQUE(project_name, metric_name, recorded_at, model_name)
+            UNIQUE(project_name, subproject_name, metric_name, recorded_at, model_name)
         );
 
         CREATE INDEX IF NOT EXISTS idx_token_metric_project_date
             ON token_metric_points(project_name, usage_date);
 
         CREATE INDEX IF NOT EXISTS idx_token_metric_natural
-            ON token_metric_points(project_name, metric_name, recorded_at, model_name);
+            ON token_metric_points(project_name, subproject_name, metric_name, recorded_at, model_name);
 
         CREATE INDEX IF NOT EXISTS idx_ingested_token_metric_files_project_name
             ON ingested_token_metric_files(project_name);
@@ -271,6 +275,7 @@ def init_db(conn: sqlite3.Connection) -> None:
     _migrate_billing_rows_if_needed(conn)
     _migrate_transactions_dedupe_billing_natural_key(conn)
     _migrate_token_usage_natural_key(conn)
+    _migrate_token_subproject_v1(conn)
     _migrate_model_prices_source_detail_json(conn)
     _ensure_price_source_catalog(conn)
 
@@ -463,6 +468,164 @@ def _migrate_token_usage_natural_key(conn: sqlite3.Connection) -> None:
     conn.commit()
 
 
+def _column_names(conn: sqlite3.Connection, table_name: str) -> set[str]:
+    if not _table_exists(conn, table_name):
+        return set()
+    return {str(r["name"]) for r in conn.execute(f"PRAGMA table_info({table_name})").fetchall()}
+
+
+def _append_subproject_filter(
+    where: list[str],
+    params: list[object],
+    subproject_name: str | None,
+) -> None:
+    """When subproject_name is set, restrict queries to that subfolder scope."""
+    if subproject_name is None:
+        return
+    where.append("subproject_name = ?")
+    params.append(str(subproject_name))
+
+
+def _backfill_subproject_from_source_file(
+    conn: sqlite3.Connection,
+    *,
+    table_name: str,
+    path_column: str,
+) -> None:
+    from .bills_layout import subproject_from_relpath
+
+    rows = conn.execute(f"SELECT id, {path_column} FROM {table_name}").fetchall()
+    for row in rows:
+        subproject = subproject_from_relpath(str(row[path_column]))
+        conn.execute(
+            f"UPDATE {table_name} SET subproject_name = ? WHERE id = ?",
+            (subproject, int(row["id"])),
+        )
+
+
+def _migrate_token_subproject_v1(conn: sqlite3.Connection) -> None:
+    """
+    Add subproject_name to token ingest tables and extend natural keys so nested
+    bills/<project>/token/<subproject>/ layouts do not collide.
+    """
+    row = conn.execute("SELECT value FROM meta WHERE key = 'token_subproject_v1'").fetchone()
+    if row is not None and str(row["value"]).strip() == "1":
+        return
+
+    for table_name in ("ingested_token_files", "ingested_token_metric_files"):
+        cols = _column_names(conn, table_name)
+        if cols and "subproject_name" not in cols:
+            conn.execute(
+                f"ALTER TABLE {table_name} ADD COLUMN subproject_name TEXT NOT NULL DEFAULT ''"
+            )
+
+    if _table_exists(conn, "token_usage_points") and "subproject_name" not in _column_names(
+        conn, "token_usage_points"
+    ):
+        conn.executescript(
+            """
+            CREATE TABLE token_usage_points_new (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                project_name TEXT NOT NULL,
+                subproject_name TEXT NOT NULL DEFAULT '',
+                recorded_at TEXT NOT NULL,
+                usage_date TEXT NOT NULL,
+                model_name TEXT NOT NULL,
+                token_direction TEXT NOT NULL,
+                token_count REAL NOT NULL,
+                source_file TEXT NOT NULL,
+                source_row_index INTEGER NOT NULL,
+                ingested_at TEXT NOT NULL DEFAULT (datetime('now')),
+                UNIQUE(project_name, subproject_name, token_direction, recorded_at, model_name)
+            );
+
+            INSERT INTO token_usage_points_new(
+                id, project_name, subproject_name, recorded_at, usage_date, model_name,
+                token_direction, token_count, source_file, source_row_index, ingested_at
+            )
+            SELECT
+                id, project_name, '', recorded_at, usage_date, model_name,
+                token_direction, token_count, source_file, source_row_index, ingested_at
+            FROM token_usage_points
+            WHERE id IN (
+                SELECT MAX(id)
+                FROM token_usage_points
+                GROUP BY project_name, token_direction, recorded_at, model_name
+            );
+
+            DROP TABLE token_usage_points;
+            ALTER TABLE token_usage_points_new RENAME TO token_usage_points;
+
+            CREATE INDEX IF NOT EXISTS idx_token_usage_project_date
+                ON token_usage_points(project_name, usage_date);
+            CREATE INDEX IF NOT EXISTS idx_token_usage_natural
+                ON token_usage_points(project_name, subproject_name, token_direction, recorded_at, model_name);
+            """
+        )
+        _backfill_subproject_from_source_file(conn, table_name="token_usage_points", path_column="source_file")
+
+    if _table_exists(conn, "token_metric_points") and "subproject_name" not in _column_names(
+        conn, "token_metric_points"
+    ):
+        conn.executescript(
+            """
+            CREATE TABLE token_metric_points_new (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                project_name TEXT NOT NULL,
+                subproject_name TEXT NOT NULL DEFAULT '',
+                recorded_at TEXT NOT NULL,
+                usage_date TEXT NOT NULL,
+                model_name TEXT NOT NULL,
+                metric_name TEXT NOT NULL,
+                metric_value REAL NOT NULL,
+                metric_unit TEXT NOT NULL,
+                source_file TEXT NOT NULL,
+                source_row_index INTEGER NOT NULL,
+                ingested_at TEXT NOT NULL DEFAULT (datetime('now')),
+                UNIQUE(project_name, subproject_name, metric_name, recorded_at, model_name)
+            );
+
+            INSERT INTO token_metric_points_new(
+                id, project_name, subproject_name, recorded_at, usage_date, model_name,
+                metric_name, metric_value, metric_unit, source_file, source_row_index, ingested_at
+            )
+            SELECT
+                id, project_name, '', recorded_at, usage_date, model_name,
+                metric_name, metric_value, metric_unit, source_file, source_row_index, ingested_at
+            FROM token_metric_points
+            WHERE id IN (
+                SELECT MAX(id)
+                FROM token_metric_points
+                GROUP BY project_name, metric_name, recorded_at, model_name
+            );
+
+            DROP TABLE token_metric_points;
+            ALTER TABLE token_metric_points_new RENAME TO token_metric_points;
+
+            CREATE INDEX IF NOT EXISTS idx_token_metric_project_date
+                ON token_metric_points(project_name, usage_date);
+            CREATE INDEX IF NOT EXISTS idx_token_metric_natural
+                ON token_metric_points(project_name, subproject_name, metric_name, recorded_at, model_name);
+            """
+        )
+        _backfill_subproject_from_source_file(conn, table_name="token_metric_points", path_column="source_file")
+
+    for table_name, path_column in (
+        ("ingested_token_files", "file_path"),
+        ("ingested_token_metric_files", "file_path"),
+    ):
+        if _table_exists(conn, table_name) and "subproject_name" in _column_names(conn, table_name):
+            _backfill_subproject_from_source_file(conn, table_name=table_name, path_column=path_column)
+
+    conn.execute(
+        """
+        INSERT INTO meta(key, value) VALUES ('token_subproject_v1', '1')
+        ON CONFLICT(key) DO UPDATE SET value = excluded.value
+        """
+    )
+    conn.commit()
+
+
 def _migrate_model_prices_source_detail_json(conn: sqlite3.Connection) -> None:
     if not _table_exists(conn, "model_prices"):
         return
@@ -616,17 +779,53 @@ def list_projects(conn: sqlite3.Connection) -> list[str]:
     return [r["project_name"] for r in rows]
 
 
-def list_token_models_for_project(conn: sqlite3.Connection, project_name: str) -> list[str]:
+def list_token_models_for_project(
+    conn: sqlite3.Connection,
+    project_name: str,
+    *,
+    subproject_name: str | None = None,
+) -> list[str]:
+    where = ["project_name = ?"]
+    params: list[object] = [project_name]
+    _append_subproject_filter(where, params, subproject_name)
+    where_sql = " AND ".join(where)
     rows = conn.execute(
-        """
+        f"""
         SELECT DISTINCT model_name
         FROM token_usage_points
-        WHERE project_name = ?
+        WHERE {where_sql}
         ORDER BY model_name ASC
         """,
-        (project_name,),
+        tuple(params),
     ).fetchall()
     return [str(r["model_name"]) for r in rows if r["model_name"]]
+
+
+def list_subprojects_for_project(
+    conn: sqlite3.Connection,
+    project_name: str,
+    *,
+    bills_dir: str | os.PathLike[str] | None = None,
+) -> list[str]:
+    rows = conn.execute(
+        """
+        SELECT DISTINCT subproject_name
+        FROM token_usage_points
+        WHERE project_name = ? AND subproject_name != ''
+        UNION
+        SELECT DISTINCT subproject_name
+        FROM token_metric_points
+        WHERE project_name = ? AND subproject_name != ''
+        ORDER BY subproject_name ASC
+        """,
+        (project_name, project_name),
+    ).fetchall()
+    found = {str(r["subproject_name"]) for r in rows if r["subproject_name"]}
+    if bills_dir is not None:
+        from .bills_layout import discover_subprojects_on_disk
+
+        found.update(discover_subprojects_on_disk(bills_dir, project_name))
+    return sorted(found)
 
 
 def _pick_primary_token_model(models: list[str], project_name: str) -> str:
@@ -745,9 +944,11 @@ def get_imported_token_totals(
     *,
     start_date: str | None = None,
     end_date: str | None = None,
+    subproject_name: str | None = None,
 ) -> tuple[float, float]:
     where = ["project_name = ?"]
     params: list[object] = [project_name]
+    _append_subproject_filter(where, params, subproject_name)
     if start_date:
         where.append("usage_date >= ?")
         params.append(start_date)
@@ -775,12 +976,14 @@ def get_imported_token_timeseries(
     start_date: str | None = None,
     end_date: str | None = None,
     granularity: str = "day",
+    subproject_name: str | None = None,
 ) -> list[dict]:
     if granularity not in {"day", "month"}:
         raise ValueError("granularity must be 'day' or 'month'")
     date_expr = "usage_date" if granularity == "day" else "substr(usage_date, 1, 7)"
     where = ["project_name = ?"]
     params: list[object] = [project_name]
+    _append_subproject_filter(where, params, subproject_name)
     if start_date:
         where.append("usage_date >= ?")
         params.append(start_date)
@@ -841,9 +1044,11 @@ def get_imported_token_meta(
     *,
     start_date: str | None = None,
     end_date: str | None = None,
+    subproject_name: str | None = None,
 ) -> dict[str, object]:
     where = ["project_name = ?"]
     params: list[object] = [project_name]
+    _append_subproject_filter(where, params, subproject_name)
     if start_date:
         where.append("usage_date >= ?")
         params.append(start_date)
@@ -900,9 +1105,11 @@ def get_imported_token_breakdown_by_model(
     *,
     start_date: str | None = None,
     end_date: str | None = None,
+    subproject_name: str | None = None,
 ) -> list[dict]:
     where = ["project_name = ?"]
     params: list[object] = [project_name]
+    _append_subproject_filter(where, params, subproject_name)
     if start_date:
         where.append("usage_date >= ?")
         params.append(start_date)
@@ -954,10 +1161,12 @@ def get_imported_token_daily_by_model(
     start_date: str | None = None,
     end_date: str | None = None,
     currency: str | None = None,
+    subproject_name: str | None = None,
 ) -> list[dict[str, object]]:
     """Per calendar day and model: input/output token totals (for ratio tables and charts)."""
     where = ["project_name = ?"]
     params: list[object] = [project_name]
+    _append_subproject_filter(where, params, subproject_name)
     if start_date:
         where.append("usage_date >= ?")
         params.append(start_date)
@@ -1372,9 +1581,11 @@ def get_imported_token_models_with_prices(
     *,
     start_date: str | None = None,
     end_date: str | None = None,
+    subproject_name: str | None = None,
 ) -> list[dict[str, object]]:
     where = ["project_name = ?"]
     params: list[object] = [project_name]
+    _append_subproject_filter(where, params, subproject_name)
     if start_date:
         where.append("usage_date >= ?")
         params.append(start_date)
@@ -3638,6 +3849,7 @@ def get_token_timeseries(
     end_date: str | None = None,
     granularity: str = "day",
     currency: str | None = None,
+    subproject_name: str | None = None,
 ) -> tuple[list[dict], str | None, str | None, str | None, str | None]:
     if project_has_imported_tokens(conn, project_name):
         imported = get_imported_token_timeseries(
@@ -3646,6 +3858,7 @@ def get_token_timeseries(
             start_date=start_date,
             end_date=end_date,
             granularity=granularity,
+            subproject_name=subproject_name,
         )
         rows: list[dict] = []
         for p in imported:
@@ -3723,6 +3936,7 @@ def get_token_metric_points(
     *,
     start_date: str | None = None,
     end_date: str | None = None,
+    subproject_name: str | None = None,
 ) -> dict[str, object]:
     """
     Return token/performance metric time-series points for a project.
@@ -3742,6 +3956,7 @@ def get_token_metric_points(
     """
     where = ["project_name = ?"]
     params: list[object] = [project_name]
+    _append_subproject_filter(where, params, subproject_name)
     if start_date:
         where.append("usage_date >= ?")
         params.append(start_date)

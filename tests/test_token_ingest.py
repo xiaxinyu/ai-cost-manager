@@ -139,6 +139,7 @@ def test_token_natural_key_upsert_newer_file_wins(tmp_path):
             SELECT token_count, source_file
             FROM token_usage_points
             WHERE project_name = 'proj'
+              AND subproject_name = ''
               AND token_direction = 'input'
               AND recorded_at = '2026-05-14 00:00:00'
               AND model_name = 'gpt-5.3-codex'

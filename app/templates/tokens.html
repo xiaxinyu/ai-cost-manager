@@ -49,6 +49,14 @@
                   <select id="projectSelect" class="control"></select>
                 </div>
               </div>
+              <div class="field subprojectField" id="subprojectField" hidden>
+                <label for="subprojectSelect">Subproject</label>
+                <div class="controlWrap controlWrapSelect">
+                  <select id="subprojectSelect" class="control">
+                    <option value="">All subprojects</option>
+                  </select>
+                </div>
+              </div>
               <div class="field fieldDateRange">
                 <label for="tokenStartDateInput">Date range</label>
                 <div class="controlWrap dateRangePickerHost">
@@ -70,7 +78,7 @@
           <div id="noImportState" class="card emptyState" hidden>
             <div class="title">No imported token data</div>
             <p id="noImportHint" class="muted"></p>
-            <p class="muted">This page shows usage from Grafana token CSV files only. Import input/output files under <code>bills/&lt;project&gt;/token/</code> on the Import page.</p>
+            <p class="muted">This page shows usage from Grafana token CSV files only. Import input/output files under <code>bills/&lt;project&gt;/token/</code> or <code>bills/&lt;project&gt;/token/&lt;subproject&gt;/</code> on the Import page.</p>
             <div class="emptyActions">
               <a href="/import" class="btnPrimary">Import token CSVs</a>
             </div>

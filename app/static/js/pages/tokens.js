@@ -11,6 +11,8 @@
 
   const els = {
     projectSelect: document.getElementById("projectSelect"),
+    subprojectSelect: document.getElementById("subprojectSelect"),
+    subprojectField: document.getElementById("subprojectField"),
     startDate: document.getElementById("tokenStartDateInput"),
     endDate: document.getElementById("tokenEndDateInput"),
     loadBtn: document.getElementById("loadTokensBtn"),
@@ -381,6 +383,7 @@
   }
   let lastSource = "estimated";
   let projectsWithImportedTokens = [];
+  let projectDetailsByName = new Map();
   let modelPage = 1;
   let lastModelBreakdown = [];
   let chartLabels = {
@@ -976,7 +979,7 @@
       loadBtnLabel: "Load data",
       loadBtnLoadingLabel: "Loading…",
       pageRoot: tokenPageRoot,
-      disableEls: [els.projectSelect, els.startDate, els.endDate],
+      disableEls: [els.projectSelect, els.subprojectSelect, els.startDate, els.endDate],
     });
   }
 
@@ -1006,9 +1009,13 @@
     el.textContent = `Max: ${fmtInt(stats.max)} · Mean: ${fmtInt(stats.mean)} · Min: ${fmtInt(stats.min)}`;
   }
 
-  function applySourceUi(source, series, stats) {
+  function applySourceUi(source, series, stats, scope = {}) {
     lastSource = source || "estimated";
     const imported = lastSource === "imported";
+    const project = scope.project || els.projectSelect?.value || "";
+    const subproject = scope.subproject || series.subproject || selectedSubproject();
+    const importPath =
+      series.token_import_path || tokenImportPathLabel(project, subproject);
 
     if (els.sourceBadge) {
       els.sourceBadge.hidden = false;
@@ -1041,7 +1048,7 @@
       els.filterHint.hidden = false;
       const models = (series.import_meta?.models || []).length;
       els.filterHint.textContent = imported
-        ? `Imported CSV · ${models} model column(s) · bills/<project>/token/`
+        ? `Imported CSV · ${models} model column(s) · ${importPath}${subproject ? ` · subproject ${subproject}` : ""}`
         : "Derived from billing × Market price (no token CSV).";
     }
 
@@ -1054,9 +1061,7 @@
       }
     }
     if (els.tokenRegion) {
-      els.tokenRegion.textContent = imported
-        ? "bills/<project>/token/"
-        : `Region: ${series.token_estimate_region || "-"}`;
+      els.tokenRegion.textContent = imported ? importPath : `Region: ${series.token_estimate_region || "-"}`;
     }
     if (els.tokenMetaExtra) {
       if (imported && series.import_meta) {
@@ -1398,10 +1403,12 @@
   async function loadTokenData() {
     const project = els.projectSelect.value;
     if (!project) return;
+    const subproject = selectedSubproject();
     setLoading(true);
     try {
       const statsParams = new URLSearchParams();
       const seriesParams = new URLSearchParams({ granularity: "day" });
+      if (subproject) seriesParams.set("subproject", subproject);
       if (els.startDate.value) {
         statsParams.set("from_date", els.startDate.value);
         seriesParams.set("start_date", els.startDate.value);
@@ -1447,7 +1454,7 @@
         }
         return;
       }
-      applySourceUi(source, series, stats);
+      applySourceUi(source, series, stats, { project, subproject });
       updateCostCrossLink(project);
       updateDataStatusBar(project, stats, series);
       window.AppInsightPanel?.render?.(els.insightPanel, mergeTokenInsights(series), {
@@ -1533,6 +1540,34 @@
     }
   }
 
+  function syncSubprojectOptions(projectName) {
+    if (!els.subprojectSelect || !els.subprojectField) return;
+    const detail = projectDetailsByName.get(projectName);
+    const subprojects = Array.isArray(detail?.subprojects) ? detail.subprojects : [];
+    els.subprojectSelect.innerHTML = "";
+    const allOpt = document.createElement("option");
+    allOpt.value = "";
+    allOpt.textContent = "All subprojects";
+    els.subprojectSelect.appendChild(allOpt);
+    for (const sp of subprojects) {
+      const opt = document.createElement("option");
+      opt.value = sp;
+      opt.textContent = sp;
+      els.subprojectSelect.appendChild(opt);
+    }
+    els.subprojectField.hidden = subprojects.length === 0;
+  }
+
+  function selectedSubproject() {
+    if (!els.subprojectSelect || els.subprojectField?.hidden) return "";
+    return String(els.subprojectSelect.value || "").trim();
+  }
+
+  function tokenImportPathLabel(project, subproject) {
+    if (subproject) return `bills/${project}/token/${subproject}/`;
+    return `bills/${project}/token/`;
+  }
+
   function clearDateFilters() {
     if (els.startDate) els.startDate.value = "";
     if (els.endDate) els.endDate.value = "";
@@ -1547,6 +1582,7 @@
       const detailsByName = Object.fromEntries(
         (data.project_details || []).filter((d) => d?.name).map((d) => [d.name, d])
       );
+      projectDetailsByName = new Map(Object.entries(detailsByName));
       projectsWithImportedTokens = data.projects_with_imported_tokens || [];
       const hasProjects = projects.length > 0;
       els.emptyState.hidden = hasProjects;
@@ -1598,6 +1634,7 @@
         const firstWithTokens = projects.find((p) => tokenSet.has(p));
         if (firstWithTokens) els.projectSelect.value = firstWithTokens;
       }
+      syncSubprojectOptions(els.projectSelect.value);
       await loadTokenData();
     } catch (err) {
       console.error(err);
@@ -1621,6 +1658,11 @@
 
   els.loadBtn.addEventListener("click", loadTokenData);
   els.projectSelect.addEventListener("change", () => {
+    clearDateFilters();
+    syncSubprojectOptions(els.projectSelect.value);
+    loadTokenData();
+  });
+  els.subprojectSelect?.addEventListener("change", () => {
     clearDateFilters();
     loadTokenData();
   });

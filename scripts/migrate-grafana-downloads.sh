@@ -15,9 +15,9 @@
 #   performance/model-requests-YYYY-M-D.csv
 #   performance/avg-latency-YYYY-M-D.csv
 #
-# With --subproject NAME, inserts a slug before the date:
-#   performance/model-requests-<subproject>-YYYY-M-D.csv
-#   token/input-tokens-<subproject>-YYYY-M-D.csv
+# With --subproject NAME, writes into token/<subproject>/ or performance/<subproject>/:
+#   token/coding-1/input-tokens-YYYY-M-D.csv
+#   performance/coding-1/model-requests-YYYY-M-D.csv
 #
 # Usage:
 #   ./scripts/migrate-grafana-downloads.sh --project RG-HK-S56-TATP-QA-Agent
@@ -51,8 +51,8 @@ Migrate Grafana CSV exports from Downloads into bills/<project>/.
 Options:
   -p, --project NAME   Project folder under bills/ (required)
   -u, --subproject NAME
-                       Optional slug inserted before date in output filenames
-                       (e.g. model-requests-gpt-5.4-2026-6-30.csv)
+                       Optional subfolder under token/ or performance/
+                       (e.g. token/coding-1/input-tokens-2026-6-30.csv)
   -d, --date DATE      Date suffix for output filenames (default: today)
                        Accepted: YYYY-M-D, YYYY-MM-DD, M_D_YYYY, M/D/YYYY
   -s, --source DIR     Source directory (default: ~/Downloads)
@@ -63,12 +63,12 @@ Options:
   -f, --force          Overwrite destination if it already exists
   -h, --help           Show this help
 
-Recognized source filename prefixes (with optional --subproject SLUG before date):
-  Output Tokens-data*        -> token/output-tokens[-SLUG]-YYYY-M-D.csv
-  Input Tokens-data*         -> token/input-tokens[-SLUG]-YYYY-M-D.csv
-  Token Cache Match Rate*    -> performance/cache-match-rate[-SLUG]-YYYY-M-D.csv
-  Model requests-data*       -> performance/model-requests[-SLUG]-YYYY-M-D.csv
-  Average Latency*           -> performance/avg-latency[-SLUG]-YYYY-M-D.csv
+Recognized source filename prefixes (optional --subproject subfolder):
+  Output Tokens-data*        -> token[/SLUG]/output-tokens-YYYY-M-D.csv
+  Input Tokens-data*         -> token[/SLUG]/input-tokens-YYYY-M-D.csv
+  Token Cache Match Rate*    -> performance[/SLUG]/cache-match-rate-YYYY-M-D.csv
+  Model requests-data*       -> performance[/SLUG]/model-requests-YYYY-M-D.csv
+  Average Latency*           -> performance[/SLUG]/avg-latency-YYYY-M-D.csv
 
 Examples:
   # Preview (no files changed)
@@ -211,11 +211,7 @@ fi
 
 build_dest_name() {
   local file_stem="$1"
-  if [[ -n "${SUBPROJECT}" ]]; then
-    printf '%s-%s-%s.csv' "${file_stem}" "${SUBPROJECT}" "${DATE_SUFFIX}"
-  else
-    printf '%s-%s.csv' "${file_stem}" "${DATE_SUFFIX}"
-  fi
+  printf '%s-%s.csv' "${file_stem}" "${DATE_SUFFIX}"
 }
 
 classify_file() {
@@ -271,12 +267,17 @@ process_group() {
   local dest_dir="$2"
   shift 2
   local -a entries=("$@")
-  local entry file_stem src dest_name dest_path
+  local entry file_stem src dest_name dest_path target_dir
 
   [[ ${#entries[@]} -eq 0 ]] && return 0
 
+  target_dir="${dest_dir}"
+  if [[ -n "${SUBPROJECT}" ]]; then
+    target_dir="${dest_dir}/${SUBPROJECT}"
+  fi
+
   log "== ${group_label} =="
-  log "   -> ${dest_dir}"
+  log "   -> ${target_dir}"
 
   for entry in "${entries[@]}"; do
     file_stem="${entry%%|*}"
@@ -284,7 +285,7 @@ process_group() {
 
     matched=$((matched + 1))
     dest_name="$(build_dest_name "${file_stem}")"
-    dest_path="${dest_dir}/${dest_name}"
+    dest_path="${target_dir}/${dest_name}"
 
     if [[ -e "${dest_path}" && "${FORCE}" -eq 0 ]]; then
       skipped=$((skipped + 1))
@@ -292,7 +293,7 @@ process_group() {
       moved=$((moved + 1))
     fi
 
-    move_file "${src}" "${dest_dir}" "${dest_name}"
+    move_file "${src}" "${target_dir}" "${dest_name}"
   done
 
   log ""
