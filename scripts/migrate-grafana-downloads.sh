@@ -137,7 +137,7 @@ while [[ $# -gt 0 ]]; do
       ;;
     *)
       if [[ "$1" == "--dry-run" ]]; then
-        die "Unknown option: $1 — did the previous line end with '\\\\' plus trailing spaces? Use one line, or put nothing after '\\\\'. Example: ... --subproject coding-1 -n"
+        die "Unknown option: $1 — broken line continuation? Put nothing after backslash, or use -n on the same line."
       fi
       die "Unknown option: $1 (use --help)"
       ;;
