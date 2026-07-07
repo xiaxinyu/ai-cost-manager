@@ -22,7 +22,7 @@ from .meter_match import (
 )
 
 
-SCHEMA_VERSION = 10
+SCHEMA_VERSION = 11
 
 EXPECTED_CSV_COLUMNS = [
     "UsageDate",
@@ -274,6 +274,7 @@ def init_db(conn: sqlite3.Connection) -> None:
 
     _migrate_billing_rows_if_needed(conn)
     _migrate_transactions_dedupe_billing_natural_key(conn)
+    _migrate_billing_natural_key_v2(conn)
     _migrate_token_usage_natural_key(conn)
     _migrate_token_subproject_v1(conn)
     _migrate_model_prices_source_detail_json(conn)
@@ -396,6 +397,37 @@ def _migrate_transactions_dedupe_billing_natural_key(conn: sqlite3.Connection) -
     conn.execute(
         """
         INSERT INTO meta(key, value) VALUES ('billing_natural_dedupe_v1', '1')
+        ON CONFLICT(key) DO UPDATE SET value = excluded.value
+        """
+    )
+    conn.commit()
+
+
+def _migrate_billing_natural_key_v2(conn: sqlite3.Connection) -> None:
+    """
+    Billing natural key now includes resource_id so multiple Cognitive Services
+    accounts in one RG (subprojects) do not overwrite each other on ingest.
+    Clears billing ingest state once so CSVs are re-imported under the new key.
+    """
+    row = conn.execute("SELECT value FROM meta WHERE key = 'billing_natural_key_v2'").fetchone()
+    if row is not None and str(row["value"]).strip() == "1":
+        return
+    if not _table_exists(conn, "transactions"):
+        conn.execute(
+            """
+            INSERT INTO meta(key, value) VALUES ('billing_natural_key_v2', '1')
+            ON CONFLICT(key) DO UPDATE SET value = excluded.value
+            """
+        )
+        conn.commit()
+        return
+
+    conn.execute("DELETE FROM transactions")
+    if _table_exists(conn, "ingested_files"):
+        conn.execute("DELETE FROM ingested_files")
+    conn.execute(
+        """
+        INSERT INTO meta(key, value) VALUES ('billing_natural_key_v2', '1')
         ON CONFLICT(key) DO UPDATE SET value = excluded.value
         """
     )

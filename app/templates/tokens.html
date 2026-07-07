@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="/static/css/page-common.css" />
     <link rel="stylesheet" href="/static/css/pages/tokens.css?v=20260707-layout" />
     <link rel="stylesheet" href="/static/css/layout-pro.css" />
-    <link rel="stylesheet" href="/static/css/dashboard-shared.css?v=20260707-detail" />
+    <link rel="stylesheet" href="/static/css/dashboard-shared.css?v=20260707-unified" />
     <link rel="stylesheet" href="/static/css/date-range-picker.css?v=20260606-drp" />
   </head>
   <body>
@@ -25,8 +25,7 @@
               <div>
                 <h1 class="pageTitle">Token operations</h1>
                 <p class="pageDesc">
-                  Token volume, unit price, and performance from imported CSVs.
-                  Billing detail and cost breakdown live on the Cost page.
+                  Token volume, unit price, and performance from imported Grafana CSVs.
                 </p>
               </div>
               <div id="tokenSourceBadge" class="sourceBadge sourceEstimated" hidden>
@@ -36,16 +35,20 @@
             </div>
           </header>
 
-          <section class="card tokenToolbar filterCard" aria-label="Filters">
-            <div id="toolbarGrid" class="toolbarGrid toolbarGrid--noSubproject">
+          <section class="card filterCard" aria-label="Filters">
+            <div class="filterCardHead">
+              <h2 class="filterCardTitle">Scope</h2>
+              <p class="filterCardHint muted">Project, subproject, and date range · Load to refresh</p>
+            </div>
+            <div id="toolbarGrid" class="toolbarGrid toolbarGrid--noSubproject filterBar controls">
               <div class="field projectField">
-                <label for="projectSelect">Project</label>
+                <label class="filterLabel" for="projectSelect">Project</label>
                 <div class="controlWrap controlWrapSelect">
                   <select id="projectSelect" class="control"></select>
                 </div>
               </div>
               <div class="field subprojectField" id="subprojectField" hidden>
-                <label for="subprojectSelect">Subproject</label>
+                <label class="filterLabel" for="subprojectSelect">Subproject</label>
                 <div class="controlWrap controlWrapSelect">
                   <select id="subprojectSelect" class="control">
                     <option value="">All subprojects</option>
@@ -53,7 +56,7 @@
                 </div>
               </div>
               <div class="field fieldDateRange">
-                <label for="tokenStartDateInput">Date range</label>
+                <label class="filterLabel" for="tokenStartDateInput">Date range</label>
                 <div class="controlWrap dateRangePickerHost">
                   <input id="tokenStartDateInput" class="control controlDate" type="date" autocomplete="off" aria-label="Start date" />
                   <input id="tokenEndDateInput" class="control controlDate" type="date" autocomplete="off" aria-label="End date" />
@@ -85,7 +88,8 @@
           </div>
 
           <div id="tokenWorkspace" hidden>
-            <nav class="dashSectionNav card tokenNav" aria-label="Token sections">
+            <nav class="dashSectionNav card" aria-label="Token sections">
+              <span class="dashSectionNavLabel muted">Jump to</span>
               <a class="dashSectionNavLink" href="#token-summary">Summary</a>
               <a class="dashSectionNavLink" href="#metric-model-requests">Model requests</a>
               <a class="dashSectionNavLink" href="#metric-cache-match-rate">Cache match</a>
@@ -148,14 +152,6 @@
               </div>
             </div>
             </section>
-
-            <aside id="tokenCostLink" class="tokenCostLink card" aria-label="Cost page">
-              <div class="tokenCostLinkMain">
-                <h3 class="tokenCostLinkTitle">Billing &amp; cost breakdown</h3>
-                <p class="tokenCostLinkDesc muted">Model/day costs, Market comparison, meter badges, and CSV export are on the Cost page.</p>
-              </div>
-              <a id="tokenCostLinkBtn" class="btnSecondary tokenCostLinkBtn" href="/">Open Cost →</a>
-            </aside>
 
             <section id="token-metrics" class="tokenMetricsFlow" aria-label="Grafana metrics">
               <header class="tokenMetricsFlowHead">

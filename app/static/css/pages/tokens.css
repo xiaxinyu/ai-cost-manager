@@ -16,9 +16,7 @@
 }
 
 /* —— Filter bar —— */
-.filterCard {
-  padding: 14px 16px 12px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.03));
+.tokenPage .filterCard {
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -1616,41 +1614,6 @@
 
 .tokenNav {
   margin-bottom: 2px;
-}
-
-.tokenCostLink {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  flex-wrap: wrap;
-  padding: 14px 18px;
-  background: linear-gradient(135deg, rgba(94, 234, 212, 0.08), rgba(96, 165, 250, 0.06));
-  border: 1px solid rgba(94, 234, 212, 0.22);
-}
-
-.tokenCostLinkMain {
-  flex: 1 1 240px;
-  min-width: 0;
-}
-
-.tokenCostLinkTitle {
-  margin: 0;
-  font-size: 14px;
-  font-weight: 750;
-  letter-spacing: 0.01em;
-}
-
-.tokenCostLinkDesc {
-  margin: 4px 0 0;
-  font-size: 12px;
-  line-height: 1.45;
-  max-width: 58ch;
-}
-
-.tokenCostLinkBtn {
-  flex-shrink: 0;
-  white-space: nowrap;
 }
 
 .detailTableSubHead {

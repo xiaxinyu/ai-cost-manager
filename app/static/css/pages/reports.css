@@ -949,40 +949,7 @@
   background: linear-gradient(135deg, var(--finance), var(--token));
 }
 
-/* Report navigation & structure */
-.reportNav {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px 10px;
-  padding: 10px 14px;
-}
-
-.reportNavLabel {
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-
-.reportNavLink {
-  font-size: 12px;
-  font-weight: 650;
-  color: #c8d8ec;
-  text-decoration: none;
-  padding: 5px 10px;
-  border-radius: 999px;
-  border: 1px solid rgba(173, 196, 228, 0.2);
-  background: rgba(255, 255, 255, 0.04);
-  transition: background 0.15s ease, border-color 0.15s ease;
-}
-
-.reportNavLink:hover {
-  background: rgba(96, 165, 250, 0.12);
-  border-color: rgba(96, 165, 250, 0.35);
-  color: #e8f2ff;
-}
-
+/* Report structure */
 .reportAtAGlance {
   padding: 16px 18px;
 }
@@ -1266,15 +1233,6 @@
   .heroMetricGrid,
   .reportRawTablesGrid {
     grid-template-columns: 1fr;
-  }
-
-  .reportNav {
-    gap: 6px;
-  }
-
-  .reportNavLink {
-    font-size: 11px;
-    padding: 4px 8px;
   }
 
   .kpiTokens {

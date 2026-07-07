@@ -93,7 +93,6 @@ def test_tokens_page_redirect_and_access(tmp_path):
     assert "noImportHint" in page.text
     assert 'id="tokenStartDateInput"' in page.text
     assert 'id="dataStatusBar"' in page.text
-    assert 'id="tokenCostLink"' in page.text
     assert 'id="flowUsage"' in page.text
     assert 'id="metric-model-requests"' in page.text
     assert 'id="metric-input-tokens"' in page.text

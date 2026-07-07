@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="/static/css/page-common.css" />
     <link rel="stylesheet" href="/static/css/pages/reports.css?v=20260606-drp" />
     <link rel="stylesheet" href="/static/css/layout-pro.css" />
-    <link rel="stylesheet" href="/static/css/dashboard-shared.css?v=20260605-cost" />
+    <link rel="stylesheet" href="/static/css/dashboard-shared.css?v=20260707-unified" />
     <link rel="stylesheet" href="/static/css/date-range-picker.css?v=20260606-drp" />
     <link rel="stylesheet" href="/static/css/insight-panel.css?v=20260605-insights" />
   </head>
@@ -22,7 +22,7 @@
           <header class="pageHeader reportPageHeader">
             <div class="breadcrumb">Home / Reports</div>
             <h1 class="pageTitle">Financial Report Center</h1>
-            <p class="pageDesc">Read top → bottom: scope summary, spend trends, model &amp; project breakdown, tokens, then raw tables.</p>
+            <p class="pageDesc">Executive summary, spend trends, model and project breakdown, and token usage for the selected scope.</p>
           </header>
 
           <section class="card reportFilters filterCard" aria-label="Filters">
@@ -72,14 +72,14 @@
 
           <div id="reportStatusBar" class="dataStatusBar" hidden aria-live="polite" aria-label="Load summary"></div>
 
-          <nav class="reportNav card" aria-label="Report sections">
-            <span class="reportNavLabel muted">Jump to</span>
-            <a class="reportNavLink" href="#report-glance">① Summary</a>
-            <a class="reportNavLink" href="#report-spend-trends">② Spend trends</a>
-            <a class="reportNavLink" href="#report-by-model">③ By model</a>
-            <a class="reportNavLink" href="#report-by-project">④ By project</a>
-            <a class="reportNavLink" href="#report-tokens">⑤ Tokens</a>
-            <a class="reportNavLink" href="#report-raw-data">⑥ Raw tables</a>
+          <nav class="dashSectionNav card" aria-label="Report sections">
+            <span class="dashSectionNavLabel muted">Jump to</span>
+            <a class="dashSectionNavLink" href="#report-glance">Summary</a>
+            <a class="dashSectionNavLink" href="#report-spend-trends">Spend trends</a>
+            <a class="dashSectionNavLink" href="#report-by-model">By model</a>
+            <a class="dashSectionNavLink" href="#report-by-project">By project</a>
+            <a class="dashSectionNavLink" href="#report-tokens">Tokens</a>
+            <a class="dashSectionNavLink" href="#report-raw-data">Raw tables</a>
           </nav>
 
           <section id="report-glance" class="card reportAtAGlance" aria-label="At a glance">
@@ -522,6 +522,57 @@
         { border: '#34d399', fill: 'rgba(52, 211, 153, 0.12)' },
       ];
 
+      const MODEL_CHART_SMOOTH_MIN_DAYS = 5;
+
+      function _isMeterAllocated(method) {
+        return method === 'meter_matched' || method === 'meter_matched_partial';
+      }
+
+      function _hasDirCost(v) {
+        return v !== null && v !== undefined && Number.isFinite(Number(v));
+      }
+
+      function _modelsWithDirCost(dailyByModel, valueKey) {
+        const models = new Set();
+        for (const r of dailyByModel || []) {
+          if (_hasDirCost(r[valueKey])) models.add(String(r.model_name || ''));
+        }
+        return [...models].filter(Boolean).sort();
+      }
+
+      function _modelsTokenOnlyNoBilling(dailyByModel) {
+        const allModels = new Set(
+          (dailyByModel || []).map((r) => String(r.model_name || '')).filter(Boolean)
+        );
+        const withBilling = new Set();
+        for (const r of dailyByModel || []) {
+          if (!_isMeterAllocated(r.allocation_method)) continue;
+          const hasCost =
+            _hasDirCost(r.input_cost_usd) ||
+            _hasDirCost(r.output_cost_usd) ||
+            _hasDirCost(r.total_cost_usd);
+          if (hasCost) withBilling.add(String(r.model_name));
+        }
+        return [...allModels].filter((m) => !withBilling.has(m)).sort();
+      }
+
+      function _billedDatesForDir(dailyByModel, valueKey) {
+        const dates = new Set();
+        for (const r of dailyByModel || []) {
+          if (_hasDirCost(r[valueKey])) dates.add(String(r.date));
+        }
+        return [...dates].sort();
+      }
+
+      function _chartLineTension(pointCount) {
+        return pointCount >= MODEL_CHART_SMOOTH_MIN_DAYS ? 0.22 : 0;
+      }
+
+      function _modelChartPointRadius(labelCount) {
+        if (labelCount < MODEL_CHART_SMOOTH_MIN_DAYS) return Math.max(3, 5 - labelCount);
+        return 2;
+      }
+
       function _unionSortedDates(...lists) {
         const set = new Set();
         for (const list of lists) {
@@ -543,10 +594,9 @@
       }
 
       function _buildModelDirCostChart(dailyByModel, valueKey) {
-        const models = [
-          ...new Set((dailyByModel || []).map((r) => String(r.model_name || '')).filter(Boolean)),
-        ].sort();
-        const labels = _unionSortedDates(dailyByModel);
+        const models = _modelsWithDirCost(dailyByModel, valueKey);
+        const labels = _billedDatesForDir(dailyByModel, valueKey);
+        const tension = _chartLineTension(labels.length);
         const datasets = models.map((model, idx) => {
           const col = MODEL_CHART_COLORS[idx % MODEL_CHART_COLORS.length];
           const byDate = new Map(
@@ -564,11 +614,11 @@
             borderColor: col.border,
             backgroundColor: col.fill,
             fill: false,
-            tension: 0.22,
-            pointRadius: 2,
+            tension,
+            pointRadius: _modelChartPointRadius(labels.length),
             pointHoverRadius: 4,
             borderWidth: 2,
-            spanGaps: true,
+            spanGaps: false,
           };
         });
         return { labels, datasets, models };
@@ -620,9 +670,14 @@
 
         if (hint) {
           const unpriced = catalog.unpriced_models || [];
-          hint.textContent = unpriced.length
+          let hintText = unpriced.length
             ? `${models.length} models · ${projCount} projects · ${unpriced.length} without Market price`
             : `${models.length} models · ${projCount} projects with token imports`;
+          const tokenOnly = _modelsTokenOnlyNoBilling(daily);
+          if (tokenOnly.length) {
+            hintText += ` · Token only (no inp/opt billing): ${tokenOnly.join(', ')}`;
+          }
+          hint.textContent = hintText;
         }
 
         if (meterTotals) meterTotals.hidden = false;

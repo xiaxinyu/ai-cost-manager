@@ -73,17 +73,21 @@ def test_ingest_skips_already_read_files(tmp_path):
 
 
 def test_billing_natural_key_upsert_across_files(tmp_path):
-    """Same UsageDate+RG+Tier+Meter in a later file replaces the earlier row (one DB row)."""
+    """Same resource + UsageDate+RG+Tier+Meter in a later file replaces the earlier row."""
     bills_dir = tmp_path / "bills"
     project_dir = bills_dir / "projX"
     project_dir.mkdir(parents=True, exist_ok=True)
-    hdr = '"UsageDate","ResourceGroupName","ServiceTier","Meter","CostUSD","Cost","Currency"\n'
+    rid = "/subscriptions/x/resourcegroups/rg1/providers/microsoft.cognitiveservices/accounts/res-a"
+    hdr = (
+        '"UsageDate","ResourceId","ResourceGroupName","ServiceTier","Meter",'
+        '"CostUSD","Cost","Currency"\n'
+    )
     (project_dir / "first.csv").write_text(
-        hdr + '"2026-04-01","rg1","tier1","meter1","1.0","1.0","USD"\n',
+        hdr + f'"2026-04-01","{rid}","rg1","tier1","meter1","1.0","1.0","USD"\n',
         encoding="utf-8",
     )
     (project_dir / "second.csv").write_text(
-        hdr + '"2026-04-01","rg1","tier1","meter1","9.0","9.0","USD"\n',
+        hdr + f'"2026-04-01","{rid}","rg1","tier1","meter1","9.0","9.0","USD"\n',
         encoding="utf-8",
     )
     db_path = tmp_path / "cost_mgmt.sqlite3"
@@ -108,6 +112,44 @@ def test_billing_natural_key_upsert_across_files(tmp_path):
         row = conn.execute("SELECT cost_usd, source_file FROM transactions").fetchone()
         assert float(row[0]) == 9.0
         assert row[1] == "projX/second.csv"
+    finally:
+        conn.close()
+
+
+def test_billing_natural_key_distinct_resources_same_meter(tmp_path):
+    """Multiple Cognitive Services resources on the same day/meter stay separate rows."""
+    bills_dir = tmp_path / "bills"
+    project_dir = bills_dir / "projMdm"
+    project_dir.mkdir(parents=True, exist_ok=True)
+    rid1 = (
+        "/subscriptions/x/resourcegroups/rg-hk-s56-mdm-coding/providers/"
+        "microsoft.cognitiveservices/accounts/proj-mdm-coding-1-resource"
+    )
+    rid2 = (
+        "/subscriptions/x/resourcegroups/rg-hk-s56-mdm-coding/providers/"
+        "microsoft.cognitiveservices/accounts/proj-mdm-coding-6-resource"
+    )
+    hdr = (
+        '"UsageDate","ResourceId","ResourceGroupName","ServiceTier","Meter",'
+        '"CostUSD","Cost","Currency"\n'
+    )
+    (project_dir / "day.csv").write_text(
+        hdr
+        + f'"2026-07-01","{rid1}","rg-hk-s56-mdm-coding","Azure OpenAI GPT5",'
+        '"5.3 codex inp Gl 1M Tokens","1.20","1.20","USD"\n'
+        + f'"2026-07-01","{rid2}","rg-hk-s56-mdm-coding","Azure OpenAI GPT5",'
+        '"5.3 codex inp Gl 1M Tokens","4.09","4.09","USD"\n',
+        encoding="utf-8",
+    )
+    db_path = tmp_path / "cost_mgmt.sqlite3"
+    r = ingest_all(bills_dir=bills_dir, db_path=db_path, reimport_changed=False)
+    assert r.rows_inserted == 2
+
+    conn = sqlite3.connect(db_path)
+    try:
+        assert conn.execute("SELECT COUNT(*) FROM transactions").fetchone()[0] == 2
+        total = conn.execute("SELECT SUM(cost_usd) FROM transactions").fetchone()[0]
+        assert abs(float(total) - 5.29) < 1e-6
     finally:
         conn.close()
 

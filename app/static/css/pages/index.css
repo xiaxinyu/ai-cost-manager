@@ -648,40 +648,6 @@
   line-height: 1.35;
 }
 
-.costCrossLink {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  flex-wrap: wrap;
-  padding: 14px 18px;
-  background: linear-gradient(135deg, rgba(96, 165, 250, 0.08), rgba(94, 234, 212, 0.06));
-  border: 1px solid rgba(96, 165, 250, 0.22);
-}
-
-.costCrossLinkMain {
-  flex: 1 1 240px;
-  min-width: 0;
-}
-
-.costCrossLinkTitle {
-  margin: 0;
-  font-size: 14px;
-  font-weight: 750;
-}
-
-.costCrossLinkDesc {
-  margin: 4px 0 0;
-  font-size: 12px;
-  line-height: 1.45;
-  max-width: 58ch;
-}
-
-.costCrossLinkBtn {
-  flex-shrink: 0;
-  white-space: nowrap;
-}
-
 .costMonitorGrid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

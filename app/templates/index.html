@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="/static/css/page-common.css" />
     <link rel="stylesheet" href="/static/css/pages/index.css?v=20260707-monitor" />
     <link rel="stylesheet" href="/static/css/layout-pro.css" />
-    <link rel="stylesheet" href="/static/css/dashboard-shared.css?v=20260707-monitor" />
+    <link rel="stylesheet" href="/static/css/dashboard-shared.css?v=20260707-unified" />
     <link rel="stylesheet" href="/static/css/date-range-picker.css?v=20260606-drp" />
     <link rel="stylesheet" href="/static/css/insight-panel.css?v=20260706-align" />
   </head>
@@ -61,10 +61,10 @@
           </section>
 
           <nav class="dashSectionNav card costNav" aria-label="Cost sections">
-            <span class="dashSectionNavLabel costNavLabel muted">Jump to</span>
-            <a class="dashSectionNavLink costNavLink" href="#cost-overview">① Overview</a>
-            <a class="dashSectionNavLink costNavLink" href="#costModelSection">② Models</a>
-            <a class="dashSectionNavLink costNavLink" href="#costResourceSection">③ Billing</a>
+            <span class="dashSectionNavLabel muted">Jump to</span>
+            <a class="dashSectionNavLink" href="#cost-overview">Overview</a>
+            <a class="dashSectionNavLink" href="#costModelSection">Models</a>
+            <a class="dashSectionNavLink" href="#costResourceSection">Billing</a>
           </nav>
 
           <section id="cost-overview" class="costZone costZone--overview" aria-label="Overview">
@@ -110,14 +110,6 @@
 
             <div id="costInsightPanel" class="insightPanel" hidden aria-label="Cost insights"></div>
 
-            <aside class="costCrossLink card" aria-label="Tokens page">
-              <div class="costCrossLinkMain">
-                <h3 class="costCrossLinkTitle">Token volume &amp; performance</h3>
-                <p class="costCrossLinkDesc muted">Charts and cache/latency metrics from imported token CSVs.</p>
-              </div>
-              <a id="costTokenLinkBtn" class="btnSecondary costCrossLinkBtn" href="/tokens">Open Tokens →</a>
-            </aside>
-
             <div class="costMonitorGrid" aria-label="Cost charts">
               <article class="card monitorCard monitorCard--primary" id="marketCompareSection">
                 <header class="monitorCardHead">
@@ -147,6 +139,7 @@
                 <div class="chartCanvasHost monitorChartHost" data-chart-host>
                   <canvas id="timeseriesChartInputByModel" role="img" aria-label="Input cost by model"></canvas>
                 </div>
+                <footer class="monitorCardFoot muted" id="inputModelChartFootnote" hidden></footer>
               </article>
               <article class="card monitorCard" id="outputModelChartCard" hidden>
                 <header class="monitorCardHead">
@@ -159,6 +152,7 @@
                 <div class="chartCanvasHost monitorChartHost" data-chart-host>
                   <canvas id="timeseriesChartOutputByModel" role="img" aria-label="Output cost by model"></canvas>
                 </div>
+                <footer class="monitorCardFoot muted" id="outputModelChartFootnote" hidden></footer>
               </article>
             </div>
           </section>
@@ -487,8 +481,9 @@
       const modelCostSummaryTfootEl = document.getElementById('modelCostSummaryTfoot');
       const inputModelChartCardEl = document.getElementById('inputModelChartCard');
       const outputModelChartCardEl = document.getElementById('outputModelChartCard');
+      const inputModelChartFootnoteEl = document.getElementById('inputModelChartFootnote');
+      const outputModelChartFootnoteEl = document.getElementById('outputModelChartFootnote');
       const costChartFootnoteEl = document.getElementById('costChartFootnote');
-      const costTokenLinkBtnEl = document.getElementById('costTokenLinkBtn');
       let lastModelSummaryRows = [];
       let lastBillingOtherRows = [];
       let lastModelProjectSummary = {};
@@ -503,12 +498,76 @@
         { border: '#34d399', fill: 'rgba(52, 211, 153, 0.12)' },
       ];
 
-      function updateTokenCrossLink(project) {
-        if (!costTokenLinkBtnEl) return;
-        const params = new URLSearchParams();
-        if (project) params.set('project', project);
-        const qs = params.toString();
-        costTokenLinkBtnEl.href = qs ? `/tokens?${qs}` : '/tokens';
+      /** Below this day count, model cost lines use straight segments (tension 0). */
+      const MODEL_CHART_SMOOTH_MIN_DAYS = 5;
+
+      function _isMeterAllocated(method) {
+        return method === 'meter_matched' || method === 'meter_matched_partial';
+      }
+
+      function _hasDirCost(v) {
+        return v !== null && v !== undefined && Number.isFinite(Number(v));
+      }
+
+      function _modelsWithDirCost(dailyByModel, valueKey) {
+        const models = new Set();
+        for (const r of dailyByModel || []) {
+          if (_hasDirCost(r[valueKey])) models.add(String(r.model_name || ''));
+        }
+        return [...models].filter(Boolean).sort();
+      }
+
+      function _modelsTokenOnlyNoBilling(dailyByModel) {
+        const allModels = new Set(
+          (dailyByModel || []).map((r) => String(r.model_name || '')).filter(Boolean)
+        );
+        const withBilling = new Set();
+        for (const r of dailyByModel || []) {
+          if (!_isMeterAllocated(r.allocation_method)) continue;
+          const hasCost =
+            _hasDirCost(r.input_cost_usd) ||
+            _hasDirCost(r.output_cost_usd) ||
+            _hasDirCost(r.total_cost_usd);
+          if (hasCost) withBilling.add(String(r.model_name));
+        }
+        return [...allModels].filter((m) => !withBilling.has(m)).sort();
+      }
+
+      function _billedDatesForDir(dailyByModel, valueKey) {
+        const dates = new Set();
+        for (const r of dailyByModel || []) {
+          if (_hasDirCost(r[valueKey])) dates.add(String(r.date));
+        }
+        return [...dates].sort();
+      }
+
+      function _chartLineTension(pointCount) {
+        return pointCount >= MODEL_CHART_SMOOTH_MIN_DAYS ? 0.22 : 0;
+      }
+
+      function _modelChartPointRadius(labelCount) {
+        if (labelCount < MODEL_CHART_SMOOTH_MIN_DAYS) return Math.max(3, 5 - labelCount);
+        return CHART_OPTS?.pointRadiusForCount?.(labelCount, { sparse: 2, dense: 0 }) ?? 2;
+      }
+
+      function _updateModelDirChartFootnotes(dailyByModel, valueKey, footnoteEl, modelCount) {
+        if (!footnoteEl) return;
+        const billedDays = _billedDatesForDir(dailyByModel, valueKey).length;
+        const parts = [];
+        if (modelCount > 0) {
+          parts.push(
+            modelCount === 1
+              ? '1 model with meter billing in this chart.'
+              : `${modelCount} models with meter billing in this chart.`
+          );
+        }
+        if (billedDays > 0 && billedDays < MODEL_CHART_SMOOTH_MIN_DAYS) {
+          parts.push(
+            `${billedDays} billed day(s) — straight segments, visible points (no curve smoothing).`
+          );
+        }
+        footnoteEl.textContent = parts.join(' ');
+        footnoteEl.hidden = !footnoteEl.textContent;
       }
 
       function updateChartFootnote(costPoints, catalogPayload) {
@@ -529,6 +588,16 @@
       function setModelChartCardsVisible(visible) {
         if (inputModelChartCardEl) inputModelChartCardEl.hidden = !visible;
         if (outputModelChartCardEl) outputModelChartCardEl.hidden = !visible;
+        if (!visible) {
+          if (inputModelChartFootnoteEl) {
+            inputModelChartFootnoteEl.textContent = '';
+            inputModelChartFootnoteEl.hidden = true;
+          }
+          if (outputModelChartFootnoteEl) {
+            outputModelChartFootnoteEl.textContent = '';
+            outputModelChartFootnoteEl.hidden = true;
+          }
+        }
       }
 
       function escapeHtml(s) {
@@ -922,6 +991,10 @@
             : `${n} model(s) in scope`;
           if (other != null && Number(other) > 0) {
             hint += ` · ${fmt2(other)} other billing (Defender, network, etc.)`;
+          }
+          const tokenOnly = _modelsTokenOnlyNoBilling(daily);
+          if (tokenOnly.length) {
+            hint += ` · Token only (no inp/opt billing): ${tokenOnly.join(', ')}`;
           }
           modelSectionHintEl.textContent = hint;
         }
@@ -1342,10 +1415,9 @@
       }
 
       function _buildModelDirCostChart(dailyByModel, valueKey) {
-        const models = [
-          ...new Set((dailyByModel || []).map((r) => String(r.model_name || '')).filter(Boolean)),
-        ].sort();
-        const labels = _unionSortedDates(dailyByModel);
+        const models = _modelsWithDirCost(dailyByModel, valueKey);
+        const labels = _billedDatesForDir(dailyByModel, valueKey);
+        const tension = _chartLineTension(labels.length);
         const datasets = models.map((model, idx) => {
           const col = MODEL_CHART_COLORS[idx % MODEL_CHART_COLORS.length];
           const byDate = new Map(
@@ -1363,24 +1435,25 @@
             borderColor: col.border,
             backgroundColor: col.fill,
             fill: false,
-            tension: 0.22,
+            tension,
             pointRadius: 2,
             pointHoverRadius: 4,
             borderWidth: 2,
-            spanGaps: true,
+            spanGaps: false,
             unitType: 'currency',
           };
         });
         return { labels, datasets, models };
       }
 
-      function _renderDirCostChart(canvasId, existingChart, dailyByModel, valueKey, emptyMsg) {
+      function _renderDirCostChart(canvasId, existingChart, dailyByModel, valueKey, emptyMsg, footnoteEl) {
         const { labels, datasets, models } = _buildModelDirCostChart(dailyByModel, valueKey);
         if (existingChart) existingChart.destroy();
         const ctx = document.getElementById(canvasId)?.getContext('2d');
         if (!ctx) return null;
-        const ptR = CHART_OPTS?.pointRadiusForCount?.(labels.length, { sparse: 2, dense: 0 }) ?? 2;
+        const ptR = _modelChartPointRadius(labels.length);
         const styled = datasets.map((ds) => ({ ...ds, pointRadius: ptR, pointHoverRadius: 5 }));
+        _updateModelDirChartFootnotes(dailyByModel, valueKey, footnoteEl, models.length);
         return new Chart(ctx, {
           type: 'line',
           data: { labels, datasets: styled },
@@ -1404,14 +1477,16 @@
             chartInputByModel,
             dailyByModel,
             'input_cost_usd',
-            'No meter-matched input cost in range'
+            'No meter-matched input cost in range',
+            inputModelChartFootnoteEl
           );
           chartOutputByModel = _renderDirCostChart(
             'timeseriesChartOutputByModel',
             chartOutputByModel,
             dailyByModel,
             'output_cost_usd',
-            'No meter-matched output cost in range'
+            'No meter-matched output cost in range',
+            outputModelChartFootnoteEl
           );
           chartInputByModel?.resize?.();
           chartOutputByModel?.resize?.();
@@ -1881,7 +1956,6 @@
       async function loadProject(projectName, { skipRangeRecovery = false } = {}) {
         if (!projectName) return;
         currentProjectName = projectName;
-        updateTokenCrossLink(projectName);
         if (projectSelect && projectSelect.value !== projectName) {
           projectSelect.value = projectName;
         }

@@ -638,7 +638,46 @@
   background: linear-gradient(145deg, rgba(var(--cost-market-rgb), 0.12), rgba(255, 255, 255, 0.02));
 }
 
-/* --- Section jump nav (Cost, Tokens) --- */
+/* --- Filter card header (Cost, Tokens, Reports) --- */
+.costDashboard .filterCard,
+.tokenPage .filterCard,
+.reportPage .filterCard {
+  padding: 14px 16px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.03));
+}
+
+.costDashboard .filterCardHead,
+.tokenPage .filterCardHead,
+.reportPage .filterCardHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(173, 196, 228, 0.12);
+}
+
+.costDashboard .filterCardTitle,
+.tokenPage .filterCardTitle,
+.reportPage .filterCardTitle {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #e2e8f0;
+}
+
+.costDashboard .filterCardHint,
+.tokenPage .filterCardHint,
+.reportPage .filterCardHint {
+  margin: 0;
+  font-size: 11.5px;
+}
+
+/* --- Section jump nav (Cost, Tokens, Reports) --- */
 .dashSectionNav {
   display: flex;
   align-items: center;

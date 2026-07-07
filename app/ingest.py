@@ -35,14 +35,14 @@ def _verify_billing_merge_csv(
 ) -> None:
     """
     Post-ingest audit for billing CSVs merged by natural key
-    (UsageDate + ResourceGroupName + ServiceTier + Meter within project_name).
+    (UsageDate + ResourceId + ResourceGroupName + ServiceTier + Meter within project_name).
 
     - Every non-empty CSV row must resolve to a DB row with matching cost_usd.
     - Duplicate keys in the same file: last row wins (must match DB).
     - ingested_files row_count must match CSV data row count.
     """
     eps = 1e-6
-    last_cost_by_key: dict[tuple[str, str, str, str], float] = {}
+    last_cost_by_key: dict[tuple[str, str, str, str, str], float] = {}
     csv_data_rows = 0
     with csv_path_abs.open("r", newline="", encoding="utf-8-sig") as f:
         reader = csv.DictReader(f)
@@ -51,10 +51,7 @@ def _verify_billing_merge_csv(
             if usage_date is None:
                 continue
             csv_data_rows += 1
-            rg = _coalesce_billing_dim(normalized_row.get("ResourceGroupName"))
-            tier = _coalesce_billing_dim(normalized_row.get("ServiceTier"))
-            meter = _coalesce_billing_dim(normalized_row.get("Meter"))
-            key = (usage_date, rg, tier, meter)
+            key = _billing_natural_key_tuple(usage_date, normalized_row)
             c = float(cost_usd) if cost_usd is not None else 0.0
             last_cost_by_key[key] = c
 
@@ -63,26 +60,30 @@ def _verify_billing_merge_csv(
             f"Ingest audit CSV row count mismatch for {file_path_rel}: parsed={csv_data_rows}, expected={expected_row_count}"
         )
 
-    for (usage_date, rg, tier, meter), exp_c in last_cost_by_key.items():
+    for key, exp_c in last_cost_by_key.items():
+        usage_date, resource_id, rg, tier, meter = key
         r = conn.execute(
             """
             SELECT cost_usd
             FROM transactions
             WHERE project_name = ?
               AND usage_date = ?
+              AND COALESCE(resource_id, '') = ?
               AND COALESCE(resource_group_name, '') = ?
               AND COALESCE(service_tier, '') = ?
               AND COALESCE(meter, '') = ?
             LIMIT 1
             """,
-            (project_name, usage_date, rg, tier, meter),
+            (project_name, usage_date, resource_id, rg, tier, meter),
         ).fetchone()
         if r is None:
-            raise ValueError(f"Ingest audit missing DB row for natural key after ingest: {file_path_rel} {usage_date!r}")
+            raise ValueError(
+                f"Ingest audit missing DB row for natural key after ingest: {file_path_rel} {key!r}"
+            )
         db_c = float(r["cost_usd"] or 0.0)
         if abs(db_c - exp_c) > eps:
             raise ValueError(
-                f"Ingest audit cost_usd mismatch for {file_path_rel} key={(usage_date, rg, tier, meter)}: db={db_c}, expected={exp_c}"
+                f"Ingest audit cost_usd mismatch for {file_path_rel} key={key!r}: db={db_c}, expected={exp_c}"
             )
 
     ing = conn.execute(
@@ -147,7 +148,7 @@ def verify_ingested_files(
 ) -> IngestVerifyResult:
     """
     Verify that data on disk (CSV) matches SQLite for each ingested billing file:
-    natural key rows (UsageDate + ResourceGroupName + ServiceTier + Meter per project),
+    natural key rows (UsageDate + ResourceId + ResourceGroupName + ServiceTier + Meter per project),
     checksum, and ingested_files.row_count.
     """
     bills_path = Path(bills_dir).expanduser().resolve()
@@ -343,10 +344,21 @@ def _coalesce_billing_dim(val: Any) -> str:
     return s if s is not None else ""
 
 
+def _billing_natural_key_tuple(usage_date: str, normalized_row: dict[str, str | None]) -> tuple[str, str, str, str, str]:
+    return (
+        usage_date,
+        _coalesce_billing_dim(normalized_row.get("ResourceId")),
+        _coalesce_billing_dim(normalized_row.get("ResourceGroupName")),
+        _coalesce_billing_dim(normalized_row.get("ServiceTier")),
+        _coalesce_billing_dim(normalized_row.get("Meter")),
+    )
+
+
 def _find_tx_by_natural_key(
     conn,
     project_name: str,
     usage_date: str,
+    resource_id: str,
     rg: str,
     tier: str,
     meter: str,
@@ -356,12 +368,13 @@ def _find_tx_by_natural_key(
         SELECT id FROM transactions
         WHERE project_name = ?
           AND usage_date = ?
+          AND COALESCE(resource_id, '') = ?
           AND COALESCE(resource_group_name, '') = ?
           AND COALESCE(service_tier, '') = ?
           AND COALESCE(meter, '') = ?
         LIMIT 1
         """,
-        (project_name, usage_date, rg, tier, meter),
+        (project_name, usage_date, resource_id, rg, tier, meter),
     ).fetchone()
     return int(row["id"]) if row else None
 
@@ -391,15 +404,15 @@ def _upsert_one_billing_row(
     raw_json: str,
 ) -> str:
     """
-    Upsert by natural key (UsageDate + ResourceGroupName + ServiceTier + Meter) within project;
+    Upsert by natural key (UsageDate + ResourceId + ResourceGroupName + ServiceTier + Meter) within project;
     same-file (source_file, source_row_index) wins over stale slots when both collide.
     Returns 'insert' or 'update'.
     """
-    rg_k = _coalesce_billing_dim(normalized_row.get("ResourceGroupName"))
-    tier_k = _coalesce_billing_dim(normalized_row.get("ServiceTier"))
-    meter_k = _coalesce_billing_dim(normalized_row.get("Meter"))
+    _usage_date, resource_k, rg_k, tier_k, meter_k = _billing_natural_key_tuple(usage_date, normalized_row)
 
-    kid = _find_tx_by_natural_key(conn, project_name, usage_date, rg_k, tier_k, meter_k)
+    kid = _find_tx_by_natural_key(
+        conn, project_name, usage_date, resource_k, rg_k, tier_k, meter_k
+    )
     rid = _find_tx_by_file_slot(conn, project_name, file_path_rel, source_row_index)
 
     tup = (
@@ -433,6 +446,88 @@ def _upsert_one_billing_row(
         return "update"
     conn.execute(_TX_INSERT, tup)
     return "insert"
+
+
+def _ingest_billing_csv_rows(
+    conn,
+    *,
+    project_name: str,
+    file_path_rel: str,
+    csv_path_abs: Path,
+) -> tuple[int, int]:
+    file_ins = 0
+    file_upd = 0
+    with csv_path_abs.open("r", newline="", encoding="utf-8-sig") as f:
+        reader = csv.DictReader(f)
+        row_index = 0
+        for row in reader:
+            usage_date, normalized_row, cost_usd, cost = _extract_row(row)
+            if usage_date is None:
+                row_index += 1
+                continue
+
+            raw_json = json.dumps(normalized_row, ensure_ascii=False)
+            op = _upsert_one_billing_row(
+                conn,
+                project_name=project_name,
+                file_path_rel=file_path_rel,
+                source_row_index=row_index,
+                usage_date=usage_date,
+                normalized_row=normalized_row,
+                cost_usd=cost_usd,
+                cost=cost,
+                raw_json=raw_json,
+            )
+            if op == "insert":
+                file_ins += 1
+            else:
+                file_upd += 1
+            row_index += 1
+    return file_ins, file_upd
+
+
+def _finalize_billing_file_ingest(
+    conn,
+    *,
+    project_name: str,
+    file_path_rel: str,
+    checksum: str,
+    data_rows: int,
+    csv_path_abs: Path,
+    raw_columns: list[str],
+) -> None:
+    conn.execute(
+        """
+        INSERT INTO ingested_files(
+            project_name, file_path, checksum_sha256, schema_version,
+            row_count, source_last_modified, raw_columns
+        ) VALUES (?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            project_name,
+            file_path_rel,
+            checksum,
+            SCHEMA_VERSION,
+            data_rows,
+            csv_path_abs.stat().st_mtime,
+            json.dumps(raw_columns, ensure_ascii=False),
+        ),
+    )
+    try:
+        _verify_billing_merge_csv(
+            conn,
+            project_name=project_name,
+            file_path_rel=file_path_rel,
+            checksum_sha256=checksum,
+            csv_path_abs=csv_path_abs,
+            expected_row_count=data_rows,
+        )
+        conn.execute("RELEASE ingest_file")
+        conn.commit()
+    except Exception:
+        conn.execute("ROLLBACK TO ingest_file")
+        conn.execute("RELEASE ingest_file")
+        raise
 
 
 def discover_csv_files(bills_dir: str | os.PathLike[str]) -> list[tuple[str, Path, str]]:
@@ -499,74 +594,36 @@ def ingest_all(
             # Re-import changed file: replace ingested_files metadata; rows merge by natural key.
             conn.execute("SAVEPOINT ingest_file")
             conn.execute("DELETE FROM ingested_files WHERE file_path = ?", (file_path_rel,))
+            conn.execute(
+                "DELETE FROM transactions WHERE project_name = ? AND source_file = ?",
+                (project_name, file_path_rel),
+            )
         else:
             checksum = _sha256_file(csv_path_abs)
             conn.execute("SAVEPOINT ingest_file")
 
-        file_ins = 0
-        file_upd = 0
-        with csv_path_abs.open("r", newline="", encoding="utf-8-sig") as f:
-            reader = csv.DictReader(f)
-            raw_columns = reader.fieldnames or []
-            row_index = 0
-            for row in reader:
-                usage_date, normalized_row, cost_usd, cost = _extract_row(row)
-                if usage_date is None:
-                    row_index += 1
-                    continue
-
-                raw_json = json.dumps(normalized_row, ensure_ascii=False)
-                op = _upsert_one_billing_row(
-                    conn,
-                    project_name=project_name,
-                    file_path_rel=file_path_rel,
-                    source_row_index=row_index,
-                    usage_date=usage_date,
-                    normalized_row=normalized_row,
-                    cost_usd=cost_usd,
-                    cost=cost,
-                    raw_json=raw_json,
-                )
-                if op == "insert":
-                    file_ins += 1
-                else:
-                    file_upd += 1
-                row_index += 1
-
-        data_rows = file_ins + file_upd
-        conn.execute(
-            """
-            INSERT INTO ingested_files(
-                project_name, file_path, checksum_sha256, schema_version,
-                row_count, source_last_modified, raw_columns
-            ) VALUES (?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                project_name,
-                file_path_rel,
-                checksum,
-                SCHEMA_VERSION,
-                data_rows,
-                csv_path_abs.stat().st_mtime,
-                json.dumps(raw_columns, ensure_ascii=False),
-            ),
+        file_ins, file_upd = _ingest_billing_csv_rows(
+            conn,
+            project_name=project_name,
+            file_path_rel=file_path_rel,
+            csv_path_abs=csv_path_abs,
         )
+        data_rows = file_ins + file_upd
+        checksum = _sha256_file(csv_path_abs)
+        with csv_path_abs.open("r", newline="", encoding="utf-8-sig") as f:
+            raw_columns = csv.DictReader(f).fieldnames or []
 
         try:
-            _verify_billing_merge_csv(
+            _finalize_billing_file_ingest(
                 conn,
                 project_name=project_name,
                 file_path_rel=file_path_rel,
-                checksum_sha256=checksum,
+                checksum=checksum,
+                data_rows=data_rows,
                 csv_path_abs=csv_path_abs,
-                expected_row_count=data_rows,
+                raw_columns=list(raw_columns or []),
             )
-            conn.execute("RELEASE ingest_file")
-            conn.commit()
-            files_verified += 1
         except Exception:
-            conn.execute("ROLLBACK TO ingest_file")
-            conn.execute("RELEASE ingest_file")
             verification_passed = False
             raise
 
@@ -574,6 +631,7 @@ def ingest_all(
         rows_ingested += data_rows
         rows_inserted += file_ins
         rows_updated += file_upd
+        files_verified += 1
 
     conn.close()
     return IngestResult(
@@ -637,73 +695,36 @@ def ingest_selected(
 
             conn.execute("SAVEPOINT ingest_file")
             conn.execute("DELETE FROM ingested_files WHERE file_path = ?", (file_path_rel,))
+            conn.execute(
+                "DELETE FROM transactions WHERE project_name = ? AND source_file = ?",
+                (project_name, file_path_rel),
+            )
         else:
             checksum = _sha256_file(csv_path_abs)
             conn.execute("SAVEPOINT ingest_file")
 
-        file_ins = 0
-        file_upd = 0
-        with csv_path_abs.open("r", newline="", encoding="utf-8-sig") as f:
-            reader = csv.DictReader(f)
-            raw_columns = reader.fieldnames or []
-            row_index = 0
-            for row in reader:
-                usage_date, normalized_row, cost_usd, cost = _extract_row(row)
-                if usage_date is None:
-                    row_index += 1
-                    continue
-
-                raw_json = json.dumps(normalized_row, ensure_ascii=False)
-                op = _upsert_one_billing_row(
-                    conn,
-                    project_name=project_name,
-                    file_path_rel=file_path_rel,
-                    source_row_index=row_index,
-                    usage_date=usage_date,
-                    normalized_row=normalized_row,
-                    cost_usd=cost_usd,
-                    cost=cost,
-                    raw_json=raw_json,
-                )
-                if op == "insert":
-                    file_ins += 1
-                else:
-                    file_upd += 1
-                row_index += 1
-
-        data_rows = file_ins + file_upd
-        conn.execute(
-            """
-            INSERT INTO ingested_files(
-                project_name, file_path, checksum_sha256, schema_version,
-                row_count, source_last_modified, raw_columns
-            ) VALUES (?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                project_name,
-                file_path_rel,
-                checksum,
-                SCHEMA_VERSION,
-                data_rows,
-                csv_path_abs.stat().st_mtime,
-                json.dumps(raw_columns, ensure_ascii=False),
-            ),
+        file_ins, file_upd = _ingest_billing_csv_rows(
+            conn,
+            project_name=project_name,
+            file_path_rel=file_path_rel,
+            csv_path_abs=csv_path_abs,
         )
+        data_rows = file_ins + file_upd
+        checksum = _sha256_file(csv_path_abs)
+        with csv_path_abs.open("r", newline="", encoding="utf-8-sig") as f:
+            raw_columns = csv.DictReader(f).fieldnames or []
+
         try:
-            _verify_billing_merge_csv(
+            _finalize_billing_file_ingest(
                 conn,
                 project_name=project_name,
                 file_path_rel=file_path_rel,
-                checksum_sha256=checksum,
+                checksum=checksum,
+                data_rows=data_rows,
                 csv_path_abs=csv_path_abs,
-                expected_row_count=data_rows,
+                raw_columns=list(raw_columns or []),
             )
-            conn.execute("RELEASE ingest_file")
-            conn.commit()
-            files_verified += 1
         except Exception:
-            conn.execute("ROLLBACK TO ingest_file")
-            conn.execute("RELEASE ingest_file")
             verification_passed = False
             raise
 
@@ -711,6 +732,7 @@ def ingest_selected(
         rows_ingested += data_rows
         rows_inserted += file_ins
         rows_updated += file_upd
+        files_verified += 1
 
     conn.close()
     return IngestResult(

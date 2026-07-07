@@ -26,7 +26,6 @@
     dataStatusBar: document.getElementById("dataStatusBar"),
     tokenSummaryLead: document.getElementById("tokenSummaryLead"),
     metricsFlowLead: document.getElementById("metricsFlowLead"),
-    costLinkBtn: document.getElementById("tokenCostLinkBtn"),
     labelInput: document.getElementById("labelInputTokens"),
     labelOutput: document.getElementById("labelOutputTokens"),
     labelTotal: document.getElementById("labelTotalTokens"),
@@ -443,14 +442,6 @@
 
   function isMeterAllocated(method) {
     return method === "meter_matched" || method === "meter_matched_partial";
-  }
-
-  function updateCostCrossLink(project) {
-    if (!els.costLinkBtn) return;
-    const params = new URLSearchParams();
-    if (project) params.set("project", project);
-    const qs = params.toString();
-    els.costLinkBtn.href = qs ? `/?${qs}` : "/";
   }
 
   let lastBillingCurrency = "USD";
@@ -1549,7 +1540,6 @@
         return;
       }
       applySourceUi(source, series, stats, { project, subproject });
-      updateCostCrossLink(project);
       updateDataStatusBar(project, stats, series, subproject);
 
       const points = series.points || [];
