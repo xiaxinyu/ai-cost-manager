@@ -1629,6 +1629,7 @@
       window.AppShell?.toast?.(`Failed to load token data: ${err?.message || "unknown error"}`, "error", 5200);
     } finally {
       setLoading(false);
+      window.AppDashboardInteractions?.refreshDashPage?.();
     }
   }
 

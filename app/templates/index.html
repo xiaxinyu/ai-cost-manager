@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="/static/css/page-common.css" />
     <link rel="stylesheet" href="/static/css/pages/index.css?v=20260707-monitor" />
     <link rel="stylesheet" href="/static/css/layout-pro.css" />
-    <link rel="stylesheet" href="/static/css/dashboard-shared.css?v=20260707-unified" />
+    <link rel="stylesheet" href="/static/css/dashboard-shared.css?v=20260707-ui" />
     <link rel="stylesheet" href="/static/css/date-range-picker.css?v=20260606-drp" />
     <link rel="stylesheet" href="/static/css/insight-panel.css?v=20260706-align" />
   </head>
@@ -23,11 +23,11 @@
             <div class="breadcrumb">Home / Cost</div>
             <div class="costTitleRow">
               <div>
-                <h1 class="pageTitle">Cost overview</h1>
+                <h1 class="pageTitle">Cost</h1>
                 <p class="pageDesc">
-                  Billing vs market benchmark.
-                  <span class="costPill costPill--actual">Actual</span> from CSV ·
-                  <span class="costPill costPill--market">Market</span> from Model Prices.
+                  Actual billing vs market list price.
+                  <span class="costPill costPill--actual">Actual</span>
+                  <span class="costPill costPill--market">Market</span>
                 </p>
               </div>
               <p class="costSourceNote muted">
@@ -84,14 +84,14 @@
             </div>
 
             <div class="costMonitorKpi">
-              <article class="card monitorKpi monitorKpi--actual">
+              <article class="card monitorKpi monitorKpi--actual" data-dash-jump="#marketCompareSection" title="Jump to daily billing chart">
                 <div class="stat">
                   <div class="label"><span class="costPill costPill--actual">Actual</span> Total</div>
                   <div class="value" id="actualCost">-</div>
                   <div class="sub tokenStats kpiFootnote" id="costStats">Max: - · Mean: - · Min: -</div>
                 </div>
               </article>
-              <article class="card monitorKpi monitorKpi--market" id="catalogMarketCard">
+              <article class="card monitorKpi monitorKpi--market" id="catalogMarketCard" data-dash-jump="#costModelSection" title="Jump to model breakdown">
                 <div class="stat">
                   <div class="label"><span class="costPill costPill--market">Market</span> Total</div>
                   <div class="value" id="catalogMarketTotal">-</div>
@@ -355,6 +355,7 @@
                   </table>
                 </div>
                 </div>
+                <p id="resourceBillingSelectionHint" class="tableSelectionHint muted" hidden aria-live="polite"></p>
               </section>
 
               <details class="costBillingDetails card">
@@ -407,6 +408,7 @@
                     <button id="billingRawNextBtn" class="btnSmall pgBtn" type="button">Next</button>
                     <span id="billingRawPageInfo" class="pageInfo resourceRawPageInfo muted">—</span>
                   </div>
+                  <p id="billingRawSelectionHint" class="tableSelectionHint muted" hidden aria-live="polite"></p>
                 </div>
               </details>
             </section>
@@ -423,6 +425,7 @@
     <script src="/static/js/chart-style.js?v=20260605-dates"></script>
     <script src="/static/js/cost-semantics.js?v=20260605-cost"></script>
     <script src="/static/js/dashboard-ui.js?v=20260707-detail"></script>
+    <script src="/static/js/dashboard-interactions.js?v=20260707-ui"></script>
     <script src="/static/js/billing-detail-table.js?v=20260707-detail"></script>
     <script src="/static/js/date-range-picker.js?v=20260606-drp"></script>
     <script src="/static/js/insight-panel.js?v=20260605-insights"></script>
@@ -479,9 +482,14 @@
       const billingRawPrevBtn = document.getElementById('billingRawPrevBtn');
       const billingRawNextBtn = document.getElementById('billingRawNextBtn');
       const billingRawTableHostEl = document.getElementById('billingRawTableHost');
+      const billingRawTableEl = document.getElementById('billingRawTable');
+      const resourceBillingSelectionHintEl = document.getElementById('resourceBillingSelectionHint');
+      const billingRawSelectionHintEl = document.getElementById('billingRawSelectionHint');
       let billingRawPage = 1;
       let billingRawTotal = 0;
       let billingRawFetchKey = '';
+      let clearResourceBillingRowSelect = null;
+      let clearBillingRawRowSelect = null;
       const modelSectionHintEl = document.getElementById('modelSectionHint');
       const modelTableBadgeEl = document.getElementById('modelTableBadge');
       const modelDailyTbodyEl = document.getElementById('modelDailyTbody');
@@ -803,6 +811,7 @@
         showLegend = true,
         legendVariant = 'default',
         tooltipCallbacks = {},
+        onClick,
       }) {
         return CHART_OPTS?.buildLineChartOptions?.({
           currency: currentCurrency,
@@ -810,7 +819,8 @@
           showLegend,
           legendVariant,
           tooltipCallbacks,
-        }) ?? {};
+          onClick,
+        }) ?? (onClick ? { onClick } : {});
       }
 
       function renderCatalogMarketUi(catalogPayload, costPoints, authoritativeActualTotal) {
@@ -847,7 +857,7 @@
           if (modelCostSummaryTbodyEl) modelCostSummaryTbodyEl.innerHTML = '';
           if (modelCostSummaryTfootEl) modelCostSummaryTfootEl.innerHTML = '';
           try {
-            renderBillingChart(costPoints, null);
+            renderBillingChart(costPoints, null, authoritativeActualTotal);
           } catch (err) {
             console.error('renderBillingChart failed', err);
           }
@@ -895,7 +905,7 @@
 
         renderModelCostSection(catalogPayload);
         try {
-          renderBillingChart(costPoints, catalogPayload);
+          renderBillingChart(costPoints, catalogPayload, authoritativeActualTotal);
         } catch (err) {
           console.error('renderBillingChart failed', err);
         }
@@ -1516,7 +1526,7 @@
         requestAnimationFrame(() => requestAnimationFrame(run));
       }
 
-      function renderBillingChart(costPoints, catalogPayload) {
+      function renderBillingChart(costPoints, catalogPayload, authoritativeActualTotal) {
         const C = window.AppChartStyle?.colors || {};
         const L = window.AppChartStyle?.labels || {};
         const catPoints = catalogPayload?.points || [];
@@ -1599,6 +1609,11 @@
           );
         }
 
+        const footnoteBase = {
+          costPoints,
+          catalogPayload,
+          authoritativeActualTotal,
+        };
         chartMarket = new Chart(ctx, {
           type: 'line',
           data: { labels, datasets },
@@ -1628,6 +1643,30 @@
                     return lines;
                   }
                 : undefined,
+            },
+            onClick: (_evt, elements) => {
+              if (!elements?.length) {
+                window.AppDashboardInteractions?.highlightChartPoint?.(chartMarket, null);
+                updateChartFootnote(
+                  footnoteBase.costPoints,
+                  footnoteBase.catalogPayload,
+                  footnoteBase.authoritativeActualTotal
+                );
+                return;
+              }
+              const idx = elements[0].index;
+              const date = labels[idx];
+              const val = actualData[idx];
+              window.AppDashboardInteractions?.highlightChartPoint?.(chartMarket, idx);
+              if (costChartFootnoteEl) {
+                let text = `${date}: ${fmt2(val)}`;
+                if (marketAvailable) {
+                  const marketVal = catalogData[idx];
+                  if (marketVal != null) text += ` · Market: ${fmt2(marketVal)}`;
+                }
+                text += ' · click empty area to reset';
+                costChartFootnoteEl.textContent = text;
+              }
             },
           }),
           plugins: [
@@ -1751,14 +1790,27 @@
         const frag = document.createDocumentFragment();
         for (const [name, cost] of sorted) {
           const card = document.createElement('article');
-          card.className = 'card costSubprojectCard';
+          card.className = 'card costSubprojectCard costSubprojectCard--clickable';
+          card.setAttribute('role', 'button');
+          card.setAttribute('tabindex', '0');
+          card.setAttribute('title', `Filter to ${name}`);
           const share = total > 0 ? Math.round((cost / total) * 1000) / 10 : null;
           card.innerHTML = `
             <div class="stat">
               <div class="label costSubprojectCardLabel">${name}</div>
               <div class="value value--md">${fmt2(cost)}</div>
-              <div class="sub tokenStats kpiFootnote">${share != null ? `${share}% of scope` : '—'}</div>
+              <div class="sub tokenStats kpiFootnote">${share != null ? `${share}% of scope` : '—'} · click to filter</div>
             </div>`;
+          const applyFilter = () => {
+            applySubprojectFilterByName(name);
+          };
+          card.addEventListener('click', applyFilter);
+          card.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              applyFilter();
+            }
+          });
           frag.appendChild(card);
         }
         subprojectCostCardsEl.replaceChildren(frag);
@@ -1797,6 +1849,106 @@
         if (endDateInput) endDateInput.value = '';
       }
 
+      function applySubprojectFilterByName(name) {
+        if (!subprojectSelect || !name) return false;
+        const detail = projectDetailsByName[currentProjectName];
+        const subprojects = Array.isArray(detail?.subprojects) ? detail.subprojects : [];
+        if (!subprojects.includes(name)) return false;
+        subprojectSelect.value = name;
+        loadProjectSafe(currentProjectName);
+        return true;
+      }
+
+      function updateResourceBillingSelectionHint(tr) {
+        if (!resourceBillingSelectionHintEl) return;
+        if (!tr) {
+          resourceBillingSelectionHintEl.hidden = true;
+          resourceBillingSelectionHintEl.replaceChildren();
+          return;
+        }
+        const resource = tr.dataset.resourceName || tr.querySelector('code')?.textContent?.trim() || '—';
+        const cells = tr.querySelectorAll('td');
+        const service = cells[1]?.textContent?.trim() || '—';
+        const cost = cells[4]?.textContent?.trim() || '—';
+        const share = cells[5]?.textContent?.trim() || '—';
+        const detail = projectDetailsByName[currentProjectName];
+        const subprojects = Array.isArray(detail?.subprojects) ? detail.subprojects : [];
+        const canFilter = subprojects.includes(resource);
+
+        resourceBillingSelectionHintEl.hidden = false;
+        resourceBillingSelectionHintEl.replaceChildren();
+        const strong = document.createElement('strong');
+        strong.textContent = resource;
+        resourceBillingSelectionHintEl.append(
+          document.createTextNode('Selected '),
+          strong,
+          document.createTextNode(` · ${service} · ${cost} (${share})`)
+        );
+        if (canFilter) {
+          resourceBillingSelectionHintEl.append(document.createTextNode(' · '));
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'drillLink';
+          btn.textContent = 'Filter scope';
+          btn.dataset.filterResource = resource;
+          resourceBillingSelectionHintEl.append(btn);
+        } else {
+          resourceBillingSelectionHintEl.append(
+            document.createTextNode(' · click row again to clear')
+          );
+        }
+      }
+
+      function bindResourceBillingRowSelect() {
+        if (!resourceBillingTableEl) return;
+        if (clearResourceBillingRowSelect) clearResourceBillingRowSelect();
+        clearResourceBillingRowSelect = window.AppDashboardInteractions?.bindSelectableRows?.(
+          resourceBillingTableEl,
+          {
+            onSelect(tr) {
+              updateResourceBillingSelectionHint(tr);
+            },
+          }
+        );
+      }
+
+      function updateBillingRawSelectionHint(tr) {
+        if (!billingRawSelectionHintEl) return;
+        if (!tr) {
+          billingRawSelectionHintEl.hidden = true;
+          billingRawSelectionHintEl.textContent = '';
+          return;
+        }
+        const date = tr.dataset.billingDate || '—';
+        const resource = tr.dataset.resourceName || '—';
+        const meter = tr.dataset.meter || '—';
+        const cost = fmtTableAmount(tr.dataset.costUsd);
+        const source = tr.dataset.source || '—';
+        billingRawSelectionHintEl.hidden = false;
+        billingRawSelectionHintEl.textContent =
+          `Selected ${date} · ${resource} · ${meter} · ${cost} · ${source} — click row again to clear`;
+      }
+
+      function bindBillingRawRowSelect() {
+        if (!billingRawTableEl) return;
+        if (clearBillingRawRowSelect) clearBillingRawRowSelect();
+        clearBillingRawRowSelect = window.AppDashboardInteractions?.bindSelectableRows?.(
+          billingRawTableEl,
+          {
+            onSelect(tr) {
+              updateBillingRawSelectionHint(tr);
+            },
+          }
+        );
+      }
+
+      function clearBillingTableSelection() {
+        if (clearResourceBillingRowSelect) clearResourceBillingRowSelect();
+        if (clearBillingRawRowSelect) clearBillingRawRowSelect();
+        updateResourceBillingSelectionHint(null);
+        updateBillingRawSelectionHint(null);
+      }
+
       function applyDefaultCostDateRange() {
         if (!startDateInput || !endDateInput) return false;
         if (startDateInput.value || endDateInput.value) return false;
@@ -1830,6 +1982,7 @@
             billingRawTbodyEl.replaceChildren();
             renderBillingRawPagination();
           }
+          clearBillingTableSelection();
           return;
         }
 
@@ -1847,7 +2000,8 @@
         const frag = document.createDocumentFragment();
         for (const r of rows) {
           const tr = document.createElement('tr');
-          tr.className = 'resourceBillingRow';
+          tr.className = 'resourceBillingRow dashRowSelectable';
+          tr.dataset.resourceName = String(r.resource_name || '');
 
           const tdRes = document.createElement('td');
           tdRes.className = 'resourceNameCell';
@@ -1938,6 +2092,8 @@
           window.AppDashboardUi?.makeSortableTable?.(resourceBillingTableEl);
           resourceBillingSortBound = true;
         }
+        updateResourceBillingSelectionHint(null);
+        bindResourceBillingRowSelect();
       }
 
       function billingRawPageSize() {
@@ -1971,9 +2127,11 @@
         billingRawTotal = Number(payload?.total || 0);
         const rows = Array.isArray(payload?.rows) ? payload.rows : [];
         const frag = document.createDocumentFragment();
+        updateBillingRawSelectionHint(null);
 
         if (!rows.length) {
           const tr = document.createElement('tr');
+          tr.className = 'emptyRow';
           const td = document.createElement('td');
           td.colSpan = 8;
           td.className = 'muted';
@@ -1983,7 +2141,15 @@
         } else {
           for (const r of rows) {
             const tr = document.createElement('tr');
-            tr.className = 'billingRawRow';
+            tr.className = 'billingRawRow dashRowSelectable';
+            const src = r.source_file
+              ? `${r.source_file}${r.source_row_index != null ? `#${r.source_row_index}` : ''}`
+              : '—';
+            tr.dataset.billingDate = String(r.usage_date || '');
+            tr.dataset.resourceName = String(r.resource_name || '');
+            tr.dataset.meter = String(r.meter || '');
+            tr.dataset.costUsd = String(r.cost_usd ?? '');
+            tr.dataset.source = src;
 
             const tdDate = document.createElement('td');
             tdDate.className = 'mono tdDate';
@@ -2027,9 +2193,6 @@
 
             const tdSrc = document.createElement('td');
             tdSrc.className = 'cellFile cellTruncate';
-            const src = r.source_file
-              ? `${r.source_file}${r.source_row_index != null ? `#${r.source_row_index}` : ''}`
-              : '—';
             tdSrc.textContent = src;
             if (src !== '—') tdSrc.title = src;
             tr.appendChild(tdSrc);
@@ -2041,6 +2204,7 @@
         billingRawTbodyEl.replaceChildren(frag);
         renderBillingRawPagination();
         window.AppDashboardUi?.applyTruncationTitles?.(billingRawTableHostEl || billingRawTbodyEl);
+        bindBillingRawRowSelect();
       }
 
       async function loadBillingRawPage(projectName, { resetPage = false } = {}) {
@@ -2200,6 +2364,7 @@
           title: 'Insights',
           limit: 3,
         });
+        window.AppDashboardInteractions?.refreshDashPage?.();
       }
 
       async function loadProjectSafe(projectName) {
@@ -2257,6 +2422,12 @@
       billingRawExportBtn?.addEventListener('click', () => {
         exportBillingRawCsv().catch((e) => console.error(e));
       });
+      resourceBillingSelectionHintEl?.addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-filter-resource]');
+        if (!btn) return;
+        e.preventDefault();
+        applySubprojectFilterByName(btn.getAttribute('data-filter-resource'));
+      });
       modelDailyPrevBtn?.addEventListener('click', () => {
         if (modelDailyPage > 1) {
           modelDailyPage -= 1;
@@ -2279,12 +2450,16 @@
       });
 
       async function bootstrap() {
-        let preferred = null;
-        try {
-          const latest = await window.AppHttp.getJson('/api/projects/latest');
-          preferred = latest.project_name ?? null;
-        } catch (e) {
-          console.error(e);
+        const qs = new URLSearchParams(window.location.search);
+        const urlProject = qs.get('project');
+        let preferred = urlProject || null;
+        if (!preferred) {
+          try {
+            const latest = await window.AppHttp.getJson('/api/projects/latest');
+            preferred = latest.project_name ?? null;
+          } catch (e) {
+            console.error(e);
+          }
         }
         await loadProjects(preferred);
       }

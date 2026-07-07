@@ -1016,6 +1016,13 @@
   border: 1px solid rgba(173, 196, 228, 0.16);
   background: rgba(255, 255, 255, 0.03);
   min-width: 0;
+  transition: border-color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
+}
+
+.heroMetric:hover {
+  border-color: rgba(148, 163, 184, 0.28);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14);
+  transform: translateY(-1px);
 }
 
 .heroMetricPrimary {
@@ -1111,6 +1118,11 @@
   padding: 14px 16px;
   cursor: pointer;
   list-style: none;
+  transition: background 0.14s ease;
+}
+
+.reportDetailsSummary:hover {
+  background: rgba(255, 255, 255, 0.04);
 }
 
 .reportDetailsSummary::-webkit-details-marker {

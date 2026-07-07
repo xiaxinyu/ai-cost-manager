@@ -883,3 +883,299 @@
   font-weight: 600;
   letter-spacing: 0.02em;
 }
+
+/* --- Page header (all dashboards) --- */
+.dashPage .pageHeader {
+  margin-bottom: 2px;
+}
+
+.dashPage .breadcrumb {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--text-subtle, #7a8fa8);
+}
+
+.dashPage .pageTitle {
+  font-size: clamp(20px, 2.4vw, 24px);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin: 4px 0 0;
+  color: #f1f5f9;
+}
+
+.dashPage .pageDesc {
+  margin: 6px 0 0;
+  max-width: 56ch;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-subtle, #9fb2c7);
+}
+
+/* --- Sticky section nav + scroll spy --- */
+.dashSectionNav.card {
+  position: sticky;
+  top: calc(var(--nav-height, 52px) + 8px);
+  z-index: 40;
+  backdrop-filter: blur(12px);
+  background: rgba(12, 18, 28, 0.88) !important;
+  border-color: rgba(148, 163, 184, 0.16);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.22);
+}
+
+.dashSectionNavLink.is-active {
+  color: #5eead4;
+  background: rgba(94, 234, 212, 0.12);
+  border-color: rgba(94, 234, 212, 0.35);
+  box-shadow: 0 0 0 1px rgba(94, 234, 212, 0.08) inset;
+}
+
+.dashSectionNavLink.is-unavailable {
+  opacity: 0.38;
+  pointer-events: none;
+  text-decoration: line-through;
+}
+
+.dashJumpTarget {
+  cursor: pointer;
+}
+
+.dashJumpTarget:focus-visible {
+  outline: 2px solid rgba(94, 234, 212, 0.55);
+  outline-offset: 3px;
+}
+
+.heroMetric.dashJumpTarget:hover,
+.monitorKpi.dashJumpTarget:hover,
+.costSubprojectCard--clickable:hover {
+  border-color: rgba(94, 234, 212, 0.4);
+}
+
+.costSubprojectCard--clickable {
+  cursor: pointer;
+  transition: border-color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
+}
+
+.costSubprojectCard--clickable:focus-visible {
+  outline: 2px solid rgba(94, 234, 212, 0.55);
+  outline-offset: 2px;
+}
+
+.chartCardFoot {
+  margin: 8px 0 0;
+  padding-top: 8px;
+  border-top: 1px solid rgba(148, 163, 184, 0.1);
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--text-subtle, #9fb2c7);
+}
+
+.chartCardFoot strong {
+  color: #e2e8f0;
+  font-weight: 650;
+}
+
+.dashTable tbody tr.is-rowSelected td,
+.dashTable tbody tr.is-rowSelected th {
+  background: rgba(94, 234, 212, 0.12) !important;
+}
+
+.dashTable tbody tr.dashRowSelectable {
+  cursor: pointer;
+}
+
+.dashTable tbody tr.dashRowSelectable:hover td {
+  background: rgba(94, 234, 212, 0.08);
+}
+
+.drillLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 6px;
+  font-size: 11px;
+  font-weight: 650;
+  color: #5eead4;
+  text-decoration: none;
+  opacity: 0.85;
+}
+
+.drillLink:hover {
+  opacity: 1;
+  text-decoration: underline;
+}
+
+.importPage .typeBadge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.importPage .typeBadge--billing {
+  color: #5eead4;
+  background: rgba(94, 234, 212, 0.12);
+  border: 1px solid rgba(94, 234, 212, 0.28);
+}
+
+.importPage .typeBadge--token {
+  color: #93c5fd;
+  background: rgba(96, 165, 250, 0.12);
+  border: 1px solid rgba(96, 165, 250, 0.28);
+}
+
+.importPage .typeBadge--metric {
+  color: #c4b5fd;
+  background: rgba(192, 132, 252, 0.12);
+  border: 1px solid rgba(192, 132, 252, 0.28);
+}
+
+.importPage tbody tr.dashRowSelectable {
+  cursor: pointer;
+}
+
+.importPage tbody tr.is-rowSelected td {
+  background: rgba(94, 234, 212, 0.1) !important;
+}
+
+.tableSelectionHint {
+  margin: 10px 0 0;
+  padding: 8px 12px;
+  font-size: 12px;
+  line-height: 1.45;
+  border-radius: 8px;
+  border: 1px solid rgba(94, 234, 212, 0.16);
+  background: rgba(94, 234, 212, 0.06);
+}
+
+.tableSelectionHint button.drillLink {
+  margin-left: 2px;
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
+  background: none;
+  border: none;
+}
+
+.costDashboard .resourceBillingTableWrap + .tableSelectionHint,
+.costDashboard .resourceRawPager + .tableSelectionHint {
+  margin-left: 2px;
+  margin-right: 2px;
+}
+
+.dashScrollSection {
+  scroll-margin-top: calc(var(--nav-height, 52px) + 72px);
+}
+
+/* --- Back to top --- */
+.dashBackToTop {
+  position: fixed;
+  right: 20px;
+  bottom: 24px;
+  z-index: 60;
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  border: 1px solid rgba(94, 234, 212, 0.35);
+  background: rgba(12, 22, 32, 0.92);
+  color: #5eead4;
+  font-size: 18px;
+  font-weight: 700;
+  cursor: pointer;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(8px);
+  transition:
+    opacity 0.2s ease,
+    visibility 0.2s ease,
+    transform 0.2s ease,
+    background 0.15s ease;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+.dashBackToTop.is-visible {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+.dashBackToTop:hover {
+  background: rgba(94, 234, 212, 0.14);
+}
+
+.dashBackToTop:focus-visible {
+  outline: 2px solid rgba(94, 234, 212, 0.55);
+  outline-offset: 2px;
+}
+
+/* --- Import dashboard sections --- */
+.importPage .importSection {
+  display: grid;
+  gap: 12px;
+}
+
+.importPage .importSectionHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.importPage .importSectionTitle {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 780;
+  color: #f1f5f9;
+}
+
+.importPage .importSectionLead {
+  margin: 4px 0 0;
+  font-size: 12px;
+  line-height: 1.45;
+  max-width: 52ch;
+}
+
+.importPage .importStatGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.importPage .importStatCard {
+  padding: 12px 14px;
+  border-radius: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.importPage .importStatCard .label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #94a8c0;
+}
+
+.importPage .importStatCard .value {
+  margin-top: 4px;
+  font-size: 22px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: #f8fafc;
+}
+
+.importPage .importToolbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+

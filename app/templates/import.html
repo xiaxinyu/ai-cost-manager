@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="/static/css/page-common.css" />
     <link rel="stylesheet" href="/static/css/pages/import.css" />
     <link rel="stylesheet" href="/static/css/layout-pro.css" />
-    <link rel="stylesheet" href="/static/css/dashboard-shared.css" />
+    <link rel="stylesheet" href="/static/css/dashboard-shared.css?v=20260707-ui" />
   </head>
   <body>
     {% set active_page = 'import' %}
@@ -17,96 +17,101 @@
     <div class="appLayout">
       <main class="contentArea">
         <div class="container importPage dashPage">
-          <div class="pageHeader">
-            <div class="breadcrumb">Home / Data Operations / Import</div>
-            <div class="pageTitle">Billing &amp; Token Import</div>
-            <div class="pageDesc">Import billing CSVs under bills/&lt;project&gt;/ and token CSVs under bills/&lt;project&gt;/token/.</div>
-          </div>
+          <header class="pageHeader">
+            <div class="breadcrumb">Home / Import</div>
+            <h1 class="pageTitle">Import data</h1>
+            <p class="pageDesc">Billing CSVs under <code>bills/&lt;project&gt;/</code> · token CSVs under <code>bills/&lt;project&gt;/token/</code></p>
+          </header>
 
-          <div class="header">
-        <div>
-          <div class="title">Models Cost Management</div>
-          <div class="subTitle">Import missing billing and token CSV files into SQLite</div>
-        </div>
-        <div class="rowActions">
-          <a href="/" id="backToHome" class="btnSecondary">Back</a>
-        </div>
-      </div>
+          <nav class="dashSectionNav card" aria-label="Import sections">
+            <span class="dashSectionNavLabel muted">Jump to</span>
+            <a class="dashSectionNavLink" href="#import-missing">Missing files</a>
+            <a class="dashSectionNavLink" href="#import-ingested">Imported</a>
+          </nav>
 
-          <div class="card">
-        <div class="grid2">
-          <div class="stat">
-            <div class="label muted">Missing files</div>
-            <div class="value" id="missingCount">-</div>
-          </div>
-          <div class="stat" style="justify-content:space-between;">
-            <div class="muted" id="importStatus">-</div>
-            <div style="display:flex; justify-content:flex-end; gap:10px; flex-wrap:wrap;">
-              <button id="refreshBtn" class="btnSecondary" type="button">Refresh</button>
-              <button id="importBtn" class="btnPrimary" type="button">Import Selected</button>
+          <section id="import-missing" class="card importSection dashScrollSection" aria-label="Missing files">
+            <div class="importSectionHead">
+              <div>
+                <h2 class="importSectionTitle">Missing files</h2>
+                <p class="importSectionLead muted">Select files on disk that are not yet in the database, then import.</p>
+              </div>
+              <div class="importToolbar">
+                <button id="refreshBtn" class="btnSecondary" type="button">Refresh</button>
+                <button id="importBtn" class="btnPrimary" type="button">Import selected</button>
+              </div>
             </div>
-          </div>
-        </div>
+            <div class="importStatGrid">
+              <article class="importStatCard">
+                <div class="label">Missing</div>
+                <div class="value" id="missingCount">-</div>
+              </article>
+              <article class="importStatCard">
+                <div class="label">Status</div>
+                <div class="value" id="importStatus" style="font-size:13px;font-weight:650;">-</div>
+              </article>
+            </div>
+            <div class="tableScroll dashTableShell" data-table-host id="missingTableHost">
+              <table class="dashTable" id="missingFilesTable">
+                <thead>
+                  <tr>
+                    <th style="width:56px; text-align:center;" scope="col"><span class="thLabel">Pick</span></th>
+                    <th style="width:90px;" data-sortable data-sort-type="text" scope="col"><span class="thLabel">Type</span></th>
+                    <th style="width:180px;" data-sortable data-sort-type="text" scope="col"><span class="thLabel">Project</span></th>
+                    <th data-sortable data-sort-type="text" scope="col"><span class="thLabel">File</span></th>
+                    <th style="width:200px;" data-sortable data-sort-type="date" scope="col"><span class="thLabel">Last Modified</span></th>
+                  </tr>
+                </thead>
+                <tbody id="missingFilesTbody"></tbody>
+              </table>
+            </div>
+          </section>
 
-        <div class="tableScroll dashTableShell" data-table-host id="missingTableHost">
-          <table class="dashTable" id="missingFilesTable">
-            <thead>
-              <tr>
-                <th style="width:56px; text-align:center;" scope="col"><span class="thLabel">Pick</span></th>
-                <th style="width:90px;" data-sortable data-sort-type="text" scope="col"><span class="thLabel">Type</span></th>
-                <th style="width:180px;" data-sortable data-sort-type="text" scope="col"><span class="thLabel">Project</span></th>
-                <th data-sortable data-sort-type="text" scope="col"><span class="thLabel">File</span></th>
-                <th style="width:200px;" data-sortable data-sort-type="date" scope="col"><span class="thLabel">Last Modified</span></th>
-              </tr>
-            </thead>
-            <tbody id="missingFilesTbody"></tbody>
-          </table>
-        </div>
-      </div>
-
-          <div class="card">
-        <div class="muted">Imported files</div>
-        <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; margin-top:10px;">
-          <div>
-            <div class="muted">Total ingested</div>
-            <div style="font-size:20px; font-weight:750;" id="ingestedCount">-</div>
-            <div class="muted" id="ingestedBreakdown" style="margin-top:4px; font-size:12px;">-</div>
-            <div class="muted" id="ingestedShownNote" style="margin-top:2px; font-size:12px;">-</div>
-          </div>
-          <div style="margin-left:auto;">
-            <button id="verifyImportedBtn" class="btnSecondary" type="button" disabled>Verify Imported</button>
-          </div>
-        </div>
-        <div id="verifyImportedStatus" class="muted" style="display:none; margin-top:10px;"></div>
-
-        <div class="ingestedToolbar">
-          <div class="fieldInline">
-            <label class="muted" for="ingestedPageSize">Page size</label>
-            <select id="ingestedPageSize">
-              <option value="25" selected>25</option>
-              <option value="50">50</option>
-              <option value="100">100</option>
-            </select>
-          </div>
-          <div id="ingestedPagination" class="ingestedPagination" aria-label="Imported files pagination"></div>
-        </div>
-
-        <div class="tableScroll dashTableShell" data-table-host id="ingestedTableHost">
-          <table class="dashTable" id="ingestedFilesTable">
-            <thead>
-              <tr>
-                <th style="width:56px; text-align:center;" scope="col"><span class="thLabel">Verify</span></th>
-                <th style="width:90px;" scope="col"><span class="thLabel">Type</span></th>
-                <th style="width:180px;" scope="col"><span class="thLabel">Project</span></th>
-                <th scope="col"><span class="thLabel">File</span></th>
-                <th class="num" style="width:120px;" scope="col"><span class="thLabel">Rows</span><span class="thUnit">count</span></th>
-                <th class="is-sorted" aria-sort="descending" style="width:200px;" scope="col"><span class="thLabel">Ingested</span><span class="thUnit">local time</span></th>
-              </tr>
-            </thead>
-            <tbody id="ingestedFilesTbody"></tbody>
-          </table>
-        </div>
-          </div>
+          <section id="import-ingested" class="card importSection dashScrollSection" aria-label="Imported files">
+            <div class="importSectionHead">
+              <div>
+                <h2 class="importSectionTitle">Imported files</h2>
+                <p class="importSectionLead muted">Already in SQLite — verify checksums against disk when needed.</p>
+              </div>
+              <div class="importToolbar">
+                <button id="verifyImportedBtn" class="btnSecondary" type="button" disabled>Verify imported</button>
+              </div>
+            </div>
+            <div class="importStatGrid">
+              <article class="importStatCard">
+                <div class="label">Total ingested</div>
+                <div class="value" id="ingestedCount">-</div>
+                <div class="muted" id="ingestedBreakdown" style="margin-top:4px; font-size:12px;">-</div>
+                <div class="muted" id="ingestedShownNote" style="margin-top:2px; font-size:12px;">-</div>
+              </article>
+            </div>
+            <div id="verifyImportedStatus" class="muted" style="display:none; margin-bottom:10px;"></div>
+            <div class="ingestedToolbar">
+              <div class="fieldInline">
+                <label class="muted" for="ingestedPageSize">Page size</label>
+                <select id="ingestedPageSize">
+                  <option value="25" selected>25</option>
+                  <option value="50">50</option>
+                  <option value="100">100</option>
+                </select>
+              </div>
+              <div id="ingestedPagination" class="ingestedPagination" aria-label="Imported files pagination"></div>
+            </div>
+            <div class="tableScroll dashTableShell" data-table-host id="ingestedTableHost">
+              <table class="dashTable" id="ingestedFilesTable">
+                <thead>
+                  <tr>
+                    <th style="width:56px; text-align:center;" scope="col"><span class="thLabel">Verify</span></th>
+                    <th style="width:90px;" scope="col"><span class="thLabel">Type</span></th>
+                    <th style="width:180px;" scope="col"><span class="thLabel">Project</span></th>
+                    <th scope="col"><span class="thLabel">File</span></th>
+                    <th class="num" style="width:120px;" scope="col"><span class="thLabel">Rows</span><span class="thUnit">count</span></th>
+                    <th class="is-sorted" aria-sort="descending" style="width:200px;" scope="col"><span class="thLabel">Ingested</span><span class="thUnit">local time</span></th>
+                  </tr>
+                </thead>
+                <tbody id="ingestedFilesTbody"></tbody>
+              </table>
+            </div>
+          </section>
         </div>
       </main>
     </div>
@@ -114,6 +119,7 @@
     <script src="/static/js/app-shell.js"></script>
     <script src="/static/js/http.js"></script>
     <script src="/static/js/dashboard-ui.js"></script>
+    <script src="/static/js/dashboard-interactions.js?v=20260707-ui"></script>
     <script>
       const missingFilesTbody = document.getElementById('missingFilesTbody');
       const missingCountEl = document.getElementById('missingCount');
@@ -133,15 +139,29 @@
 
       function fmtKind(f) {
         const kind = (f.file_kind || 'billing').toLowerCase();
+        let cls = 'typeBadge--billing';
+        let label = 'Billing';
         if (kind === 'token') {
-          const dir = f.token_direction ? ` (${f.token_direction})` : '';
-          return `Token${dir}`;
+          cls = 'typeBadge--token';
+          const dir = f.token_direction ? ` ${f.token_direction}` : '';
+          label = `Token${dir}`;
+        } else if (kind === 'token_metric') {
+          cls = 'typeBadge--metric';
+          const metric = f.metric_name ? ` ${String(f.metric_name).replace(/_/g, '-')}` : '';
+          label = `Metric${metric}`;
         }
-        if (kind === 'token_metric') {
-          const metric = f.metric_name ? ` (${String(f.metric_name).replace(/_/g, '-')})` : '';
-          return `Metric${metric}`;
-        }
-        return 'Billing';
+        return `<span class="typeBadge ${cls}">${label}</span>`;
+      }
+
+      function bindImportRowToggle(tr, inputSelector) {
+        tr.className = 'dashRowSelectable';
+        tr.addEventListener('click', (e) => {
+          if (e.target.closest('input, a, button')) return;
+          const box = tr.querySelector(inputSelector);
+          if (!box) return;
+          box.checked = !box.checked;
+          box.dispatchEvent(new Event('change', { bubbles: true }));
+        });
       }
 
       function fmtTs(ts) {
@@ -289,6 +309,8 @@
             <td class="cellFile" title="${String(f.file_path_rel || '').replace(/"/g, '&quot;')}">${f.file_path_rel}</td>
             <td>${fmtTs(f.source_last_modified)}</td>
           `;
+          bindImportRowToggle(tr, 'input.filePick');
+          if (selectedFiles.has(f.file_path_rel)) tr.classList.add('is-rowSelected');
           missingFilesTbody.appendChild(tr);
         }
 
@@ -296,6 +318,7 @@
         importBtn.disabled = empty || selectedFiles.size === 0;
         importStatus.textContent = empty ? 'Up to date' : 'Ready';
         window.AppDashboardUi?.applyTruncationTitles?.(missingFilesTbody);
+        window.AppDashboardInteractions?.refreshDashPage?.();
         } catch (e) {
           console.error(e);
           importStatus.textContent = 'Failed to load missing files';
@@ -435,6 +458,7 @@
               <td class="num">${f.row_count}</td>
               <td title="${String(ingestedLabel).replace(/"/g, '&quot;')}">${ingestedLabel}</td>
             `;
+            bindImportRowToggle(tr, 'input.verifyFilePick');
             if (ingestedEpoch !== '') {
               tr.querySelector('td:last-child').dataset.sortValue = String(ingestedEpoch);
             }
@@ -443,6 +467,7 @@
           bindVerifyPickEvents();
           window.AppDashboardUi?.applyTruncationTitles?.(ingestedFilesTbody);
           renderIngestedPagination();
+          window.AppDashboardInteractions?.refreshDashPage?.();
         } catch (e) {
           console.error(e);
         } finally {
@@ -463,6 +488,8 @@
             if (e.target.checked) selectedFiles.add(val);
             else selectedFiles.delete(val);
             importBtn.disabled = selectedFiles.size === 0;
+            const tr = e.target.closest('tr');
+            if (tr) tr.classList.toggle('is-rowSelected', e.target.checked);
           });
         }
       }
@@ -475,6 +502,8 @@
             if (e.target.checked) selectedVerifyFiles.add(val);
             else selectedVerifyFiles.delete(val);
             if (verifyImportedBtn) verifyImportedBtn.disabled = selectedVerifyFiles.size === 0;
+            const tr = e.target.closest('tr');
+            if (tr) tr.classList.toggle('is-rowSelected', e.target.checked);
           });
         }
       }

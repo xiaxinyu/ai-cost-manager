@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="/static/css/page-common.css" />
     <link rel="stylesheet" href="/static/css/pages/reports.css?v=20260606-drp" />
     <link rel="stylesheet" href="/static/css/layout-pro.css" />
-    <link rel="stylesheet" href="/static/css/dashboard-shared.css?v=20260707-unified" />
+    <link rel="stylesheet" href="/static/css/dashboard-shared.css?v=20260707-ui" />
     <link rel="stylesheet" href="/static/css/date-range-picker.css?v=20260606-drp" />
     <link rel="stylesheet" href="/static/css/insight-panel.css?v=20260605-insights" />
   </head>
@@ -21,8 +21,8 @@
         <div class="container reportPage dashPage">
           <header class="pageHeader reportPageHeader">
             <div class="breadcrumb">Home / Reports</div>
-            <h1 class="pageTitle">Financial Report Center</h1>
-            <p class="pageDesc">Executive summary, spend trends, model and project breakdown, and token usage for the selected scope.</p>
+            <h1 class="pageTitle">Reports</h1>
+            <p class="pageDesc">Spend, models, projects, and tokens for your selected scope — charts first, detail on demand.</p>
           </header>
 
           <section class="card reportFilters filterCard" aria-label="Filters">
@@ -79,44 +79,44 @@
             <a class="dashSectionNavLink" href="#report-by-model">By model</a>
             <a class="dashSectionNavLink" href="#report-by-project">By project</a>
             <a class="dashSectionNavLink" href="#report-tokens">Tokens</a>
-            <a class="dashSectionNavLink" href="#report-raw-data">Raw tables</a>
+            <a class="dashSectionNavLink" href="#report-raw-data">Detail tables</a>
           </nav>
 
           <section id="report-glance" class="card reportAtAGlance" aria-label="At a glance">
             <div class="reportSectionHead">
               <span class="reportStep">1</span>
               <div>
-                <h2 class="reportSectionTitle">At a glance</h2>
-                <p class="reportSectionLead muted" id="reportInsightLine">Executive insights for the selected scope — Actual vs Market, concentration, and data quality.</p>
+                <h2 class="reportSectionTitle">Summary</h2>
+                <p class="reportSectionLead muted" id="reportInsightLine">Key totals for the selected scope.</p>
               </div>
             </div>
             <div class="heroMetricGrid">
-              <article class="heroMetric heroMetricPrimary">
+              <article class="heroMetric heroMetricPrimary dashJumpTarget" data-dash-jump="#report-spend-trends" title="Jump to spend trends">
                 <span class="heroMetricLabel">Total spend</span>
                 <span class="heroMetricValue" id="hero_total_spend">—</span>
                 <span class="heroMetricSub" id="hero_total_sub">—</span>
               </article>
-              <article class="heroMetric">
+              <article class="heroMetric dashJumpTarget" data-dash-jump="#report-spend-trends" title="Jump to spend trends">
                 <span class="heroMetricLabel">Avg / day</span>
                 <span class="heroMetricValue" id="hero_avg_day">—</span>
                 <span class="heroMetricSub" id="hero_avg_day_sub">—</span>
               </article>
-              <article class="heroMetric">
+              <article class="heroMetric dashJumpTarget" data-dash-jump="#report-tokens" title="Jump to token usage">
                 <span class="heroMetricLabel">Input tokens</span>
                 <span class="heroMetricValue" id="hero_input_tokens">—</span>
                 <span class="heroMetricSub" id="hero_input_sub">—</span>
               </article>
-              <article class="heroMetric">
+              <article class="heroMetric dashJumpTarget" data-dash-jump="#report-tokens" title="Jump to token usage">
                 <span class="heroMetricLabel">Output tokens</span>
                 <span class="heroMetricValue" id="hero_output_tokens">—</span>
                 <span class="heroMetricSub" id="hero_output_sub">—</span>
               </article>
-              <article class="heroMetric" id="heroMeterCard" hidden>
+              <article class="heroMetric" id="heroMeterCard" hidden data-dash-jump="#report-by-model">
                 <span class="heroMetricLabel"><span class="costPill costPill--actual">Actual</span> Meter</span>
                 <span class="heroMetricValue" id="hero_meter_cost">—</span>
                 <span class="heroMetricSub" id="hero_meter_sub">inp + out (meter matched)</span>
               </article>
-              <article class="heroMetric" id="heroCatalogCard" hidden>
+              <article class="heroMetric" id="heroCatalogCard" hidden data-dash-jump="#report-by-model">
                 <span class="heroMetricLabel"><span class="costPill costPill--actual">Actual</span> − <span class="costPill costPill--market">Market</span></span>
                 <span class="heroMetricValue" id="hero_catalog_delta">—</span>
                 <span class="heroMetricSub" id="hero_catalog_sub">Actual vs Market</span>
@@ -125,7 +125,7 @@
             <div id="reportQualityStrip" class="qualityStrip" hidden aria-label="Data coverage"></div>
             <div id="reportInsightPanel" class="insightPanel" hidden aria-label="Executive insights"></div>
             <details class="reportKpiDetails">
-              <summary>More statistics (daily / monthly / variance)</summary>
+              <summary>More stats (daily / monthly)</summary>
               <div class="gridStats reportKpis reportKpisCompact">
                 <article class="card kpiCard">
                   <h3 class="kpiTitle">Cost · Daily</h3>
@@ -168,12 +168,14 @@
                 <div class="costTypeLegend" aria-label="Cost type"><span class="costPill costPill--actual">Actual</span></div>
                 <p class="chartCardHint muted">Meter billing per day.</p>
                 <div class="chartCanvasHost chartPlot"><canvas id="dailyChart"></canvas></div>
+                <footer class="chartCardFoot muted" id="dailyChartFoot">—</footer>
               </article>
               <article class="card chartCard">
                 <h3 class="chartCardTitle">Monthly cost</h3>
                 <div class="costTypeLegend" aria-label="Cost type"><span class="costPill costPill--actual">Actual</span></div>
                 <p class="chartCardHint muted">Calendar month billing totals.</p>
                 <div class="chartCanvasHost chartPlot"><canvas id="monthlyChart"></canvas></div>
+                <footer class="chartCardFoot muted" id="monthlyChartFoot">—</footer>
               </article>
             </div>
           </section>
@@ -331,15 +333,15 @@
             </article>
           </section>
 
-          <details id="report-raw-data" class="reportSection reportDetailsSection" open>
+          <details id="report-raw-data" class="reportSection reportDetailsSection">
             <summary class="reportDetailsSummary">
               <span class="reportStep">6</span>
               <span class="reportDetailsSummaryText">
-                <strong>Raw billing tables</strong>
-                <span class="muted"> — day/month rows with share % and change vs prior period</span>
+                <strong>Detail tables</strong>
+                <span class="muted"> — daily & monthly rows with share % and change</span>
               </span>
             </summary>
-            <p class="reportSectionLead muted tableAnalysisNote" id="tableAnalysisNote">Sorted newest first. Δ day = vs previous calendar day; share = % of total in range.</p>
+            <p class="reportSectionLead muted tableAnalysisNote" id="tableAnalysisNote">Newest first. Share = % of total in range.</p>
             <div class="chartGrid chartGrid2 reportRawTablesGrid">
               <article class="card reportTableCard reportRawTableCard">
                 <div class="rowsToolbar reportRawToolbar">
@@ -422,6 +424,7 @@
     <script src="/static/js/cost-semantics.js?v=20260605-cost"></script>
     <script src="/static/js/dashboard-ui.js?v=20260605-datesort"></script>
     <script src="/static/js/date-range-picker.js?v=20260606-drp"></script>
+    <script src="/static/js/dashboard-interactions.js?v=20260707-ui"></script>
     <script src="/static/js/insight-panel.js?v=20260605-insights"></script>
     <script>
       window.AppChartStyle?.applyDefaults?.();
@@ -443,6 +446,8 @@
       let monthlyPageSize = 25;
 
       let projectBreakdownRows = [];
+      let clearProjectRowSelect = null;
+      let selectedDailyChartIndex = null;
       let pbSortKey = 'actual_cost_usd_total';
       let pbSortDir = -1;
       let reportLoading = false;
@@ -920,7 +925,7 @@
 
         window.AppInsightPanel?.render?.('reportInsightPanel', report?.insights || [], {
           title: 'Insights',
-          limit: 7,
+          limit: 3,
         });
       }
 
@@ -970,20 +975,11 @@
           return span;
         };
         const pills = [
-          mk(`<strong>${projects}</strong> projects with data`),
-          mk(`<strong>${q.projects_in_scope ?? projects}</strong> in scope`),
-          mk(`<strong>${d.count_days ?? 0}</strong> billing days`),
           mk(`<strong>${fmtCost(total)}</strong> total`),
+          mk(`<strong>${projects}</strong> projects`),
           Object.assign(document.createElement('span'), { className: 'statusPill', textContent: range }),
           Object.assign(document.createElement('span'), { className: 'statusPill', textContent: cur }),
         ];
-        const cm = report?.catalog_market;
-        if (cm?.available && cm.summary?.model_count) {
-          pills.push(mk(`<strong>${cm.summary.model_count}</strong> models (meter)`));
-          if (cm.summary.total_meter_cost_usd != null) {
-            pills.push(mk(`<strong>${fmtCost(cm.summary.total_meter_cost_usd)}</strong> meter cost`));
-          }
-        }
         bar.replaceChildren(...pills);
         bar.hidden = false;
       }
@@ -1035,6 +1031,7 @@
         renderCharts(report);
         renderTables(report);
         updateReportStatusBar(report);
+        window.AppDashboardInteractions?.refreshDashPage?.();
       }
 
       async function loadReportWithUi() {
@@ -1168,8 +1165,13 @@
           const share = totalCost > 0 ? (cost / totalCost) * 100 : null;
           const tokenOnly = cost <= 0 && (Number(inTok || 0) > 0 || Number(outTok || 0) > 0);
           if (tokenOnly) tr.classList.add('tokenOnlyRow');
+          tr.classList.add('dashRowSelectable');
+          const projectName = escapeHtml(r.project_name || '');
+          const costHref = r.project_name
+            ? `/?project=${encodeURIComponent(r.project_name)}`
+            : null;
           tr.innerHTML = `
-            <td class="tdText">${escapeHtml(r.project_name || '')}</td>
+            <td class="tdText">${projectName}${costHref ? ` <a class="drillLink" href="${costHref}" title="Open in Cost">Cost →</a>` : ''}</td>
             <td class="tdModelName" title="${escapeHtml(modelName)}">${modelHtml}${tokenOnly ? '<span class="rowBadge">token-only</span>' : ''}</td>
             <td class="num mono tdCostActual">${fmtCostCell(r.actual_cost_usd_total)}</td>
             <td class="num shareCol">${renderShareBar(share)}</td>
@@ -1185,6 +1187,22 @@
       function renderProjectBreakdown(report) {
         projectBreakdownRows = report.project_breakdown || [];
         renderProjectBreakdownTable();
+        const table = document.getElementById('projectBreakdownTable');
+        if (clearProjectRowSelect) clearProjectRowSelect();
+        clearProjectRowSelect = window.AppDashboardInteractions?.bindSelectableRows?.(table, {
+          onSelect(tr) {
+            if (!tr) {
+              window.AppDashboardInteractions?.highlightChartPoint?.(dailyChart, null);
+              selectedDailyChartIndex = null;
+              return;
+            }
+            const name = tr.querySelector('.tdText')?.textContent?.replace(/\s*Cost →.*$/, '').trim();
+            const hint = document.getElementById('projectBreakdownInsight');
+            if (hint && name) {
+              hint.textContent = `Selected: ${name} — open Cost for project detail.`;
+            }
+          },
+        });
       }
 
       function exportProjectBreakdownCsv() {
@@ -1436,9 +1454,35 @@
               }
             ]
           },
-          options: reportChartOpts(dailyLabels.length),
+          options: {
+            ...reportChartOpts(dailyLabels.length),
+            onClick: (_evt, elements) => {
+              if (!elements?.length) {
+                selectedDailyChartIndex = null;
+                window.AppDashboardInteractions?.highlightChartPoint?.(dailyChart, null);
+                return;
+              }
+              const idx = elements[0].index;
+              selectedDailyChartIndex = idx;
+              window.AppDashboardInteractions?.highlightChartPoint?.(dailyChart, idx);
+              const label = dailyLabels[idx];
+              const val = dailyActual[idx];
+              window.AppDashboardInteractions?.setChartFootnote?.(
+                document.getElementById('dailyChartFoot'),
+                label ? `Selected <strong>${label}</strong>: ${fmtCost(val)}` : '',
+                { html: true }
+              );
+            },
+          },
           plugins: reportChartPlugins(),
         });
+
+        const dailyTotal = dailyActual.reduce((s, v) => s + Number(v || 0), 0);
+        window.AppDashboardInteractions?.setChartFootnote?.(
+          document.getElementById('dailyChartFoot'),
+          `${dailyLabels.length} days · total <strong>${fmtCost(dailyTotal)}</strong> · click a point to inspect`,
+          { html: true }
+        );
 
         // Monthly
         const monthlyLabels = monthly.map(p => p.date);
@@ -1464,6 +1508,13 @@
           options: reportChartOpts(monthlyLabels.length),
           plugins: reportChartPlugins(),
         });
+
+        const monthlyTotal = monthlyActual.reduce((s, v) => s + Number(v || 0), 0);
+        window.AppDashboardInteractions?.setChartFootnote?.(
+          document.getElementById('monthlyChartFoot'),
+          `${monthlyLabels.length} months · total <strong>${fmtCost(monthlyTotal)}</strong>`,
+          { html: true }
+        );
 
         if (!showTokens) {
           return;

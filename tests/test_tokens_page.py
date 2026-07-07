@@ -89,7 +89,7 @@ def test_tokens_page_redirect_and_access(tmp_path):
 
     page = client.get("/tokens")
     assert page.status_code == 200
-    assert "Token operations" in page.text
+    assert "Tokens" in page.text
     assert "noImportHint" in page.text
     assert 'id="tokenStartDateInput"' in page.text
     assert 'id="dataStatusBar"' in page.text
@@ -135,10 +135,10 @@ def test_login_to_token_workspace_e2e_smoke(tmp_path):
 
     for path, marker in (
         ("/", "Cost"),
-        ("/tokens", "Token operations"),
-        ("/reports", "Financial Report Center"),
+        ("/tokens", "Tokens"),
+        ("/reports", "Reports"),
         ("/prices", "Model Price Viewer"),
-        ("/import", "Billing &amp; Token Import"),
+        ("/import", "Import data"),
     ):
         page = client.get(path)
         assert page.status_code == 200

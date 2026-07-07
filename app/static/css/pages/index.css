@@ -669,6 +669,13 @@
   display: flex;
   flex-direction: column;
   justify-content: center;
+  transition: border-color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
+}
+
+.monitorKpi:hover {
+  border-color: rgba(148, 163, 184, 0.28);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14);
+  transform: translateY(-1px);
 }
 
 .monitorKpi .value {
