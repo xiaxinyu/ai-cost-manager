@@ -518,9 +518,41 @@
 
 .costDashboard .costToolbarGrid {
   display: grid;
-  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1.4fr) auto;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.95fr) minmax(0, 1.4fr) auto;
   gap: var(--cost-gutter);
   align-items: end;
+}
+
+.costDashboard .costToolbarGrid--noSubproject {
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1.4fr) auto;
+}
+
+.costDashboard .subprojectField select {
+  width: 100%;
+}
+
+.costSubprojectStrip {
+  margin-top: 4px;
+}
+
+.costSubprojectStripLead {
+  margin: 0 0 10px;
+  font-size: 11.5px;
+}
+
+.costSubprojectCards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: var(--cost-gutter);
+}
+
+.costSubprojectCard {
+  padding: 12px 14px;
+}
+
+.costSubprojectCardLabel {
+  font-size: 11px;
+  word-break: break-all;
 }
 
 .costDashboard .toolbarActions {
@@ -1659,8 +1691,21 @@
 }
 
 @media (max-width: 900px) {
-  .costDashboard .costToolbarGrid {
+  .costDashboard .costToolbarGrid,
+  .costDashboard .costToolbarGrid--noSubproject {
     grid-template-columns: 1fr 1fr;
+  }
+
+  .costDashboard .filterFieldProject {
+    grid-column: 1 / -1;
+  }
+
+  .costDashboard .subprojectField {
+    grid-column: 1 / -1;
+  }
+
+  .costDashboard .filterFieldDateRange {
+    grid-column: 1 / -1;
   }
 
   .costDashboard .toolbarActions {

@@ -41,11 +41,17 @@
               <h2 class="filterCardTitle">Scope</h2>
               <p class="filterCardHint muted">Project and date range · Enter or Apply to load</p>
             </div>
-            <div class="filterBar controls costToolbarGrid" role="group" aria-label="Scope filters">
+            <div class="filterBar controls costToolbarGrid costToolbarGrid--noSubproject" id="costToolbarGrid" role="group" aria-label="Scope filters">
               <div class="field filterField filterFieldProject">
                 <label class="filterLabel" for="projectSelect">Project</label>
                 <p id="projectModelHint" class="projectModelHint muted" aria-live="polite"></p>
                 <select id="projectSelect" title="Folder under bills/ — suffix shows primary deployment model"></select>
+              </div>
+              <div class="field filterField subprojectField" id="subprojectField" hidden>
+                <label class="filterLabel" for="subprojectSelect">Subproject</label>
+                <select id="subprojectSelect" title="Azure resource account or token subfolder">
+                  <option value="">All subprojects</option>
+                </select>
               </div>
               <div class="field filterField filterFieldDateRange">
                 <label class="filterLabel" for="startDateInput">Date range</label>
@@ -72,7 +78,7 @@
               <span class="costStep" aria-hidden="true">1</span>
               <div class="costSectionHeadMain">
                 <h2 class="costSectionTitle">Overview</h2>
-                <p class="costSectionLead muted">Totals, daily trends, and model cost charts for the selected scope.</p>
+                <p class="costSectionLead muted" id="costOverviewLead">Totals, daily trends, and model cost charts for the selected scope.</p>
               </div>
               <span class="costSectionMeta muted" id="currencyLabel"></span>
             </div>
@@ -106,6 +112,11 @@
                   <div class="sub tokenStats kpiFootnote" id="daysCount">Days: -</div>
                 </div>
               </article>
+            </div>
+
+            <div id="subprojectCostStrip" class="costSubprojectStrip" hidden aria-label="Cost by subproject">
+              <p class="costSubprojectStripLead muted">Cost by subproject (Azure resource)</p>
+              <div id="subprojectCostCards" class="costSubprojectCards"></div>
             </div>
 
             <div id="costInsightPanel" class="insightPanel" hidden aria-label="Cost insights"></div>
@@ -421,6 +432,12 @@
       const CHART_PLUGINS = window.AppChartPlugins;
 
       const projectSelect = document.getElementById('projectSelect');
+      const subprojectSelect = document.getElementById('subprojectSelect');
+      const subprojectField = document.getElementById('subprojectField');
+      const costToolbarGrid = document.getElementById('costToolbarGrid');
+      const costOverviewLeadEl = document.getElementById('costOverviewLead');
+      const subprojectCostStripEl = document.getElementById('subprojectCostStrip');
+      const subprojectCostCardsEl = document.getElementById('subprojectCostCards');
       const actualCostEl = document.getElementById('actualCost');
       const costStatsEl = document.getElementById('costStats');
       const dateRangeEl = document.getElementById('dateRange');
@@ -1376,6 +1393,7 @@
         if (currentStartDate) params.set('start_date', currentStartDate);
         if (currentEndDate) params.set('end_date', currentEndDate);
         if (currentCurrency) params.set('currency', currentCurrency);
+        appendSubprojectParam(params);
         try {
           const payload = await window.AppHttp.getJson(
             `/api/projects/${encodeURIComponent(currentProjectName)}/rows?${params.toString()}`
@@ -1649,6 +1667,102 @@
         hintEl.textContent = [primary, tokens].filter(Boolean).join(' · ');
       }
 
+      function selectedSubproject() {
+        if (!subprojectSelect || subprojectField?.hidden) return '';
+        return String(subprojectSelect.value || '').trim();
+      }
+
+      function updateCostToolbarGridLayout() {
+        if (!costToolbarGrid) return;
+        const hasSubprojects = subprojectField && !subprojectField.hidden;
+        costToolbarGrid.classList.toggle('costToolbarGrid--noSubproject', !hasSubprojects);
+      }
+
+      function syncSubprojectOptions(projectName) {
+        if (!subprojectSelect || !subprojectField) return;
+        const detail = projectDetailsByName[projectName];
+        const subprojects = Array.isArray(detail?.subprojects) ? detail.subprojects : [];
+        const previous = selectedSubproject();
+        subprojectSelect.innerHTML = '';
+        const allOpt = document.createElement('option');
+        allOpt.value = '';
+        allOpt.textContent = 'All subprojects';
+        subprojectSelect.appendChild(allOpt);
+        for (const sp of subprojects) {
+          const opt = document.createElement('option');
+          opt.value = sp;
+          opt.textContent = sp;
+          subprojectSelect.appendChild(opt);
+        }
+        subprojectField.hidden = subprojects.length === 0;
+        updateCostToolbarGridLayout();
+        if (previous && subprojects.includes(previous)) {
+          subprojectSelect.value = previous;
+        }
+      }
+
+      function appendSubprojectParam(params) {
+        const subproject = selectedSubproject();
+        if (subproject) params.set('subproject', subproject);
+        return subproject;
+      }
+
+      function updateCostScopeLead(projectName, subproject) {
+        if (!costOverviewLeadEl) return;
+        const rangeText =
+          currentStartDate || currentEndDate
+            ? ` · ${currentStartDate || '…'} – ${currentEndDate || '…'}`
+            : '';
+        if (subproject) {
+          costOverviewLeadEl.textContent =
+            `Billing and charts for subproject “${subproject}” in ${projectName}${rangeText}.`;
+        } else if (subprojectField && !subprojectField.hidden) {
+          costOverviewLeadEl.textContent =
+            `Project totals across all subprojects${rangeText}. Use the filter to drill into one Azure resource.`;
+        } else {
+          costOverviewLeadEl.textContent =
+            'Totals, daily trends, and model cost charts for the selected scope.';
+        }
+      }
+
+      function renderSubprojectCostStrip(payload, subproject) {
+        if (!subprojectCostStripEl || !subprojectCostCardsEl) return;
+        if (subproject) {
+          subprojectCostStripEl.hidden = true;
+          subprojectCostCardsEl.replaceChildren();
+          return;
+        }
+        const rows = Array.isArray(payload?.rows) ? payload.rows : [];
+        const byResource = new Map();
+        for (const row of rows) {
+          const name = String(row.resource_name || '').trim();
+          if (!name) continue;
+          byResource.set(name, (byResource.get(name) || 0) + Number(row.cost_usd || 0));
+        }
+        if (byResource.size <= 1) {
+          subprojectCostStripEl.hidden = true;
+          subprojectCostCardsEl.replaceChildren();
+          return;
+        }
+        const total = Array.from(byResource.values()).reduce((sum, v) => sum + v, 0);
+        const sorted = Array.from(byResource.entries()).sort((a, b) => b[1] - a[1]);
+        const frag = document.createDocumentFragment();
+        for (const [name, cost] of sorted) {
+          const card = document.createElement('article');
+          card.className = 'card costSubprojectCard';
+          const share = total > 0 ? Math.round((cost / total) * 1000) / 10 : null;
+          card.innerHTML = `
+            <div class="stat">
+              <div class="label costSubprojectCardLabel">${name}</div>
+              <div class="value value--md">${fmt2(cost)}</div>
+              <div class="sub tokenStats kpiFootnote">${share != null ? `${share}% of scope` : '—'}</div>
+            </div>`;
+          frag.appendChild(card);
+        }
+        subprojectCostCardsEl.replaceChildren(frag);
+        subprojectCostStripEl.hidden = false;
+      }
+
       async function loadProjects(preferredProject) {
         const data = await window.AppHttp.getJson('/api/projects');
         projectDetailsByName = {};
@@ -1671,6 +1785,7 @@
             (preferredProject && data.projects.includes(preferredProject)) ? preferredProject : data.projects[0];
           projectSelect.value = chosen;
           updateProjectModelHint(chosen);
+          syncSubprojectOptions(chosen);
           await loadProjectSafe(chosen);
         }
       }
@@ -1678,6 +1793,17 @@
       function clearDateFilters() {
         if (startDateInput) startDateInput.value = '';
         if (endDateInput) endDateInput.value = '';
+      }
+
+      function applyDefaultCostDateRange() {
+        if (!startDateInput || !endDateInput) return false;
+        if (startDateInput.value || endDateInput.value) return false;
+        const picker = window.AppDateRangePicker;
+        if (!picker?.computePresetRange || !picker?.toYmd) return false;
+        const { start, end } = picker.computePresetRange('last_30');
+        startDateInput.value = picker.toYmd(start);
+        endDateInput.value = picker.toYmd(end);
+        return true;
       }
 
       function _resourceTypeShort(resourceType) {
@@ -1925,6 +2051,7 @@
         if (currentStartDate) params.set('start_date', currentStartDate);
         if (currentEndDate) params.set('end_date', currentEndDate);
         if (currentCurrency) params.set('currency', currentCurrency);
+        appendSubprojectParam(params);
 
         const fetchKey = `${projectName}|${params.toString()}`;
         billingRawFetchKey = fetchKey;
@@ -1960,6 +2087,7 @@
           projectSelect.value = projectName;
         }
         updateProjectModelHint(projectName);
+        applyDefaultCostDateRange();
         const startDate = startDateInput.value || null;
         const endDate = endDateInput.value || null;
         if (startDate && endDate && startDate > endDate) {
@@ -1972,6 +2100,7 @@
         const statsParams = new URLSearchParams();
         if (startDate) statsParams.set('from_date', startDate);
         if (endDate) statsParams.set('to_date', endDate);
+        const subproject = appendSubprojectParam(statsParams);
 
         const stats = await window.AppHttp.getJson(
           `/api/projects/${encodeURIComponent(projectName)}/stats?${statsParams.toString()}`
@@ -1982,8 +2111,10 @@
           && stats.actual_days === 0
           && (startDate || endDate)
         ) {
+          const fullStatsParams = new URLSearchParams();
+          appendSubprojectParam(fullStatsParams);
           const fullStats = await window.AppHttp.getJson(
-            `/api/projects/${encodeURIComponent(projectName)}/stats`
+            `/api/projects/${encodeURIComponent(projectName)}/stats?${fullStatsParams.toString()}`
           );
           if (fullStats.actual_days > 0 && fullStats.min_usage_date && fullStats.max_usage_date) {
             const shown = `${fullStats.min_usage_date} – ${fullStats.max_usage_date}`;
@@ -2019,11 +2150,13 @@
         if (currentStartDate) tsParams.set('start_date', currentStartDate);
         if (currentEndDate) tsParams.set('end_date', currentEndDate);
         if (currentCurrency) tsParams.set('currency', currentCurrency);
+        appendSubprojectParam(tsParams);
 
         const billingResourceParams = new URLSearchParams();
         if (currentStartDate) billingResourceParams.set('start_date', currentStartDate);
         if (currentEndDate) billingResourceParams.set('end_date', currentEndDate);
         if (currentCurrency) billingResourceParams.set('currency', currentCurrency);
+        appendSubprojectParam(billingResourceParams);
 
         const [ts, resourceBilling] = await Promise.all([
           window.AppHttp.getJson(
@@ -2041,6 +2174,7 @@
         if (currentStartDate) marketParams.set('start_date', currentStartDate);
         if (currentEndDate) marketParams.set('end_date', currentEndDate);
         if (currentCurrency) marketParams.set('currency', currentCurrency);
+        appendSubprojectParam(marketParams);
         let catalogPayload = { available: false };
         try {
           catalogPayload = await window.AppHttp.getJson(
@@ -2052,6 +2186,8 @@
 
         const costPts = ts.points || [];
         renderResourceBillingSection(resourceBilling);
+        renderSubprojectCostStrip(resourceBilling, subproject);
+        updateCostScopeLead(projectName, subproject);
         await loadBillingRawPage(projectName, { resetPage: true });
         renderCatalogMarketUi(catalogPayload, costPts);
 
@@ -2084,7 +2220,11 @@
 
       projectSelect.addEventListener('change', (e) => {
         clearDateFilters();
+        syncSubprojectOptions(e.target.value);
         loadProjectSafe(e.target.value);
+      });
+      subprojectSelect?.addEventListener('change', () => {
+        loadProjectSafe(projectSelect.value);
       });
       applyFiltersBtn.addEventListener('click', () => {
         loadProjectSafe(projectSelect.value);

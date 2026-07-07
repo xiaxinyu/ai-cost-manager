@@ -442,6 +442,10 @@ def create_app(
         start_date: Optional[str] = Query(default=None, description="YYYY-MM-DD"),
         end_date: Optional[str] = Query(default=None, description="YYYY-MM-DD"),
         currency: Optional[str] = Query(default=None, description="Currency code"),
+        subproject: Optional[str] = Query(
+            default=None,
+            description="Optional subproject (Azure resource account name)",
+        ),
         _: str = Depends(_auth_dep),
     ) -> JSONResponse:
         start_date, end_date = _normalize_date_range(
@@ -450,6 +454,7 @@ def create_app(
             start_name="start_date",
             end_name="end_date",
         )
+        subproject_name = subproject.strip() if subproject else None
         conn = get_connection(db_path)
         try:
             payload = get_project_billing_by_resource(
@@ -458,6 +463,7 @@ def create_app(
                 start_date=start_date,
                 end_date=end_date,
                 currency=currency,
+                subproject_name=subproject_name,
             )
             return JSONResponse(payload)
         finally:
@@ -496,6 +502,10 @@ def create_app(
         start_date: Optional[str] = Query(default=None, description="YYYY-MM-DD"),
         end_date: Optional[str] = Query(default=None, description="YYYY-MM-DD"),
         currency: Optional[str] = Query(default=None, description="Currency code"),
+        subproject: Optional[str] = Query(
+            default=None,
+            description="Optional subproject (Azure resource account name)",
+        ),
         _: str = Depends(_auth_dep),
     ) -> JSONResponse:
         start_date, end_date = _normalize_date_range(
@@ -504,6 +514,7 @@ def create_app(
             start_name="start_date",
             end_name="end_date",
         )
+        subproject_name = subproject.strip() if subproject else None
         conn = get_connection(db_path)
         try:
             payload = get_catalog_market_cost_timeseries(
@@ -512,6 +523,7 @@ def create_app(
                 start_date=start_date,
                 end_date=end_date,
                 currency=currency,
+                subproject_name=subproject_name,
             )
             points, _ = get_timeseries(
                 conn,
@@ -520,6 +532,7 @@ def create_app(
                 end_date=end_date,
                 granularity="day",
                 currency=currency or payload.get("currency"),
+                subproject_name=subproject_name,
             )
             payload["insights"] = insight_cards_to_dicts(
                 compute_cost_insights(
@@ -593,6 +606,10 @@ def create_app(
         end_date: Optional[str] = Query(default=None, description="YYYY-MM-DD"),
         granularity: str = Query(default="day", description="day|month"),
         currency: Optional[str] = Query(default=None, description="Currency code"),
+        subproject: Optional[str] = Query(
+            default=None,
+            description="Optional subproject (Azure resource account name)",
+        ),
         _: str = Depends(_auth_dep),
     ) -> JSONResponse:
         start_date, end_date = _normalize_date_range(
@@ -601,6 +618,7 @@ def create_app(
             start_name="start_date",
             end_name="end_date",
         )
+        subproject_name = subproject.strip() if subproject else None
         conn = get_connection(db_path)
         try:
             points, chosen_currency = get_timeseries(
@@ -610,6 +628,7 @@ def create_app(
                 end_date=end_date,
                 granularity=granularity,
                 currency=currency,
+                subproject_name=subproject_name,
             )
             if currency is None:
                 available = get_available_currencies(conn, project_name)
@@ -624,6 +643,7 @@ def create_app(
                     start_date=start_date,
                     end_date=end_date,
                     currency=chosen_currency,
+                    subproject_name=subproject_name,
                 )
             except Exception:
                 pass
@@ -631,6 +651,7 @@ def create_app(
             return JSONResponse(
                 {
                     "project": project_name,
+                    "subproject": subproject_name,
                     "currency": chosen_currency,
                     "available_currencies": available,
                     "granularity": granularity,
@@ -788,6 +809,10 @@ def create_app(
         page: int = Query(default=1, ge=1),
         page_size: int = Query(default=50, ge=1, le=200),
         mode: str = Query(default="simple", description="simple|full|billing"),
+        subproject: Optional[str] = Query(
+            default=None,
+            description="Optional subproject (Azure resource account name)",
+        ),
         _: str = Depends(_auth_dep),
     ) -> JSONResponse:
         start_date, end_date = _normalize_date_range(
@@ -796,6 +821,7 @@ def create_app(
             start_name="start_date",
             end_name="end_date",
         )
+        subproject_name = subproject.strip() if subproject else None
         conn = get_connection(db_path)
         try:
             result = get_rows(
@@ -807,6 +833,7 @@ def create_app(
                 page=page,
                 page_size=page_size,
                 mode=mode,
+                subproject_name=subproject_name,
             )
             return JSONResponse(result)
         finally:

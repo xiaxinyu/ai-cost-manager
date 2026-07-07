@@ -518,6 +518,24 @@ def _append_subproject_filter(
     params.append(str(subproject_name))
 
 
+def _append_billing_subproject_filter(
+    where: list[str],
+    params: list[object],
+    subproject_name: str | None,
+) -> None:
+    """Restrict billing transactions to rows whose ResourceId ends with the subproject slug."""
+    if subproject_name is None:
+        return
+    slug = str(subproject_name).strip()
+    if not slug:
+        return
+    where.append(
+        "(COALESCE(resource_id, '') LIKE ? OR LOWER(COALESCE(resource_id, '')) = LOWER(?))"
+    )
+    params.append(f"%/{slug}")
+    params.append(slug)
+
+
 def _backfill_subproject_from_source_file(
     conn: sqlite3.Connection,
     *,
@@ -861,9 +879,21 @@ def list_subprojects_for_project(
         (project_name, project_name, project_name, project_name),
     ).fetchall()
     found = {str(r["subproject_name"]) for r in rows if r["subproject_name"]}
-    if bills_dir is not None:
-        from .bills_layout import discover_subprojects_on_disk
+    from .bills_layout import discover_subprojects_on_disk, subproject_from_resource_id
 
+    billing_rows = conn.execute(
+        """
+        SELECT DISTINCT resource_id
+        FROM transactions
+        WHERE project_name = ? AND COALESCE(TRIM(resource_id), '') != ''
+        """,
+        (project_name,),
+    ).fetchall()
+    for row in billing_rows:
+        slug = subproject_from_resource_id(row["resource_id"])
+        if slug:
+            found.add(slug)
+    if bills_dir is not None:
         found.update(discover_subprojects_on_disk(bills_dir, project_name))
     return sorted(found)
 
@@ -1951,6 +1981,7 @@ def get_project_billing_by_resource(
     start_date: str | None = None,
     end_date: str | None = None,
     currency: str | None = None,
+    subproject_name: str | None = None,
 ) -> dict[str, object]:
     """Aggregate billing CSV costs per Azure resource and service."""
     currency_filter = currency
@@ -1969,6 +2000,7 @@ def get_project_billing_by_resource(
     if currency_filter:
         where.append("currency = ?")
         params.append(currency_filter)
+    _append_billing_subproject_filter(where, params, subproject_name)
     where_sql = " AND ".join(where)
 
     raw_rows = conn.execute(
@@ -1991,6 +2023,7 @@ def get_project_billing_by_resource(
         return {
             "available": False,
             "project": project_name,
+            "subproject": subproject_name,
             "currency": currency_filter,
             "from_date": start_date,
             "to_date": end_date,
@@ -2050,6 +2083,7 @@ def get_project_billing_by_resource(
     return {
         "available": True,
         "project": project_name,
+        "subproject": subproject_name,
         "currency": currency_filter,
         "from_date": start_date,
         "to_date": end_date,
@@ -2672,6 +2706,7 @@ def get_catalog_market_cost_timeseries(
     start_date: str | None = None,
     end_date: str | None = None,
     currency: str | None = None,
+    subproject_name: str | None = None,
 ) -> dict[str, object]:
     """
     Per-model and daily totals: actual billed cost vs catalog list price (tokens × USD/1M).
@@ -2703,6 +2738,7 @@ def get_catalog_market_cost_timeseries(
             start_date=start_date,
             end_date=end_date,
             currency=chosen_currency,
+            subproject_name=subproject_name,
         ):
             model = str(row["model_name"])
             in_tok = float(row["input_tokens"])
@@ -2757,6 +2793,7 @@ def get_catalog_market_cost_timeseries(
             end_date=end_date,
             granularity="day",
             currency=chosen_currency,
+            subproject_name=subproject_name,
         )
         token_data_source = source or "none"
         if not model_name or token_data_source == "none":
@@ -2839,6 +2876,7 @@ def get_catalog_market_cost_timeseries(
         end_date=end_date,
         granularity="day",
         currency=chosen_currency,
+        subproject_name=subproject_name,
     )
     for p in ts_points:
         d = str(p.get("date") or "")
@@ -3748,6 +3786,7 @@ def get_project_stats(
     if currency_filter:
         where.append("currency = ?")
         params.append(currency_filter)
+    _append_billing_subproject_filter(where, params, subproject_name)
 
     where_sql = " AND ".join(where)
     row = conn.execute(
@@ -3793,8 +3832,8 @@ def get_project_stats(
         token_min = token_row["min_usage_date"]
         token_max = token_row["max_usage_date"]
         if subproject_name is not None:
-            min_usage = token_min
-            max_usage = token_max
+            min_usage = _iso_date_min(token_min, row["min_usage_date"])
+            max_usage = _iso_date_max(token_max, row["max_usage_date"])
         else:
             min_usage = _iso_date_min(token_min, row["min_usage_date"])
             max_usage = _iso_date_max(token_max, row["max_usage_date"])
@@ -3847,6 +3886,7 @@ def get_timeseries(
     end_date: str | None = None,
     granularity: str = "day",
     currency: str | None = None,
+    subproject_name: str | None = None,
 ) -> tuple[list[dict], str | None]:
     if granularity not in {"day", "month"}:
         raise ValueError("granularity must be 'day' or 'month'")
@@ -3869,6 +3909,7 @@ def get_timeseries(
     if currency_filter:
         where.append("currency = ?")
         params.append(currency_filter)
+    _append_billing_subproject_filter(where, params, subproject_name)
 
     where_sql = " AND ".join(where)
     rows = conn.execute(
@@ -4819,6 +4860,7 @@ def get_rows(
     page: int = 1,
     page_size: int = 50,
     mode: str = "simple",
+    subproject_name: str | None = None,
 ) -> dict:
     page = max(1, page)
     page_size = max(1, min(page_size, 200))
@@ -4837,6 +4879,7 @@ def get_rows(
     if currency:
         where.append("currency = ?")
         params.append(currency)
+    _append_billing_subproject_filter(where, params, subproject_name)
 
     where_sql = " AND ".join(where)
 

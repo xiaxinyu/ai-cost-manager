@@ -57,6 +57,21 @@ def subproject_from_filename(filename: str) -> str:
     return ""
 
 
+def subproject_from_resource_id(resource_id: str | None) -> str:
+    """
+    Derive subproject slug from an Azure ResourceId path.
+
+    Example:
+      .../accounts/proj-mdm-coding-1-resource -> proj-mdm-coding-1-resource
+    """
+    if not resource_id:
+        return ""
+    rid = str(resource_id).strip().rstrip("/")
+    if not rid:
+        return ""
+    return rid.split("/")[-1] or ""
+
+
 def subproject_from_relpath(file_path_rel: str) -> str:
     """
     Resolve subproject from a bills-relative CSV path.

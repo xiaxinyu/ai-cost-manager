@@ -6,6 +6,7 @@ from app.bills_layout import (
     discover_subprojects_on_disk,
     subproject_from_filename,
     subproject_from_relpath,
+    subproject_from_resource_id,
 )
 from app.token_ingest import discover_token_csv_files, ingest_token_all
 from app.db import get_connection, get_imported_token_totals, init_db
@@ -21,6 +22,16 @@ def test_subproject_from_legacy_filename_slug():
     assert subproject_from_filename("input-tokens-coding-1-2026-7-7.csv") == "coding-1"
     assert subproject_from_filename("model-requests-coding-1-2026-7-7.csv") == "coding-1"
     assert subproject_from_filename("input-tokens-2026-7-7.csv") == ""
+
+
+def test_subproject_from_resource_id():
+    rid = (
+        "/subscriptions/x/resourcegroups/rg-a/providers/"
+        "microsoft.cognitiveservices/accounts/proj-mdm-coding-1-resource"
+    )
+    assert subproject_from_resource_id(rid) == "proj-mdm-coding-1-resource"
+    assert subproject_from_resource_id("") == ""
+    assert subproject_from_resource_id(None) == ""
 
 
 def test_is_token_usage_csv_filename_strict():
@@ -103,3 +114,74 @@ def test_project_stats_respects_subproject_filter(tmp_path):
         assert all_stats.estimated_input_tokens == 4_000_000.0
     finally:
         conn.close()
+
+
+def test_list_subprojects_includes_billing_resources(tmp_path):
+    from app.db import list_subprojects_for_project
+
+    db_path = tmp_path / "cost.sqlite3"
+    conn = get_connection(db_path)
+    init_db(conn)
+    rid = (
+        "/subscriptions/x/resourcegroups/rg-a/providers/"
+        "microsoft.cognitiveservices/accounts/proj-mdm-coding-3-resource"
+    )
+    try:
+        conn.execute("INSERT INTO projects(name) VALUES ('proj-bill')")
+        conn.execute(
+            """
+            INSERT INTO transactions(
+                project_name, usage_date, resource_id, resource_type,
+                resource_location, resource_group_name, service_name, meter,
+                cost_usd, cost, currency, raw_json, source_file, source_row_index
+            ) VALUES ('proj-bill', '2026-06-01', ?, 'microsoft.cognitiveservices/accounts',
+                'US East 2', 'rg-a', 'Foundry Models', 'm', 1.0, 1.0, 'USD', '{}', 'f.csv', 1)
+            """,
+            (rid,),
+        )
+        conn.commit()
+        subs = list_subprojects_for_project(conn, "proj-bill")
+    finally:
+        conn.close()
+
+    assert "proj-mdm-coding-3-resource" in subs
+
+
+def test_project_stats_billing_subproject_filter(tmp_path):
+    from app.db import get_project_stats
+
+    db_path = tmp_path / "cost.sqlite3"
+    conn = get_connection(db_path)
+    init_db(conn)
+    rid_a = (
+        "/subscriptions/x/resourcegroups/rg-a/providers/"
+        "microsoft.cognitiveservices/accounts/agent-a"
+    )
+    rid_b = (
+        "/subscriptions/x/resourcegroups/rg-a/providers/"
+        "microsoft.cognitiveservices/accounts/agent-b"
+    )
+    try:
+        conn.execute("INSERT INTO projects(name) VALUES ('proj-cost')")
+        conn.executemany(
+            """
+            INSERT INTO transactions(
+                project_name, usage_date, resource_id, resource_type,
+                resource_location, resource_group_name, service_name, meter,
+                cost_usd, cost, currency, raw_json, source_file, source_row_index
+            ) VALUES (?, '2026-06-01', ?, 'microsoft.cognitiveservices/accounts',
+                'US East 2', 'rg-a', 'Foundry Models', 'm', ?, ?, 'USD', '{}', 'f.csv', ?)
+            """,
+            [
+                ("proj-cost", rid_a, 30.0, 30.0, 1),
+                ("proj-cost", rid_b, 20.0, 20.0, 2),
+            ],
+        )
+        conn.commit()
+        all_stats = get_project_stats(conn, "proj-cost")
+        a_stats = get_project_stats(conn, "proj-cost", subproject_name="agent-a")
+    finally:
+        conn.close()
+
+    assert all_stats.actual_cost_usd_total == 50.0
+    assert a_stats.actual_cost_usd_total == 30.0

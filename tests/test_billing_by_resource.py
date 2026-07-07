@@ -48,3 +48,52 @@ def test_billing_by_resource_groups_resource_and_service(tmp_path):
     names = {r["resource_name"] for r in rows}
     assert names == {"my-agent", "pe-1"}
     assert sum(float(r["cost_usd"] or 0) for r in rows) == 65.0
+
+
+def test_billing_by_resource_subproject_filter(tmp_path):
+    db_path = tmp_path / "cost.sqlite3"
+    conn = get_connection(str(db_path))
+    init_db(conn)
+    rid_a = (
+        "/subscriptions/x/resourcegroups/rg-a/providers/"
+        "microsoft.cognitiveservices/accounts/proj-mdm-coding-1-resource"
+    )
+    rid_b = (
+        "/subscriptions/x/resourcegroups/rg-a/providers/"
+        "microsoft.cognitiveservices/accounts/proj-mdm-coding-2-resource"
+    )
+    try:
+        conn.execute("INSERT INTO projects(name) VALUES ('projR')")
+        conn.executemany(
+            """
+            INSERT INTO transactions(
+                project_name, usage_date, resource_id, resource_type,
+                resource_location, resource_group_name, service_name, meter,
+                cost_usd, cost, currency, raw_json, source_file, source_row_index
+            ) VALUES (?, '2026-06-01', ?, ?, 'US East 2', 'rg-a', 'Foundry Models', 'm', ?, ?, 'USD', '{}', 'f.csv', ?)
+            """,
+            [
+                ("projR", rid_a, "microsoft.cognitiveservices/accounts", 40.0, 40.0, 1),
+                ("projR", rid_b, "microsoft.cognitiveservices/accounts", 25.0, 25.0, 2),
+            ],
+        )
+        conn.commit()
+        all_payload = get_project_billing_by_resource(
+            conn, "projR", start_date="2026-06-01", end_date="2026-06-01", currency="USD"
+        )
+        sub_payload = get_project_billing_by_resource(
+            conn,
+            "projR",
+            start_date="2026-06-01",
+            end_date="2026-06-01",
+            currency="USD",
+            subproject_name="proj-mdm-coding-1-resource",
+        )
+    finally:
+        conn.close()
+
+    assert all_payload["total_cost_usd"] == round_cost(65.0)
+    assert sub_payload["total_cost_usd"] == round_cost(40.0)
+    assert sub_payload["subproject"] == "proj-mdm-coding-1-resource"
+    assert len(sub_payload["rows"]) == 1
+    assert sub_payload["rows"][0]["resource_name"] == "proj-mdm-coding-1-resource"
