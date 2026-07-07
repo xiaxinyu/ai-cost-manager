@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Model Prices</title>
+    <title>Model Prices - Models Cost Management</title>
     <link rel="stylesheet" href="/static/css/app-shell.css" />
     <link rel="stylesheet" href="/static/css/page-common.css" />
     <link rel="stylesheet" href="/static/css/pricing-surface.css" />
@@ -18,27 +18,66 @@
     <div class="appLayout">
       <main class="contentArea">
         <div class="container pricePage dashPage">
-          <div class="pageHeader">
-            <div class="breadcrumb">Home / Pricing / Model Catalog</div>
-            <div class="pageTitle">Model Price Explorer</div>
-            <div class="pageDesc">Filter and review unit prices by vendor, platform, and model series.</div>
+          <header class="pageHeader">
+            <div class="breadcrumb">Home / Pricing</div>
+            <h1 class="pageTitle">Model prices</h1>
+            <p class="pageDesc">
+              Catalog unit prices for Market on Cost and Tokens. Sync from
+              <code>prices.azure.com</code> or edit reference links on
+              <a href="/price-sources">Price sources</a>.
+            </p>
+          </header>
+
+          <div class="pricingKpiGrid" aria-label="Catalog summary">
+            <article class="card pricingKpi" data-dash-jump="#prices-catalog">
+              <div class="stat">
+                <div class="label">Catalog rows</div>
+                <div class="value" id="kpiTotalRows">—</div>
+                <div class="sub muted" id="kpiFilteredNote">All sources</div>
+              </div>
+            </article>
+            <article class="card pricingKpi" data-dash-jump="#prices-catalog">
+              <div class="stat">
+                <div class="label">Sources</div>
+                <div class="value value--md" id="kpiSourceCount">—</div>
+                <div class="sub muted" id="kpiSourceNote">In database</div>
+              </div>
+            </article>
+            <article class="card pricingKpi">
+              <div class="stat">
+                <div class="label">Last retail sync</div>
+                <div class="value value--md value--scope" id="kpiLastSync">—</div>
+                <div class="sub muted" id="kpiLastSyncNote">UTC timestamp</div>
+              </div>
+            </article>
+            <article class="card pricingKpi">
+              <div class="stat">
+                <div class="label">View</div>
+                <div class="value value--md value--scope" id="viewLabel">Detail</div>
+                <div class="sub muted" id="kpiViewNote">Table layout</div>
+              </div>
+            </article>
           </div>
 
-          <div class="header">
-            <div>
-              <div class="title">Model Price Viewer</div>
-              <div class="muted">Filter by vendor, platform, and model series.</div>
-            </div>
-            <div class="headerActions">
-              <span id="viewLabel" class="viewBadge">View: Detail</span>
-              <button id="detailLayoutBtn" class="actionBtn" type="button">Compact</button>
-              <button id="pivotBtn" class="actionBtn" type="button">Pivot View</button>
-              <button id="syncRetailBtn" class="actionBtn" type="button">Sync prices</button>
-              <button id="exportBtn" class="actionBtn primary" type="button">Export CSV</button>
-            </div>
-          </div>
+          <nav class="dashSectionNav card" aria-label="Prices sections">
+            <span class="dashSectionNavLabel muted">Jump to</span>
+            <a class="dashSectionNavLink" href="#prices-filters">Filters</a>
+            <a class="dashSectionNavLink" href="#prices-catalog">Catalog</a>
+          </nav>
 
-          <div class="card filterCard opsFilterCard" data-filter-root>
+          <section id="prices-filters" class="card filterCard dashScrollSection" aria-label="Filters" data-filter-root>
+            <div class="filterCardHead">
+              <div>
+                <h2 class="filterCardTitle">Filters</h2>
+                <p class="filterCardHint muted">Vendor, platform, series · Enter or Query to load</p>
+              </div>
+              <div class="pricingToolbarActions">
+                <button id="detailLayoutBtn" class="btnSecondary btnSmall" type="button">Compact</button>
+                <button id="pivotBtn" class="btnSecondary btnSmall" type="button">Pivot view</button>
+                <button id="syncRetailBtn" class="btnSecondary btnSmall" type="button">Sync prices</button>
+                <button id="exportBtn" class="btnPrimary btnSmall" type="button">Export CSV</button>
+              </div>
+            </div>
             <div class="toolbarRow">
               <div class="field fieldCompact">
                 <label class="muted" for="vendorSelect">Vendor</label>
@@ -49,7 +88,7 @@
                 <select id="platformSelect"></select>
               </div>
               <div class="field fieldSeries">
-                <label class="muted" for="seriesSelect">Model Series</label>
+                <label class="muted" for="seriesSelect">Model series</label>
                 <select id="seriesSelect"></select>
               </div>
               <div class="field fieldCompact">
@@ -63,36 +102,48 @@
               </div>
               <div class="field fieldQuery">
                 <span class="muted toolbarLabelSpacer" aria-hidden="true">Query</span>
-                <button id="queryBtn" class="btn toolbarQueryBtn" type="button">Query</button>
+                <button id="queryBtn" class="btn btnPrimary toolbarQueryBtn" type="button">Query</button>
               </div>
             </div>
             <div id="summary" class="toolbarSummary muted"></div>
-          </div>
+          </section>
 
-          <div class="pricingTableShell dashTableShell" id="pricingTableShell" data-table-host>
-            <table class="dataTable dashTable" id="pricesTable">
-              <thead>
-                <tr>
-                  <th class="num colRowNum" scope="col"><span class="thLabel">#</span></th>
-                  <th data-sortable data-sort-type="text" scope="col"><span class="thLabel">Item</span></th>
-                  <th data-sortable data-sort-type="text" scope="col"><span class="thLabel">Scope</span></th>
-                  <th data-sortable data-sort-type="text" scope="col"><span class="thLabel">Mode</span></th>
-                  <th data-sortable data-sort-type="text" scope="col"><span class="thLabel">Metric</span></th>
-                  <th data-sortable data-sort-type="text" scope="col"><span class="thLabel">Region</span></th>
-                  <th data-sortable data-sort-type="text" scope="col"><span class="thLabel">Currency</span></th>
-                  <th class="num" data-sortable data-sort-type="number" scope="col"><span class="thLabel">Amount</span><span class="thUnit">value</span></th>
-                  <th data-sortable data-sort-type="text" scope="col"><span class="thLabel">Unit</span></th>
-                  <th data-sortable data-sort-type="text" scope="col"><span class="thLabel">Series</span></th>
-                  <th data-sortable data-sort-type="text" scope="col"><span class="thLabel">Platform</span></th>
-                  <th data-sortable data-sort-type="text" scope="col"><span class="thLabel">Vendor</span></th>
-                  <th data-sortable data-sort-type="date" scope="col"><span class="thLabel">Effective Date</span></th>
-                  <th class="colDetail" scope="col"><span class="thLabel">Details</span></th>
-                </tr>
-              </thead>
-              <tbody id="tbody"></tbody>
-            </table>
-          </div>
-          <div id="pagination" class="pagination" aria-label="Pagination"></div>
+          <section id="prices-catalog" class="card pricingCatalogSection dashScrollSection" aria-label="Price catalog">
+            <header class="detailTableHead">
+              <div class="detailTableIdentity">
+                <h2 class="detailTableTitle">Catalog</h2>
+                <p class="detailTableDesc muted">Click a row to inspect · View opens full JSON and source links</p>
+              </div>
+              <div class="detailTableActions">
+                <span id="catalogBadge" class="tableRowBadge muted">—</span>
+              </div>
+            </header>
+            <div class="pricingTableShell dashTableShell" id="pricingTableShell" data-table-host>
+              <table class="dataTable dashTable" id="pricesTable">
+                <thead>
+                  <tr>
+                    <th class="num colRowNum" scope="col"><span class="thLabel">#</span></th>
+                    <th data-sortable data-sort-type="text" scope="col"><span class="thLabel">Item</span></th>
+                    <th data-sortable data-sort-type="text" scope="col"><span class="thLabel">Scope</span></th>
+                    <th data-sortable data-sort-type="text" scope="col"><span class="thLabel">Mode</span></th>
+                    <th data-sortable data-sort-type="text" scope="col"><span class="thLabel">Metric</span></th>
+                    <th data-sortable data-sort-type="text" scope="col"><span class="thLabel">Region</span></th>
+                    <th data-sortable data-sort-type="text" scope="col"><span class="thLabel">Currency</span></th>
+                    <th class="num" data-sortable data-sort-type="number" scope="col"><span class="thLabel">Amount</span><span class="thUnit">value</span></th>
+                    <th data-sortable data-sort-type="text" scope="col"><span class="thLabel">Unit</span></th>
+                    <th data-sortable data-sort-type="text" scope="col"><span class="thLabel">Series</span></th>
+                    <th data-sortable data-sort-type="text" scope="col"><span class="thLabel">Platform</span></th>
+                    <th data-sortable data-sort-type="text" scope="col"><span class="thLabel">Vendor</span></th>
+                    <th data-sortable data-sort-type="date" scope="col"><span class="thLabel">Effective Date</span></th>
+                    <th class="colDetail" scope="col"><span class="thLabel">Details</span></th>
+                  </tr>
+                </thead>
+                <tbody id="tbody"></tbody>
+              </table>
+            </div>
+            <div id="pagination" class="dashPager" aria-label="Pagination"></div>
+            <p id="priceRowSelectionHint" class="tableSelectionHint muted" hidden aria-live="polite"></p>
+          </section>
         </div>
       </main>
     </div>

@@ -11,6 +11,14 @@
   const pivotBtn = document.getElementById("pivotBtn");
   const detailLayoutBtn = document.getElementById("detailLayoutBtn");
   const viewLabel = document.getElementById("viewLabel");
+  const kpiTotalRowsEl = document.getElementById("kpiTotalRows");
+  const kpiSourceCountEl = document.getElementById("kpiSourceCount");
+  const kpiSourceNoteEl = document.getElementById("kpiSourceNote");
+  const kpiLastSyncEl = document.getElementById("kpiLastSync");
+  const kpiLastSyncNoteEl = document.getElementById("kpiLastSyncNote");
+  const kpiFilteredNoteEl = document.getElementById("kpiFilteredNote");
+  const catalogBadgeEl = document.getElementById("catalogBadge");
+  const priceRowSelectionHintEl = document.getElementById("priceRowSelectionHint");
   const priceDetailDialog = document.getElementById("priceDetailDialog");
   const priceDetailBody = document.getElementById("priceDetailBody");
   const priceDetailClose = document.getElementById("priceDetailClose");
@@ -32,6 +40,8 @@
   let isPivot = false;
   /** When not pivot: fewer table columns (Item … Series only). */
   let isCompactDetail = false;
+  let clearPriceRowSelect = null;
+  let catalogMeta = null;
 
   function fillSelect(el, items) {
     el.innerHTML = '<option value="">All</option>';
@@ -47,6 +57,104 @@
     const x = Number(n);
     if (!Number.isFinite(x)) return "-";
     return x.toLocaleString(undefined, { maximumFractionDigits: 6 });
+  }
+
+  function formatUtcShort(value) {
+    if (!value) return "—";
+    const text = String(value).trim();
+    if (!text) return "—";
+    const normalized = text.includes("T") ? text : text.replace(" ", "T");
+    const d = new Date(`${normalized.endsWith("Z") ? normalized : `${normalized}Z`}`);
+    if (Number.isNaN(d.getTime())) return text.slice(0, 16);
+    return d.toISOString().slice(0, 16).replace("T", " ");
+  }
+
+  function activeFilterCount() {
+    return [vendorSelect?.value, platformSelect?.value, seriesSelect?.value].filter(Boolean).length;
+  }
+
+  function updateMetaKpis(meta) {
+    catalogMeta = meta || catalogMeta;
+    if (!catalogMeta) return;
+    const total = Number(catalogMeta.total_rows) || 0;
+    const sources = Array.isArray(catalogMeta.sources) ? catalogMeta.sources : [];
+    if (kpiTotalRowsEl) kpiTotalRowsEl.textContent = fmtInt(total);
+    if (kpiSourceCountEl) kpiSourceCountEl.textContent = fmtInt(sources.length);
+    if (kpiSourceNoteEl) {
+      kpiSourceNoteEl.textContent = sources.length
+        ? sources.map((s) => `${s.source_id || "source"} (${fmtInt(s.row_count)})`).slice(0, 2).join(" · ")
+        : "No rows yet";
+    }
+    const retail = sources.find((s) => String(s.source_id || "").includes("retail"));
+    const latest = sources
+      .map((s) => s.last_retrieved_at_utc)
+      .filter(Boolean)
+      .sort()
+      .pop();
+    const syncTs = retail?.last_retrieved_at_utc || latest;
+    if (kpiLastSyncEl) kpiLastSyncEl.textContent = formatUtcShort(syncTs);
+    if (kpiLastSyncNoteEl) {
+      kpiLastSyncNoteEl.textContent = retail?.source_id ? String(retail.source_id) : "No retail sync yet";
+    }
+    const filters = activeFilterCount();
+    if (kpiFilteredNoteEl) {
+      kpiFilteredNoteEl.textContent = filters ? `${filters} filter(s) active` : "All sources";
+    }
+  }
+
+  async function loadMeta() {
+    try {
+      const meta = await window.AppHttp.getJson("/api/prices/meta");
+      updateMetaKpis(meta);
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  function updatePriceRowSelectionHint(tr) {
+    if (!priceRowSelectionHintEl) return;
+    if (!tr) {
+      priceRowSelectionHintEl.hidden = true;
+      priceRowSelectionHintEl.replaceChildren();
+      return;
+    }
+    const item = tr.querySelector(".itemMain code, .itemMain")?.textContent?.trim() || "—";
+    const cells = tr.querySelectorAll("td");
+    const metric = cells[3]?.textContent?.trim() || cells[2]?.textContent?.trim() || "—";
+    const region = cells[4]?.textContent?.trim() || cells[3]?.textContent?.trim() || "—";
+    const amount = tr.querySelector("td.num")?.textContent?.trim() || "—";
+    const priceId = tr.querySelector("[data-price-id]")?.getAttribute("data-price-id")
+      || tr.getAttribute("data-row-price-id")
+      || "";
+    priceRowSelectionHintEl.hidden = false;
+    priceRowSelectionHintEl.replaceChildren();
+    const strong = document.createElement("strong");
+    strong.textContent = item;
+    priceRowSelectionHintEl.append(
+      document.createTextNode("Selected "),
+      strong,
+      document.createTextNode(` · ${metric} · ${region} · ${amount}`)
+    );
+    if (priceId) {
+      priceRowSelectionHintEl.append(document.createTextNode(" · "));
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "drillLink";
+      btn.textContent = "View detail";
+      btn.dataset.priceId = priceId;
+      priceRowSelectionHintEl.append(btn);
+    } else {
+      priceRowSelectionHintEl.append(document.createTextNode(" · click row again to clear"));
+    }
+  }
+
+  function bindPriceRowSelect() {
+    if (!pricesTable || clearPriceRowSelect) return;
+    clearPriceRowSelect = window.AppDashboardInteractions?.bindSelectableRows?.(pricesTable, {
+      onSelect(tr) {
+        updatePriceRowSelectionHint(tr);
+      },
+    });
   }
 
   function fmtInt(n) {
@@ -215,6 +323,7 @@
       closeRetailSyncDialog();
       currentPage = 1;
       await loadFilters();
+      await loadMeta();
       await loadRows();
     } catch (e) {
       console.error(e);
@@ -229,9 +338,10 @@
     let i = 0;
     for (const r of rows || []) {
       const tr = document.createElement("tr");
-      tr.className = "priceDataRow";
+      tr.className = "priceDataRow dashRowSelectable";
       const item = `${r.model_name || ""}${r.context_bucket ? ` (${r.context_bucket})` : ""}`;
       const rid = r.id != null ? String(r.id) : "";
+      if (rid) tr.dataset.rowPriceId = rid;
       const serial = serialBase + i + 1;
       i += 1;
       tr.innerHTML = `
@@ -262,7 +372,7 @@
     let i = 0;
     for (const r of rows || []) {
       const tr = document.createElement("tr");
-      tr.className = "priceDataRow priceRowClickable";
+      tr.className = "priceDataRow priceRowClickable dashRowSelectable";
       const item = `${r.model_name || ""}${r.context_bucket ? ` (${r.context_bucket})` : ""}`;
       const rid = r.id != null ? String(r.id) : "";
       const serial = serialBase + i + 1;
@@ -315,9 +425,10 @@
     let i = 0;
     for (const r of items) {
       const tr = document.createElement("tr");
-      tr.className = "priceDataRow";
+      tr.className = "priceDataRow dashRowSelectable";
       const item = `${r.model_name || ""}${r.context_bucket ? ` (${r.context_bucket})` : ""}`;
       const rid = r.detail_id != null ? String(r.detail_id) : "";
+      if (rid) tr.dataset.rowPriceId = rid;
       const serial = serialBase + i + 1;
       i += 1;
       tr.innerHTML = `
@@ -351,13 +462,13 @@
     const to = Math.min(totalMatching, currentPage * ps);
     paginationEl.innerHTML = "";
     const info = document.createElement("span");
-    info.className = "pgInfo";
+    info.className = "pageInfo muted";
     info.textContent = `Showing ${from}–${to} of ${fmtInt(totalMatching)} (page ${currentPage} / ${tp})`;
     paginationEl.appendChild(info);
 
     const prev = document.createElement("button");
     prev.type = "button";
-    prev.className = "pgBtn";
+    prev.className = "btnSmall pgBtn";
     prev.textContent = "Previous";
     prev.disabled = currentPage <= 1;
     prev.addEventListener("click", () => {
@@ -369,7 +480,7 @@
 
     const next = document.createElement("button");
     next.type = "button";
-    next.className = "pgBtn";
+    next.className = "btnSmall pgBtn";
     next.textContent = "Next";
     next.disabled = currentPage >= tp;
     next.addEventListener("click", () => {
@@ -388,6 +499,8 @@
     const tableShell = document.getElementById("pricingTableShell") || document.querySelector(".pricingTableShell");
     const ps = pageSize();
     const serialBase = totalMatching === 0 ? 0 : (currentPage - 1) * ps;
+    if (clearPriceRowSelect) clearPriceRowSelect();
+    updatePriceRowSelectionHint(null);
     if (detailLayoutBtn) {
       detailLayoutBtn.style.display = isPivot ? "none" : "";
       if (!isPivot) {
@@ -413,8 +526,8 @@
         ${th("Details", "", { className: "colDetail" })}
       `;
       renderPivot(rows, serialBase);
-      viewLabel.textContent = "View: Pivot";
-      pivotBtn.textContent = "Detail View";
+      if (viewLabel) viewLabel.textContent = "Pivot";
+      pivotBtn.textContent = "Detail view";
     } else if (isCompactDetail) {
       if (tableShell) tableShell.classList.add("is-compact");
       thead.innerHTML = `
@@ -429,8 +542,8 @@
         ${th("Series", "", { sortable: true })}
       `;
       renderDetailCompact(rows, serialBase);
-      viewLabel.textContent = "View: Compact";
-      pivotBtn.textContent = "Pivot View";
+      if (viewLabel) viewLabel.textContent = "Compact";
+      pivotBtn.textContent = "Pivot view";
     } else {
       if (tableShell) tableShell.classList.remove("is-compact");
       thead.innerHTML = `
@@ -450,15 +563,18 @@
         ${th("Details", "", { className: "colDetail" })}
       `;
       renderDetail(rows, serialBase);
-      viewLabel.textContent = "View: Detail";
-      pivotBtn.textContent = "Pivot View";
+      if (viewLabel) viewLabel.textContent = "Detail";
+      pivotBtn.textContent = "Pivot view";
     }
     if (!rows || rows.length === 0) {
       const tr = document.createElement("tr");
-      tr.className = "dashTableEmptyRow";
+      tr.className = "emptyRow";
       const colspan = isPivot ? 14 : isCompactDetail ? 9 : 14;
       tr.innerHTML = `<td colspan="${colspan}" style="color:#9fb2c7;">No price rows for current filters.</td>`;
       tbody.appendChild(tr);
+    }
+    if (catalogBadgeEl) {
+      catalogBadgeEl.textContent = totalMatching === 0 ? "—" : `${fmtInt(totalMatching)} matching`;
     }
   }
 
@@ -498,8 +614,10 @@
         sum += " Pivot only merges metrics within this page.";
       }
       summary.textContent = sum;
+      updateMetaKpis(catalogMeta);
       renderRows(currentRows);
       renderPagination();
+      window.AppDashboardInteractions?.refreshDashPage?.();
     } catch (e) {
       console.error(e);
       summary.textContent = "Failed to load prices.";
@@ -609,6 +727,7 @@
   queryBtn.addEventListener("click", submitQuery);
   window.AppDashboardUi?.bindFilterEnter?.(filterRoot, submitQuery);
   window.AppDashboardUi?.makeSortableTable?.(pricesTable);
+  bindPriceRowSelect();
 
   if (pageSizeSelect) {
     pageSizeSelect.addEventListener("change", () => {
@@ -648,6 +767,13 @@
     a.download = "model_prices_export_current_page.csv";
     a.click();
     URL.revokeObjectURL(url);
+  });
+
+  priceRowSelectionHintEl?.addEventListener("click", (ev) => {
+    const btn = ev.target?.closest?.("button[data-price-id]");
+    if (!btn) return;
+    const pid = btn.getAttribute("data-price-id");
+    if (pid) openPriceDetail(pid).catch((e) => console.error(e));
   });
 
   tbody.addEventListener("click", (ev) => {
@@ -705,6 +831,7 @@
   (async () => {
     await loadFilters();
     await loadSyncSeriesOptions();
+    await loadMeta();
     await loadRows();
   })().catch((e) => {
     console.error(e);

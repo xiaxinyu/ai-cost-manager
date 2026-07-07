@@ -51,7 +51,12 @@
 
   function bindSelectableRows(
     tableEl,
-    { onSelect, linkAttr = "data-drill-href", selectedClass = "is-rowSelected" } = {}
+    {
+      onSelect,
+      linkAttr = "data-drill-href",
+      ignoreSelector = "input, a, button, [data-no-row-select]",
+      selectedClass = "is-rowSelected",
+    } = {}
   ) {
     if (!tableEl) return () => {};
     const tbody = tableEl.tBodies?.[0] || tableEl.querySelector("tbody");
@@ -64,6 +69,7 @@
     };
 
     tbody.addEventListener("click", (e) => {
+      if (e.target.closest(ignoreSelector)) return;
       const link = e.target.closest(`a[${linkAttr}]`);
       if (link) return;
       const tr = e.target.closest("tr");

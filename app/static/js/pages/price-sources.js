@@ -13,6 +13,14 @@
   const pageRoot = document.querySelector(".priceSourcesPage.dashPage");
   const tableHost = document.querySelector("[data-table-host]");
   const priceSourcesTable = document.getElementById("priceSourcesTable");
+  const psKpiTotalEl = document.getElementById("psKpiTotal");
+  const psKpiRefEl = document.getElementById("psKpiRef");
+  const psKpiApiEl = document.getElementById("psKpiApi");
+  const psCatalogBadgeEl = document.getElementById("psCatalogBadge");
+  const psRowSelectionHintEl = document.getElementById("psRowSelectionHint");
+
+  let catalogRows = [];
+  let clearSourceRowSelect = null;
 
   function esc(s) {
     return String(s ?? "")
@@ -39,6 +47,72 @@
     } catch {
       editDialog.removeAttribute("open");
     }
+  }
+
+  function openEditRow(row) {
+    if (!row) return;
+    editId.value = String(row.id);
+    editTitle.value = row.title || "";
+    editRef.value = row.reference_url || "";
+    editApi.value = row.api_url || "";
+    editNotes.value = row.notes || "";
+    openDialog();
+  }
+
+  function updateSourceKpis(rows) {
+    const total = rows.length;
+    const refCount = rows.filter((r) => r.reference_url).length;
+    const apiCount = rows.filter((r) => r.api_url).length;
+    if (psKpiTotalEl) psKpiTotalEl.textContent = String(total);
+    if (psKpiRefEl) psKpiRefEl.textContent = String(refCount);
+    if (psKpiApiEl) psKpiApiEl.textContent = String(apiCount);
+    if (psCatalogBadgeEl) psCatalogBadgeEl.textContent = total ? `${total} sources` : "—";
+  }
+
+  function updateSourceRowSelectionHint(tr) {
+    if (!psRowSelectionHintEl) return;
+    if (!tr) {
+      psRowSelectionHintEl.hidden = true;
+      psRowSelectionHintEl.replaceChildren();
+      return;
+    }
+    const rowId = tr.dataset.sourceId || "";
+    const row = catalogRows.find((x) => String(x.id) === rowId);
+    const title = row?.title || tr.querySelector("td")?.textContent?.trim() || "—";
+    const key = row?.source_key || tr.querySelector("code")?.textContent?.trim() || "—";
+    const notes = row?.notes || tr.querySelector("td.muted")?.textContent?.trim() || "";
+    psRowSelectionHintEl.hidden = false;
+    psRowSelectionHintEl.replaceChildren();
+    const strong = document.createElement("strong");
+    strong.textContent = title;
+    psRowSelectionHintEl.append(
+      document.createTextNode("Selected "),
+      strong,
+      document.createTextNode(` · ${key}`)
+    );
+    if (notes) {
+      psRowSelectionHintEl.append(document.createTextNode(` · ${notes.slice(0, 120)}${notes.length > 120 ? "…" : ""}`));
+    }
+    if (row) {
+      psRowSelectionHintEl.append(document.createTextNode(" · "));
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "drillLink";
+      btn.textContent = "Edit";
+      btn.dataset.editId = String(row.id);
+      psRowSelectionHintEl.append(btn);
+    } else {
+      psRowSelectionHintEl.append(document.createTextNode(" · click row again to clear"));
+    }
+  }
+
+  function bindSourceRowSelect() {
+    if (!priceSourcesTable || clearSourceRowSelect) return;
+    clearSourceRowSelect = window.AppDashboardInteractions?.bindSelectableRows?.(priceSourcesTable, {
+      onSelect(tr) {
+        updateSourceRowSelectionHint(tr);
+      },
+    });
   }
 
   function renderReferenceGuide(rows) {
@@ -80,12 +154,17 @@
     try {
       const data = await window.AppHttp.getJson("/api/price-sources");
       const rows = data.sources || [];
+      catalogRows = rows;
+      updateSourceKpis(rows);
       renderReferenceGuide(rows);
+      if (clearSourceRowSelect) clearSourceRowSelect();
+      updateSourceRowSelectionHint(null);
       tbody.innerHTML = "";
       for (const r of rows) {
         const tr = document.createElement("tr");
-        tr.className = "priceDataRow";
+        tr.className = "priceDataRow dashRowSelectable";
         const id = r.id != null ? String(r.id) : "";
+        tr.dataset.sourceId = id;
         const refUrl = r.reference_url || "";
         const apiUrl = r.api_url || "";
         tr.innerHTML = `
@@ -94,24 +173,19 @@
         <td class="cellUrl" title="${esc(refUrl)}">${refUrl ? `<a href="${esc(refUrl)}" target="_blank" rel="noopener">${esc(refUrl)}</a>` : "—"}</td>
         <td class="cellUrl" title="${esc(apiUrl)}">${apiUrl ? `<a href="${esc(apiUrl)}" target="_blank" rel="noopener">${esc(apiUrl)}</a>` : "—"}</td>
         <td class="muted cellTruncate" title="${esc(r.notes || "")}">${esc(r.notes || "")}</td>
-        <td class="colAction"><button type="button" class="editBtn" data-edit-id="${esc(id)}">Edit</button></td>
+        <td class="colAction"><button type="button" class="editBtn" data-edit-id="${esc(id)}" data-no-row-select>Edit</button></td>
       `;
         tbody.appendChild(tr);
       }
       tbody.querySelectorAll("[data-edit-id]").forEach((btn) => {
         btn.addEventListener("click", () => {
           const rid = btn.getAttribute("data-edit-id");
-          const row = rows.find((x) => String(x.id) === rid);
-          if (!row) return;
-          editId.value = String(row.id);
-          editTitle.value = row.title || "";
-          editRef.value = row.reference_url || "";
-          editApi.value = row.api_url || "";
-          editNotes.value = row.notes || "";
-          openDialog();
+          const row = catalogRows.find((x) => String(x.id) === rid);
+          if (row) openEditRow(row);
         });
       });
       window.AppDashboardUi?.applyTruncationTitles?.(tbody);
+      window.AppDashboardInteractions?.refreshDashPage?.();
     } catch (e) {
       console.error(e);
     } finally {
@@ -149,8 +223,16 @@
     });
   }
 
+  psRowSelectionHintEl?.addEventListener("click", (ev) => {
+    const btn = ev.target?.closest?.("button[data-edit-id]");
+    if (!btn) return;
+    const row = catalogRows.find((x) => String(x.id) === btn.getAttribute("data-edit-id"));
+    if (row) openEditRow(row);
+  });
+
   if (refreshBtn) refreshBtn.addEventListener("click", () => loadRows().catch((e) => console.error(e)));
   window.AppDashboardUi?.makeSortableTable?.(priceSourcesTable);
+  bindSourceRowSelect();
 
   const logoutBtnTop = document.getElementById("logoutBtnTop");
   if (logoutBtnTop) {

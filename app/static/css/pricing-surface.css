@@ -3,6 +3,86 @@
  * Load after page-common.css so .dataTable rules win over global table styles.
  */
 
+.pricingKpiGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin: 14px 0 12px;
+}
+
+.priceSourcesPage .pricingKpiGrid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.pricingKpi {
+  padding: 14px 16px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.03));
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 14px;
+  transition: border-color 0.16s ease, box-shadow 0.16s ease;
+}
+
+.pricingKpi .label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #8b9cb3;
+}
+
+.pricingKpi .value {
+  margin-top: 6px;
+  font-size: 22px;
+  font-weight: 780;
+  letter-spacing: -0.02em;
+  color: #f1f5f9;
+  font-variant-numeric: tabular-nums;
+}
+
+.pricingKpi .value--md {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.pricingKpi .value--scope {
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 1.35;
+  word-break: break-word;
+}
+
+.pricingKpi .sub {
+  margin-top: 4px;
+  font-size: 11px;
+  line-height: 1.4;
+  color: #9fb2c7;
+}
+
+.pricingCatalogSection {
+  padding: 16px 18px 18px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.2);
+}
+
+.pricingCatalogSection .pricingTableShell {
+  margin-top: 10px;
+}
+
+@media (max-width: 960px) {
+  .pricingKpiGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .pricingKpiGrid,
+  .priceSourcesPage .pricingKpiGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .pricingTableShell {
   max-height: min(70vh, 880px);
   overflow: auto;
@@ -69,6 +149,14 @@
 
 .dataTable tbody tr.priceDataRow.priceRowClickable {
   cursor: pointer;
+}
+
+.dataTable tbody tr.dashRowSelectable {
+  cursor: pointer;
+}
+
+.dataTable tbody tr.is-rowSelected td {
+  background: rgba(94, 234, 212, 0.1) !important;
 }
 
 .dataTable tbody tr.priceDataRow.priceRowClickable:focus-visible {
