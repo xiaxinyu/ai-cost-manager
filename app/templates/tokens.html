@@ -87,10 +87,13 @@
           <div id="tokenWorkspace" hidden>
             <nav class="dashSectionNav card tokenNav" aria-label="Token sections">
               <a class="dashSectionNavLink" href="#token-summary">Summary</a>
+              <a class="dashSectionNavLink" href="#metric-model-requests">Model requests</a>
+              <a class="dashSectionNavLink" href="#metric-cache-match-rate">Cache match</a>
+              <a class="dashSectionNavLink" href="#metric-avg-latency">Latency</a>
+              <a class="dashSectionNavLink" href="#metric-input-tokens">Input</a>
+              <a class="dashSectionNavLink" href="#metric-output-tokens">Output</a>
               <a class="dashSectionNavLink" href="#flowUsage">Usage</a>
-              <a class="dashSectionNavLink" href="#flowVolume">Volume</a>
               <a class="dashSectionNavLink" href="#unitPriceSection">Unit price</a>
-              <a class="dashSectionNavLink" href="#perfSection">Performance</a>
             </nav>
 
             <section id="token-summary" class="tokenZone tokenZone--summary" aria-label="Summary">
@@ -154,11 +157,144 @@
               <a id="tokenCostLinkBtn" class="btnSecondary tokenCostLinkBtn" href="/">Open Cost →</a>
             </aside>
 
+            <section id="token-metrics" class="tokenMetricsFlow" aria-label="Grafana metrics">
+              <header class="tokenMetricsFlowHead">
+                <h2 class="tokenZoneTitle">Metrics</h2>
+                <p class="tokenZoneLead muted" id="metricsFlowLead">Same order as Grafana panels · scoped to selected project and subproject</p>
+              </header>
+
+              <article id="metric-model-requests" class="metricPanel card chartPanel" data-metric-key="model_requests">
+                <header class="metricPanelHead">
+                  <span class="metricPanelStep" aria-hidden="true">1</span>
+                  <div>
+                    <h3 class="metricPanelTitle">Model requests</h3>
+                    <p class="metricPanelDesc muted">Request count per time bucket · <code>performance/</code> CSV</p>
+                  </div>
+                  <span class="metricPanelScope muted" data-metric-scope></span>
+                </header>
+                <div class="metricPanelBody">
+                  <div class="chartCanvasHost chartCanvasHostShort" data-chart-host>
+                    <canvas id="modelRequestsChart"></canvas>
+                  </div>
+                  <p class="metricPanelEmpty muted" data-metric-empty hidden>No model-requests data for this scope.</p>
+                </div>
+              </article>
+
+              <article id="metric-cache-match-rate" class="metricPanel card chartPanel" data-metric-key="cache_match_rate">
+                <header class="metricPanelHead">
+                  <span class="metricPanelStep" aria-hidden="true">2</span>
+                  <div>
+                    <h3 class="metricPanelTitle">Token Cache Match Rate</h3>
+                    <p class="metricPanelDesc muted">Cache hit rate · higher is better (%)</p>
+                  </div>
+                  <span class="metricPanelScope muted" data-metric-scope></span>
+                </header>
+                <div class="metricPanelBody">
+                  <div class="chartCanvasHost chartCanvasHostShort" data-chart-host>
+                    <canvas id="cacheMatchChart"></canvas>
+                  </div>
+                  <p class="metricPanelEmpty muted" data-metric-empty hidden>No cache-match-rate data for this scope.</p>
+                </div>
+              </article>
+
+              <article id="metric-avg-latency" class="metricPanel card chartPanel" data-metric-key="avg_latency">
+                <header class="metricPanelHead">
+                  <span class="metricPanelStep" aria-hidden="true">3</span>
+                  <div>
+                    <h3 class="metricPanelTitle">Average Latency (Time to Last Byte)</h3>
+                    <p class="metricPanelDesc muted">End-to-end latency · ms</p>
+                  </div>
+                  <span class="metricPanelScope muted" data-metric-scope></span>
+                </header>
+                <div class="metricPanelBody">
+                  <div class="chartCanvasHost chartCanvasHostShort" data-chart-host>
+                    <canvas id="avgLatencyChart"></canvas>
+                  </div>
+                  <p class="metricPanelEmpty muted" data-metric-empty hidden>No avg-latency data for this scope.</p>
+                </div>
+              </article>
+
+              <article id="metric-input-tokens" class="metricPanel card chartPanel" data-metric-key="input_tokens">
+                <header class="metricPanelHead">
+                  <span class="metricPanelStep" aria-hidden="true">4</span>
+                  <div>
+                    <h3 class="metricPanelTitle">Input Tokens</h3>
+                    <p class="metricPanelDesc muted">Daily input token volume · <code>token/</code> CSV</p>
+                  </div>
+                  <span class="metricPanelScope muted" data-metric-scope></span>
+                </header>
+                <div class="metricPanelBody">
+                  <div class="chartCanvasHost" data-chart-host>
+                    <canvas id="tokenInputChart"></canvas>
+                  </div>
+                  <p class="metricPanelEmpty muted" data-metric-empty hidden>No input token data for this scope.</p>
+                </div>
+              </article>
+
+              <article id="metric-output-tokens" class="metricPanel card chartPanel" data-metric-key="output_tokens">
+                <header class="metricPanelHead">
+                  <span class="metricPanelStep" aria-hidden="true">5</span>
+                  <div>
+                    <h3 class="metricPanelTitle">Output Tokens</h3>
+                    <p class="metricPanelDesc muted">Daily output token volume · separate Y-axis scale from input</p>
+                  </div>
+                  <span class="metricPanelScope muted" data-metric-scope></span>
+                </header>
+                <div class="metricPanelBody">
+                  <div class="chartCanvasHost" data-chart-host>
+                    <canvas id="tokenOutputChart"></canvas>
+                  </div>
+                  <p class="metricPanelEmpty muted" data-metric-empty hidden>No output token data for this scope.</p>
+                  <details class="metricPanelDetails">
+                    <summary class="muted">Output / input ratio</summary>
+                    <p class="muted ratioSummaryInline" id="ratioSummary">Valid days: -</p>
+                    <div class="chartCanvasHost chartCanvasHostShort" data-chart-host>
+                      <canvas id="tokenRatioChart"></canvas>
+                    </div>
+                  </details>
+                </div>
+              </article>
+            </section>
+
+            <section id="perfRawSection" class="flowBlock tokenZone detailTableBlock" aria-labelledby="perfRawTitle">
+              <header class="detailTableHead flowBlockHead">
+                <div class="detailTableIdentity flowBlockIdentity">
+                  <div>
+                    <h2 id="perfRawTitle" class="detailTableTitle flowBlockTitle">Performance raw points</h2>
+                    <p class="detailTableDesc flowBlockDesc muted">Newest first · hover chart to highlight row</p>
+                  </div>
+                </div>
+                <span id="perfRowBadge" class="tableRowBadge muted" hidden></span>
+              </header>
+              <div class="detailTableBody card dashTablePanel perfTablePanel">
+                <div class="tableScroll dataTableWrap dashTableShell perfTableShell" data-table-host>
+                  <table class="dataTable dashTable" id="perfRowsTable">
+                    <thead>
+                      <tr>
+                        <th class="is-sorted" aria-sort="descending" style="width: 168px;" data-sortable data-sort-type="date" scope="col"><span class="thLabel">Time</span></th>
+                        <th style="width: 148px;" data-sortable data-sort-type="text" scope="col"><span class="thLabel">Metric</span></th>
+                        <th scope="col"><span class="thLabel">Models</span></th>
+                      </tr>
+                    </thead>
+                    <tbody id="perfRowsTbody">
+                      <tr class="dashTableEmptyRow"><td colspan="3" class="muted">Load data to view performance metrics.</td></tr>
+                    </tbody>
+                    <tfoot id="perfRowsTfoot" hidden>
+                      <tr class="perfTableTotalRow">
+                        <th scope="row">Total</th>
+                        <td id="perfFootMetricCount" class="num">—</td>
+                        <td id="perfFootRowNote" class="muted">—</td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </div>
+            </section>
+
             <div class="tokenAnalysisFlow" aria-label="Analysis flow">
             <section id="flowUsage" class="flowBlock tokenZone detailTableBlock modelBreakdownPanel" hidden aria-labelledby="flowUsageTitle">
               <header class="detailTableHead flowBlockHead">
                 <div class="detailTableIdentity flowBlockIdentity">
-                  <span class="tokenStep tokenStepInline" aria-hidden="true">2</span>
                   <div>
                     <h2 id="flowUsageTitle" class="detailTableTitle flowBlockTitle">Usage by model</h2>
                     <p class="detailTableDesc flowBlockDesc muted">Input/output token share from imported CSV (6h buckets rolled up to calendar days).</p>
@@ -197,54 +333,8 @@
               </div>
             </section>
 
-            <section class="flowBlock tokenZone" id="flowVolume" aria-labelledby="flowVolumeTitle">
-              <header class="tokenZoneHead flowBlockHead flowBlockHeadStack">
-                <span class="tokenStep" aria-hidden="true">3</span>
-                <div class="tokenZoneHeadMain">
-                  <h2 id="flowVolumeTitle" class="tokenZoneTitle flowBlockTitle">Volume</h2>
-                  <p class="tokenZoneLead flowBlockDesc muted" id="rangeLabel">Selected range: -</p>
-                </div>
-              </header>
-              <div class="flowChartGrid" aria-label="Token volume charts">
-              <article class="card chartPanel chartWide">
-                <div class="chartHeader">
-                  <div>
-                    <h3 class="chartCardTitle" id="chartTitleInput">Input tokens (daily)</h3>
-                  </div>
-                </div>
-                <div class="chartCanvasHost" data-chart-host>
-                  <canvas id="tokenInputChart"></canvas>
-                </div>
-              </article>
-              <article class="card chartPanel chartWide">
-                <div class="chartHeader">
-                  <div>
-                    <h3 class="chartCardTitle" id="chartTitleOutput">Output tokens (daily)</h3>
-                    <p class="muted chartScaleHint">Own Y-axis scale — output is not drowned out by input volume.</p>
-                  </div>
-                </div>
-                <div class="chartCanvasHost" data-chart-host>
-                  <canvas id="tokenOutputChart"></canvas>
-                </div>
-              </article>
-              <article class="card chartPanel chartWide chartFull">
-                <div class="chartHeader">
-                  <div>
-                    <h3 class="chartCardTitle">Output / input ratio</h3>
-                    <p class="muted" id="ratioSummary">Valid days: -</p>
-                  </div>
-                  <span id="ratioBaselinePill" class="pill muted">Baseline 1.0</span>
-                </div>
-                <div class="chartCanvasHost chartCanvasHostShort" data-chart-host>
-                  <canvas id="tokenRatioChart"></canvas>
-                </div>
-              </article>
-              </div>
-            </section>
-
             <section id="unitPriceSection" class="flowBlock tokenZone flowBlockUnitPrice" hidden aria-labelledby="flowUnitTitle">
               <header class="tokenZoneHead flowBlockHead flowBlockHeadStack">
-                <span class="tokenStep" aria-hidden="true">4</span>
                 <div class="tokenZoneHeadMain">
                   <h2 id="flowUnitTitle" class="tokenZoneTitle flowBlockTitle">Unit price</h2>
                   <p class="tokenZoneLead flowBlockDesc muted panelDesc" id="unitPriceNote">Solid line = price from billing. Dashed line = list price from Model Prices.</p>
@@ -296,79 +386,6 @@
               </div>
               </div>
             </section>
-
-            <section id="perfSection" class="flowBlock tokenZone detailTableBlock" aria-labelledby="flowPerfTitle">
-              <header class="tokenZoneHead flowBlockHead flowBlockHeadStack">
-                <span class="tokenStep" aria-hidden="true">5</span>
-                <div class="tokenZoneHeadMain">
-                  <h2 id="flowPerfTitle" class="tokenZoneTitle flowBlockTitle">Performance</h2>
-                  <p class="tokenZoneLead flowBlockDesc muted">Metrics from <code>bills/&lt;project&gt;/performance/</code> and cache-match-rate CSVs. Hover a chart point to highlight the matching row; click legend entries to toggle models.</p>
-                </div>
-              </header>
-              <div class="flowChartGrid" aria-label="Performance metrics">
-                <article class="card chartPanel chartWide">
-                  <div class="chartHeader">
-                    <div>
-                      <h3 class="chartCardTitle">Cache match rate</h3>
-                      <p class="muted chartScaleHint">Higher is better. Unit = %.</p>
-                    </div>
-                  </div>
-                  <div class="chartCanvasHost chartCanvasHostShort" data-chart-host>
-                    <canvas id="cacheMatchChart"></canvas>
-                  </div>
-                </article>
-                <article class="card chartPanel chartWide">
-                  <div class="chartHeader">
-                    <div>
-                      <h3 class="chartCardTitle">Avg latency</h3>
-                      <p class="muted chartScaleHint">Unit = ms (converted from s/ms in CSV).</p>
-                    </div>
-                  </div>
-                  <div class="chartCanvasHost chartCanvasHostShort" data-chart-host>
-                    <canvas id="avgLatencyChart"></canvas>
-                  </div>
-                </article>
-                <article class="card chartPanel chartWide chartFull">
-                  <div class="chartHeader">
-                    <div>
-                      <h3 class="chartCardTitle">Model requests</h3>
-                      <p class="muted chartScaleHint">Count per time bucket.</p>
-                    </div>
-                  </div>
-                  <div class="chartCanvasHost chartCanvasHostShort" data-chart-host>
-                    <canvas id="modelRequestsChart"></canvas>
-                  </div>
-                </article>
-              </div>
-              <div class="detailTableBody card dashTablePanel perfTablePanel">
-                <header class="detailTableSubHead">
-                  <h3 class="detailTableTitle">Raw points</h3>
-                  <p class="detailTableDesc muted">Newest first · synced with chart hover</p>
-                  <span id="perfRowBadge" class="tableRowBadge muted" hidden></span>
-                </header>
-                <div class="tableScroll dataTableWrap dashTableShell perfTableShell" data-table-host>
-                  <table class="dataTable dashTable" id="perfRowsTable">
-                    <thead>
-                      <tr>
-                        <th class="is-sorted" aria-sort="descending" style="width: 168px;" data-sortable data-sort-type="date" scope="col"><span class="thLabel">Time</span><span class="thUnit">local</span></th>
-                        <th style="width: 148px;" data-sortable data-sort-type="text" scope="col"><span class="thLabel">Metric</span></th>
-                        <th scope="col"><span class="thLabel">Models</span><span class="thUnit">by series</span></th>
-                      </tr>
-                    </thead>
-                    <tbody id="perfRowsTbody">
-                      <tr class="dashTableEmptyRow"><td colspan="3" class="muted">Load data to view performance metrics.</td></tr>
-                    </tbody>
-                    <tfoot id="perfRowsTfoot" hidden>
-                      <tr class="perfTableTotalRow">
-                        <th scope="row">Total</th>
-                        <td id="perfFootMetricCount" class="num">—</td>
-                        <td id="perfFootRowNote" class="muted">—</td>
-                      </tr>
-                    </tfoot>
-                  </table>
-                </div>
-              </div>
-            </section>
             </div>
           </div>
         </div>
@@ -386,6 +403,6 @@
     <script src="/static/js/dashboard-ui.js?v=20260605-datesort"></script>
     <script src="/static/js/date-range-picker.js?v=20260606-drp"></script>
     <script src="/static/js/insight-panel.js?v=20260605-insights"></script>
-    <script src="/static/js/pages/tokens.js?v=20260707-plain"></script>
+    <script src="/static/js/pages/tokens.js?v=20260707-grafana-order"></script>
   </body>
 </html>

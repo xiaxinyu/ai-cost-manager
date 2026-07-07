@@ -1802,6 +1802,99 @@
   margin-top: 8px;
 }
 
+.tokenMetricsFlow {
+  display: grid;
+  gap: 18px;
+  scroll-margin-top: 72px;
+}
+
+.tokenMetricsFlowHead {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-bottom: 4px;
+}
+
+.metricPanel {
+  scroll-margin-top: 72px;
+  padding: 0;
+  overflow: hidden;
+}
+
+.metricPanelHead {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 12px 14px;
+  padding: 14px 16px 10px;
+  border-bottom: 1px solid rgba(173, 196, 228, 0.1);
+}
+
+.metricPanelStep {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #5eead4;
+  background: rgba(94, 234, 212, 0.12);
+  border: 1px solid rgba(94, 234, 212, 0.28);
+}
+
+.metricPanelTitle {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 650;
+}
+
+.metricPanelDesc {
+  margin: 4px 0 0;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.metricPanelScope {
+  font-size: 11px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.metricPanelBody {
+  padding: 12px 16px 16px;
+}
+
+.metricPanelEmpty {
+  margin: 0;
+  padding: 28px 12px;
+  text-align: center;
+  font-size: 13px;
+}
+
+.metricPanelDetails {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px dashed rgba(173, 196, 228, 0.16);
+}
+
+.metricPanelDetails > summary {
+  cursor: pointer;
+  font-size: 12px;
+  user-select: none;
+}
+
+.ratioSummaryInline {
+  margin: 8px 0 10px;
+  font-size: 12px;
+}
+
+#perfRawSection {
+  scroll-margin-top: 72px;
+}
+
 .modelBreakdownPanel {
   scroll-margin-top: 72px;
 }

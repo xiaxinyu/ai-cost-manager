@@ -95,6 +95,10 @@ def test_tokens_page_redirect_and_access(tmp_path):
     assert 'id="dataStatusBar"' in page.text
     assert 'id="tokenCostLink"' in page.text
     assert 'id="flowUsage"' in page.text
+    assert 'id="metric-model-requests"' in page.text
+    assert 'id="metric-input-tokens"' in page.text
+    assert "tokenMetricsFlow" in page.text
+    assert "metricPanel" in page.text
     assert "/static/js/money.js" in page.text
     assert "/static/js/pages/tokens.js" in page.text
     assert "tokenAnalysisFlow" in page.text

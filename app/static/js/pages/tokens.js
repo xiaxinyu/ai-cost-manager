@@ -25,12 +25,11 @@
     sourceBadgeText: document.getElementById("tokenSourceBadgeText"),
     dataStatusBar: document.getElementById("dataStatusBar"),
     tokenSummaryLead: document.getElementById("tokenSummaryLead"),
+    metricsFlowLead: document.getElementById("metricsFlowLead"),
     costLinkBtn: document.getElementById("tokenCostLinkBtn"),
     labelInput: document.getElementById("labelInputTokens"),
     labelOutput: document.getElementById("labelOutputTokens"),
     labelTotal: document.getElementById("labelTotalTokens"),
-    chartTitleInput: document.getElementById("chartTitleInput"),
-    chartTitleOutput: document.getElementById("chartTitleOutput"),
     estimatedInput: document.getElementById("estimatedInputTokens"),
     estimatedOutput: document.getElementById("estimatedOutputTokens"),
     estimatedTotal: document.getElementById("estimatedTotalTokens"),
@@ -40,9 +39,7 @@
     tokenModel: document.getElementById("tokenModel"),
     tokenRegion: document.getElementById("tokenRegion"),
     tokenMetaExtra: document.getElementById("tokenMetaExtra"),
-    rangeLabel: document.getElementById("rangeLabel"),
     ratioSummary: document.getElementById("ratioSummary"),
-    ratioBaselinePill: document.getElementById("ratioBaselinePill"),
     modelPanel: document.getElementById("flowUsage"),
     modelTbody: document.getElementById("modelBreakdownTbody"),
     modelRowBadge: document.getElementById("modelRowBadge"),
@@ -117,6 +114,54 @@
       .replace(/</g, "&lt;")
       .replace(/>/g, "&gt;")
       .replace(/"/g, "&quot;");
+  }
+
+  /** Grafana dashboard panel order for performance metrics. */
+  const GRAFANA_PERF_METRIC_ORDER = ["model_requests", "cache_match_rate", "avg_latency"];
+
+  function _metricRank(name) {
+    const key = String(name || "").replace(/-/g, "_");
+    const idx = GRAFANA_PERF_METRIC_ORDER.indexOf(key);
+    return idx >= 0 ? idx : 99;
+  }
+
+  function setMetricPanelData(metricKey, hasData, emptyMessage) {
+    const panel = document.querySelector(`.metricPanel[data-metric-key="${metricKey}"]`);
+    if (!panel) return;
+    const empty = panel.querySelector("[data-metric-empty]");
+    const hosts = panel.querySelectorAll("[data-chart-host]");
+    if (empty) {
+      empty.hidden = !!hasData;
+      if (!hasData && emptyMessage) empty.textContent = emptyMessage;
+    }
+    hosts.forEach((host) => {
+      host.hidden = !hasData;
+    });
+  }
+
+  function updateMetricPanelScope(project, subproject, range) {
+    const scopeLabel = subproject ? `${project} / ${subproject}` : project || "—";
+    document.querySelectorAll("[data-metric-scope]").forEach((el) => {
+      el.textContent = scopeLabel;
+    });
+    if (els.metricsFlowLead) {
+      const rangeText =
+        range?.start && range?.end && range.start !== "—"
+          ? ` · ${range.start} → ${range.end}`
+          : "";
+      if (subproject) {
+        els.metricsFlowLead.textContent = `Grafana panel order · subproject “${subproject}”${rangeText}`;
+      } else if (hasSubprojectsScope()) {
+        els.metricsFlowLead.textContent = `Grafana panel order · all subprojects combined${rangeText}`;
+      } else {
+        els.metricsFlowLead.textContent = `Grafana panel order · project scope${rangeText}`;
+      }
+    }
+  }
+
+  function scopedMetricEmptyMessage(metricLabel, subproject) {
+    if (subproject) return `No ${metricLabel} data for subproject “${subproject}”.`;
+    return `No ${metricLabel} data for this scope.`;
   }
 
   function _metricChartUnitLabel(unit) {
@@ -246,12 +291,18 @@
 
   let lastPerfSeries = null;
 
-  function renderPerfCharts(series) {
+  function renderPerfCharts(series, scope = {}) {
     lastPerfSeries = series;
+    const subproject = scope.subproject || series?.subproject || selectedSubproject();
     const metricRoot = series?.token_metrics;
+    const perfKeys = GRAFANA_PERF_METRIC_ORDER;
     if (!metricRoot?.available) {
       [cacheMatchChart, avgLatencyChart, modelRequestsChart].forEach((ch) => ch?.destroy?.());
       cacheMatchChart = avgLatencyChart = modelRequestsChart = null;
+      for (const key of perfKeys) {
+        const label = key.replace(/_/g, " ");
+        setMetricPanelData(key, false, scopedMetricEmptyMessage(label, subproject));
+      }
       return;
     }
     const modelsOrder = _collectPerfModels(metricRoot);
@@ -259,17 +310,23 @@
 
     const metrics = metricRoot.metrics || {};
     const charts = [
+      { key: "model_requests", metric: metrics.model_requests, id: "modelRequestsChart", unit: "count" },
       { key: "cache_match_rate", metric: metrics.cache_match_rate, id: "cacheMatchChart", unit: "pct" },
       { key: "avg_latency", metric: metrics.avg_latency, id: "avgLatencyChart", unit: "ms" },
-      { key: "model_requests", metric: metrics.model_requests, id: "modelRequestsChart", unit: "count" },
     ];
 
     for (const c of charts) {
+      const hasPoints = !!(c.metric?.points?.length);
+      const label = c.key.replace(/_/g, " ");
+      setMetricPanelData(c.key, hasPoints, scopedMetricEmptyMessage(label, subproject));
       const ctx = document.getElementById(c.id)?.getContext?.("2d");
-      if (!ctx || !c.metric?.points?.length) {
+      if (!ctx || !hasPoints) {
         if (c.key === "cache_match_rate" && cacheMatchChart) cacheMatchChart.destroy();
         if (c.key === "avg_latency" && avgLatencyChart) avgLatencyChart.destroy();
         if (c.key === "model_requests" && modelRequestsChart) modelRequestsChart.destroy();
+        if (c.key === "cache_match_rate") cacheMatchChart = null;
+        if (c.key === "avg_latency") avgLatencyChart = null;
+        if (c.key === "model_requests") modelRequestsChart = null;
         continue;
       }
       const chartData = _metricSeriesToChart(c.metric, modelsOrder);
@@ -315,7 +372,11 @@
         });
       }
     }
-    rows.sort((a, b) => String(b.recorded_at || "").localeCompare(String(a.recorded_at || "")));
+    rows.sort((a, b) => {
+      const byDate = String(b.recorded_at || "").localeCompare(String(a.recorded_at || ""));
+      if (byDate !== 0) return byDate;
+      return _metricRank(a.metric_name) - _metricRank(b.metric_name);
+    });
     els.perfRowsTbody.innerHTML = "";
     if (!rows.length) {
       const tr = document.createElement("tr");
@@ -1052,12 +1113,6 @@
     if (els.labelInput) els.labelInput.textContent = inputLabel;
     if (els.labelOutput) els.labelOutput.textContent = outputLabel;
     if (els.labelTotal) els.labelTotal.textContent = totalLabel;
-    if (els.chartTitleInput) {
-      els.chartTitleInput.textContent = imported ? "Input tokens" : "Input tokens (from billing)";
-    }
-    if (els.chartTitleOutput) {
-      els.chartTitleOutput.textContent = imported ? "Output tokens" : "Output tokens (from billing)";
-    }
 
     chartLabels = {
       input: imported ? "Input tokens" : "Input tokens (from billing)",
@@ -1250,8 +1305,24 @@
     });
   }
 
-  function renderTokenUsageCharts(points, dailyByModel) {
+  function renderTokenUsageCharts(points, dailyByModel, scope = {}) {
+    const subproject = scope.subproject || selectedSubproject();
     const labels = points.map((p) => p.date);
+    const inputValues = points.map((p) => p.estimated_input_tokens);
+    const outputValues = points.map((p) => p.estimated_output_tokens);
+    const hasInput = inputValues.some((v) => v != null && Number(v) > 0);
+    const hasOutput = outputValues.some((v) => v != null && Number(v) > 0);
+    setMetricPanelData(
+      "input_tokens",
+      hasInput,
+      scopedMetricEmptyMessage("input token", subproject)
+    );
+    setMetricPanelData(
+      "output_tokens",
+      hasOutput,
+      scopedMetricEmptyMessage("output token", subproject)
+    );
+
     const inputDatasets =
       modelTokenDatasets(labels, dailyByModel, "input") || [
         _tokenLineDataset(
@@ -1497,7 +1568,7 @@
       els.estimatedOutput.textContent = fmtInt(stats.estimated_output_tokens ?? totals.output);
       els.estimatedTotal.textContent = fmtInt(stats.estimated_total_tokens ?? totals.total);
       const range = resolveTokenDateRange(series, stats);
-      els.rangeLabel.textContent = `Selected range: ${range.start} ~ ${range.end}`;
+      updateMetricPanelScope(project, subproject, range);
 
       try {
         renderModelBreakdown(series.breakdown_by_model || []);
@@ -1508,7 +1579,7 @@
       try {
         perfHiddenModels = new Set();
         perfHighlightKey = null;
-        renderPerfCharts(series);
+        renderPerfCharts(series, { project, subproject });
         renderPerfTable(series);
       } catch (e) {
         console.error("renderPerf failed", e);
@@ -1554,7 +1625,7 @@
         console.error("renderStats failed", e);
       }
       try {
-        renderTokenUsageCharts(points, series.daily_by_model || []);
+        renderTokenUsageCharts(points, series.daily_by_model || [], { project, subproject });
       } catch (e) {
         console.error("renderTokenUsageCharts failed", e);
       }
