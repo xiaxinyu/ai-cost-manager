@@ -89,13 +89,12 @@ def test_tokens_page_redirect_and_access(tmp_path):
 
     page = client.get("/tokens")
     assert page.status_code == 200
-    assert "Token Operations" in page.text
+    assert "Token operations" in page.text
     assert "noImportHint" in page.text
     assert 'id="tokenStartDateInput"' in page.text
-    assert 'id="dailyPageSizeSelect"' in page.text
-    assert 'id="dailyPrevBtn"' in page.text
     assert 'id="dataStatusBar"' in page.text
-    assert 'id="tableRowBadge"' in page.text
+    assert 'id="tokenCostLink"' in page.text
+    assert 'id="flowUsage"' in page.text
     assert "/static/js/money.js" in page.text
     assert "/static/js/pages/tokens.js" in page.text
     assert "tokenAnalysisFlow" in page.text
@@ -105,8 +104,8 @@ def test_tokens_page_redirect_and_access(tmp_path):
     assert "dateRangePicker" in page.text
     assert 'src="/static/js/pages/tokens.js?v=' in page.text
     assert 'href="/tokens"' in page.text
-    assert "flowStep" in page.text
-    assert "costTypeLegend" in page.text
+    assert "tokenStep" in page.text
+    assert "unitPriceSummaryTable" in page.text
 
 
 def test_login_to_token_workspace_e2e_smoke(tmp_path):
@@ -133,7 +132,7 @@ def test_login_to_token_workspace_e2e_smoke(tmp_path):
 
     for path, marker in (
         ("/", "Cost"),
-        ("/tokens", "Token Operations"),
+        ("/tokens", "Token operations"),
         ("/reports", "Financial Report Center"),
         ("/prices", "Model Price Viewer"),
         ("/import", "Billing &amp; Token Import"),

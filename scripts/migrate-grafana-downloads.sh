@@ -6,15 +6,22 @@
 #   Input Tokens-data-7_6_2026, 5_06_47 PM.csv
 #   Token Cache Match Rate-data-7_6_2026, 5_04_39 PM.csv
 #   Model requests-data-7_6_2026, 5_04_30 PM.csv
+#   Average Latency-data-7_6_2026, 5_04_25 PM.csv
 #
 # Renames to repo conventions:
 #   token/input-tokens-YYYY-M-D.csv
 #   token/output-tokens-YYYY-M-D.csv
 #   performance/cache-match-rate-YYYY-M-D.csv
 #   performance/model-requests-YYYY-M-D.csv
+#   performance/avg-latency-YYYY-M-D.csv
+#
+# With --subproject NAME, inserts a slug before the date:
+#   performance/model-requests-<subproject>-YYYY-M-D.csv
+#   token/input-tokens-<subproject>-YYYY-M-D.csv
 #
 # Usage:
 #   ./scripts/migrate-grafana-downloads.sh --project RG-HK-S56-TATP-QA-Agent
+#   ./scripts/migrate-grafana-downloads.sh -p techlab-aimas-marketing --subproject gpt-5.4 -d 2026-6-30
 #   ./scripts/migrate-grafana-downloads.sh -p rg-techlab-ai-coding -s ~/Downloads -n
 #   ./scripts/migrate-grafana-downloads.sh -p RG-HK-S56-TATP-QA-Agent --date 2026-7-6
 #   ./scripts/migrate-grafana-downloads.sh -p RG-HK-S56-TATP-QA-Agent --dry-run
@@ -32,6 +39,7 @@ REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 SOURCE_DIR="${HOME}/Downloads"
 BILLS_DIR="${REPO_ROOT}/bills"
 PROJECT=""
+SUBPROJECT=""
 DATE_SUFFIX=""
 DRY_RUN=0
 FORCE=0
@@ -42,6 +50,9 @@ Migrate Grafana CSV exports from Downloads into bills/<project>/.
 
 Options:
   -p, --project NAME   Project folder under bills/ (required)
+  -u, --subproject NAME
+                       Optional slug inserted before date in output filenames
+                       (e.g. model-requests-gpt-5.4-2026-6-30.csv)
   -d, --date DATE      Date suffix for output filenames (default: today)
                        Accepted: YYYY-M-D, YYYY-MM-DD, M_D_YYYY, M/D/YYYY
   -s, --source DIR     Source directory (default: ~/Downloads)
@@ -52,20 +63,22 @@ Options:
   -f, --force          Overwrite destination if it already exists
   -h, --help           Show this help
 
-Recognized source filename prefixes:
-  Output Tokens-data*        -> token/output-tokens-YYYY-M-D.csv
-  Input Tokens-data*         -> token/input-tokens-YYYY-M-D.csv
-  Token Cache Match Rate*    -> performance/cache-match-rate-YYYY-M-D.csv
-  Model requests-data*       -> performance/model-requests-YYYY-M-D.csv
+Recognized source filename prefixes (with optional --subproject SLUG before date):
+  Output Tokens-data*        -> token/output-tokens[-SLUG]-YYYY-M-D.csv
+  Input Tokens-data*         -> token/input-tokens[-SLUG]-YYYY-M-D.csv
+  Token Cache Match Rate*    -> performance/cache-match-rate[-SLUG]-YYYY-M-D.csv
+  Model requests-data*       -> performance/model-requests[-SLUG]-YYYY-M-D.csv
+  Average Latency*           -> performance/avg-latency[-SLUG]-YYYY-M-D.csv
 
 Examples:
   # Preview (no files changed)
   ./scripts/migrate-grafana-downloads.sh -p RG-HK-S56-TATP-QA-Agent --dry-run
-  ./scripts/migrate-grafana-downloads.sh -p RG-HK-S56-TATP-QA-Agent -d 2026-6-30 -n
+  ./scripts/migrate-grafana-downloads.sh -p techlab-aimas-marketing -u gpt-5.4 -d 2026-6-30 -n
 
   # Migrate for real
   ./scripts/migrate-grafana-downloads.sh --project RG-HK-S56-TATP-QA-Agent
   ./scripts/migrate-grafana-downloads.sh -p RG-HK-S56-TATP-QA-Agent -d 7_6_2026
+  ./scripts/migrate-grafana-downloads.sh -p techlab-aimas-marketing --subproject gpt-5.4 -d 2026-6-30
 EOF
 }
 
@@ -79,10 +92,20 @@ die() {
 }
 
 while [[ $# -gt 0 ]]; do
+  # Ignore blank args (often from a broken `\` line continuation with trailing spaces).
+  if [[ -z "${1//[[:space:]]/}" ]]; then
+    shift
+    continue
+  fi
   case "$1" in
     -p|--project)
       [[ $# -ge 2 ]] || die "Missing value for $1"
       PROJECT="$2"
+      shift 2
+      ;;
+    -u|--subproject)
+      [[ $# -ge 2 ]] || die "Missing value for $1"
+      SUBPROJECT="$2"
       shift 2
       ;;
     -d|--date)
@@ -113,6 +136,9 @@ while [[ $# -gt 0 ]]; do
       exit 0
       ;;
     *)
+      if [[ "$1" == "--dry-run" ]]; then
+        die "Unknown option: $1 — did the previous line end with '\\\\' plus trailing spaces? Use one line, or put nothing after '\\\\'. Example: ... --subproject coding-1 -n"
+      fi
       die "Unknown option: $1 (use --help)"
       ;;
   esac
@@ -169,6 +195,29 @@ else
   DATE_SUFFIX="$(current_date_suffix)"
 fi
 
+normalize_subproject_slug() {
+  local input="$1"
+  local slug
+  slug="$(printf '%s' "${input}" | tr '[:upper:]' '[:lower:]')"
+  slug="${slug// /-}"
+  slug="$(printf '%s' "${slug}" | sed -E 's/[^a-z0-9._-]+/-/g; s/-+/-/g; s/^[.-]+|[.-]+$//g')"
+  printf '%s' "${slug}"
+}
+
+if [[ -n "${SUBPROJECT}" ]]; then
+  SUBPROJECT="$(normalize_subproject_slug "${SUBPROJECT}")"
+  [[ -n "${SUBPROJECT}" ]] || die "Invalid --subproject value (use letters, numbers, hyphens, underscores)"
+fi
+
+build_dest_name() {
+  local file_stem="$1"
+  if [[ -n "${SUBPROJECT}" ]]; then
+    printf '%s-%s-%s.csv' "${file_stem}" "${SUBPROJECT}" "${DATE_SUFFIX}"
+  else
+    printf '%s-%s.csv' "${file_stem}" "${DATE_SUFFIX}"
+  fi
+}
+
 classify_file() {
   local name="$1"
 
@@ -184,6 +233,9 @@ classify_file() {
       ;;
     "Model requests-data"*)
       printf 'performance model-requests'
+      ;;
+    "Average Latency"*)
+      printf 'performance avg-latency'
       ;;
     *)
       return 1
@@ -231,7 +283,7 @@ process_group() {
     src="${entry#*|}"
 
     matched=$((matched + 1))
-    dest_name="${file_stem}-${DATE_SUFFIX}.csv"
+    dest_name="$(build_dest_name "${file_stem}")"
     dest_path="${dest_dir}/${dest_name}"
 
     if [[ -e "${dest_path}" && "${FORCE}" -eq 0 ]]; then
@@ -253,6 +305,7 @@ skipped=0
 
 log "Source:  ${SOURCE_DIR}"
 log "Project: ${PROJECT}"
+[[ -n "${SUBPROJECT}" ]] && log "Subproject: ${SUBPROJECT}"
 log "Date:    ${DATE_SUFFIX}"
 log "Dest:    ${DEST_PERF}"
 log "         ${DEST_TOKEN}"
@@ -311,6 +364,7 @@ if [[ "${matched}" -eq 0 ]]; then
   log "  Input Tokens-data"
   log "  Token Cache Match Rate"
   log "  Model requests-data"
+  log "  Average Latency"
   exit 0
 fi
 

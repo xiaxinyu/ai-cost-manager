@@ -42,7 +42,6 @@ def test_desktop_primary_workflows(page, e2e_server_base_url: str) -> None:
 
     # Charts should render non-empty canvases.
     for cid in [
-        "timeseriesChartActual",
         "timeseriesChartMarket",
     ]:
         n = page.evaluate(_canvas_data_url_len_expr(cid))
@@ -103,7 +102,7 @@ def test_mobile_smoke(page, e2e_server_base_url: str) -> None:
 
     page.wait_for_selector("#projectSelect option", state="attached")
     page.wait_for_timeout(400)
-    n = page.evaluate(_canvas_data_url_len_expr("timeseriesChartActual"))
+    n = page.evaluate(_canvas_data_url_len_expr("timeseriesChartMarket"))
     assert n > 2000
 
     for path, selector in [

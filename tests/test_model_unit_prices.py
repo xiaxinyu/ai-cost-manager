@@ -526,9 +526,9 @@ def test_catalog_market_cost_timeseries(tmp_path):
     assert "modelCostSummaryTable" in page.text
     assert "timeseriesChartInputByModel" in page.text
     assert "timeseriesChartOutputByModel" in page.text
-    assert "projectInputCostTotal" in page.text
     assert "costModelSection" in page.text
-    assert "modelSummaryTable" in page.text
+    assert "cost-overview" in page.text
+    assert "costTokenLinkBtn" in page.text
     assert "data-sort-key" in page.text
 
     api = client.get("/api/projects/projCat/catalog-market-timeseries?currency=USD")

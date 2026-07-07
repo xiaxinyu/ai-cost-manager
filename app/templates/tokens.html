@@ -6,9 +6,9 @@
     <title>Tokens - Models Cost Management</title>
     <link rel="stylesheet" href="/static/css/app-shell.css" />
     <link rel="stylesheet" href="/static/css/page-common.css" />
-    <link rel="stylesheet" href="/static/css/pages/tokens.css?v=20260606-sticky" />
+    <link rel="stylesheet" href="/static/css/pages/tokens.css?v=20260707-plain" />
     <link rel="stylesheet" href="/static/css/layout-pro.css" />
-    <link rel="stylesheet" href="/static/css/dashboard-shared.css?v=20260605-cost" />
+    <link rel="stylesheet" href="/static/css/dashboard-shared.css?v=20260707-detail" />
     <link rel="stylesheet" href="/static/css/date-range-picker.css?v=20260606-drp" />
     <link rel="stylesheet" href="/static/css/insight-panel.css?v=20260605-insights" />
   </head>
@@ -24,8 +24,11 @@
             <div class="breadcrumb">Home / Tokens</div>
             <div class="tokenTitleRow">
               <div>
-                <h1 class="pageTitle">Token Operations</h1>
-                <p class="pageDesc">Meter-matched billing by model and day. Charts follow the detail table.</p>
+                <h1 class="pageTitle">Token operations</h1>
+                <p class="pageDesc">
+                  Token volume, unit price, and performance from imported CSVs.
+                  Billing detail and cost breakdown live on the Cost page.
+                </p>
               </div>
               <div id="tokenSourceBadge" class="sourceBadge sourceEstimated" hidden>
                 <span class="sourceDot" aria-hidden="true"></span>
@@ -36,8 +39,8 @@
 
           <section class="card tokenToolbar filterCard" aria-label="Filters">
             <div class="filterCardHead">
-              <h2 class="filterCardTitle">Filters</h2>
-              <p class="filterCardHint muted">Project and date range · press Enter to load</p>
+              <h2 class="filterCardTitle">Scope</h2>
+              <p class="filterCardHint muted">Project and date range · Enter or Load to refresh</p>
             </div>
             <div class="toolbarGrid">
               <div class="field projectField">
@@ -82,7 +85,27 @@
           </div>
 
           <div id="tokenWorkspace" hidden>
-            <section class="tokenSummaryGrid" aria-label="Token summary">
+            <nav class="dashSectionNav card tokenNav" aria-label="Token sections">
+              <span class="dashSectionNavLabel muted">Jump to</span>
+              <a class="dashSectionNavLink" href="#token-summary">① Summary</a>
+              <a class="dashSectionNavLink" href="#flowUsage">② Usage</a>
+              <a class="dashSectionNavLink" href="#flowVolume">③ Volume</a>
+              <a class="dashSectionNavLink" href="#unitPriceSection">④ Unit price</a>
+              <a class="dashSectionNavLink" href="#perfSection">⑤ Performance</a>
+            </nav>
+
+            <section id="token-summary" class="tokenZone tokenZone--summary" aria-label="Summary">
+              <div class="tokenZoneHead">
+                <span class="tokenStep" aria-hidden="true">1</span>
+                <div class="tokenZoneHeadMain">
+                  <h2 class="tokenZoneTitle">Summary</h2>
+                  <p class="tokenZoneLead muted">Token volume and coverage for the selected project and dates.</p>
+                </div>
+              </div>
+            <div class="tokenKpiBoard">
+              <div class="tokenKpiGroup tokenKpiGroup--volume">
+                <p class="tokenKpiGroupLabel">Volume</p>
+                <div class="tokenKpiGroupCards">
               <article class="card stat statInput">
                 <div class="statHead">
                   <span class="statIcon" aria-hidden="true">IN</span>
@@ -107,24 +130,46 @@
                 <div class="value" id="estimatedTotalTokens">-</div>
                 <div class="sub" id="totalStats">Max · Mean · Min</div>
               </article>
-              <article class="card stat statMeta">
+                </div>
+              </div>
+              <div class="tokenKpiGroup tokenKpiGroup--coverage">
+                <p class="tokenKpiGroupLabel">Coverage</p>
+              <article class="card stat statMeta statMetaWide">
                 <div class="statHead">
                   <span class="statIcon" aria-hidden="true">◎</span>
-                  <span class="label">Coverage</span>
+                  <span class="label">Primary model &amp; region</span>
                 </div>
                 <div class="value modelValue" id="tokenModel">-</div>
                 <div class="sub" id="tokenRegion">-</div>
                 <div class="sub muted" id="tokenMetaExtra"></div>
               </article>
+              </div>
+            </div>
             </section>
 
-            <section id="modelBreakdownPanel" class="card modelBreakdownPanel" hidden>
-              <div class="panelHead">
-                <div>
-                  <h2 class="sectionTitle">Usage by model</h2>
-                  <p class="muted panelDesc">Summed from imported token CSV (6h buckets rolled up to calendar days).</p>
-                </div>
+            <aside id="tokenCostLink" class="tokenCostLink card" aria-label="Cost page">
+              <div class="tokenCostLinkMain">
+                <h3 class="tokenCostLinkTitle">Billing &amp; cost breakdown</h3>
+                <p class="tokenCostLinkDesc muted">Model/day costs, Market comparison, meter badges, and CSV export are on the Cost page.</p>
               </div>
+              <a id="tokenCostLinkBtn" class="btnSecondary tokenCostLinkBtn" href="/">Open Cost →</a>
+            </aside>
+
+            <div class="tokenAnalysisFlow" aria-label="Analysis flow">
+            <section id="flowUsage" class="flowBlock tokenZone detailTableBlock modelBreakdownPanel" hidden aria-labelledby="flowUsageTitle">
+              <header class="detailTableHead flowBlockHead">
+                <div class="detailTableIdentity flowBlockIdentity">
+                  <span class="tokenStep tokenStepInline" aria-hidden="true">2</span>
+                  <div>
+                    <h2 id="flowUsageTitle" class="detailTableTitle flowBlockTitle">Usage by model</h2>
+                    <p class="detailTableDesc flowBlockDesc muted">Input/output token share from imported CSV (6h buckets rolled up to calendar days).</p>
+                  </div>
+                </div>
+                <div class="detailTableActions flowBlockActions">
+                  <span id="modelRowBadge" class="tableRowBadge muted" hidden></span>
+                </div>
+              </header>
+              <div class="detailTableBody card dashTablePanel">
               <div class="tableScroll modelTableWrap">
                 <table class="modelTable">
                   <thead>
@@ -139,7 +184,7 @@
                   <tbody id="modelBreakdownTbody"></tbody>
                 </table>
               </div>
-              <div id="modelPager" class="pager" hidden>
+              <div id="modelPager" class="dashPager pager" hidden>
                 <span class="muted">Page size</span>
                 <select id="modelPageSizeSelect" aria-label="Model table page size">
                   <option value="10">10</option>
@@ -150,81 +195,16 @@
                 <button id="modelNextBtn" class="btnSmall" type="button">Next</button>
                 <span id="modelPageInfo" class="pageInfo">-</span>
               </div>
-            </section>
-
-            <div class="tokenAnalysisFlow" aria-label="Analysis flow">
-            <section class="flowBlock" id="flowDetail" aria-labelledby="flowDetailTitle">
-              <header class="flowBlockHead">
-                <div class="flowBlockIdentity">
-                  <span class="flowStepNum" aria-hidden="true">1</span>
-                  <h2 id="flowDetailTitle" class="flowBlockTitle">Billing detail</h2>
-                </div>
-                <p class="flowBlockDesc muted" id="tableHint">Newest first. Costs and $/1M come only from billing Meter rows (inp/opt) matched to each model — not estimated from daily totals.</p>
-                <div class="flowBlockActions">
-                  <span id="tableRowBadge" class="tableRowBadge muted" hidden></span>
-                  <button id="exportTokensBtn" class="btnSmall btnExport" type="button">Export CSV</button>
-                </div>
-              </header>
-              <div class="flowBlockBody card tokenTablePanel">
-              <div class="tableScroll dataTableWrap dashTableShell">
-                <table class="dataTable dashTable tokenBillingTable">
-                  <colgroup>
-                    <col class="colDate" />
-                    <col class="colModel" />
-                    <col class="colTokens" />
-                    <col class="colTokens" />
-                    <col class="colMoney" />
-                    <col class="colMoney" />
-                    <col class="colMoney" />
-                    <col class="colBilling" />
-                    <col class="colUnit" />
-                    <col class="colUnit" />
-                    <col class="colRatio" />
-                  </colgroup>
-                  <thead>
-                    <tr>
-                      <th class="thDateCol" scope="col">Date</th>
-                      <th class="thModelCol" scope="col" title="Model name from imported token CSV">Model</th>
-                      <th class="num thInputCol" scope="col">Input</th>
-                      <th class="num thOutputCol" scope="col">Output</th>
-                      <th class="num thInputCostCol colCostActual" scope="col"><span class="costPill costPill--actual">Actual</span><span class="thLabel">Input</span></th>
-                      <th class="num thOutputCostCol colCostActual" scope="col"><span class="costPill costPill--actual">Actual</span><span class="thLabel">Output</span></th>
-                      <th class="num thTotalCostCol colCostActual" scope="col"><span class="costPill costPill--actual">Actual</span><span class="thLabel">Total</span></th>
-                      <th scope="col" title="How billing was matched">Billing</th>
-                      <th class="num thUnitInCol colCostActual" scope="col" title="Meter input cost ÷ input tokens × 1M"><span class="costPill costPill--actual">Actual</span><span class="thLabel">$/1M in</span></th>
-                      <th class="num thUnitOutCol colCostActual" scope="col" title="Meter output cost ÷ output tokens × 1M"><span class="costPill costPill--actual">Actual</span><span class="thLabel">$/1M out</span></th>
-                      <th class="num thRatioCol" scope="col" title="Output tokens ÷ input tokens">
-                        <div class="thStack">
-                          <span class="thHeadPrimary">Ratio</span>
-                          <span class="thHeadSecondary muted">Out ÷ in</span>
-                        </div>
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody id="tokenRowsTbody"></tbody>
-                </table>
-              </div>
-              <div class="pager" id="dailyPager">
-                <span class="muted">Page size</span>
-                <select id="dailyPageSizeSelect" aria-label="Daily table page size">
-                  <option value="10">10</option>
-                  <option value="25" selected>25</option>
-                  <option value="50">50</option>
-                </select>
-                <button id="dailyPrevBtn" class="btnSmall" type="button">Prev</button>
-                <button id="dailyNextBtn" class="btnSmall" type="button">Next</button>
-                <span id="dailyPageInfo" class="pageInfo">-</span>
-              </div>
               </div>
             </section>
 
-            <section class="flowBlock" id="flowVolume" aria-labelledby="flowVolumeTitle">
-              <header class="flowBlockHead flowBlockHeadStack">
-                <div class="flowBlockIdentity">
-                  <span class="flowStepNum" aria-hidden="true">2</span>
-                  <h2 id="flowVolumeTitle" class="flowBlockTitle">Volume</h2>
+            <section class="flowBlock tokenZone" id="flowVolume" aria-labelledby="flowVolumeTitle">
+              <header class="tokenZoneHead flowBlockHead flowBlockHeadStack">
+                <span class="tokenStep" aria-hidden="true">3</span>
+                <div class="tokenZoneHeadMain">
+                  <h2 id="flowVolumeTitle" class="tokenZoneTitle flowBlockTitle">Volume</h2>
+                  <p class="tokenZoneLead flowBlockDesc muted" id="rangeLabel">Selected range: -</p>
                 </div>
-                <p class="flowBlockDesc muted" id="rangeLabel">Selected range: -</p>
               </header>
               <div class="flowChartGrid" aria-label="Token volume charts">
               <article class="card chartPanel chartWide">
@@ -263,65 +243,53 @@
               </div>
             </section>
 
-            <section class="flowBlock" id="flowCost" aria-labelledby="flowCostTitle">
-              <header class="flowBlockHead">
-                <div class="flowBlockIdentity">
-                  <span class="flowStepNum" aria-hidden="true">3</span>
-                  <h2 id="flowCostTitle" class="flowBlockTitle">Cost</h2>
-                </div>
-                <p class="flowBlockDesc muted">Meter-matched input/opt billing only (no estimated split).</p>
-              </header>
-              <div class="flowChartGrid" aria-label="Daily billing cost">
-              <article class="card chartPanel chartWide">
-                <div class="chartHeader">
-                  <div>
-                    <h3 class="chartCardTitle">Input cost by model</h3>
-                    <div class="costTypeLegend" aria-label="Cost type"><span class="costPill costPill--actual">Actual</span></div>
-                  </div>
-                </div>
-                <div class="chartCanvasHost" data-chart-host>
-                  <canvas id="tokenInputCostChart"></canvas>
-                </div>
-              </article>
-              <article class="card chartPanel chartWide">
-                <div class="chartHeader">
-                  <div>
-                    <h3 class="chartCardTitle">Output cost by model</h3>
-                    <div class="costTypeLegend" aria-label="Cost type"><span class="costPill costPill--actual">Actual</span></div>
-                    <p class="muted chartScaleHint">Meter billing per calendar day.</p>
-                  </div>
-                </div>
-                <div class="chartCanvasHost" data-chart-host>
-                  <canvas id="tokenOutputCostChart"></canvas>
-                </div>
-              </article>
-              </div>
-            </section>
-
-            <section id="unitPriceSection" class="flowBlock flowBlockUnitPrice" hidden aria-labelledby="flowUnitTitle">
-              <header class="flowBlockHead flowBlockHeadStack">
-                <div class="flowBlockIdentity">
-                  <span class="flowStepNum" aria-hidden="true">4</span>
-                  <h2 id="flowUnitTitle" class="flowBlockTitle">Unit price</h2>
-                </div>
-                <p class="flowBlockDesc muted panelDesc" id="unitPriceNote">Solid = <span class="costPill costPill--actual">Actual</span> $/1M (meter ÷ tokens) · dashed = <span class="costPill costPill--market costPill--dashed">Market</span> list USD/1M.</p>
-                <div class="costTypeLegend flowBlockLegend" aria-label="Cost type">
-                  <span class="costPill costPill--actual">Actual</span>
-                  <span class="costLegendSep" aria-hidden="true"></span>
-                  <span class="costPill costPill--market costPill--dashed">Market</span>
+            <section id="unitPriceSection" class="flowBlock tokenZone flowBlockUnitPrice" hidden aria-labelledby="flowUnitTitle">
+              <header class="tokenZoneHead flowBlockHead flowBlockHeadStack">
+                <span class="tokenStep" aria-hidden="true">4</span>
+                <div class="tokenZoneHeadMain">
+                  <h2 id="flowUnitTitle" class="tokenZoneTitle flowBlockTitle">Unit price</h2>
+                  <p class="tokenZoneLead flowBlockDesc muted panelDesc" id="unitPriceNote">Solid line = price from billing. Dashed line = list price from Model Prices.</p>
                 </div>
               </header>
               <div class="flowBlockBody card unitPriceSection">
-              <div id="catalogRefLine" class="catalogRefLine" hidden role="region" aria-label="Catalog reference"></div>
+              <div id="catalogRefLine" class="unitPriceSummary" hidden role="region" aria-label="Unit price summary">
+                <header class="unitPriceSummaryHead">
+                  <div class="unitPriceSummaryIdentity">
+                    <h3 class="unitPriceSummaryTitle">Latest unit prices</h3>
+                    <p class="unitPriceSummaryDesc muted">
+                      List price from Model Prices compared with price from your billing (per 1M tokens, latest day).
+                    </p>
+                  </div>
+                  <span id="unitPriceSummaryDate" class="tableRowBadge muted" hidden></span>
+                </header>
+                <div class="tableScroll unitPriceSummaryScroll">
+                  <table class="unitPriceSummaryTable">
+                    <thead>
+                      <tr>
+                        <th scope="col" rowspan="2">Model</th>
+                        <th class="num unitPriceGroupHead" scope="colgroup" colspan="2">List price</th>
+                        <th class="num unitPriceGroupHead" scope="colgroup" colspan="2">Billing price</th>
+                      </tr>
+                      <tr>
+                        <th class="num" scope="col">Input</th>
+                        <th class="num" scope="col">Output</th>
+                        <th class="num" scope="col">Input</th>
+                        <th class="num" scope="col">Output</th>
+                      </tr>
+                    </thead>
+                    <tbody id="unitPriceSummaryTbody"></tbody>
+                  </table>
+                </div>
+              </div>
               <div id="impliedChartsRow" class="flowChartGrid unitPriceChartsRow" hidden>
                 <article class="chartPanel chartWide impliedUnitPriceChartCard">
-                  <div class="chartSectionTitle">Input · USD/1M</div>
+                  <div class="chartSectionTitle">Input token price</div>
                   <div class="chartCanvasHost impliedUnitPriceChartWrap" data-chart-host>
                     <canvas id="impliedUnitPriceInputChart"></canvas>
                   </div>
                 </article>
                 <article class="chartPanel chartWide impliedUnitPriceChartCard">
-                  <div class="chartSectionTitle">Output · USD/1M</div>
+                  <div class="chartSectionTitle">Output token price</div>
                   <div class="chartCanvasHost impliedUnitPriceChartWrap" data-chart-host>
                     <canvas id="impliedUnitPriceOutputChart"></canvas>
                   </div>
@@ -330,13 +298,13 @@
               </div>
             </section>
 
-            <section id="perfSection" class="flowBlock" aria-labelledby="flowPerfTitle">
-              <header class="flowBlockHead flowBlockHeadStack">
-                <div class="flowBlockIdentity">
-                  <span class="flowStepNum" aria-hidden="true">5</span>
-                  <h2 id="flowPerfTitle" class="flowBlockTitle">Performance</h2>
+            <section id="perfSection" class="flowBlock tokenZone detailTableBlock" aria-labelledby="flowPerfTitle">
+              <header class="tokenZoneHead flowBlockHead flowBlockHeadStack">
+                <span class="tokenStep" aria-hidden="true">5</span>
+                <div class="tokenZoneHeadMain">
+                  <h2 id="flowPerfTitle" class="tokenZoneTitle flowBlockTitle">Performance</h2>
+                  <p class="tokenZoneLead flowBlockDesc muted">Metrics from <code>bills/&lt;project&gt;/performance/</code> and cache-match-rate CSVs. Hover a chart point to highlight the matching row; click legend entries to toggle models.</p>
                 </div>
-                <p class="flowBlockDesc muted">Time-series metrics from <code>bills/&lt;project&gt;/performance/</code> and <code>bills/&lt;project&gt;/token/cache-match-rate-*.csv</code>. Hover a chart point to highlight the matching row below; click legend entries to show or hide models across all charts.</p>
               </header>
               <div class="flowChartGrid" aria-label="Performance metrics">
                 <article class="card chartPanel chartWide">
@@ -373,13 +341,12 @@
                   </div>
                 </article>
               </div>
-              <div class="flowBlockBody card" style="margin-top: 12px;">
-                <div class="panelHead">
-                  <div>
-                    <h2 class="sectionTitle">Performance raw points</h2>
-                    <p class="muted panelDesc">Newest first.</p>
-                  </div>
-                </div>
+              <div class="detailTableBody card dashTablePanel perfTablePanel">
+                <header class="detailTableSubHead">
+                  <h3 class="detailTableTitle">Raw points</h3>
+                  <p class="detailTableDesc muted">Newest first · synced with chart hover</p>
+                  <span id="perfRowBadge" class="tableRowBadge muted" hidden></span>
+                </header>
                 <div class="tableScroll dataTableWrap dashTableShell perfTableShell" data-table-host>
                   <table class="dataTable dashTable" id="perfRowsTable">
                     <thead>
@@ -420,6 +387,6 @@
     <script src="/static/js/dashboard-ui.js?v=20260605-datesort"></script>
     <script src="/static/js/date-range-picker.js?v=20260606-drp"></script>
     <script src="/static/js/insight-panel.js?v=20260605-insights"></script>
-    <script src="/static/js/pages/tokens.js?v=20260606-drp"></script>
+    <script src="/static/js/pages/tokens.js?v=20260707-plain"></script>
   </body>
 </html>

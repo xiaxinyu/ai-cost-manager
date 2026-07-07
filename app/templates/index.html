@@ -6,9 +6,9 @@
     <title>Cost - Models Cost Management</title>
     <link rel="stylesheet" href="/static/css/app-shell.css" />
     <link rel="stylesheet" href="/static/css/page-common.css" />
-    <link rel="stylesheet" href="/static/css/pages/index.css?v=20260706-layout" />
+    <link rel="stylesheet" href="/static/css/pages/index.css?v=20260707-monitor" />
     <link rel="stylesheet" href="/static/css/layout-pro.css" />
-    <link rel="stylesheet" href="/static/css/dashboard-shared.css?v=20260605-cost" />
+    <link rel="stylesheet" href="/static/css/dashboard-shared.css?v=20260707-monitor" />
     <link rel="stylesheet" href="/static/css/date-range-picker.css?v=20260606-drp" />
     <link rel="stylesheet" href="/static/css/insight-panel.css?v=20260706-align" />
   </head>
@@ -25,14 +25,13 @@
               <div>
                 <h1 class="pageTitle">Cost overview</h1>
                 <p class="pageDesc">
-                  Read top → bottom: scope summary, daily trends, billing breakdown, then model detail.
-                  <span class="costPill costPill--actual">Actual</span> billing vs
-                  <span class="costPill costPill--market">Market</span> list price · token detail on
-                  <a href="/tokens">Tokens</a>.
+                  Billing vs market benchmark.
+                  <span class="costPill costPill--actual">Actual</span> from CSV ·
+                  <span class="costPill costPill--market">Market</span> from Model Prices.
                 </p>
               </div>
               <p class="costSourceNote muted">
-                Source: CSV in <span class="pill">{{ default_bills_dir }}</span>
+                CSV: <span class="pill">{{ default_bills_dir }}</span>
               </p>
             </div>
           </header>
@@ -61,228 +60,137 @@
             </div>
           </section>
 
-          <nav class="costNav card" aria-label="Cost sections">
-            <span class="costNavLabel muted">Jump to</span>
-            <a class="costNavLink" href="#cost-summary">① Summary</a>
-            <a class="costNavLink" href="#cost-trends">② Trends</a>
-            <a class="costNavLink" href="#costResourceSection">③ Billing</a>
-            <a class="costNavLink" href="#costModelSection">④ Models</a>
+          <nav class="dashSectionNav card costNav" aria-label="Cost sections">
+            <span class="dashSectionNavLabel costNavLabel muted">Jump to</span>
+            <a class="dashSectionNavLink costNavLink" href="#cost-overview">① Overview</a>
+            <a class="dashSectionNavLink costNavLink" href="#costModelSection">② Models</a>
+            <a class="dashSectionNavLink costNavLink" href="#costResourceSection">③ Billing</a>
           </nav>
 
-          <section id="cost-summary" class="costZone costZone--summary" aria-label="Summary">
+          <section id="cost-overview" class="costZone costZone--overview" aria-label="Overview">
             <div class="costSectionHead">
               <span class="costStep" aria-hidden="true">1</span>
               <div class="costSectionHeadMain">
-                <h2 class="costSectionTitle">Summary</h2>
-                <p class="costSectionLead muted">Total billing for the selected project and dates, with market benchmark.</p>
+                <h2 class="costSectionTitle">Overview</h2>
+                <p class="costSectionLead muted">Totals, daily trends, and model cost charts for the selected scope.</p>
               </div>
+              <span class="costSectionMeta muted" id="currencyLabel"></span>
             </div>
-            <div class="costKpiBoard">
-              <div class="costKpiGroup costKpiGroup--billing">
-                <p class="costKpiGroupLabel">Total billing</p>
-                <article class="card kpiCard kpiCard--hero kpiCard--primary kpiCard--actual">
-                  <div class="stat">
-                    <div class="label"><span class="costPill costPill--actual">Actual</span> Cost USD</div>
-                    <div class="value" id="actualCost">-</div>
-                    <div class="sub tokenStats kpiFootnote" id="actualCostNote">All billing meters</div>
-                    <div class="sub tokenStats kpiFootnote" id="costStats">Max: - · Mean: - · Min: -</div>
-                  </div>
-                </article>
-              </div>
-              <div class="costKpiGroup costKpiGroup--scope">
-                <p class="costKpiGroupLabel">Scope</p>
-                <div class="costKpiGroupCards">
-                  <article class="card kpiCard">
-                    <div class="stat">
-                      <div class="label">Date range</div>
-                      <div class="value value--md" id="dateRange">-</div>
-                    </div>
-                  </article>
-                  <article class="card kpiCard">
-                    <div class="stat">
-                      <div class="label">Days with data</div>
-                      <div class="value value--md" id="daysCount">-</div>
-                    </div>
-                  </article>
+
+            <div class="costMonitorKpi">
+              <article class="card monitorKpi monitorKpi--actual">
+                <div class="stat">
+                  <div class="label"><span class="costPill costPill--actual">Actual</span> Total</div>
+                  <div class="value" id="actualCost">-</div>
+                  <div class="sub tokenStats kpiFootnote" id="costStats">Max: - · Mean: - · Min: -</div>
                 </div>
-              </div>
-              <div class="costKpiGroup costKpiGroup--market">
-                <p class="costKpiGroupLabel">Market benchmark</p>
-                <div class="costKpiGroupCards">
-                  <article class="card kpiCard kpiCard--market" id="catalogMarketCard">
-                    <div class="stat">
-                      <div class="label"><span class="costPill costPill--market">Market</span> Catalog list</div>
-                      <div class="value" id="catalogMarketTotal">-</div>
-                      <div class="sub tokenStats kpiFootnote" id="catalogMarketNote">Tokens × Model Prices USD/1M</div>
-                    </div>
-                  </article>
-                  <article class="card kpiCard kpiCard--market" id="catalogVarianceCard">
-                    <div class="stat">
-                      <div class="label">Actual − Market</div>
-                      <div class="value value--md" id="catalogVariancePct">-</div>
-                      <div class="sub tokenStats kpiFootnote" id="catalogVarianceNote">Actual vs Market</div>
-                    </div>
-                  </article>
+              </article>
+              <article class="card monitorKpi monitorKpi--market" id="catalogMarketCard">
+                <div class="stat">
+                  <div class="label"><span class="costPill costPill--market">Market</span> Total</div>
+                  <div class="value" id="catalogMarketTotal">-</div>
+                  <div class="sub tokenStats kpiFootnote" id="catalogMarketNote">Tokens × list USD/1M</div>
                 </div>
-              </div>
+              </article>
+              <article class="card monitorKpi monitorKpi--delta" id="catalogVarianceCard">
+                <div class="stat">
+                  <div class="label">Actual − Market</div>
+                  <div class="value value--md" id="catalogVariancePct">-</div>
+                  <div class="sub tokenStats kpiFootnote" id="catalogVarianceNote">Variance</div>
+                </div>
+              </article>
+              <article class="card monitorKpi monitorKpi--scope">
+                <div class="stat">
+                  <div class="label">Scope</div>
+                  <div class="value value--md value--scope" id="dateRange">-</div>
+                  <div class="sub tokenStats kpiFootnote" id="daysCount">Days: -</div>
+                </div>
+              </article>
             </div>
+
             <div id="costInsightPanel" class="insightPanel" hidden aria-label="Cost insights"></div>
+
+            <aside class="costCrossLink card" aria-label="Tokens page">
+              <div class="costCrossLinkMain">
+                <h3 class="costCrossLinkTitle">Token volume &amp; performance</h3>
+                <p class="costCrossLinkDesc muted">Charts and cache/latency metrics from imported token CSVs.</p>
+              </div>
+              <a id="costTokenLinkBtn" class="btnSecondary costCrossLinkBtn" href="/tokens">Open Tokens →</a>
+            </aside>
+
+            <div class="costMonitorGrid" aria-label="Cost charts">
+              <article class="card monitorCard monitorCard--primary" id="marketCompareSection">
+                <header class="monitorCardHead">
+                  <div>
+                    <h3 class="monitorCardTitle">Daily billing</h3>
+                    <p class="monitorCardDesc muted" id="marketChartHint">Actual billing per day.</p>
+                  </div>
+                  <div class="costTypeLegend monitorCardLegend" aria-label="Cost type">
+                    <span class="costPill costPill--actual">Actual</span>
+                    <span class="costLegendSep" aria-hidden="true"></span>
+                    <span class="costPill costPill--market costPill--dashed">Market</span>
+                  </div>
+                </header>
+                <div class="chartCanvasHost monitorChartHost" data-chart-host>
+                  <canvas id="timeseriesChartMarket" role="img" aria-label="Daily billing chart"></canvas>
+                </div>
+                <footer class="monitorCardFoot muted" id="costChartFootnote">—</footer>
+              </article>
+              <article class="card monitorCard" id="inputModelChartCard" hidden>
+                <header class="monitorCardHead">
+                  <div>
+                    <h3 class="monitorCardTitle">Input cost by model</h3>
+                    <p class="monitorCardDesc muted">Meter input (inp) billing per model/day.</p>
+                  </div>
+                  <span class="costPill costPill--actual">Actual</span>
+                </header>
+                <div class="chartCanvasHost monitorChartHost" data-chart-host>
+                  <canvas id="timeseriesChartInputByModel" role="img" aria-label="Input cost by model"></canvas>
+                </div>
+              </article>
+              <article class="card monitorCard" id="outputModelChartCard" hidden>
+                <header class="monitorCardHead">
+                  <div>
+                    <h3 class="monitorCardTitle">Output cost by model</h3>
+                    <p class="monitorCardDesc muted">Meter output (opt) billing per model/day.</p>
+                  </div>
+                  <span class="costPill costPill--actual">Actual</span>
+                </header>
+                <div class="chartCanvasHost monitorChartHost" data-chart-host>
+                  <canvas id="timeseriesChartOutputByModel" role="img" aria-label="Output cost by model"></canvas>
+                </div>
+              </article>
+            </div>
           </section>
 
           <div class="costZones">
-            <section id="cost-trends" class="costZone costZone--trends" aria-label="Daily cost trends">
-              <div class="costSectionHead">
-                <span class="costStep" aria-hidden="true">2</span>
-                <div class="costSectionHeadMain">
-                  <h2 class="costSectionTitle">Daily trends</h2>
-                  <p class="costSectionLead muted">Actual billing per day and comparison to market list price.</p>
-                </div>
-                <span class="costSectionMeta muted" id="currencyLabel"></span>
-              </div>
-              <div class="chartStack">
-                <div class="card tight chartPanel">
-                  <div class="chartPanelHead">
-                    <h3 class="chartSectionTitle">Daily cost</h3>
-                    <div class="costTypeLegend" aria-label="Cost type"><span class="costPill costPill--actual">Actual</span></div>
-                  </div>
-                  <div class="chartCanvasHost" data-chart-host>
-                    <canvas id="timeseriesChartActual" role="img" aria-label="Daily actual cost chart"></canvas>
-                  </div>
-                </div>
-                <div class="card tight chartPanel chartPanelHead--compare" id="marketCompareSection">
-                  <div class="chartPanelHead">
-                    <h3 class="chartSectionTitle">Daily comparison</h3>
-                    <div class="costTypeLegend" aria-label="Cost type"><span class="costPill costPill--actual">Actual</span><span class="costLegendSep" aria-hidden="true"></span><span class="costPill costPill--market costPill--dashed">Market</span></div>
-                    <p class="muted marketChartHint" id="marketChartHint">Solid = Actual billing · dashed = Market (tokens × list USD/1M).</p>
-                  </div>
-                  <div class="chartCanvasHost chartCanvasHost--tall" data-chart-host>
-                    <canvas id="timeseriesChartMarket" role="img" aria-label="Actual vs catalog market daily chart"></canvas>
-                  </div>
-                </div>
-              </div>
-            </section>
-
-            <section class="costZone costZone--billing costResourceSection" id="costResourceSection" hidden aria-label="Billing breakdown">
-              <div class="costSectionHead">
-                <span class="costStep" aria-hidden="true">3</span>
-                <div class="costSectionHeadMain">
-                  <h2 class="costSectionTitle">Billing breakdown</h2>
-                  <p class="costSectionLead muted">Resource and service totals from imported billing CSV, plus line-level detail.</p>
-                </div>
-                <span class="costSectionMeta muted" id="resourceBillingHint"></span>
-              </div>
-              <div class="costDetailStack">
-              <div class="card tight costDetailCard resourceBillingCard">
-                <h3 class="costDetailTitle">By resource</h3>
-                <p class="costDetailLead muted">
-                  Aggregated actual cost per Azure resource and service.
-                </p>
-                <div class="tableScroll resourceBillingTableWrap" data-table-host>
-                  <table class="dataTable dashTable resourceBillingTable" id="resourceBillingTable">
-                    <thead>
-                      <tr>
-                        <th scope="col" data-sortable data-sort-type="text">Resource</th>
-                        <th scope="col" data-sortable data-sort-type="text">Service</th>
-                        <th scope="col" data-sortable data-sort-type="text">Location</th>
-                        <th scope="col" data-sortable data-sort-type="text">Resource group</th>
-                        <th class="num" scope="col" data-sortable data-sort-type="number" aria-sort="descending">Actual USD</th>
-                        <th class="num" scope="col" data-sortable data-sort-type="number">Share %</th>
-                        <th class="num" scope="col" data-sortable data-sort-type="number">Days</th>
-                      </tr>
-                    </thead>
-                    <tbody id="resourceBillingTbody"></tbody>
-                    <tfoot id="resourceBillingTfoot"></tfoot>
-                  </table>
-                </div>
-              </div>
-              <div class="card tight costDetailCard resourceRawCard">
-                <div class="resourceRawHead">
-                  <h3 class="costDetailTitle">Line items</h3>
-                  <p class="costDetailLead muted">Imported CSV rows — basic fields, newest first.</p>
-                </div>
-                <div class="resourceRawToolbar" aria-label="Raw billing pagination">
-                  <label class="resourceRawPageSizeLabel muted" for="billingRawPageSize">Page size</label>
-                  <select id="billingRawPageSize" class="resourceRawPageSize">
-                    <option value="25" selected>25</option>
-                    <option value="50">50</option>
-                    <option value="100">100</option>
-                  </select>
-                  <span id="billingRawPageInfo" class="resourceRawPageInfo muted">—</span>
-                  <button id="billingRawPrevBtn" class="pgBtn" type="button">Previous</button>
-                  <button id="billingRawNextBtn" class="pgBtn" type="button">Next</button>
-                </div>
-                <div class="tableScroll resourceRawTableWrap" data-table-host id="billingRawTableHost">
-                  <table class="dataTable dashTable resourceRawTable" id="billingRawTable">
-                    <thead>
-                      <tr>
-                        <th scope="col">Date</th>
-                        <th scope="col">Resource</th>
-                        <th scope="col">Service</th>
-                        <th scope="col">Tier</th>
-                        <th scope="col">Meter</th>
-                        <th class="num" scope="col">Cost USD</th>
-                        <th scope="col">Currency</th>
-                        <th scope="col">Source</th>
-                      </tr>
-                    </thead>
-                    <tbody id="billingRawTbody"></tbody>
-                  </table>
-                </div>
-              </div>
-              </div>
-            </section>
 
             <section class="costZone costZone--models costModelSection" id="costModelSection" hidden aria-label="Model breakdown">
               <div class="costSectionHead">
-                <span class="costStep" aria-hidden="true">4</span>
+                <span class="costStep" aria-hidden="true">2</span>
                 <div class="costSectionHeadMain">
-                  <h2 class="costSectionTitle">Model breakdown</h2>
-                  <p class="costSectionLead muted">Token-meter matched billing by model; Others rows reconcile to total billing.</p>
+                  <h2 class="costSectionTitle">Models</h2>
+                  <p class="costSectionLead muted">Meter-matched billing by model. Market list from <a href="/prices">Model Prices</a>.</p>
                 </div>
                 <span class="costSectionMeta muted" id="modelSectionHint"></span>
               </div>
-              <div class="modelMeterTotals" id="modelMeterTotals" hidden>
-                <div class="card tight meterTotalCard">
-                  <div class="chartSectionTitle">Meter-matched totals (all models)</div>
-                  <div class="meterTotalGrid">
-                    <div class="meterTotalItem">
-                      <span class="meterTotalLabel">Input cost</span>
-                      <span class="meterTotalValue mono" id="projectInputCostTotal">—</span>
-                    </div>
-                    <div class="meterTotalItem">
-                      <span class="meterTotalLabel">Output cost</span>
-                      <span class="meterTotalValue mono" id="projectOutputCostTotal">—</span>
-                    </div>
-                    <div class="meterTotalItem meterTotalItemHighlight">
-                      <span class="meterTotalLabel">Input + output</span>
-                      <span class="meterTotalValue mono" id="projectMeterCostTotal">—</span>
-                    </div>
-                    <div class="meterTotalItem meterTotalItemOther" id="projectBillingOtherWrap" hidden>
-                      <span class="meterTotalLabel">Other billing</span>
-                      <span class="meterTotalValue mono" id="projectBillingOtherTotal">—</span>
-                    </div>
+
+              <section class="detailTableBlock" aria-label="Model totals">
+                <header class="detailTableHead">
+                  <div class="detailTableIdentity">
+                    <h3 class="detailTableTitle">By model</h3>
+                    <p class="detailTableDesc muted modelTableHint">
+                      Actual vs Market totals. <span class="costPill costPill--actual">Others</span> = non-token billing.
+                    </p>
                   </div>
-                  <p class="meterTotalHint muted" id="modelMeterHint">Token-meter matched subset of top Actual total.</p>
-                </div>
-              </div>
-              <div class="card tight modelSummaryCard">
-                <div class="modelSummaryHead">
-                  <h3 class="costDetailTitle">Model totals</h3>
-                  <p class="modelTableHint muted">
-                    Model rows = token-meter matched billing.
-                    <span class="costPill costPill--actual">Others</span> rows reconcile to top Actual total.
-                    Market list from <a href="/prices">Model Prices</a>.
-                  </p>
-                </div>
-                <div class="tableScroll modelSummaryTableWrap">
+                  <div class="detailTableActions">
+                    <span id="modelTableBadge" class="tableRowBadge muted" hidden></span>
+                  </div>
+                </header>
+                <div class="detailTableBody card dashTablePanel modelSummaryCard">
+                <div class="tableScroll dataTableWrap dashTableShell modelSummaryTableWrap">
                   <table class="dataTable dashTable modelSummaryTable" id="modelCostSummaryTable">
                     <thead>
-                      <tr class="costColGroupRow">
-                        <th colspan="2" scope="colgroup" class="colGroupMeta"></th>
-                        <th colspan="3" scope="colgroup" class="colGroupActual"><span class="costPill costPill--actual">Actual</span></th>
-                        <th colspan="1" scope="colgroup" class="colGroupMarket"><span class="costPill costPill--market">Market</span></th>
-                        <th colspan="2" scope="colgroup" class="colGroupMeta"></th>
-                      </tr>
                       <tr>
                         <th scope="col" class="sortable" data-sort-key="model_name">Model</th>
                         <th scope="col" class="colCostMarket colCostMarketMeta">
@@ -290,20 +198,16 @@
                           <span class="thLabel">List rate</span><span class="thUnit">USD/1M</span>
                         </th>
                         <th class="num sortable colCostActual" scope="col" data-sort-key="input_cost_usd">
-                          <span class="costPill costPill--actual">Actual</span>
                           <span class="thLabel">Input</span><span class="thUnit">USD</span>
                         </th>
                         <th class="num sortable colCostActual" scope="col" data-sort-key="output_cost_usd">
-                          <span class="costPill costPill--actual">Actual</span>
                           <span class="thLabel">Output</span><span class="thUnit">USD</span>
                         </th>
                         <th class="num sortable colCostActual" scope="col" data-sort-key="actual_cost_usd">
-                          <span class="costPill costPill--actual">Actual</span>
-                          <span class="thLabel">Total</span><span class="thUnit">USD</span>
+                          <span class="thLabel">Actual</span><span class="thUnit">USD</span>
                         </th>
                         <th class="num sortable colCostMarket" scope="col" data-sort-key="catalog_cost_usd">
-                          <span class="costPill costPill--market">Market</span>
-                          <span class="thLabel">Total</span><span class="thUnit">USD</span>
+                          <span class="thLabel">Market</span><span class="thUnit">USD</span>
                         </th>
                         <th class="num sortable" scope="col" data-sort-key="variance_pct">
                           <span class="thLabel">Δ</span><span class="thUnit">%</span>
@@ -317,29 +221,189 @@
                     <tfoot id="modelCostSummaryTfoot"></tfoot>
                   </table>
                 </div>
-              </div>
-              <div class="chartStack modelCostDirCharts">
-                <div class="card tight chartPanel">
-                  <div class="chartPanelHead">
-                    <h3 class="chartSectionTitle">Input by model</h3>
-                    <div class="costTypeLegend" aria-label="Cost type"><span class="costPill costPill--actual">Actual</span></div>
-                    <p class="muted marketChartHint">Meter input (inp) billing per model/day.</p>
+                </div>
+              </section>
+
+              <section class="detailTableBlock" aria-label="Billing detail by model">
+                <header class="detailTableHead">
+                  <div class="detailTableIdentity">
+                    <h3 class="detailTableTitle">Daily detail</h3>
+                    <p class="detailTableDesc muted">
+                      One row per model/day — tokens, costs, unit $/1M, meter status.
+                    </p>
                   </div>
-                  <div class="chartCanvasHost" data-chart-host>
-                    <canvas id="timeseriesChartInputByModel" role="img" aria-label="Input cost by model daily chart"></canvas>
+                  <div class="detailTableActions">
+                    <span id="modelDailyBadge" class="tableRowBadge muted" hidden></span>
+                    <button id="modelDailyExportBtn" class="btnSmall btnExport" type="button">Export CSV</button>
+                  </div>
+                </header>
+                <div class="detailTableBody card dashTablePanel costModelDailyPanel">
+                  <div class="tableScroll dataTableWrap dashTableShell costModelDailyTableWrap">
+                    <table class="dataTable dashTable billingDetailTable costModelDailyTable" id="modelDailyTable">
+                      <colgroup>
+                        <col class="colDate" />
+                        <col class="colModel" />
+                        <col class="colTokens" />
+                        <col class="colTokens" />
+                        <col class="colMoney" />
+                        <col class="colMoney" />
+                        <col class="colMoney" />
+                        <col class="colMoney" />
+                        <col class="colDelta" />
+                        <col class="colBilling" />
+                        <col class="colUnit" />
+                        <col class="colUnit" />
+                        <col class="colRatio" />
+                      </colgroup>
+                      <thead>
+                        <tr>
+                          <th class="thDateCol" scope="col">Date</th>
+                          <th class="thModelCol" scope="col">Model</th>
+                          <th class="num" scope="col">Input</th>
+                          <th class="num" scope="col">Output</th>
+                          <th class="num colCostActual" scope="col"><span class="thLabel">Input</span><span class="thUnit">USD</span></th>
+                          <th class="num colCostActual" scope="col"><span class="thLabel">Output</span><span class="thUnit">USD</span></th>
+                          <th class="num colCostActual" scope="col"><span class="thLabel">Actual</span><span class="thUnit">USD</span></th>
+                          <th class="num colCostMarket" scope="col"><span class="thLabel">Market</span><span class="thUnit">USD</span></th>
+                          <th class="num" scope="col"><span class="thLabel">Δ</span><span class="thUnit">%</span></th>
+                          <th scope="col">Billing</th>
+                          <th class="num colCostActual" scope="col"><span class="thLabel">$/1M in</span></th>
+                          <th class="num colCostActual" scope="col"><span class="thLabel">$/1M out</span></th>
+                          <th class="num" scope="col">
+                            <div class="thStack">
+                              <span class="thHeadPrimary">Ratio</span>
+                              <span class="thHeadSecondary muted">Out ÷ in</span>
+                            </div>
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody id="modelDailyTbody"></tbody>
+                    </table>
+                  </div>
+                  <div class="dashPager" id="modelDailyPager" hidden aria-label="Billing detail pagination">
+                    <span class="muted">Page size</span>
+                    <select id="modelDailyPageSize" aria-label="Billing detail page size">
+                      <option value="10">10</option>
+                      <option value="25" selected>25</option>
+                      <option value="50">50</option>
+                    </select>
+                    <button id="modelDailyPrevBtn" class="btnSmall" type="button">Prev</button>
+                    <button id="modelDailyNextBtn" class="btnSmall" type="button">Next</button>
+                    <span id="modelDailyPageInfo" class="pageInfo muted">—</span>
                   </div>
                 </div>
-                <div class="card tight chartPanel">
-                  <div class="chartPanelHead">
-                    <h3 class="chartSectionTitle">Output by model</h3>
-                    <div class="costTypeLegend" aria-label="Cost type"><span class="costPill costPill--actual">Actual</span></div>
-                    <p class="muted marketChartHint">Meter output (opt) billing per model/day.</p>
+              </section>
+            </section>
+
+            <section class="costZone costZone--billing costResourceSection" id="costResourceSection" hidden aria-label="Billing breakdown">
+              <div class="costSectionHead">
+                <span class="costStep" aria-hidden="true">3</span>
+                <div class="costSectionHeadMain">
+                  <h2 class="costSectionTitle">Billing</h2>
+                  <p class="costSectionLead muted">Azure resource totals and raw CSV line items.</p>
+                </div>
+                <span class="costSectionMeta muted" id="resourceBillingHint"></span>
+              </div>
+
+              <section class="detailTableBlock" aria-label="By resource">
+                <header class="detailTableHead">
+                  <div class="detailTableIdentity">
+                    <h3 class="detailTableTitle">By resource</h3>
+                    <p class="detailTableDesc muted">Aggregated actual cost per resource and service.</p>
                   </div>
-                  <div class="chartCanvasHost" data-chart-host>
-                    <canvas id="timeseriesChartOutputByModel" role="img" aria-label="Output cost by model daily chart"></canvas>
+                  <div class="detailTableActions">
+                    <span id="resourceTableBadge" class="tableRowBadge muted" hidden></span>
+                  </div>
+                </header>
+                <div class="detailTableBody card dashTablePanel resourceBillingCard">
+                <div class="tableScroll dataTableWrap dashTableShell resourceBillingTableWrap" data-table-host>
+                  <table class="dataTable dashTable resourceBillingTable costProTable" id="resourceBillingTable">
+                    <colgroup>
+                      <col class="colResource" />
+                      <col class="colService" />
+                      <col class="colLocation" />
+                      <col class="colRg" />
+                      <col class="colMoney" />
+                      <col class="colShare" />
+                      <col class="colDays" />
+                    </colgroup>
+                    <thead>
+                      <tr>
+                        <th class="thResourceCol" scope="col" data-sortable data-sort-type="text">Resource</th>
+                        <th scope="col" data-sortable data-sort-type="text">Service</th>
+                        <th scope="col" data-sortable data-sort-type="text">Location</th>
+                        <th scope="col" data-sortable data-sort-type="text">Resource group</th>
+                        <th class="num colCostActual" scope="col" data-sortable data-sort-type="number" aria-sort="descending">
+                          <span class="costPill costPill--actual">Actual</span>
+                          <span class="thLabel">Cost</span><span class="thUnit">USD</span>
+                        </th>
+                        <th class="num" scope="col" data-sortable data-sort-type="number">
+                          <span class="thLabel">Share</span><span class="thUnit">%</span>
+                        </th>
+                        <th class="num" scope="col" data-sortable data-sort-type="number">
+                          <span class="thLabel">Days</span>
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody id="resourceBillingTbody"></tbody>
+                    <tfoot id="resourceBillingTfoot"></tfoot>
+                  </table>
+                </div>
+                </div>
+              </section>
+
+              <details class="costBillingDetails card">
+                <summary class="costBillingDetailsSummary">
+                  <span class="costBillingDetailsTitle">Line items</span>
+                  <span id="billingRawBadge" class="tableRowBadge muted">—</span>
+                </summary>
+                <div class="detailTableBody dashTablePanel resourceRawCard">
+                  <div class="costBillingDetailsActions">
+                    <button id="billingRawExportBtn" class="btnSmall btnExport" type="button">Export CSV</button>
+                  </div>
+                  <div class="tableScroll dataTableWrap dashTableShell resourceRawTableWrap costLineItemsTableWrap" data-table-host id="billingRawTableHost">
+                    <table class="dataTable dashTable resourceRawTable costLineItemsTable" id="billingRawTable">
+                      <colgroup>
+                        <col class="colDate" />
+                        <col class="colResource" />
+                        <col class="colService" />
+                        <col class="colTier" />
+                        <col class="colMeter" />
+                        <col class="colMoney" />
+                        <col class="colCurrency" />
+                        <col class="colSource" />
+                      </colgroup>
+                      <thead>
+                        <tr>
+                          <th class="thDateCol" scope="col">Date</th>
+                          <th class="thResourceCol" scope="col">Resource</th>
+                          <th scope="col">Service</th>
+                          <th scope="col">Tier</th>
+                          <th scope="col">Meter</th>
+                          <th class="num colCostActual" scope="col">
+                            <span class="costPill costPill--actual">Actual</span>
+                            <span class="thLabel">Cost</span><span class="thUnit">USD</span>
+                          </th>
+                          <th scope="col">Currency</th>
+                          <th scope="col">Source</th>
+                        </tr>
+                      </thead>
+                      <tbody id="billingRawTbody"></tbody>
+                    </table>
+                  </div>
+                  <div class="dashPager resourceRawPager" id="billingRawPager" aria-label="Line items pagination">
+                    <span class="muted">Page size</span>
+                    <select id="billingRawPageSize" class="resourceRawPageSize" aria-label="Line items page size">
+                      <option value="25" selected>25</option>
+                      <option value="50">50</option>
+                      <option value="100">100</option>
+                    </select>
+                    <button id="billingRawPrevBtn" class="btnSmall pgBtn" type="button">Prev</button>
+                    <button id="billingRawNextBtn" class="btnSmall pgBtn" type="button">Next</button>
+                    <span id="billingRawPageInfo" class="pageInfo resourceRawPageInfo muted">—</span>
                   </div>
                 </div>
-              </div>
+              </details>
             </section>
           </div>
         </div>
@@ -353,7 +417,8 @@
     <script src="/static/js/chart-plugins.js"></script>
     <script src="/static/js/chart-style.js?v=20260605-dates"></script>
     <script src="/static/js/cost-semantics.js?v=20260605-cost"></script>
-    <script src="/static/js/dashboard-ui.js?v=20260706-resource"></script>
+    <script src="/static/js/dashboard-ui.js?v=20260707-detail"></script>
+    <script src="/static/js/billing-detail-table.js?v=20260707-detail"></script>
     <script src="/static/js/date-range-picker.js?v=20260606-drp"></script>
     <script src="/static/js/insight-panel.js?v=20260605-insights"></script>
     <script>
@@ -371,7 +436,6 @@
       const endDateInput = document.getElementById('endDateInput');
       const applyFiltersBtn = document.getElementById('applyFiltersBtn');
 
-      let chartActual = null;
       let chartMarket = null;
       let chartInputByModel = null;
       let chartOutputByModel = null;
@@ -390,11 +454,15 @@
       const costModelSectionEl = document.getElementById('costModelSection');
       const costResourceSectionEl = document.getElementById('costResourceSection');
       const resourceBillingHintEl = document.getElementById('resourceBillingHint');
+      const resourceTableBadgeEl = document.getElementById('resourceTableBadge');
       const resourceBillingTbodyEl = document.getElementById('resourceBillingTbody');
       const resourceBillingTfootEl = document.getElementById('resourceBillingTfoot');
       const resourceBillingTableEl = document.getElementById('resourceBillingTable');
       let resourceBillingSortBound = false;
       const billingRawTbodyEl = document.getElementById('billingRawTbody');
+      const billingRawBadgeEl = document.getElementById('billingRawBadge');
+      const billingRawExportBtn = document.getElementById('billingRawExportBtn');
+      const billingRawPagerEl = document.getElementById('billingRawPager');
       const billingRawPageInfoEl = document.getElementById('billingRawPageInfo');
       const billingRawPageSizeEl = document.getElementById('billingRawPageSize');
       const billingRawPrevBtn = document.getElementById('billingRawPrevBtn');
@@ -404,14 +472,23 @@
       let billingRawTotal = 0;
       let billingRawFetchKey = '';
       const modelSectionHintEl = document.getElementById('modelSectionHint');
+      const modelTableBadgeEl = document.getElementById('modelTableBadge');
+      const modelDailyTbodyEl = document.getElementById('modelDailyTbody');
+      const modelDailyBadgeEl = document.getElementById('modelDailyBadge');
+      const modelDailyExportBtn = document.getElementById('modelDailyExportBtn');
+      const modelDailyPagerEl = document.getElementById('modelDailyPager');
+      const modelDailyPageInfoEl = document.getElementById('modelDailyPageInfo');
+      const modelDailyPageSizeEl = document.getElementById('modelDailyPageSize');
+      const modelDailyPrevBtn = document.getElementById('modelDailyPrevBtn');
+      const modelDailyNextBtn = document.getElementById('modelDailyNextBtn');
+      let lastModelDailyRows = [];
+      let modelDailyPage = 1;
       const modelCostSummaryTbodyEl = document.getElementById('modelCostSummaryTbody');
       const modelCostSummaryTfootEl = document.getElementById('modelCostSummaryTfoot');
-      const modelMeterTotalsEl = document.getElementById('modelMeterTotals');
-      const projectInputCostTotalEl = document.getElementById('projectInputCostTotal');
-      const projectOutputCostTotalEl = document.getElementById('projectOutputCostTotal');
-      const projectMeterCostTotalEl = document.getElementById('projectMeterCostTotal');
-      const projectBillingOtherWrapEl = document.getElementById('projectBillingOtherWrap');
-      const projectBillingOtherTotalEl = document.getElementById('projectBillingOtherTotal');
+      const inputModelChartCardEl = document.getElementById('inputModelChartCard');
+      const outputModelChartCardEl = document.getElementById('outputModelChartCard');
+      const costChartFootnoteEl = document.getElementById('costChartFootnote');
+      const costTokenLinkBtnEl = document.getElementById('costTokenLinkBtn');
       let lastModelSummaryRows = [];
       let lastBillingOtherRows = [];
       let lastModelProjectSummary = {};
@@ -425,6 +502,34 @@
         { border: '#f87171', fill: 'rgba(248, 113, 113, 0.12)' },
         { border: '#34d399', fill: 'rgba(52, 211, 153, 0.12)' },
       ];
+
+      function updateTokenCrossLink(project) {
+        if (!costTokenLinkBtnEl) return;
+        const params = new URLSearchParams();
+        if (project) params.set('project', project);
+        const qs = params.toString();
+        costTokenLinkBtnEl.href = qs ? `/tokens?${qs}` : '/tokens';
+      }
+
+      function updateChartFootnote(costPoints, catalogPayload) {
+        if (!costChartFootnoteEl) return;
+        const totalActual = (costPoints || []).reduce(
+          (acc, p) => acc + (Number(p?.cost_usd) || 0),
+          0
+        );
+        const rounded = window.AppMoney?.roundCost(totalActual);
+        let text = `Total: ${fmt2(rounded)}`;
+        const catTotal = catalogPayload?.summary?.total_catalog_cost_usd;
+        if (catalogPayload?.available && catTotal != null) {
+          text += ` · Market: ${fmt2(catTotal)}`;
+        }
+        costChartFootnoteEl.textContent = text;
+      }
+
+      function setModelChartCardsVisible(visible) {
+        if (inputModelChartCardEl) inputModelChartCardEl.hidden = !visible;
+        if (outputModelChartCardEl) outputModelChartCardEl.hidden = !visible;
+      }
 
       function escapeHtml(s) {
         return String(s ?? '')
@@ -625,7 +730,11 @@
         const available = catalogPayload?.available === true;
         if (catalogMarketCard) catalogMarketCard.style.opacity = available ? '1' : '0.55';
         if (catalogVarianceCard) catalogVarianceCard.style.opacity = available ? '1' : '0.55';
-        if (marketCompareSectionEl) marketCompareSectionEl.hidden = !available;
+        if (marketCompareSectionEl) marketCompareSectionEl.hidden = false;
+        const legendEl = marketCompareSectionEl?.querySelector('.monitorCardLegend');
+        if (legendEl) legendEl.hidden = !available;
+
+        updateChartFootnote(costPoints, catalogPayload);
 
         if (!available) {
           if (catalogMarketTotalEl) catalogMarketTotalEl.textContent = '—';
@@ -637,10 +746,6 @@
           }
           if (catalogVariancePctEl) catalogVariancePctEl.textContent = '—';
           if (catalogVarianceNoteEl) catalogVarianceNoteEl.textContent = '—';
-          if (chartMarket) {
-            chartMarket.destroy();
-            chartMarket = null;
-          }
           if (chartInputByModel) {
             chartInputByModel.destroy();
             chartInputByModel = null;
@@ -649,10 +754,15 @@
             chartOutputByModel.destroy();
             chartOutputByModel = null;
           }
+          setModelChartCardsVisible(false);
           if (costModelSectionEl) costModelSectionEl.hidden = true;
-          if (modelMeterTotalsEl) modelMeterTotalsEl.hidden = true;
           if (modelCostSummaryTbodyEl) modelCostSummaryTbodyEl.innerHTML = '';
           if (modelCostSummaryTfootEl) modelCostSummaryTfootEl.innerHTML = '';
+          try {
+            renderBillingChart(costPoints, null);
+          } catch (err) {
+            console.error('renderBillingChart failed', err);
+          }
           return;
         }
 
@@ -697,9 +807,9 @@
 
         renderModelCostSection(catalogPayload);
         try {
-          renderMarketChart(costPoints, catalogPayload);
+          renderBillingChart(costPoints, catalogPayload);
         } catch (err) {
-          console.error('renderMarketChart failed', err);
+          console.error('renderBillingChart failed', err);
         }
       }
 
@@ -793,11 +903,15 @@
             chartOutputByModel.destroy();
             chartOutputByModel = null;
           }
+          setModelChartCardsVisible(false);
           if (modelCostSummaryTbodyEl) modelCostSummaryTbodyEl.innerHTML = '';
           if (modelCostSummaryTfootEl) modelCostSummaryTfootEl.innerHTML = '';
-          if (modelMeterTotalsEl) modelMeterTotalsEl.hidden = true;
+          lastModelDailyRows = [];
+          renderModelDailyDetailTable([], currentCurrency);
           return;
         }
+
+        setModelChartCardsVisible(true);
 
         if (modelSectionHintEl) {
           const n = summary.length;
@@ -812,11 +926,7 @@
           modelSectionHintEl.textContent = hint;
         }
 
-        try {
-          renderProjectMeterTotals(catalogPayload?.summary || {});
-        } catch (err) {
-          console.error('renderProjectMeterTotals failed', err);
-        }
+        renderModelDailyDetailTable(daily, catalogPayload?.currency || currentCurrency, { resetPage: true });
         renderModelSummaryTable(
           summary,
           catalogPayload?.summary || {},
@@ -826,28 +936,6 @@
           renderModelDirCostCharts(daily);
         } catch (err) {
           console.error('renderModelDirCostCharts failed', err);
-        }
-      }
-
-      function renderProjectMeterTotals(summary) {
-        if (modelMeterTotalsEl) modelMeterTotalsEl.hidden = false;
-        const tin = summary.total_input_cost_usd;
-        const tout = summary.total_output_cost_usd;
-        const tmeter = summary.total_meter_cost_usd;
-        const other = summary.billing_other_usd;
-        if (projectInputCostTotalEl) {
-          projectInputCostTotalEl.textContent = tin != null ? fmt2(tin) : '—';
-        }
-        if (projectOutputCostTotalEl) {
-          projectOutputCostTotalEl.textContent = tout != null ? fmt2(tout) : '—';
-        }
-        if (projectMeterCostTotalEl) {
-          projectMeterCostTotalEl.textContent = tmeter != null ? fmt2(tmeter) : '—';
-        }
-        if (projectBillingOtherWrapEl && projectBillingOtherTotalEl) {
-          const showOther = other != null && Number(other) > 0;
-          projectBillingOtherWrapEl.hidden = !showOther;
-          projectBillingOtherTotalEl.textContent = showOther ? fmt2(other) : '—';
         }
       }
 
@@ -1070,6 +1158,61 @@
         modelCostSummaryTfootEl.appendChild(tr);
       }
 
+      function modelDailyPageSize() {
+        const v = Number(modelDailyPageSizeEl?.value);
+        return Number.isFinite(v) && v > 0 ? v : 25;
+      }
+
+      function renderModelDailyDetailTable(dailyByModel, currency, { resetPage = false } = {}) {
+        const BDT = window.AppBillingDetailTable;
+        const DASH = window.AppDashboardUi;
+        if (!modelDailyTbodyEl || !BDT || !DASH) return;
+
+        if (resetPage) modelDailyPage = 1;
+
+        lastModelDailyRows = BDT.sortRows(Array.isArray(dailyByModel) ? dailyByModel : []);
+        const summary = BDT.rowSummary(lastModelDailyRows);
+
+        if (modelDailyBadgeEl) {
+          if (!summary.total) {
+            modelDailyBadgeEl.hidden = true;
+          } else {
+            modelDailyBadgeEl.hidden = false;
+            modelDailyBadgeEl.textContent =
+              `${summary.total} rows · ${summary.meter} meter-matched · ${summary.withCost} with cost`;
+          }
+        }
+
+        modelDailyPage = DASH.renderPagedSlice({
+          items: lastModelDailyRows,
+          page: modelDailyPage,
+          pageSize: modelDailyPageSize(),
+          tbodyEl: modelDailyTbodyEl,
+          pageInfoEl: modelDailyPageInfoEl,
+          prevBtn: modelDailyPrevBtn,
+          nextBtn: modelDailyNextBtn,
+          pagerEl: modelDailyPagerEl,
+          label: 'rows',
+          emptyMessage: 'No model/day rows in selected range.',
+          colSpan: window.AppBillingDetailTable?.COL_COUNT?.cost || 13,
+          renderRow: (row) => {
+            BDT.appendRow(modelDailyTbodyEl, row, { currency, variant: 'cost' });
+          },
+        });
+      }
+
+      function exportModelDailyCsv() {
+        const BDT = window.AppBillingDetailTable;
+        if (!BDT || !lastModelDailyRows.length || !currentProjectName) return;
+        const start = currentStartDate || 'all';
+        const end = currentEndDate || 'all';
+        BDT.exportCsv(lastModelDailyRows, {
+          currency: currentCurrency || 'USD',
+          variant: 'cost',
+          filename: `cost-billing-detail-${currentProjectName}-${start}-${end}.csv`.replace(/[^\w.-]+/g, '_'),
+        });
+      }
+
       function renderModelSummaryTable(rows, projectSummary, billingOtherRows = []) {
         if (!modelCostSummaryTbodyEl) return;
         lastModelSummaryRows = asModelSummaryRows(rows);
@@ -1127,6 +1270,74 @@
           _updateModelTableSortIndicators();
         } catch (err) {
           console.error('model table sort UI failed', err);
+        }
+
+        if (modelTableBadgeEl) {
+          const modelCount = lastModelSummaryRows.length;
+          const otherCount = lastBillingOtherRows.length;
+          const total = modelCount + otherCount;
+          if (total === 0) {
+            modelTableBadgeEl.hidden = true;
+          } else {
+            modelTableBadgeEl.hidden = false;
+            modelTableBadgeEl.textContent =
+              otherCount > 0
+                ? `${total} rows · ${modelCount} models · ${otherCount} other`
+                : `${total} rows · ${modelCount} models`;
+          }
+        }
+      }
+
+      function _csvEscape(value) {
+        const s = value == null ? '' : String(value);
+        if (/[",\n\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+        return s;
+      }
+
+      async function exportBillingRawCsv() {
+        if (!currentProjectName || billingRawTotal === 0) return;
+        const params = new URLSearchParams();
+        params.set('mode', 'billing');
+        params.set('page', '1');
+        params.set('page_size', String(Math.min(Math.max(billingRawTotal, 1), 10000)));
+        if (currentStartDate) params.set('start_date', currentStartDate);
+        if (currentEndDate) params.set('end_date', currentEndDate);
+        if (currentCurrency) params.set('currency', currentCurrency);
+        try {
+          const payload = await window.AppHttp.getJson(
+            `/api/projects/${encodeURIComponent(currentProjectName)}/rows?${params.toString()}`
+          );
+          const rows = Array.isArray(payload?.rows) ? payload.rows : [];
+          const header = ['Date', 'Resource', 'Service', 'Tier', 'Meter', 'Cost USD', 'Currency', 'Source'];
+          const lines = [header.join(',')];
+          for (const r of rows) {
+            const src = r.source_file
+              ? `${r.source_file}${r.source_row_index != null ? `#${r.source_row_index}` : ''}`
+              : '';
+            lines.push(
+              [
+                r.usage_date,
+                r.resource_name,
+                r.service_name,
+                r.service_tier,
+                r.meter,
+                r.cost_usd,
+                r.currency,
+                src,
+              ]
+                .map(_csvEscape)
+                .join(',')
+            );
+          }
+          const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8' });
+          const a = document.createElement('a');
+          a.href = URL.createObjectURL(blob);
+          a.download = `billing-lines-${currentProjectName}-${currentStartDate || 'all'}-${currentEndDate || 'all'}.csv`.replace(/[^\w.-]+/g, '_');
+          a.click();
+          URL.revokeObjectURL(a.href);
+        } catch (err) {
+          console.error('billing raw export failed', err);
+          window.AppShell?.toast?.('Export failed', 'error');
         }
       }
 
@@ -1206,15 +1417,17 @@
           chartOutputByModel?.resize?.();
         };
         if (costModelSectionEl && costModelSectionEl.hidden) return;
+        if (inputModelChartCardEl && inputModelChartCardEl.hidden) return;
         requestAnimationFrame(() => requestAnimationFrame(run));
       }
 
-      function renderMarketChart(costPoints, catalogPayload) {
+      function renderBillingChart(costPoints, catalogPayload) {
         const C = window.AppChartStyle?.colors || {};
         const L = window.AppChartStyle?.labels || {};
         const catPoints = catalogPayload?.points || [];
         const dailyByModel = catalogPayload?.daily_by_model || [];
         const breakdownByDate = _modelBreakdownByDate(dailyByModel);
+        const marketAvailable = catalogPayload?.available === true;
 
         const actualByDate = new Map();
         const catalogByDate = new Map();
@@ -1236,7 +1449,9 @@
           }
         }
 
-        const labels = _unionSortedDates(catPoints, costPoints);
+        const labels = marketAvailable
+          ? _unionSortedDates(catPoints, costPoints)
+          : (costPoints || []).map((p) => p.date);
         const actualData = labels.map((d) => {
           const v = actualByDate.get(d);
           return v === null || v === undefined ? null : window.AppMoney?.roundCost(v);
@@ -1250,25 +1465,48 @@
         const ctx = document.getElementById('timeseriesChartMarket')?.getContext('2d');
         if (!ctx) return;
 
-        const ptR = CHART_OPTS?.pointRadiusForCount?.(labels.length, { sparse: 2, dense: 0 }) ?? 2;
+        const ptR = CHART_OPTS?.pointRadiusForCount?.(labels.length, { sparse: 3, dense: 1 }) ?? 3;
         const costDs = window.AppCostSemantics?.chartDataset;
+        const datasets = [];
+
+        if (marketAvailable) {
+          datasets.push(
+            costDs?.('actual', { data: actualData, pointRadius: ptR }) ?? {
+              label: 'Actual',
+              data: actualData,
+              borderColor: C.actual || C.cost || '#5eead4',
+            },
+            costDs?.('market', { data: catalogData, dashed: true, pointRadius: ptR }) ?? {
+              label: 'Market',
+              data: catalogData,
+              borderColor: C.market || '#c084fc',
+            }
+          );
+        } else {
+          const gradient = ctx.createLinearGradient(0, 0, 0, 280);
+          gradient.addColorStop(0, 'rgba(94,234,212,0.28)');
+          gradient.addColorStop(1, 'rgba(94,234,212,0.00)');
+          datasets.push(
+            CHART_OPTS?.datasetLineCurrency?.({
+              label: L.costActual || 'Actual',
+              data: actualData,
+              borderColor: C.actual || C.cost || '#5eead4',
+              backgroundColor: gradient,
+              fill: true,
+              pointRadius: ptR,
+            }) ?? {
+              label: L.costActual || 'Actual',
+              data: actualData,
+              borderColor: C.cost || '#5eead4',
+              backgroundColor: gradient,
+              fill: true,
+            }
+          );
+        }
+
         chartMarket = new Chart(ctx, {
           type: 'line',
-          data: {
-            labels,
-            datasets: [
-              costDs?.('actual', { data: actualData, pointRadius: ptR }) ?? {
-                label: 'Actual',
-                data: actualData,
-                borderColor: C.actual || C.cost || '#5eead4',
-              },
-              costDs?.('market', { data: catalogData, dashed: true, pointRadius: ptR }) ?? {
-                label: 'Market',
-                data: catalogData,
-                borderColor: C.market || '#c084fc',
-              },
-            ],
-          },
+          data: { labels, datasets },
           options: buildCostLineOptions({
             labelCount: labels.length,
             showLegend: true,
@@ -1276,77 +1514,31 @@
             tooltipCallbacks: {
               title: (items) => (items?.[0] ? String(labels[items[0].dataIndex] ?? '') : ''),
               label: tooltipLabelForValue,
-              afterBody: (items) => {
-                if (!items?.length) return [];
-                const idx = items[0].dataIndex;
-                const date = labels[idx];
-                const rows = breakdownByDate.get(date);
-                if (!rows?.length) return [];
-                const lines = ['', 'By model (Actual / Market):'];
-                const max = 8;
-                for (const r of rows.slice(0, max)) {
-                  const name = String(r.model_name || 'model');
-                  lines.push(` ${name}: ${fmt2(r.actual_cost_usd)} / ${fmt2(r.catalog_cost_usd)}`);
-                }
-                if (rows.length > max) {
-                  lines.push(` …+${rows.length - max} more`);
-                }
-                return lines;
-              },
+              afterBody: marketAvailable
+                ? (items) => {
+                    if (!items?.length) return [];
+                    const idx = items[0].dataIndex;
+                    const date = labels[idx];
+                    const rows = breakdownByDate.get(date);
+                    if (!rows?.length) return [];
+                    const lines = ['', 'By model (Actual / Market):'];
+                    const max = 8;
+                    for (const r of rows.slice(0, max)) {
+                      const name = String(r.model_name || 'model');
+                      lines.push(` ${name}: ${fmt2(r.actual_cost_usd)} / ${fmt2(r.catalog_cost_usd)}`);
+                    }
+                    if (rows.length > max) {
+                      lines.push(` …+${rows.length - max} more`);
+                    }
+                    return lines;
+                  }
+                : undefined,
             },
           }),
-          plugins: [emptyStatePlugin('No Market data in range'), ...chartPluginsExtra()],
-        });
-      }
-
-      function renderChart(costPoints) {
-        const C = window.AppChartStyle?.colors || {};
-        const L = window.AppChartStyle?.labels || {};
-        const labels = (costPoints || []).map((p) => p.date);
-        const costData = (costPoints || []).map((p) => {
-          const v = p.cost_usd;
-          return v === null || v === undefined ? null : window.AppMoney?.roundCost(v);
-        });
-
-        if (chartActual) chartActual.destroy();
-        chartActual = null;
-
-        const ctxA = document.getElementById('timeseriesChartActual')?.getContext('2d');
-        if (!ctxA) return;
-
-        const gradient = ctxA.createLinearGradient(0, 0, 0, 360);
-        gradient.addColorStop(0, 'rgba(94,234,212,0.28)');
-        gradient.addColorStop(1, 'rgba(94,234,212,0.00)');
-
-        const ptR = CHART_OPTS?.pointRadiusForCount?.(labels.length, { sparse: 3, dense: 1 }) ?? 3;
-        const actualDs =
-          CHART_OPTS?.datasetLineCurrency?.({
-            label: L.costActual || 'Actual',
-            data: costData,
-            borderColor: C.actual || C.cost || '#5eead4',
-            backgroundColor: gradient,
-            fill: true,
-            pointRadius: ptR,
-          }) ?? {
-            label: L.costActual,
-            data: costData,
-            borderColor: C.cost,
-            backgroundColor: gradient,
-            fill: true,
-          };
-
-        chartActual = new Chart(ctxA, {
-          type: 'line',
-          data: { labels, datasets: [actualDs] },
-          options: buildCostLineOptions({
-            labelCount: labels.length,
-            showLegend: true,
-            tooltipCallbacks: {
-              title: (items) => (items?.[0] ? String(labels[items[0].dataIndex] ?? '') : ''),
-              label: tooltipLabelForValue,
-            },
-          }),
-          plugins: [emptyStatePlugin('No data in selected range'), ...chartPluginsExtra()],
+          plugins: [
+            emptyStatePlugin(marketAvailable ? 'No Market data in range' : 'No data in selected range'),
+            ...chartPluginsExtra(),
+          ],
         });
       }
 
@@ -1429,6 +1621,7 @@
           resourceBillingTbodyEl.replaceChildren();
           resourceBillingTfootEl.replaceChildren();
           if (resourceBillingHintEl) resourceBillingHintEl.textContent = '';
+          if (resourceTableBadgeEl) resourceTableBadgeEl.hidden = true;
           billingRawTotal = 0;
           if (billingRawTbodyEl) {
             billingRawTbodyEl.replaceChildren();
@@ -1441,6 +1634,11 @@
         if (resourceBillingHintEl) {
           resourceBillingHintEl.textContent =
             `${distinctResources} resource(s) · ${rows.length} service line(s)`;
+        }
+        if (resourceTableBadgeEl) {
+          resourceTableBadgeEl.hidden = false;
+          resourceTableBadgeEl.textContent =
+            `${rows.length} lines · ${distinctResources} resources`;
         }
 
         const frag = document.createDocumentFragment();
@@ -1549,16 +1747,18 @@
       }
 
       function renderBillingRawPagination() {
-        const ps = billingRawPageSize();
         const tp = billingRawTotalPages();
-        const from = billingRawTotal === 0 ? 0 : (billingRawPage - 1) * ps + 1;
-        const to = Math.min(billingRawTotal, billingRawPage * ps);
         if (billingRawPageInfoEl) {
           billingRawPageInfoEl.textContent =
             billingRawTotal === 0
               ? 'No rows'
-              : `Page ${billingRawPage} / ${tp} · ${from}–${to} of ${billingRawTotal}`;
+              : `${billingRawPage} / ${tp} · ${billingRawTotal} rows`;
         }
+        if (billingRawBadgeEl) {
+          billingRawBadgeEl.textContent =
+            billingRawTotal === 0 ? '—' : `${billingRawTotal} rows`;
+        }
+        if (billingRawPagerEl) billingRawPagerEl.hidden = billingRawTotal === 0;
         if (billingRawPrevBtn) billingRawPrevBtn.disabled = billingRawPage <= 1;
         if (billingRawNextBtn) billingRawNextBtn.disabled = billingRawPage >= tp;
       }
@@ -1583,7 +1783,7 @@
             tr.className = 'billingRawRow';
 
             const tdDate = document.createElement('td');
-            tdDate.className = 'mono';
+            tdDate.className = 'mono tdDate';
             tdDate.textContent = String(r.usage_date || '—');
             tr.appendChild(tdDate);
 
@@ -1681,6 +1881,7 @@
       async function loadProject(projectName, { skipRangeRecovery = false } = {}) {
         if (!projectName) return;
         currentProjectName = projectName;
+        updateTokenCrossLink(projectName);
         if (projectSelect && projectSelect.value !== projectName) {
           projectSelect.value = projectName;
         }
@@ -1776,7 +1977,6 @@
         }
 
         const costPts = ts.points || [];
-        renderChart(costPts);
         renderResourceBillingSection(resourceBilling);
         await loadBillingRawPage(projectName, { resetPage: true });
         renderCatalogMarketUi(catalogPayload, costPts);
@@ -1786,7 +1986,7 @@
 
         window.AppInsightPanel?.render?.('costInsightPanel', ts.insights || [], {
           title: 'Insights',
-          limit: 4,
+          limit: 3,
         });
       }
 
@@ -1837,6 +2037,29 @@
         if (currentProjectName) {
           loadBillingRawPage(currentProjectName, { resetPage: true }).catch((e) => console.error(e));
         }
+      });
+      billingRawExportBtn?.addEventListener('click', () => {
+        exportBillingRawCsv().catch((e) => console.error(e));
+      });
+      modelDailyPrevBtn?.addEventListener('click', () => {
+        if (modelDailyPage > 1) {
+          modelDailyPage -= 1;
+          renderModelDailyDetailTable(lastModelDailyRows, currentCurrency);
+        }
+      });
+      modelDailyNextBtn?.addEventListener('click', () => {
+        const pageCount = Math.max(1, Math.ceil(lastModelDailyRows.length / modelDailyPageSize()));
+        if (modelDailyPage < pageCount) {
+          modelDailyPage += 1;
+          renderModelDailyDetailTable(lastModelDailyRows, currentCurrency);
+        }
+      });
+      modelDailyPageSizeEl?.addEventListener('change', () => {
+        modelDailyPage = 1;
+        renderModelDailyDetailTable(lastModelDailyRows, currentCurrency);
+      });
+      modelDailyExportBtn?.addEventListener('click', () => {
+        exportModelDailyCsv();
       });
 
       async function bootstrap() {

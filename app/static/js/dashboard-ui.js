@@ -67,6 +67,56 @@
     });
   }
 
+  /**
+   * Client-side table pagination.
+   * @returns {number} normalized page index
+   */
+  function renderPagedSlice({
+    items,
+    page,
+    pageSize,
+    renderRow,
+    tbodyEl,
+    pageInfoEl,
+    prevBtn,
+    nextBtn,
+    pagerEl,
+    label = "rows",
+    emptyMessage = "No rows in selected range.",
+    colSpan = 1,
+  } = {}) {
+    const total = (items || []).length;
+    const pageCount = Math.max(1, Math.ceil(total / pageSize));
+    const safePage = Math.max(1, Math.min(pageCount, Math.floor(page)));
+    const offset = (safePage - 1) * pageSize;
+    const slice = (items || []).slice(offset, offset + pageSize);
+
+    if (tbodyEl) tbodyEl.replaceChildren();
+    if (!total) {
+      if (tbodyEl) {
+        const tr = document.createElement("tr");
+        const td = document.createElement("td");
+        td.colSpan = colSpan;
+        td.className = "muted";
+        td.textContent = emptyMessage;
+        tr.appendChild(td);
+        tbodyEl.appendChild(tr);
+      }
+      if (pageInfoEl) pageInfoEl.textContent = `0 ${label}`;
+      if (prevBtn) prevBtn.disabled = true;
+      if (nextBtn) nextBtn.disabled = true;
+      if (pagerEl) pagerEl.hidden = true;
+      return safePage;
+    }
+
+    for (const row of slice) renderRow(row);
+    if (prevBtn) prevBtn.disabled = safePage <= 1;
+    if (nextBtn) nextBtn.disabled = safePage >= pageCount;
+    if (pageInfoEl) pageInfoEl.textContent = `${safePage} / ${pageCount} · ${total} ${label}`;
+    if (pagerEl) pagerEl.hidden = false;
+    return safePage;
+  }
+
   function bindFilterEnter(filterRoot, onSubmit) {
     if (!filterRoot || typeof onSubmit !== 'function') return;
     filterRoot.addEventListener('keydown', (e) => {
@@ -169,5 +219,6 @@
     makeSortableTable,
     applyTruncationTitles,
     sortByDateDesc,
+    renderPagedSlice,
   };
 })();

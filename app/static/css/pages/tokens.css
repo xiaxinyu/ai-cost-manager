@@ -444,7 +444,7 @@
   padding: 0;
 }
 
-.flowBlockUnitPrice .catalogRefLine {
+.flowBlockUnitPrice .unitPriceSummary {
   margin-bottom: 12px;
 }
 
@@ -1189,42 +1189,94 @@
   margin-top: 0;
 }
 
-.catalogRefLine {
-  font-size: 11px;
-  line-height: 1.45;
-  margin: 0;
-  padding: 10px 12px;
-  border-radius: 8px;
+.unitPriceSummary {
+  padding: 14px 16px;
+  border-radius: 10px;
   border: 1px solid rgba(173, 196, 228, 0.14);
   background: rgba(255, 255, 255, 0.03);
-  min-width: min(100%, 22rem);
 }
 
-.catalogRefGrid {
+.unitPriceSummaryHead {
   display: flex;
-  flex-direction: column;
-  gap: 8px;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(173, 196, 228, 0.1);
 }
 
-.catalogRefItem {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
+.unitPriceSummaryTitle {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 780;
+  letter-spacing: 0.01em;
 }
 
-.catalogRefModel {
-  font-weight: 700;
-  color: #e2e8f0;
+.unitPriceSummaryDesc {
+  margin: 4px 0 0;
+  font-size: 12px;
+  line-height: 1.45;
+  max-width: 62ch;
+}
+
+.unitPriceSummaryScroll {
+  overflow: auto;
+}
+
+.unitPriceSummaryTable {
+  width: 100%;
+  border-collapse: collapse;
   font-size: 12px;
 }
 
-.catalogRefPrices {
-  color: #9fb2c7;
+.unitPriceSummaryTable thead th {
+  padding: 8px 10px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #8fa3ba;
+  border-bottom: 1px solid rgba(173, 196, 228, 0.14);
+  white-space: nowrap;
 }
 
-.catalogRefDelta {
-  color: #7dd3fc;
-  font-size: 10px;
+.unitPriceSummaryTable tbody td {
+  padding: 9px 10px;
+  border-bottom: 1px solid rgba(173, 196, 228, 0.08);
+  vertical-align: middle;
+}
+
+.unitPriceSummaryTable tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.unitPriceSummaryTable tbody tr:hover {
+  background: rgba(94, 234, 212, 0.04);
+}
+
+.unitPriceModelCell code {
+  font-size: 12px;
+  font-weight: 650;
+  color: #e2e8f0;
+  background: transparent;
+}
+
+.unitPriceSummaryTable thead th.unitPriceGroupHead {
+  text-align: center;
+  color: #c8d4e0;
+  border-bottom: none;
+  padding-bottom: 4px;
+}
+
+.unitPriceSummaryTable .unitPriceList {
+  color: #c4b5fd;
+}
+
+.unitPriceSummaryTable .unitPriceBilling {
+  color: #99f6e4;
+  font-weight: 600;
 }
 
 .thUnitInCol,
@@ -1496,4 +1548,232 @@
 
 .modelUnitPriceTable tbody tr:nth-child(odd) {
   background: rgba(255, 255, 255, 0.02);
+}
+
+/* --- Tokens page layout (aligned with Cost) --- */
+.tokenPageHeader .pageTitle {
+  font-size: clamp(20px, 2.4vw, 24px);
+  font-weight: 800;
+  margin: 4px 0 0;
+}
+
+.tokenPageHeader .pageDesc {
+  display: block;
+  margin: 6px 0 0;
+  max-width: 62ch;
+  line-height: 1.5;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.tokenNav {
+  margin-bottom: 2px;
+}
+
+.tokenCostLink {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 14px 18px;
+  background: linear-gradient(135deg, rgba(94, 234, 212, 0.08), rgba(96, 165, 250, 0.06));
+  border: 1px solid rgba(94, 234, 212, 0.22);
+}
+
+.tokenCostLinkMain {
+  flex: 1 1 240px;
+  min-width: 0;
+}
+
+.tokenCostLinkTitle {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 750;
+  letter-spacing: 0.01em;
+}
+
+.tokenCostLinkDesc {
+  margin: 4px 0 0;
+  font-size: 12px;
+  line-height: 1.45;
+  max-width: 58ch;
+}
+
+.tokenCostLinkBtn {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.detailTableSubHead {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  padding: 12px 14px 10px;
+  border-bottom: 1px solid rgba(173, 196, 228, 0.1);
+}
+
+.detailTableSubHead .detailTableTitle {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.detailTableSubHead .detailTableDesc {
+  margin: 0;
+  flex: 1 1 180px;
+}
+
+.detailTableSubHead .tableRowBadge {
+  margin-left: auto;
+}
+
+.perfTablePanel .tableScroll {
+  border: none;
+  border-radius: 0;
+}
+
+.tokenZone {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  scroll-margin-top: 72px;
+}
+
+.tokenZoneHead {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px 14px;
+  align-items: start;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(173, 196, 228, 0.12);
+}
+
+.tokenStep,
+.tokenStepInline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 800;
+  color: #5eead4;
+  background: rgba(94, 234, 212, 0.12);
+  border: 1px solid rgba(94, 234, 212, 0.28);
+  flex-shrink: 0;
+}
+
+.tokenStepInline {
+  margin-right: 8px;
+  vertical-align: middle;
+}
+
+.tokenZoneTitle {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 780;
+  letter-spacing: 0.01em;
+}
+
+.tokenZoneLead {
+  margin: 4px 0 0;
+  font-size: 12px;
+  line-height: 1.45;
+  max-width: 62ch;
+}
+
+.tokenKpiBoard {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+  gap: 14px;
+  align-items: stretch;
+}
+
+.tokenKpiGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.tokenKpiGroupLabel {
+  margin: 0;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--text-subtle, #7a8fa8);
+}
+
+.tokenKpiGroupCards {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  flex: 1;
+}
+
+.tokenKpiGroup--coverage .statMetaWide {
+  flex: 1;
+  min-height: 118px;
+}
+
+.flowBlockHead.detailTableHead {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 10px 16px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(173, 196, 228, 0.12);
+}
+
+.flowBlockHead.detailTableHead .flowBlockIdentity {
+  display: flex;
+  align-items: flex-start;
+  gap: 0;
+}
+
+.flowBlockHead.detailTableHead .detailTableTitle {
+  margin: 0;
+}
+
+.tokenTablePanel.dashTablePanel {
+  padding: 0;
+  overflow: hidden;
+}
+
+.tokenTablePanel .dataTableWrap {
+  border: none;
+  border-radius: 0;
+}
+
+.tokenAnalysisFlow {
+  gap: 24px;
+  margin-top: 8px;
+}
+
+.modelBreakdownPanel {
+  scroll-margin-top: 72px;
+}
+
+@media (max-width: 1100px) {
+  .tokenKpiBoard {
+    grid-template-columns: 1fr;
+  }
+
+  .tokenKpiGroupCards {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 900px) {
+  .flowBlockHead.detailTableHead {
+    grid-template-columns: 1fr;
+  }
+
+  .detailTableActions {
+    justify-content: flex-start;
+  }
 }

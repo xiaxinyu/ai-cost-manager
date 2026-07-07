@@ -23,13 +23,12 @@
     filterHint: document.getElementById("filterHint"),
     dataStatusBar: document.getElementById("dataStatusBar"),
     insightPanel: document.getElementById("tokenInsightPanel"),
-    tableRowBadge: document.getElementById("tableRowBadge"),
+    costLinkBtn: document.getElementById("tokenCostLinkBtn"),
     labelInput: document.getElementById("labelInputTokens"),
     labelOutput: document.getElementById("labelOutputTokens"),
     labelTotal: document.getElementById("labelTotalTokens"),
     chartTitleInput: document.getElementById("chartTitleInput"),
     chartTitleOutput: document.getElementById("chartTitleOutput"),
-    tableHint: document.getElementById("tableHint"),
     estimatedInput: document.getElementById("estimatedInputTokens"),
     estimatedOutput: document.getElementById("estimatedOutputTokens"),
     estimatedTotal: document.getElementById("estimatedTotalTokens"),
@@ -42,23 +41,21 @@
     rangeLabel: document.getElementById("rangeLabel"),
     ratioSummary: document.getElementById("ratioSummary"),
     ratioBaselinePill: document.getElementById("ratioBaselinePill"),
-    modelPanel: document.getElementById("modelBreakdownPanel"),
+    modelPanel: document.getElementById("flowUsage"),
     modelTbody: document.getElementById("modelBreakdownTbody"),
+    modelRowBadge: document.getElementById("modelRowBadge"),
     unitPriceSection: document.getElementById("unitPriceSection"),
     unitPriceNote: document.getElementById("unitPriceNote"),
     catalogRefLine: document.getElementById("catalogRefLine"),
+    unitPriceSummaryTbody: document.getElementById("unitPriceSummaryTbody"),
+    unitPriceSummaryDate: document.getElementById("unitPriceSummaryDate"),
     impliedChartsRow: document.getElementById("impliedChartsRow"),
     modelPager: document.getElementById("modelPager"),
     modelPageSizeSelect: document.getElementById("modelPageSizeSelect"),
     modelPrevBtn: document.getElementById("modelPrevBtn"),
     modelNextBtn: document.getElementById("modelNextBtn"),
     modelPageInfo: document.getElementById("modelPageInfo"),
-    rowsTbody: document.getElementById("tokenRowsTbody"),
-    dailyPageSizeSelect: document.getElementById("dailyPageSizeSelect"),
-    dailyPrevBtn: document.getElementById("dailyPrevBtn"),
-    dailyNextBtn: document.getElementById("dailyNextBtn"),
-    dailyPageInfo: document.getElementById("dailyPageInfo"),
-    exportBtn: document.getElementById("exportTokensBtn"),
+    perfRowBadge: document.getElementById("perfRowBadge"),
     perfRowsTbody: document.getElementById("perfRowsTbody"),
     perfRowsTfoot: document.getElementById("perfRowsTfoot"),
     perfFootMetricCount: document.getElementById("perfFootMetricCount"),
@@ -69,8 +66,6 @@
   let tokenInputChart = null;
   let tokenOutputChart = null;
   let tokenRatioChart = null;
-  let tokenInputCostChart = null;
-  let tokenOutputCostChart = null;
   let chartImpliedUnitInput = null;
   let chartImpliedUnitOutput = null;
   let cacheMatchChart = null;
@@ -336,6 +331,8 @@
       const tr = document.createElement("tr");
       tr.innerHTML = `<td colspan="3" class="muted">No performance metrics imported for this project.</td>`;
       els.perfRowsTbody.appendChild(tr);
+      if (els.perfRowBadge) els.perfRowBadge.hidden = true;
+      if (els.perfRowsTfoot) els.perfRowsTfoot.hidden = true;
       return;
     }
     const modelsOrder = _collectPerfModels(metricRoot);
@@ -371,12 +368,19 @@
         els.perfFootRowNote.textContent = `${shown.length} row(s) shown · newest first · hover chart to sync`;
       }
     }
+    if (els.perfRowBadge) {
+      if (!shown.length) {
+        els.perfRowBadge.hidden = true;
+      } else {
+        els.perfRowBadge.hidden = false;
+        const totalNote = rows.length > shown.length ? ` · ${rows.length} total` : "";
+        els.perfRowBadge.textContent = `${shown.length} rows · ${metricKinds.size} metric(s)${totalNote}`;
+      }
+    }
     highlightPerfTableRow(perfHighlightKey);
   }
-  let lastDailyModelRows = [];
   let lastSource = "estimated";
   let projectsWithImportedTokens = [];
-  let dailyPage = 1;
   let modelPage = 1;
   let lastModelBreakdown = [];
   let chartLabels = {
@@ -384,24 +388,19 @@
     output: "Output tokens",
     total: "Total tokens",
   };
-  const DAILY_TABLE_COL_COUNT = 11;
 
   function isMeterAllocated(method) {
     return method === "meter_matched" || method === "meter_matched_partial";
   }
 
-  function allocationLabel(method) {
-    switch (method) {
-      case "meter_matched":
-        return "Meter";
-      case "meter_matched_partial":
-        return "Meter (partial)";
-      case "no_meter_match":
-        return "No meter";
-      default:
-        return method || "—";
-    }
+  function updateCostCrossLink(project) {
+    if (!els.costLinkBtn) return;
+    const params = new URLSearchParams();
+    if (project) params.set("project", project);
+    const qs = params.toString();
+    els.costLinkBtn.href = qs ? `/?${qs}` : "/";
   }
+
   let lastBillingCurrency = "USD";
 
   const MODEL_CHART_COLORS = [
@@ -440,10 +439,6 @@
     return window.AppMoney?.fmtCost(n, currency || lastBillingCurrency) ?? "—";
   }
 
-  function roundMoney(n) {
-    return window.AppMoney?.roundCost(n);
-  }
-
   function fmtUsdAxis(n) {
     return window.AppMoney?.fmtCostAxis(n) ?? "";
   }
@@ -461,56 +456,92 @@
     chartImpliedUnitOutput = null;
     if (els.impliedChartsRow) els.impliedChartsRow.hidden = true;
     if (els.unitPriceSection) els.unitPriceSection.hidden = true;
-    if (els.catalogRefLine) {
-      els.catalogRefLine.hidden = true;
-      els.catalogRefLine.textContent = "";
-    }
+    if (els.catalogRefLine) els.catalogRefLine.hidden = true;
+    if (els.unitPriceSummaryTbody) els.unitPriceSummaryTbody.innerHTML = "";
+    if (els.unitPriceSummaryDate) els.unitPriceSummaryDate.hidden = true;
+  }
+
+  function latestMeterDailyRow(daily) {
+    const sorted = [...(daily || [])].sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")));
+    return (
+      sorted.find(
+        (d) =>
+          (d.usd_per_1m_input != null && Number.isFinite(Number(d.usd_per_1m_input))) ||
+          (d.usd_per_1m_output != null && Number.isFinite(Number(d.usd_per_1m_output)))
+      ) ||
+      sorted[0] ||
+      null
+    );
+  }
+
+  function appendUnitPriceCell(tr, text, { className = "" } = {}) {
+    const td = document.createElement("td");
+    td.className = ["num", className].filter(Boolean).join(" ");
+    td.textContent = text ?? "—";
+    tr.appendChild(td);
+    return td;
   }
 
   function renderCatalogRefLine(catalogPayload, currency) {
-    if (!els.catalogRefLine) return;
+    if (!els.catalogRefLine || !els.unitPriceSummaryTbody) return;
     const models = (catalogPayload?.models || []).filter(
       (m) => m.catalog_usd_per_1m_input != null || m.catalog_usd_per_1m_output != null
     );
     if (!models.length) {
       els.catalogRefLine.hidden = true;
-      els.catalogRefLine.innerHTML = "";
+      els.unitPriceSummaryTbody.innerHTML = "";
+      if (els.unitPriceSummaryDate) els.unitPriceSummaryDate.hidden = true;
       return;
     }
+
     const ccy = currency || catalogPayload.currency || "USD";
-    const grid = document.createElement("div");
-    grid.className = "catalogRefGrid";
+    let latestDate = "";
+    const frag = document.createDocumentFragment();
+
     for (const m of models) {
-      const cin = m.catalog_usd_per_1m_input != null ? fmtUsdPer1m(m.catalog_usd_per_1m_input, ccy) : "—";
-      const cout = m.catalog_usd_per_1m_output != null ? fmtUsdPer1m(m.catalog_usd_per_1m_output, ccy) : "—";
-      const daily = m.daily || [];
-      const last = daily.length ? daily[daily.length - 1] : null;
-      const item = document.createElement("div");
-      item.className = "catalogRefItem";
-      const title = document.createElement("div");
-      title.className = "catalogRefModel";
-      title.textContent = m.model_name || "model";
-      const prices = document.createElement("div");
-      prices.className = "catalogRefPrices";
-      prices.textContent = `Market: in ${cin} · out ${cout}`;
-      item.append(title, prices);
-      if (last) {
-        const pin = pctVsCatalog(last.usd_per_1m_input, m.catalog_usd_per_1m_input);
-        const pout = pctVsCatalog(last.usd_per_1m_output, m.catalog_usd_per_1m_output);
-        const bits = [];
-        if (pin != null) bits.push(`in ${pin >= 0 ? "+" : ""}${pin.toFixed(0)}%`);
-        if (pout != null) bits.push(`out ${pout >= 0 ? "+" : ""}${pout.toFixed(0)}%`);
-        if (bits.length) {
-          const delta = document.createElement("div");
-          delta.className = "catalogRefDelta";
-          delta.textContent = `Latest vs Market: ${bits.join(", ")}`;
-          item.appendChild(delta);
-        }
-      }
-      grid.appendChild(item);
+      const last = latestMeterDailyRow(m.daily);
+      if (last?.date && String(last.date) > latestDate) latestDate = String(last.date);
+
+      const tr = document.createElement("tr");
+      tr.className = "unitPriceSummaryRow";
+
+      const tdModel = document.createElement("td");
+      tdModel.className = "unitPriceModelCell";
+      const code = document.createElement("code");
+      code.textContent = m.model_name || "model";
+      tdModel.appendChild(code);
+      tr.appendChild(tdModel);
+
+      appendUnitPriceCell(tr, fmtUsdPer1m(m.catalog_usd_per_1m_input, ccy), {
+        className: "unitPriceList",
+      });
+      appendUnitPriceCell(tr, fmtUsdPer1m(m.catalog_usd_per_1m_output, ccy), {
+        className: "unitPriceList",
+      });
+
+      const actualIn =
+        last?.usd_per_1m_input != null && Number.isFinite(Number(last.usd_per_1m_input))
+          ? fmtUsdPer1m(last.usd_per_1m_input, ccy)
+          : "—";
+      const actualOut =
+        last?.usd_per_1m_output != null && Number.isFinite(Number(last.usd_per_1m_output))
+          ? fmtUsdPer1m(last.usd_per_1m_output, ccy)
+          : "—";
+      appendUnitPriceCell(tr, actualIn, { className: "unitPriceBilling" });
+      appendUnitPriceCell(tr, actualOut, { className: "unitPriceBilling" });
+
+      frag.appendChild(tr);
     }
-    els.catalogRefLine.innerHTML = "";
-    els.catalogRefLine.appendChild(grid);
+
+    els.unitPriceSummaryTbody.replaceChildren(frag);
+    if (els.unitPriceSummaryDate) {
+      if (latestDate) {
+        els.unitPriceSummaryDate.hidden = false;
+        els.unitPriceSummaryDate.textContent = `Date: ${latestDate}`;
+      } else {
+        els.unitPriceSummaryDate.hidden = true;
+      }
+    }
     els.catalogRefLine.hidden = false;
   }
 
@@ -518,9 +549,6 @@
     if (!els.dataStatusBar) return;
     const rows = series?.daily_by_model || [];
     const meta = series?._cost_meta || {};
-    const withCost = rows.filter(
-      (r) => r.input_cost_usd != null || r.output_cost_usd != null
-    ).length;
     const meterRows =
       meta.rows_meter_matched != null
         ? Number(meta.rows_meter_matched) + Number(meta.rows_meter_partial || 0)
@@ -543,26 +571,14 @@
     els.dataStatusBar.append(
       pill("Project", project || "—"),
       pill("Range", `${rangeStart} → ${rangeEnd}`),
-      pill("Rows", String(rows.length)),
+      pill("Model-days", String(rows.length)),
       pill("Models", String(models)),
       pill("Meter matched", `${meterRows}/${rows.length || 0}`),
-      pill("With cost", `${withCost}/${rows.length || 0}`),
       pill("Currency", ccy),
       pill("Source", source),
       pill("Pipeline", pipeline)
     );
     els.dataStatusBar.hidden = false;
-  }
-
-  function updateTableRowBadge(totalRows, withCostRows) {
-    if (!els.tableRowBadge) return;
-    if (!totalRows) {
-      els.tableRowBadge.hidden = true;
-      return;
-    }
-    els.tableRowBadge.hidden = false;
-    const meterRows = lastDailyModelRows.filter((r) => isMeterAllocated(r.allocation_method)).length;
-    els.tableRowBadge.textContent = `${totalRows} rows · ${meterRows} meter-matched · ${withCostRows} with cost`;
   }
 
   function moneyStats(vals) {
@@ -1014,11 +1030,6 @@
     if (els.chartTitleOutput) {
       els.chartTitleOutput.textContent = imported ? "Output tokens" : "Output tokens (from billing)";
     }
-    if (els.tableHint) {
-      els.tableHint.textContent = imported
-        ? "One row per model/day — tokens, costs, unit $/1M, and out÷in ratio."
-        : "Token volume derived from billing and catalog pricing (no token CSV).";
-    }
 
     chartLabels = {
       input: imported ? "Input tokens" : "Input tokens (from billing)",
@@ -1129,7 +1140,14 @@
     if (!lastModelBreakdown.length) {
       els.modelTbody.innerHTML = "";
       if (els.modelPager) els.modelPager.hidden = true;
+      if (els.modelRowBadge) els.modelRowBadge.hidden = true;
       return;
+    }
+
+    const models = new Set(lastModelBreakdown.map((r) => r.model_name).filter(Boolean)).size;
+    if (els.modelRowBadge) {
+      els.modelRowBadge.hidden = false;
+      els.modelRowBadge.textContent = `${lastModelBreakdown.length} rows · ${models} model(s)`;
     }
 
     const pageSize = pageSizeFromSelect(els.modelPageSizeSelect, 25);
@@ -1206,24 +1224,6 @@
     });
   }
 
-  function modelCostDatasets(labels, dailyByModel, key) {
-    const modelNames = [...new Set((dailyByModel || []).map((r) => r.model_name).filter(Boolean))].sort();
-    if (!modelNames.length) return null;
-    const byKey = new Map((dailyByModel || []).map((r) => [`${r.date}\0${r.model_name}`, r]));
-    return modelNames
-      .map((name, idx) => {
-        const data = labels.map((d) => {
-          const row = byKey.get(`${d}\0${name}`);
-          const v = row?.[key];
-          return v != null && Number.isFinite(Number(v)) && Number(v) > 0 ? Number(v) : null;
-        });
-        if (!data.some((v) => v !== null && Number.isFinite(v))) return null;
-        const col = MODEL_CHART_COLORS[idx % MODEL_CHART_COLORS.length];
-        return _tokenLineDataset(name, data, col.border, col.fill);
-      })
-      .filter(Boolean);
-  }
-
   function renderTokenUsageCharts(points, dailyByModel) {
     const labels = points.map((p) => p.date);
     const inputDatasets =
@@ -1263,68 +1263,6 @@
         type: "line",
         data: { labels, datasets: outputDatasets },
         options: chartOptions("tokens", "", labels.length),
-        plugins: chartPlugins(),
-      });
-    }
-  }
-
-  function renderTokenCostCharts(points, dailyByModel, currency) {
-    const labels = points.map((p) => p.date);
-    const inByModel = modelCostDatasets(labels, dailyByModel, "input_cost_usd");
-    const outByModel = modelCostDatasets(labels, dailyByModel, "output_cost_usd");
-
-    const inFallback = labels.map((d) =>
-      (dailyByModel || [])
-        .filter((r) => r.date === d)
-        .reduce((acc, r) => acc + (Number(r.input_cost_usd) || 0), 0)
-    );
-    const outFallback = labels.map((d) =>
-      (dailyByModel || [])
-        .filter((r) => r.date === d)
-        .reduce((acc, r) => acc + (Number(r.output_cost_usd) || 0), 0)
-    );
-
-    const inputDatasets =
-      inByModel && inByModel.length
-        ? inByModel
-        : [
-            _tokenLineDataset(
-              `Input cost (${currency || "USD"})`,
-              inFallback.map((v) => (v > 0 ? v : null)),
-              "#60a5fa",
-              "rgba(96,165,250,0.14)"
-            ),
-          ];
-    const outputDatasets =
-      outByModel && outByModel.length
-        ? outByModel
-        : [
-            _tokenLineDataset(
-              `Output cost (${currency || "USD"})`,
-              outFallback.map((v) => (v > 0 ? v : null)),
-              "#a78bfa",
-              "rgba(167,139,250,0.14)"
-            ),
-          ];
-
-    const inputCtx = document.getElementById("tokenInputCostChart")?.getContext("2d");
-    if (inputCtx) {
-      if (tokenInputCostChart) tokenInputCostChart.destroy();
-      tokenInputCostChart = new Chart(inputCtx, {
-        type: "line",
-        data: { labels, datasets: inputDatasets },
-        options: chartOptions("usd", currency, labels.length),
-        plugins: chartPlugins(),
-      });
-    }
-
-    const outputCtx = document.getElementById("tokenOutputCostChart")?.getContext("2d");
-    if (outputCtx) {
-      if (tokenOutputCostChart) tokenOutputCostChart.destroy();
-      tokenOutputCostChart = new Chart(outputCtx, {
-        type: "line",
-        data: { labels, datasets: outputDatasets },
-        options: chartOptions("usd", currency, labels.length),
         plugins: chartPlugins(),
       });
     }
@@ -1414,216 +1352,6 @@
       },
       plugins: chartPlugins(),
     });
-  }
-
-  function sortDailyModelRows(rows) {
-    const tieBreak = (a, b) =>
-      String(a.model_name || "").localeCompare(String(b.model_name || ""), undefined, {
-        sensitivity: "base",
-      });
-    return DASH?.sortByDateDesc?.(rows, { tieBreak }) || (rows || []).slice();
-  }
-
-  function renderTable(dailyByModel) {
-    if (dailyByModel !== undefined) {
-      lastDailyModelRows = sortDailyModelRows(dailyByModel);
-    }
-
-    if (!lastDailyModelRows.length) {
-      els.rowsTbody.innerHTML = "";
-      const tr = document.createElement("tr");
-      const td = document.createElement("td");
-      td.colSpan = DAILY_TABLE_COL_COUNT;
-      td.className = "muted";
-      td.textContent = "No token data in the selected range.";
-      tr.appendChild(td);
-      els.rowsTbody.appendChild(tr);
-      if (els.dailyPageInfo) els.dailyPageInfo.textContent = "0 days";
-      if (els.dailyPrevBtn) els.dailyPrevBtn.disabled = true;
-      if (els.dailyNextBtn) els.dailyNextBtn.disabled = true;
-      updateTableRowBadge(0, 0);
-      return;
-    }
-
-    const withCostRows = lastDailyModelRows.filter(
-      (r) => r.input_cost_usd != null || r.output_cost_usd != null
-    ).length;
-    updateTableRowBadge(lastDailyModelRows.length, withCostRows);
-
-    const pageSize = pageSizeFromSelect(els.dailyPageSizeSelect, 25);
-
-    dailyPage = renderPagedSlice({
-      items: lastDailyModelRows,
-      page: dailyPage,
-      pageSize,
-      tbodyEl: els.rowsTbody,
-      pageInfoEl: els.dailyPageInfo,
-      prevBtn: els.dailyPrevBtn,
-      nextBtn: els.dailyNextBtn,
-      label: "rows",
-      renderRow: (p) => {
-        const tr = document.createElement("tr");
-        if (!isMeterAllocated(p.allocation_method)) {
-          tr.classList.add("rowNoMeter");
-        }
-        const tdDate = document.createElement("td");
-        tdDate.className = "tdDate";
-        tdDate.textContent = p.date || "";
-
-        const tdModel = document.createElement("td");
-        tdModel.className = "tdModel";
-        const modelLabel = String(p.model_name || "").trim() || "—";
-        if (modelLabel === "—") {
-          tdModel.textContent = "—";
-        } else {
-          const span = document.createElement("span");
-          span.className = "modelNameLabel";
-          span.textContent = modelLabel;
-          tdModel.title = modelLabel;
-          tdModel.appendChild(span);
-        }
-
-        const tdInput = document.createElement("td");
-        tdInput.className = "num tdInput";
-        tdInput.textContent = fmtInt(p.input_tokens);
-
-        const tdOutput = document.createElement("td");
-        tdOutput.className = "num tdOutput";
-        tdOutput.textContent = fmtInt(p.output_tokens);
-
-        const tdRatio = document.createElement("td");
-        tdRatio.className = "num tdRatio";
-        const ratio =
-          p.output_input_ratio != null && Number.isFinite(Number(p.output_input_ratio))
-            ? Number(p.output_input_ratio)
-            : p.input_tokens > 0 && p.output_tokens != null
-              ? Number(p.output_tokens) / Number(p.input_tokens)
-              : null;
-        tdRatio.textContent = fmtRatio(ratio);
-        const tdInputCost = document.createElement("td");
-        tdInputCost.className = "num tdInputCost tdCostActual";
-        tdInputCost.textContent = fmtUsd(p.input_cost_usd, lastBillingCurrency);
-        tdInputCost.title = p.allocation_method ? `allocation: ${p.allocation_method}` : "";
-
-        const tdOutputCost = document.createElement("td");
-        tdOutputCost.className = "num tdOutputCost tdCostActual";
-        tdOutputCost.textContent = fmtUsd(p.output_cost_usd, lastBillingCurrency);
-        tdOutputCost.title = p.allocation_method ? `allocation: ${p.allocation_method}` : "";
-
-        const tdTotalCost = document.createElement("td");
-        tdTotalCost.className = "num tdTotalCost tdCostActual";
-        tdTotalCost.textContent = fmtUsd(p.total_cost_usd, lastBillingCurrency);
-        tdTotalCost.title = p.allocation_method ? `allocation: ${p.allocation_method}` : "";
-
-        const tdBilling = document.createElement("td");
-        tdBilling.className = "tdBilling";
-        const badge = document.createElement("span");
-        badge.className = `allocBadge alloc-${String(p.allocation_method || "none").replaceAll("_", "-")}`;
-        badge.textContent = allocationLabel(p.allocation_method);
-        tdBilling.title =
-          p.allocation_method === "no_meter_match"
-            ? "No billing Meter matched this model/day — costs and unit prices are not estimated."
-            : p.allocation_method === "meter_matched_partial"
-              ? "Only one direction had meter rows; the other $/1M is blank."
-              : "Input/opt costs summed from transaction Meter rows.";
-        tdBilling.appendChild(badge);
-
-        const tdUnitIn = document.createElement("td");
-        tdUnitIn.className = "num tdUnitIn";
-        if (isMeterAllocated(p.allocation_method) && p.usd_per_1m_input != null) {
-          tdUnitIn.textContent = fmtUsdPer1m(p.usd_per_1m_input, lastBillingCurrency);
-        } else {
-          tdUnitIn.textContent = "—";
-          tdUnitIn.title = "Requires meter-matched input billing";
-        }
-
-        const tdUnitOut = document.createElement("td");
-        tdUnitOut.className = "num tdUnitOut";
-        if (isMeterAllocated(p.allocation_method) && p.usd_per_1m_output != null) {
-          tdUnitOut.textContent = fmtUsdPer1m(p.usd_per_1m_output, lastBillingCurrency);
-        } else {
-          tdUnitOut.textContent = "—";
-          tdUnitOut.title = "Requires meter-matched output billing";
-        }
-
-        tr.append(
-          tdDate,
-          tdModel,
-          tdInput,
-          tdOutput,
-          tdInputCost,
-          tdOutputCost,
-          tdTotalCost,
-          tdBilling,
-          tdUnitIn,
-          tdUnitOut,
-          tdRatio
-        );
-        els.rowsTbody.appendChild(tr);
-      },
-    });
-  }
-
-  function csvEscape(v) {
-    const s = v === null || v === undefined ? "" : String(v);
-    if (/[",\n]/.test(s)) return `"${s.replaceAll('"', '""')}"`;
-    return s;
-  }
-
-  function exportCsv() {
-    const headers = [
-      "date",
-      "model_name",
-      "input_tokens",
-      "output_tokens",
-      "input_cost_usd",
-      "output_cost_usd",
-      "total_cost_usd",
-      "usd_per_1m_input",
-      "usd_per_1m_output",
-      "output_input_ratio",
-      "allocation_method",
-    ];
-    const lines = [headers.join(",")];
-    for (const r of lastDailyModelRows) {
-      const ratio =
-        r.output_input_ratio != null
-          ? r.output_input_ratio
-          : r.input_tokens > 0
-            ? Number(r.output_tokens) / Number(r.input_tokens)
-            : "";
-      const costIn = roundMoney(r.input_cost_usd);
-      const costOut = roundMoney(r.output_cost_usd);
-      const costTotal = roundMoney(r.total_cost_usd);
-      const unitIn = roundMoney(r.usd_per_1m_input);
-      const unitOut = roundMoney(r.usd_per_1m_output);
-      lines.push(
-        [
-          r.date,
-          r.model_name ?? "",
-          r.input_tokens ?? "",
-          r.output_tokens ?? "",
-          costIn ?? "",
-          costOut ?? "",
-          costTotal ?? "",
-          unitIn ?? "",
-          unitOut ?? "",
-          ratio,
-          r.allocation_method ?? "",
-        ]
-          .map(csvEscape)
-          .join(",")
-      );
-    }
-    const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = lastSource === "imported" ? "token-usage-imported.csv" : "token-estimates.csv";
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
   }
 
   function auditCostPipeline(series, dailyRows) {
@@ -1720,6 +1448,7 @@
         return;
       }
       applySourceUi(source, series, stats);
+      updateCostCrossLink(project);
       updateDataStatusBar(project, stats, series);
       window.AppInsightPanel?.render?.(els.insightPanel, mergeTokenInsights(series), {
         title: "Insights",
@@ -1735,7 +1464,6 @@
       }
 
       const points = series.points || [];
-      dailyPage = 1;
       modelPage = 1;
       els.estimatedInput.textContent = fmtInt(stats.estimated_input_tokens);
       els.estimatedOutput.textContent = fmtInt(stats.estimated_output_tokens);
@@ -1781,12 +1509,6 @@
       }
 
       try {
-        renderTable(series.daily_by_model || []);
-      } catch (e) {
-        console.error("renderTable failed", e);
-      }
-
-      try {
         renderStats(els.inputStats, seriesStats(points, "estimated_input_tokens"));
         renderStats(els.outputStats, seriesStats(points, "estimated_output_tokens"));
         renderStats(els.totalStats, seriesStats(points, "estimated_total_tokens"));
@@ -1797,11 +1519,6 @@
         renderTokenUsageCharts(points, series.daily_by_model || []);
       } catch (e) {
         console.error("renderTokenUsageCharts failed", e);
-      }
-      try {
-        renderTokenCostCharts(points, series.daily_by_model || [], lastBillingCurrency);
-      } catch (e) {
-        console.error("renderTokenCostCharts failed", e);
       }
       try {
         renderRatioChart(points);
@@ -1913,26 +1630,6 @@
         ev.preventDefault();
         loadTokenData();
       }
-    });
-  }
-  els.exportBtn.addEventListener("click", exportCsv);
-
-  if (els.dailyPrevBtn) {
-    els.dailyPrevBtn.addEventListener("click", () => {
-      dailyPage = Math.max(1, dailyPage - 1);
-      renderTable();
-    });
-  }
-  if (els.dailyNextBtn) {
-    els.dailyNextBtn.addEventListener("click", () => {
-      dailyPage += 1;
-      renderTable();
-    });
-  }
-  if (els.dailyPageSizeSelect) {
-    els.dailyPageSizeSelect.addEventListener("change", () => {
-      dailyPage = 1;
-      renderTable();
     });
   }
   if (els.modelPrevBtn) {
