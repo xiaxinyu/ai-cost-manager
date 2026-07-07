@@ -392,6 +392,10 @@ def create_app(
         from_date: Optional[str] = Query(default=None, description="YYYY-MM-DD"),
         to_date: Optional[str] = Query(default=None, description="YYYY-MM-DD"),
         currency: Optional[str] = Query(default=None, description="Currency code"),
+        subproject: Optional[str] = Query(
+            default=None,
+            description="Optional subproject folder under token/ or performance/",
+        ),
         _: str = Depends(_auth_dep),
     ) -> JSONResponse:
         from_date, to_date = _normalize_date_range(
@@ -400,12 +404,21 @@ def create_app(
             start_name="from_date",
             end_name="to_date",
         )
+        subproject_name = subproject.strip() if subproject else None
         conn = get_connection(db_path)
         try:
-            stats = get_project_stats(conn, project_name, from_date=from_date, to_date=to_date, currency=currency)
+            stats = get_project_stats(
+                conn,
+                project_name,
+                from_date=from_date,
+                to_date=to_date,
+                currency=currency,
+                subproject_name=subproject_name,
+            )
             return JSONResponse(
                 {
                     "project": stats.project_name,
+                    "subproject": subproject_name,
                     "currency": stats.currency,
                     "from_date": stats.from_date,
                     "to_date": stats.to_date,

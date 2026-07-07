@@ -816,9 +816,17 @@ def list_subprojects_for_project(
         SELECT DISTINCT subproject_name
         FROM token_metric_points
         WHERE project_name = ? AND subproject_name != ''
+        UNION
+        SELECT DISTINCT subproject_name
+        FROM ingested_token_files
+        WHERE project_name = ? AND subproject_name != ''
+        UNION
+        SELECT DISTINCT subproject_name
+        FROM ingested_token_metric_files
+        WHERE project_name = ? AND subproject_name != ''
         ORDER BY subproject_name ASC
         """,
-        (project_name, project_name),
+        (project_name, project_name, project_name, project_name),
     ).fetchall()
     found = {str(r["subproject_name"]) for r in rows if r["subproject_name"]}
     if bills_dir is not None:
@@ -3690,6 +3698,7 @@ def get_project_stats(
     from_date: str | None = None,
     to_date: str | None = None,
     currency: str | None = None,
+    subproject_name: str | None = None,
 ) -> ProjectStats:
     currency_filter = currency
     if currency_filter is None:
@@ -3726,32 +3735,43 @@ def get_project_stats(
 
     if project_has_imported_tokens(conn, project_name):
         in_tok, out_tok = get_imported_token_totals(
-            conn, project_name, start_date=from_date, end_date=to_date
+            conn,
+            project_name,
+            start_date=from_date,
+            end_date=to_date,
+            subproject_name=subproject_name,
         )
+        token_where = ["project_name = ?"]
+        token_params: list[object] = [project_name]
+        _append_subproject_filter(token_where, token_params, subproject_name)
+        if from_date:
+            token_where.append("usage_date >= ?")
+            token_params.append(from_date)
+        if to_date:
+            token_where.append("usage_date <= ?")
+            token_params.append(to_date)
         token_row = conn.execute(
-            """
+            f"""
             SELECT MIN(usage_date) AS min_usage_date, MAX(usage_date) AS max_usage_date
             FROM token_usage_points
-            WHERE project_name = ?
-            """
-            + (" AND usage_date >= ?" if from_date else "")
-            + (" AND usage_date <= ?" if to_date else ""),
-            tuple(
-                [project_name]
-                + ([from_date] if from_date else [])
-                + ([to_date] if to_date else [])
-            ),
+            WHERE {' AND '.join(token_where)}
+            """,
+            tuple(token_params),
         ).fetchone()
+        token_min = token_row["min_usage_date"]
+        token_max = token_row["max_usage_date"]
+        if subproject_name is not None:
+            min_usage = token_min
+            max_usage = token_max
+        else:
+            min_usage = _iso_date_min(token_min, row["min_usage_date"])
+            max_usage = _iso_date_max(token_max, row["max_usage_date"])
         return ProjectStats(
             project_name=project_name,
             from_date=from_date,
             to_date=to_date,
-            min_usage_date=_iso_date_min(
-                token_row["min_usage_date"], row["min_usage_date"]
-            ),
-            max_usage_date=_iso_date_max(
-                token_row["max_usage_date"], row["max_usage_date"]
-            ),
+            min_usage_date=min_usage,
+            max_usage_date=max_usage,
             actual_cost_usd_total=total_cost_usd,
             actual_days=int(row["actual_days"]),
             currency=currency_filter,

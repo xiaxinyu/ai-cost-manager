@@ -6,11 +6,10 @@
     <title>Tokens - Models Cost Management</title>
     <link rel="stylesheet" href="/static/css/app-shell.css" />
     <link rel="stylesheet" href="/static/css/page-common.css" />
-    <link rel="stylesheet" href="/static/css/pages/tokens.css?v=20260707-plain" />
+    <link rel="stylesheet" href="/static/css/pages/tokens.css?v=20260707-layout" />
     <link rel="stylesheet" href="/static/css/layout-pro.css" />
     <link rel="stylesheet" href="/static/css/dashboard-shared.css?v=20260707-detail" />
     <link rel="stylesheet" href="/static/css/date-range-picker.css?v=20260606-drp" />
-    <link rel="stylesheet" href="/static/css/insight-panel.css?v=20260605-insights" />
   </head>
   <body>
     {% set active_page = 'tokens' %}
@@ -38,11 +37,7 @@
           </header>
 
           <section class="card tokenToolbar filterCard" aria-label="Filters">
-            <div class="filterCardHead">
-              <h2 class="filterCardTitle">Scope</h2>
-              <p class="filterCardHint muted">Project and date range · Enter or Load to refresh</p>
-            </div>
-            <div class="toolbarGrid">
+            <div id="toolbarGrid" class="toolbarGrid toolbarGrid--noSubproject">
               <div class="field projectField">
                 <label for="projectSelect">Project</label>
                 <div class="controlWrap controlWrapSelect">
@@ -69,11 +64,8 @@
                 <a href="/import" class="btnSecondary btnLinkQuiet">Import</a>
               </div>
             </div>
-            <p id="filterHint" class="filterHint muted" hidden></p>
+            <div id="dataStatusBar" class="dataStatusBar dataStatusBar--compact" hidden aria-live="polite" aria-label="Load summary"></div>
           </section>
-
-          <div id="dataStatusBar" class="dataStatusBar" hidden aria-live="polite" aria-label="Load summary"></div>
-          <div id="tokenInsightPanel" class="insightPanel" hidden aria-label="Token insights"></div>
 
           <div id="noImportState" class="card emptyState" hidden>
             <div class="title">No imported token data</div>
@@ -94,12 +86,11 @@
 
           <div id="tokenWorkspace" hidden>
             <nav class="dashSectionNav card tokenNav" aria-label="Token sections">
-              <span class="dashSectionNavLabel muted">Jump to</span>
-              <a class="dashSectionNavLink" href="#token-summary">① Summary</a>
-              <a class="dashSectionNavLink" href="#flowUsage">② Usage</a>
-              <a class="dashSectionNavLink" href="#flowVolume">③ Volume</a>
-              <a class="dashSectionNavLink" href="#unitPriceSection">④ Unit price</a>
-              <a class="dashSectionNavLink" href="#perfSection">⑤ Performance</a>
+              <a class="dashSectionNavLink" href="#token-summary">Summary</a>
+              <a class="dashSectionNavLink" href="#flowUsage">Usage</a>
+              <a class="dashSectionNavLink" href="#flowVolume">Volume</a>
+              <a class="dashSectionNavLink" href="#unitPriceSection">Unit price</a>
+              <a class="dashSectionNavLink" href="#perfSection">Performance</a>
             </nav>
 
             <section id="token-summary" class="tokenZone tokenZone--summary" aria-label="Summary">
@@ -107,7 +98,7 @@
                 <span class="tokenStep" aria-hidden="true">1</span>
                 <div class="tokenZoneHeadMain">
                   <h2 class="tokenZoneTitle">Summary</h2>
-                  <p class="tokenZoneLead muted">Token volume and coverage for the selected project and dates.</p>
+                  <p class="tokenZoneLead muted" id="tokenSummaryLead">Token volume and coverage for the selected scope.</p>
                 </div>
               </div>
             <div class="tokenKpiBoard">

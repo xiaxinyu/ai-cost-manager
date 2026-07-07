@@ -23,6 +23,16 @@ def test_subproject_from_legacy_filename_slug():
     assert subproject_from_filename("input-tokens-2026-7-7.csv") == ""
 
 
+def test_is_token_usage_csv_filename_strict():
+    from app.bills_layout import is_token_usage_csv_filename
+
+    assert is_token_usage_csv_filename("input-tokens-2026-7-7.csv") is True
+    assert is_token_usage_csv_filename("output-tokens-2026-7-7.csv") is True
+    assert is_token_usage_csv_filename("model-requests-2026-7-7.csv") is False
+    assert is_token_usage_csv_filename("cache-match-rate-2026-7-7.csv") is False
+    assert is_token_usage_csv_filename("my-input-output-debug.csv") is False
+
+
 def test_discover_subprojects_on_disk(tmp_path):
     project = tmp_path / "RG-HK-S56-MDM-Coding"
     (project / "token" / "coding-1").mkdir(parents=True)
@@ -61,5 +71,35 @@ def test_nested_token_ingest_keeps_subprojects_separate(tmp_path):
         assert in2 == 2_000_000.0
         in_all, _ = get_imported_token_totals(conn, project)
         assert in_all == 3_000_000.0
+    finally:
+        conn.close()
+
+
+def test_project_stats_respects_subproject_filter(tmp_path):
+    from app.db import get_project_stats
+
+    bills_dir = tmp_path / "bills"
+    project = "proj-sub"
+    for sub, mil in (("alpha", 1), ("beta", 3)):
+        subdir = bills_dir / project / "token" / sub
+        subdir.mkdir(parents=True)
+        (subdir / "input-tokens.csv").write_text(
+            '"Time","gpt-4o"\n'
+            f"2026-07-01 00:00:00,{mil} Mil\n",
+            encoding="utf-8",
+        )
+
+    db_path = tmp_path / "cost_mgmt.sqlite3"
+    ingest_token_all(bills_dir=bills_dir, db_path=db_path)
+
+    conn = get_connection(db_path)
+    try:
+        init_db(conn)
+        alpha_stats = get_project_stats(conn, project, subproject_name="alpha")
+        beta_stats = get_project_stats(conn, project, subproject_name="beta")
+        all_stats = get_project_stats(conn, project)
+        assert alpha_stats.estimated_input_tokens == 1_000_000.0
+        assert beta_stats.estimated_input_tokens == 3_000_000.0
+        assert all_stats.estimated_input_tokens == 4_000_000.0
     finally:
         conn.close()

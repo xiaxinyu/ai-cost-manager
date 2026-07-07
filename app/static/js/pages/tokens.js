@@ -13,6 +13,7 @@
     projectSelect: document.getElementById("projectSelect"),
     subprojectSelect: document.getElementById("subprojectSelect"),
     subprojectField: document.getElementById("subprojectField"),
+    toolbarGrid: document.getElementById("toolbarGrid"),
     startDate: document.getElementById("tokenStartDateInput"),
     endDate: document.getElementById("tokenEndDateInput"),
     loadBtn: document.getElementById("loadTokensBtn"),
@@ -22,9 +23,8 @@
     noImportHint: document.getElementById("noImportHint"),
     sourceBadge: document.getElementById("tokenSourceBadge"),
     sourceBadgeText: document.getElementById("tokenSourceBadgeText"),
-    filterHint: document.getElementById("filterHint"),
     dataStatusBar: document.getElementById("dataStatusBar"),
-    insightPanel: document.getElementById("tokenInsightPanel"),
+    tokenSummaryLead: document.getElementById("tokenSummaryLead"),
     costLinkBtn: document.getElementById("tokenCostLinkBtn"),
     labelInput: document.getElementById("labelInputTokens"),
     labelOutput: document.getElementById("labelOutputTokens"),
@@ -194,18 +194,6 @@
     if (perfHiddenModels.has(label)) perfHiddenModels.delete(label);
     else perfHiddenModels.add(label);
     renderPerfCharts(lastPerfSeries);
-  }
-
-  function mergeTokenInsights(series) {
-    const seen = new Set();
-    const merged = [];
-    for (const c of [...(series?.insights || []), ...(series?.performance_insights || [])]) {
-      const id = c?.id;
-      if (!id || seen.has(id)) continue;
-      seen.add(id);
-      merged.push(c);
-    }
-    return merged;
   }
 
   function _perfRowKey(recordedAt, metricName) {
@@ -548,7 +536,33 @@
     els.catalogRefLine.hidden = false;
   }
 
-  function updateDataStatusBar(project, stats, series) {
+  function sumTokenPoints(points) {
+    let input = 0;
+    let output = 0;
+    for (const p of points || []) {
+      const inVal = p?.input_tokens ?? p?.estimated_input_tokens;
+      const outVal = p?.output_tokens ?? p?.estimated_output_tokens;
+      if (inVal != null && Number.isFinite(Number(inVal))) input += Number(inVal);
+      if (outVal != null && Number.isFinite(Number(outVal))) output += Number(outVal);
+    }
+    return { input, output, total: input + output };
+  }
+
+  function resolveTokenDateRange(series, stats) {
+    const meta = series?.import_meta;
+    if (meta?.min_usage_date || meta?.max_usage_date) {
+      return {
+        start: meta.min_usage_date || "—",
+        end: meta.max_usage_date || "—",
+      };
+    }
+    return {
+      start: stats?.min_usage_date || els.startDate?.value || "—",
+      end: stats?.max_usage_date || els.endDate?.value || "—",
+    };
+  }
+
+  function updateDataStatusBar(project, stats, series, subproject) {
     if (!els.dataStatusBar) return;
     const rows = series?.daily_by_model || [];
     const meta = series?._cost_meta || {};
@@ -557,11 +571,9 @@
         ? Number(meta.rows_meter_matched) + Number(meta.rows_meter_partial || 0)
         : rows.filter((r) => isMeterAllocated(r.allocation_method)).length;
     const models = new Set(rows.map((r) => r.model_name).filter(Boolean)).size;
-    const rangeStart = stats?.min_usage_date || els.startDate?.value || "—";
-    const rangeEnd = stats?.max_usage_date || els.endDate?.value || "—";
+    const range = resolveTokenDateRange(series, stats);
     const ccy = stats?.currency || series?.currency || lastBillingCurrency || "USD";
-    const pipeline = series?.cost_pipeline_version || "—";
-    const source = series?.token_data_source || stats?.token_data_source || "—";
+    const importPath = series?.token_import_path || tokenImportPathLabel(project, subproject);
 
     const pill = (label, value) => {
       const span = document.createElement("span");
@@ -571,17 +583,26 @@
     };
 
     els.dataStatusBar.innerHTML = "";
-    els.dataStatusBar.append(
-      pill("Project", project || "—"),
-      pill("Range", `${rangeStart} → ${rangeEnd}`),
-      pill("Model-days", String(rows.length)),
+    const pills = [
+      pill("Range", `${range.start} → ${range.end}`),
       pill("Models", String(models)),
-      pill("Meter matched", `${meterRows}/${rows.length || 0}`),
+      pill("Billing rows matched", `${meterRows}/${rows.length || 0}`),
       pill("Currency", ccy),
-      pill("Source", source),
-      pill("Pipeline", pipeline)
-    );
+    ];
+    if (subproject) pills.splice(1, 0, pill("Subproject", subproject));
+    els.dataStatusBar.append(...pills);
+
+    const path = document.createElement("span");
+    path.className = "dataStatusPath muted";
+    path.textContent = importPath;
+    els.dataStatusBar.appendChild(path);
     els.dataStatusBar.hidden = false;
+  }
+
+  function updateToolbarGridLayout() {
+    if (!els.toolbarGrid) return;
+    const hasSubprojects = els.subprojectField && !els.subprojectField.hidden;
+    els.toolbarGrid.classList.toggle("toolbarGrid--noSubproject", !hasSubprojects);
   }
 
   function moneyStats(vals) {
@@ -1044,12 +1065,12 @@
       total: imported ? "Total tokens" : "Total tokens (from billing)",
     };
 
-    if (els.filterHint) {
-      els.filterHint.hidden = false;
-      const models = (series.import_meta?.models || []).length;
-      els.filterHint.textContent = imported
-        ? `Imported CSV · ${models} model column(s) · ${importPath}${subproject ? ` · subproject ${subproject}` : ""}`
-        : "Derived from billing × Market price (no token CSV).";
+    if (els.tokenSummaryLead) {
+      els.tokenSummaryLead.textContent = subproject
+        ? `Subproject “${subproject}” · imported Grafana CSVs`
+        : hasSubprojectsScope()
+          ? "All subprojects combined · imported Grafana CSVs"
+          : "Imported Grafana CSVs for this project";
     }
 
     if (els.tokenModel) {
@@ -1408,7 +1429,10 @@
     try {
       const statsParams = new URLSearchParams();
       const seriesParams = new URLSearchParams({ granularity: "day" });
-      if (subproject) seriesParams.set("subproject", subproject);
+      if (subproject) {
+        statsParams.set("subproject", subproject);
+        seriesParams.set("subproject", subproject);
+      }
       if (els.startDate.value) {
         statsParams.set("from_date", els.startDate.value);
         seriesParams.set("start_date", els.startDate.value);
@@ -1440,7 +1464,6 @@
       if (!imported) {
         if (els.sourceBadge) els.sourceBadge.hidden = true;
         if (els.dataStatusBar) els.dataStatusBar.hidden = true;
-        if (els.insightPanel) els.insightPanel.hidden = true;
         clearUnitPriceUi();
         if (els.noImportHint) {
           const others = projectsWithImportedTokens.filter((p) => p !== project);
@@ -1456,11 +1479,32 @@
       }
       applySourceUi(source, series, stats, { project, subproject });
       updateCostCrossLink(project);
-      updateDataStatusBar(project, stats, series);
-      window.AppInsightPanel?.render?.(els.insightPanel, mergeTokenInsights(series), {
-        title: "Insights",
-        limit: 8,
-      });
+      updateDataStatusBar(project, stats, series, subproject);
+
+      const points = series.points || [];
+      const totals = sumTokenPoints(points);
+      const hasScopedTokenData = totals.total > 0 || (series.import_meta?.day_count || 0) > 0;
+      if (subproject && !hasScopedTokenData) {
+        window.AppShell?.toast?.(
+          `No imported token data for subproject “${subproject}”. Import CSVs under bills/${project}/token/${subproject}/.`,
+          "warn",
+          8000
+        );
+      }
+
+      modelPage = 1;
+      els.estimatedInput.textContent = fmtInt(stats.estimated_input_tokens ?? totals.input);
+      els.estimatedOutput.textContent = fmtInt(stats.estimated_output_tokens ?? totals.output);
+      els.estimatedTotal.textContent = fmtInt(stats.estimated_total_tokens ?? totals.total);
+      const range = resolveTokenDateRange(series, stats);
+      els.rangeLabel.textContent = `Selected range: ${range.start} ~ ${range.end}`;
+
+      try {
+        renderModelBreakdown(series.breakdown_by_model || []);
+      } catch (e) {
+        console.error("renderModelBreakdown failed", e);
+      }
+
       try {
         perfHiddenModels = new Set();
         perfHighlightKey = null;
@@ -1470,22 +1514,9 @@
         console.error("renderPerf failed", e);
       }
 
-      const points = series.points || [];
-      modelPage = 1;
-      els.estimatedInput.textContent = fmtInt(stats.estimated_input_tokens);
-      els.estimatedOutput.textContent = fmtInt(stats.estimated_output_tokens);
-      els.estimatedTotal.textContent = fmtInt(stats.estimated_total_tokens);
-      els.rangeLabel.textContent = `Selected range: ${stats.min_usage_date || "-"} ~ ${stats.max_usage_date || "-"}`;
-
-      try {
-        renderModelBreakdown(series.breakdown_by_model || []);
-      } catch (e) {
-        console.error("renderModelBreakdown failed", e);
-      }
-
+      const tokenRangeStart = range.start !== "—" ? range.start : els.startDate.value || "";
+      const tokenRangeEnd = range.end !== "—" ? range.end : els.endDate.value || "";
       const pricingParams = new URLSearchParams();
-      const tokenRangeStart = stats.min_usage_date || els.startDate.value || "";
-      const tokenRangeEnd = stats.max_usage_date || els.endDate.value || "";
       if (tokenRangeStart) pricingParams.set("start_date", tokenRangeStart);
       if (tokenRangeEnd) pricingParams.set("end_date", tokenRangeEnd);
       if (stats.currency) pricingParams.set("currency", stats.currency);
@@ -1540,10 +1571,15 @@
     }
   }
 
+  function hasSubprojectsScope() {
+    return Boolean(els.subprojectField && !els.subprojectField.hidden);
+  }
+
   function syncSubprojectOptions(projectName) {
     if (!els.subprojectSelect || !els.subprojectField) return;
     const detail = projectDetailsByName.get(projectName);
     const subprojects = Array.isArray(detail?.subprojects) ? detail.subprojects : [];
+    const previous = selectedSubproject();
     els.subprojectSelect.innerHTML = "";
     const allOpt = document.createElement("option");
     allOpt.value = "";
@@ -1556,6 +1592,10 @@
       els.subprojectSelect.appendChild(opt);
     }
     els.subprojectField.hidden = subprojects.length === 0;
+    updateToolbarGridLayout();
+    if (previous && subprojects.includes(previous)) {
+      els.subprojectSelect.value = previous;
+    }
   }
 
   function selectedSubproject() {

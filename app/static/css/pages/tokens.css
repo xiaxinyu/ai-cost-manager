@@ -17,33 +17,29 @@
 
 /* —— Filter bar —— */
 .filterCard {
-  padding: 16px 18px;
+  padding: 14px 16px 12px;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.03));
-}
-
-.filterCardHead {
   display: flex;
-  align-items: baseline;
-  justify-content: space-between;
+  flex-direction: column;
   gap: 12px;
-  flex-wrap: wrap;
-  margin-bottom: 14px;
-  padding-bottom: 10px;
-  border-bottom: 1px solid rgba(173, 196, 228, 0.12);
 }
 
-.filterCardTitle {
+.dataStatusBar--compact {
   margin: 0;
-  font-size: 13px;
-  font-weight: 800;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: #e2e8f0;
+  padding: 8px 0 0;
+  border: none;
+  border-top: 1px solid rgba(173, 196, 228, 0.12);
+  border-radius: 0;
+  background: transparent;
+  gap: 6px 8px;
 }
 
-.filterCardHint {
-  margin: 0;
-  font-size: 12px;
+.dataStatusPath {
+  flex: 1 1 100%;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 11px;
+  line-height: 1.4;
+  word-break: break-all;
 }
 
 .tokenPage .field label {
@@ -562,9 +558,50 @@
 
 .toolbarGrid {
   display: grid;
-  grid-template-columns: minmax(220px, 1.6fr) minmax(280px, 1.35fr) auto;
+  grid-template-columns: minmax(200px, 1.35fr) minmax(160px, 0.95fr) minmax(260px, 1.25fr) auto;
   align-items: end;
-  gap: 14px;
+  gap: 12px 14px;
+}
+
+.toolbarGrid--noSubproject {
+  grid-template-columns: minmax(220px, 1.6fr) minmax(280px, 1.35fr) auto;
+}
+
+.scopeSummary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: rgba(96, 165, 250, 0.06);
+  border: 1px solid rgba(96, 165, 250, 0.14);
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-muted, #94a3b8);
+}
+
+.scopeSummary strong {
+  color: var(--text-primary, #e2e8f0);
+  font-weight: 600;
+}
+
+.scopeSummaryPath {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 11px;
+  color: #cbd5e1;
+  word-break: break-all;
+}
+
+.subprojectField .fieldHint {
+  margin: 4px 0 0;
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.fieldHint {
+  margin: 0;
 }
 
 .tokenPage .fieldDateRange .controlWrap {
@@ -1366,11 +1403,22 @@
 }
 
 @media (max-width: 1100px) {
-  .toolbarGrid {
+  .toolbarGrid,
+  .toolbarGrid--noSubproject {
     grid-template-columns: 1fr 1fr;
   }
 
-  .toolbarGrid .projectField {
+  .toolbarGrid .projectField,
+  .toolbarGrid--noSubproject .projectField {
+    grid-column: 1 / -1;
+  }
+
+  .toolbarGrid .subprojectField {
+    grid-column: 1 / -1;
+  }
+
+  .toolbarGrid .fieldDateRange,
+  .toolbarGrid--noSubproject .fieldDateRange {
     grid-column: 1 / -1;
   }
 

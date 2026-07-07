@@ -29,8 +29,10 @@ def is_metric_csv_filename(filename: str) -> bool:
 
 
 def is_token_usage_csv_filename(filename: str) -> bool:
-    low = filename.lower()
-    return ("input" in low or "output" in low) and low.endswith(".csv") and not is_metric_csv_filename(filename)
+    low = Path(filename).name.lower()
+    if not low.endswith(".csv") or is_metric_csv_filename(filename):
+        return False
+    return low.startswith("input-tokens") or low.startswith("output-tokens")
 
 
 def subproject_from_filename(filename: str) -> str:
