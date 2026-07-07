@@ -536,6 +536,48 @@ def _append_billing_subproject_filter(
     params.append(slug)
 
 
+def _sum_billing_cost_usd(
+    conn: sqlite3.Connection,
+    *,
+    start_date: str | None = None,
+    end_date: str | None = None,
+    currency: str | None = None,
+    project_name: str | None = None,
+    project_names: list[str] | None = None,
+    subproject_name: str | None = None,
+) -> float:
+    """Authoritative billing total: one SQL SUM(cost_usd), then round once (matches Azure CSV totals)."""
+    where: list[str] = []
+    params: list[object] = []
+
+    if project_name is not None:
+        where.append("project_name = ?")
+        params.append(project_name)
+    else:
+        project_sql, project_params = _project_where(project_names)
+        if project_sql != "1=1":
+            where.append(project_sql)
+            params.extend(project_params)
+
+    if start_date:
+        where.append("usage_date >= ?")
+        params.append(start_date)
+    if end_date:
+        where.append("usage_date <= ?")
+        params.append(end_date)
+    if currency:
+        where.append("currency = ?")
+        params.append(currency)
+    _append_billing_subproject_filter(where, params, subproject_name)
+
+    where_sql = " AND ".join(where) if where else "1=1"
+    row = conn.execute(
+        f"SELECT COALESCE(SUM(cost_usd), 0) AS total FROM transactions WHERE {where_sql}",
+        tuple(params),
+    ).fetchone()
+    return float(row["total"] or 0.0)
+
+
 def _backfill_subproject_from_source_file(
     conn: sqlite3.Connection,
     *,
@@ -2950,7 +2992,14 @@ def get_catalog_market_cost_timeseries(
     _sort_rows_by_date_desc(daily_by_model)
 
     total_catalog = sum(float(c) for c in catalog_by_date.values())
-    total_actual = sum(actual_by_date.values())
+    total_actual = _sum_billing_cost_usd(
+        conn,
+        project_name=project_name,
+        start_date=start_date,
+        end_date=end_date,
+        currency=chosen_currency,
+        subproject_name=subproject_name,
+    )
     total_meter_raw = sum(
         _reconciled_meter_actual(
             float(st["input_cost_usd"]),
@@ -4802,6 +4851,15 @@ def get_all_financial_stats(
     daily_actual = [p["cost_usd"] for p in daily_points]
     monthly_actual = [p["cost_usd"] for p in monthly_points]
 
+    total_actual_raw = _sum_billing_cost_usd(
+        conn,
+        start_date=start_date,
+        end_date=end_date,
+        currency=chosen_currency,
+        project_names=project_names,
+    )
+    total_actual = round_cost(total_actual_raw) or 0.0
+
     input_tokens_total = 0.0
     output_tokens_total = 0.0
     projects_with_imported_tokens = 0
@@ -4823,7 +4881,7 @@ def get_all_financial_stats(
         "currency": chosen_currency,
         "daily": {
             "count_days": len(daily_points),
-            "total_actual": sum(daily_actual),
+            "total_actual": total_actual,
             "avg_actual": _mean(daily_actual),
             "median_actual": _median(daily_actual),
             "var_actual": _variance(daily_actual),

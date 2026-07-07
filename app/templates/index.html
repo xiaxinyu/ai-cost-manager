@@ -587,14 +587,16 @@
         footnoteEl.hidden = !footnoteEl.textContent;
       }
 
-      function updateChartFootnote(costPoints, catalogPayload) {
+      function updateChartFootnote(costPoints, catalogPayload, authoritativeActualTotal) {
         if (!costChartFootnoteEl) return;
-        const totalActual = (costPoints || []).reduce(
-          (acc, p) => acc + (Number(p?.cost_usd) || 0),
-          0
-        );
-        const rounded = window.AppMoney?.roundCost(totalActual);
-        let text = `Total: ${fmt2(rounded)}`;
+        const totalActual =
+          authoritativeActualTotal != null
+            ? Number(authoritativeActualTotal)
+            : (costPoints || []).reduce(
+                (acc, p) => acc + (Number(p?.cost_usd) || 0),
+                0
+              );
+        let text = `Total: ${fmt2(totalActual)}`;
         const catTotal = catalogPayload?.summary?.total_catalog_cost_usd;
         if (catalogPayload?.available && catTotal != null) {
           text += ` · Market: ${fmt2(catTotal)}`;
@@ -811,7 +813,7 @@
         }) ?? {};
       }
 
-      function renderCatalogMarketUi(catalogPayload, costPoints) {
+      function renderCatalogMarketUi(catalogPayload, costPoints, authoritativeActualTotal) {
         const summary = catalogPayload?.summary || {};
         const available = catalogPayload?.available === true;
         if (catalogMarketCard) catalogMarketCard.style.opacity = available ? '1' : '0.55';
@@ -820,7 +822,7 @@
         const legendEl = marketCompareSectionEl?.querySelector('.monitorCardLegend');
         if (legendEl) legendEl.hidden = !available;
 
-        updateChartFootnote(costPoints, catalogPayload);
+        updateChartFootnote(costPoints, catalogPayload, authoritativeActualTotal);
 
         if (!available) {
           if (catalogMarketTotalEl) catalogMarketTotalEl.textContent = '—';
@@ -2189,7 +2191,7 @@
         renderSubprojectCostStrip(resourceBilling, subproject);
         updateCostScopeLead(projectName, subproject);
         await loadBillingRawPage(projectName, { resetPage: true });
-        renderCatalogMarketUi(catalogPayload, costPts);
+        renderCatalogMarketUi(catalogPayload, costPts, stats.actual_cost_usd_total);
 
         const costStats = _calcSeriesStatsFloat(costPts, 'cost_usd');
         _renderCostStats(costStatsEl, costStats);
