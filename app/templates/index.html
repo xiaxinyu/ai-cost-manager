@@ -6,7 +6,7 @@
     <title>Cost - Models Cost Management</title>
     <link rel="stylesheet" href="/static/css/app-shell.css" />
     <link rel="stylesheet" href="/static/css/page-common.css" />
-    <link rel="stylesheet" href="/static/css/pages/index.css?v=20260708-ref-arch" />
+    <link rel="stylesheet" href="/static/css/pages/index.css?v=20260708-composition" />
     <link rel="stylesheet" href="/static/css/layout-pro.css" />
     <link rel="stylesheet" href="/static/css/dashboard-shared.css?v=20260708-dash-polish" />
     <link rel="stylesheet" href="/static/css/date-range-picker.css?v=20260606-drp" />
@@ -119,29 +119,31 @@
                   </article>
                 </div>
 
-                <div class="costMonitorKpi costFinOpexCompositionKpi costStatementLayer costStatementLayer--opex" id="costOpexCompositionRow" hidden aria-label="OpEx composition">
+                <div class="costStatementLayer costStatementLayer--opex" id="costOpexCompositionRow" hidden aria-label="OpEx composition">
                   <p class="costStatementLayerTag muted">Actual billing · composition</p>
-                  <article class="monitorKpi monitorKpi--actual">
-                    <div class="stat">
-                      <div class="label"><span class="costPill costPill--actual">OpEx</span> · Meter</div>
-                      <div class="value value--md" id="costMeterTotal">—</div>
-                      <div class="sub tokenStats kpiFootnote" id="costMeterNote">By model · Meter column</div>
-                    </div>
-                  </article>
-                  <article class="monitorKpi monitorKpi--platform">
-                    <div class="stat">
-                      <div class="label"><span class="costPill costPill--platform">OpEx</span> · Platform</div>
-                      <div class="value value--md" id="costPlatformTotal">—</div>
-                      <div class="sub tokenStats kpiFootnote" id="costPlatformNote">By model · Others · … rows</div>
-                    </div>
-                  </article>
-                  <article class="monitorKpi monitorKpi--rate monitorKpi--neutral">
-                    <div class="stat">
-                      <div class="label">Meter share</div>
-                      <div class="value value--md" id="costMeterSharePct">—</div>
-                      <div class="sub tokenStats kpiFootnote">Meter ÷ OpEx total</div>
-                    </div>
-                  </article>
+                  <div class="costMonitorKpi costFinOpexCompositionKpi">
+                    <article class="monitorKpi monitorKpi--actual">
+                      <div class="stat">
+                        <div class="label"><span class="costPill costPill--actual">OpEx</span> · Meter</div>
+                        <div class="value value--md" id="costMeterTotal">—</div>
+                        <div class="sub tokenStats kpiFootnote" id="costMeterNote">By model · Meter column</div>
+                      </div>
+                    </article>
+                    <article class="monitorKpi monitorKpi--platform">
+                      <div class="stat">
+                        <div class="label"><span class="costPill costPill--platform">OpEx</span> · Platform</div>
+                        <div class="value value--md" id="costPlatformTotal">—</div>
+                        <div class="sub tokenStats kpiFootnote" id="costPlatformNote">By model · Others · … rows</div>
+                      </div>
+                    </article>
+                    <article class="monitorKpi monitorKpi--rate monitorKpi--neutral">
+                      <div class="stat">
+                        <div class="label">Meter share</div>
+                        <div class="value value--md" id="costMeterSharePct">—</div>
+                        <div class="sub tokenStats kpiFootnote">Meter ÷ OpEx total</div>
+                      </div>
+                    </article>
+                  </div>
                 </div>
 
                 <div id="cost-tariff-reference" class="costStatementSubzone costTariffSubzone costStatementLayer costStatementLayer--refarch" hidden aria-label="Reference architecture">
