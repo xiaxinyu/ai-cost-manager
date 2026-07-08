@@ -40,6 +40,10 @@ def test_ratio_bounds_include_full_data_range():
     text = forecasting.read_text(encoding="utf-8")
     assert "always include every data point" in text
     assert "guardHi" not in text
-    assert "buildMixedForecastSeries" in text
-    assert "buildAnchoredForecastSeries" in text
-    assert "renderQualityBadge" in text
+
+
+def test_cost_semantics_billing_key():
+    semantics = Path(__file__).resolve().parents[1] / "app" / "static" / "js" / "cost-semantics.js"
+    text = semantics.read_text(encoding="utf-8")
+    assert "billingKey" in text
+    assert "CostUSD" in text

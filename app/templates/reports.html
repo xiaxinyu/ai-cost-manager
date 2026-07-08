@@ -207,41 +207,19 @@
                 <p class="reportSectionLead muted" id="costTrendInsight">Daily and monthly <span class="costPill costPill--actual">OpEx</span> billing for the selected scope.</p>
               </div>
             </div>
-            <div class="chartGrid chartGrid3 dashForecastRunRateGrid">
+            <div class="chartGrid chartGrid2">
               <article class="card chartCard">
                 <h3 class="chartCardTitle">Daily cost</h3>
-                <div class="costTypeLegend" aria-label="Cost type"><span class="costPill costPill--actual">OpEx</span><span class="costLegendSep" aria-hidden="true"></span><span class="costPill costPill--actual">Meter</span><span class="costLegendSep" aria-hidden="true"></span><span class="costPill costPill--platform">Platform</span></div>
-                <p class="chartCardHint muted">OpEx daily actual · stacked meter/platform when available.</p>
+                <div id="reportDailyLegendKey" class="costBillingKeyHost"></div>
                 <div class="chartCanvasHost chartPlot"><canvas id="dailyChart"></canvas></div>
                 <footer class="chartCardFoot muted" id="dailyChartFoot">—</footer>
               </article>
               <article class="card chartCard">
                 <h3 class="chartCardTitle">Monthly cost</h3>
+                <p class="chartCardHint muted">Calendar month CostUSD totals from billing CSV.</p>
                 <div class="costTypeLegend" aria-label="Cost type"><span class="costPill costPill--actual">OpEx</span></div>
-                <p class="chartCardHint muted">Calendar month OpEx totals.</p>
                 <div class="chartCanvasHost chartPlot"><canvas id="monthlyChart"></canvas></div>
                 <footer class="chartCardFoot muted" id="monthlyChartFoot">—</footer>
-              </article>
-              <article class="card chartCard chartCardForecast">
-                <div class="dashForecastCardHead">
-                  <h3 class="chartCardTitle">OpEx forecast (7d)</h3>
-                  <div id="forecastQualityCostReport" class="qualityBadge qualityMedium">Forecast quality: —</div>
-                </div>
-                <p class="chartCardHint muted">Linear trend + day-of-week correction on recent billing.</p>
-                <div class="chartCanvasHost chartPlot chartCanvasHostShort"><canvas id="costForecastChart"></canvas></div>
-                <div class="forecastMetaRow">
-                  <span class="muted">28-day window · dashed = outlook</span>
-                </div>
-                <details class="forecastAssumptions">
-                  <summary>Assumptions</summary>
-                  <div class="assumptionBody">Last 28 valid days · integer non-negative output · dashed line continues from last actual.</div>
-                </details>
-                <div class="tableScroll tableScrollCompact">
-                  <table class="dataTable dashTable">
-                    <thead><tr><th>Date</th><th class="num">Forecast</th></tr></thead>
-                    <tbody id="costForecastTbody"></tbody>
-                  </table>
-                </div>
               </article>
             </div>
           </section>
@@ -508,7 +486,7 @@
     <script src="/static/js/forecasting.js?v=20260708-forecast"></script>
     <script src="/static/js/chart-plugins.js"></script>
     <script src="/static/js/chart-style.js?v=20260605-dates"></script>
-    <script src="/static/js/cost-semantics.js?v=20260708-opex-only"></script>
+    <script src="/static/js/cost-semantics.js?v=20260708-billing-key"></script>
     <script src="/static/js/dashboard-ui.js?v=20260605-datesort"></script>
     <script src="/static/js/date-range-picker.js?v=20260606-drp"></script>
     <script src="/static/js/dashboard-interactions.js?v=20260707-ui"></script>
@@ -517,7 +495,6 @@
 
       let dailyChart = null;
       let monthlyChart = null;
-      let costForecastChart = null;
       let dailyTokenChart = null;
       let dailyTokenRatioChart = null;
       let monthlyTokenChart = null;
@@ -1607,107 +1584,6 @@
         return await window.AppHttp.getJson(`/api/verify/reports-all-financial-consistency?${params.toString()}`);
       }
 
-      function renderForecastReports(report) {
-        const C = window.AppChartStyle?.colors || {};
-        const L = window.AppChartStyle?.labels || {};
-        const F = window.AppForecasting;
-        const daily = report?.daily_points || [];
-        const lastDate = daily.length ? safeDateStr(daily[daily.length - 1]?.date) : '';
-        const roundCost = (v) => window.AppMoney?.roundCost(v) ?? v;
-        const built = F?.buildMixedForecastSeries?.(daily, 'cost_usd', lastDate, {
-          windowDays: 28,
-          horizonDays: 7,
-          roundValue: roundCost,
-        });
-        const forecastQualityCostReportEl = document.getElementById('forecastQualityCostReport');
-        try {
-          F?.renderQualityBadge?.(forecastQualityCostReportEl, built?.quality);
-        } catch (e) {}
-
-        const costTbody = document.getElementById('costForecastTbody');
-        if (costTbody) {
-          costTbody.innerHTML = '';
-          const fc = built?.forecast || [];
-          if (!fc.length) {
-            const tr = document.createElement('tr');
-            tr.innerHTML = '<td colspan="2" class="muted">Not enough data to forecast (need at least 2 days).</td>';
-            costTbody.appendChild(tr);
-          } else {
-            for (const x of fc) {
-              const tr = document.createElement('tr');
-              tr.innerHTML = `<td>${x.date}</td><td class="num">${fmtCost(x.value)}</td>`;
-              costTbody.appendChild(tr);
-            }
-          }
-        }
-
-        const costCtx = document.getElementById('costForecastChart')?.getContext('2d');
-        if (!costCtx) return;
-        if (costForecastChart) costForecastChart.destroy();
-        if (!built?.labels?.length) return;
-
-        const fcOpts = reportChartOpts(built.labels.length);
-        costForecastChart = new Chart(costCtx, {
-          type: 'line',
-          data: {
-            labels: built.labels,
-            datasets: [
-              {
-                label: L.costActual || 'OpEx',
-                data: built.actualData,
-                borderColor: C.cost || '#5eead4',
-                backgroundColor: 'rgba(94,234,212,0.10)',
-                fill: false,
-                tension: 0.25,
-                pointRadius: 2,
-                borderWidth: 2.2,
-                spanGaps: true,
-                unitType: 'currency',
-              },
-              {
-                label: L.costForecast || 'OpEx (forecast 7d)',
-                data: built.forecastData,
-                borderColor: 'rgba(94,234,212,0.92)',
-                backgroundColor: 'rgba(0,0,0,0)',
-                fill: false,
-                tension: 0.25,
-                pointRadius: 2,
-                borderWidth: 2.2,
-                borderDash: [5, 4],
-                spanGaps: true,
-                unitType: 'currency',
-              },
-            ],
-          },
-          options: {
-            ...fcOpts,
-            plugins: {
-              ...fcOpts.plugins,
-              tooltip: {
-                ...fcOpts.plugins?.tooltip,
-                callbacks: { label: tooltipLabelCurrency },
-              },
-            },
-            scales: {
-              ...fcOpts.scales,
-              y: {
-                ...fcOpts.scales?.y,
-                ticks: {
-                  ...fcOpts.scales?.y?.ticks,
-                  callback: (value) => window.AppMoney?.fmtCost(value, _currency()) ?? String(value),
-                },
-              },
-            },
-          },
-          plugins: [
-            window.AppChartPlugins?.forecastHorizonShade?.({
-              startIndex: built.horizonStartIndex,
-              label: 'Forecast horizon',
-            }),
-          ].filter(Boolean),
-        });
-      }
-
       function renderCharts(report) {
         const C = window.AppChartStyle?.colors || {};
         const L = window.AppChartStyle?.labels || {};
@@ -1772,26 +1648,34 @@
         const costDs = window.AppCostSemantics?.chartDataset;
         const dailyDatasets = hasMeterSplit
           ? [
-              costDs?.('opex', { data: dailyMeter, fill: true, pointRadius: 2 }) ?? {
-                label: 'Meter',
-                data: dailyMeter,
-                borderColor: C.actual || '#5eead4',
-                backgroundColor: 'rgba(94,234,212,0.35)',
-                fill: true,
-                stack: 'opex',
-              },
-              costDs?.('platform', { data: dailyPlatform, fill: true, pointRadius: 2 }) ?? {
-                label: 'Platform',
-                data: dailyPlatform,
-                borderColor: '#fbbf24',
-                backgroundColor: 'rgba(251,191,36,0.35)',
-                fill: true,
-                stack: 'opex',
-              },
+              (() => {
+                const ds = costDs?.('meter', { data: dailyMeter, fill: true, pointRadius: 2 }) ?? {
+                  label: 'Meter (inp+out)',
+                  data: dailyMeter,
+                  borderColor: C.actual || '#5eead4',
+                  backgroundColor: 'rgba(94,234,212,0.35)',
+                  fill: true,
+                  stack: 'opex',
+                };
+                ds.label = 'Meter (inp+out)';
+                return ds;
+              })(),
+              (() => {
+                const ds = costDs?.('platform', { data: dailyPlatform, fill: true, pointRadius: 2 }) ?? {
+                  label: 'Platform (other)',
+                  data: dailyPlatform,
+                  borderColor: '#fbbf24',
+                  backgroundColor: 'rgba(251,191,36,0.35)',
+                  fill: true,
+                  stack: 'opex',
+                };
+                ds.label = 'Platform (other)';
+                return ds;
+              })(),
             ]
           : [
               {
-                label: L.costActual || 'OpEx',
+                label: 'CostUSD',
                 data: dailyActual,
                 borderColor: C.actual || C.cost || '#5eead4',
                 backgroundColor: dailyGradient,
@@ -1803,6 +1687,14 @@
                 spanGaps: true,
               },
             ];
+
+        const reportLegendEl = document.getElementById('reportDailyLegendKey');
+        if (reportLegendEl && window.AppCostSemantics?.billingKey) {
+          reportLegendEl.innerHTML = window.AppCostSemantics.billingKey({
+            stacked: hasMeterSplit,
+            hasTariff: false,
+          });
+        }
 
         dailyChart = new Chart(dailyCtx, {
           type: hasMeterSplit ? 'bar' : 'line',
@@ -1837,7 +1729,7 @@
         const dailyTotal = dailyActual.reduce((s, v) => s + Number(v || 0), 0);
         window.AppDashboardInteractions?.setChartFootnote?.(
           document.getElementById('dailyChartFoot'),
-          `${dailyLabels.length} days · total <strong>${fmtCost(dailyTotal)}</strong> · click a point to inspect`,
+          `${dailyLabels.length} days · total CostUSD <strong>${fmtCost(dailyTotal)}</strong> · click a point to inspect`,
           { html: true }
         );
 
@@ -1872,8 +1764,6 @@
           `${monthlyLabels.length} months · total <strong>${fmtCost(monthlyTotal)}</strong>`,
           { html: true }
         );
-
-        renderForecastReports(report);
 
         if (!showTokens) {
           return;

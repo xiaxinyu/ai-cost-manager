@@ -8,7 +8,7 @@
     label: "OpEx",
     shortLabel: "OpEx",
     subtitle: "Actual billing",
-    hint: "OpEx — invoice actuals from billing CSV (CostUSD)",
+    hint: "Billing CSV CostUSD — daily invoice actual (UsageDate)",
     pillClass: "costPill--actual",
     colClass: "colCostActual",
     tdClass: "tdCostActual",
@@ -20,7 +20,7 @@
     label: "OpEx · Meter",
     shortLabel: "Meter",
     subtitle: "Token meter (inp/out)",
-    hint: "OpEx variable — token meter billing (inp + out)",
+    hint: "Matched billing meter rows — token input/output (MeterCategory inp + opt)",
     pillClass: "costPill--actual",
     colClass: "colCostActual",
     tdClass: "tdCostActual",
@@ -32,7 +32,7 @@
     label: "OpEx · Platform",
     shortLabel: "Platform",
     subtitle: "Non-token services",
-    hint: "OpEx — non-token Azure services (billing_other residual)",
+    hint: "CostUSD minus meter — deployment, PTU/hosting, and other non-token lines",
     pillClass: "costPill--platform",
     colClass: "colCostPlatform",
     tdClass: "tdCostPlatform",
@@ -87,6 +87,43 @@
     return `<div class="costTypeLegend" aria-label="Cost type">${parts.join('<span class="costLegendSep" aria-hidden="true"></span>')}</div>`;
   }
 
+  /** Plain-language billing key for Daily spend charts (maps pills → CSV / derivation). */
+  function billingKey({ stacked = false, hasTariff = false } = {}) {
+    const rows = [];
+    if (stacked) {
+      rows.push({
+        kind: "meter",
+        text: "Token meter (inp + out) — billing rows matched to model/token usage (MeterCategory inp/opt)",
+      });
+      rows.push({
+        kind: "platform",
+        text: "Platform & other — remainder of daily CostUSD (deployment, hosting, non-token services)",
+      });
+    } else {
+      rows.push({
+        kind: "opex",
+        text: "Daily CostUSD — invoice actual from Azure billing CSV (UsageDate total)",
+      });
+    }
+    if (hasTariff) {
+      rows.push({
+        kind: "tariff",
+        text: "Tariff reference — imported tokens × list USD/1M (benchmark only, not billed)",
+      });
+    }
+    if (!rows.length) return "";
+    const items = rows
+      .map(
+        (r) =>
+          `<div class="costBillingKeyRow">${pill(r.kind, {
+            dashed: r.kind === "tariff",
+            short: r.kind === "meter",
+          })}<span class="costBillingKeyText">${r.text}</span></div>`
+      )
+      .join("");
+    return `<div class="costBillingKey" aria-label="Billing legend">${items}</div>`;
+  }
+
   function thClass(kind) {
     return meta(kind).colClass;
   }
@@ -136,6 +173,7 @@
     meta,
     pill,
     legend,
+    billingKey,
     thClass,
     tdClass,
     chartDataset,

@@ -152,61 +152,22 @@
               <span class="costStep" aria-hidden="true">2</span>
               <div class="costSectionHeadMain">
                 <h2 class="costSectionTitle">Run Rate</h2>
-                <p class="costSectionLead muted" id="costTrendsLead">Daily OpEx actual spend and 7-day forward outlook.</p>
+                <p class="costSectionLead muted" id="costTrendsLead">Daily OpEx actual spend over the reporting period.</p>
               </div>
             </div>
-            <div class="costTrendGrid">
             <article class="card monitorCard monitorCard--primary costTrendCard" id="marketCompareSection">
               <header class="monitorCardHead">
-                <div>
+                <div class="monitorCardHeadMain">
                   <h3 class="monitorCardTitle">Daily spend</h3>
-                  <p class="monitorCardDesc muted" id="marketChartHint">OpEx daily actual billing.</p>
+                  <div id="costSpendLegendKey" class="costBillingKeyHost"></div>
                 </div>
-                <div class="costTypeLegend monitorCardLegend" aria-label="Cost type">
-                  <span class="costPill costPill--actual">OpEx</span>
-                  <span class="costLegendSep" aria-hidden="true"></span>
-                  <span class="costPill costPill--actual">Meter</span>
-                  <span class="costLegendSep" aria-hidden="true"></span>
-                  <span class="costPill costPill--platform">Platform</span>
-                  <span class="costLegendSep" aria-hidden="true"></span>
-                  <span class="costPill costPill--market costPill--dashed">Tariff</span>
-                </div>
+                <div class="costTypeLegend monitorCardLegend" id="costSpendLegendPills" aria-label="Chart series" hidden></div>
               </header>
               <div class="chartCanvasHost monitorChartHost" data-chart-host>
                 <canvas id="timeseriesChartMarket" role="img" aria-label="Daily billing chart"></canvas>
               </div>
               <footer class="monitorCardFoot muted" id="costChartFootnote">—</footer>
             </article>
-
-            <article class="card monitorCard costTrendCard costForecastCard" id="costForecastSection" aria-label="OpEx forecast">
-              <header class="monitorCardHead dashForecastCardHead">
-                <div>
-                  <h3 class="monitorCardTitle">OpEx forecast (7d)</h3>
-                  <p class="monitorCardDesc muted">Short-horizon outlook from recent daily billing.</p>
-                </div>
-                <div id="forecastQualityCost" class="qualityBadge qualityMedium">Forecast quality: —</div>
-              </header>
-              <div class="chartCanvasHost monitorChartHost chartCanvasHostShort" data-chart-host>
-                <canvas id="timeseriesChartCostForecast" role="img" aria-label="OpEx forecast chart"></canvas>
-              </div>
-              <div class="forecastMetaRow">
-                <span class="muted">Last 28 days · 7-day horizon · DOW correction</span>
-              </div>
-              <details class="forecastAssumptions">
-                <summary>Forecast assumptions</summary>
-                <div class="assumptionBody">
-                  Uses the last <b>28</b> valid daily points to fit a <b>linear trend</b> with <b>day-of-week residual correction</b>.
-                  Output is <b>integer</b> and <b>clamped to ≥ 0</b>. Dashed line starts at the last actual point.
-                </div>
-              </details>
-              <div class="tableScroll tableScrollCompact">
-                <table class="dataTable dashTable">
-                  <thead><tr><th>Date</th><th class="num">Forecast</th></tr></thead>
-                  <tbody id="costForecastTbody"></tbody>
-                </table>
-              </div>
-            </article>
-            </div>
           </section>
 
           <section id="cost-tariff-reference" class="costZone costFinBlock card" aria-label="Tariff reference" hidden>
@@ -527,9 +488,8 @@
     <script src="/static/js/money.js"></script>
     <script src="/static/js/http.js"></script>
     <script src="/static/js/chart-plugins.js"></script>
-    <script src="/static/js/forecasting.js?v=20260708-forecast"></script>
     <script src="/static/js/chart-style.js?v=20260605-dates"></script>
-    <script src="/static/js/cost-semantics.js?v=20260708-opex-only"></script>
+    <script src="/static/js/cost-semantics.js?v=20260708-billing-key"></script>
     <script src="/static/js/dashboard-ui.js?v=20260707-detail"></script>
     <script src="/static/js/dashboard-interactions.js?v=20260707-ui"></script>
     <script src="/static/js/billing-detail-table.js?v=20260707-detail"></script>
@@ -568,7 +528,6 @@
       const applyFiltersBtn = document.getElementById('applyFiltersBtn');
 
       let chartMarket = null;
-      let chartCostForecast = null;
       let chartInputByModel = null;
       let chartOutputByModel = null;
       let currentProjectName = null;
@@ -579,8 +538,9 @@
       const catalogMarketNoteEl = document.getElementById('catalogMarketNote');
       const catalogVariancePctEl = document.getElementById('catalogVariancePct');
       const catalogVarianceNoteEl = document.getElementById('catalogVarianceNote');
-      const marketChartHintEl = document.getElementById('marketChartHint');
       const marketCompareSectionEl = document.getElementById('marketCompareSection');
+      const costSpendLegendKeyEl = document.getElementById('costSpendLegendKey');
+      const costSpendLegendPillsEl = document.getElementById('costSpendLegendPills');
       const catalogMarketCard = document.getElementById('catalogMarketCard');
       const catalogVarianceCard = document.getElementById('catalogVarianceCard');
       const costBreakdownSectionEl = document.getElementById('costBreakdownSection');
@@ -628,8 +588,6 @@
       const inputModelChartFootnoteEl = document.getElementById('inputModelChartFootnote');
       const outputModelChartFootnoteEl = document.getElementById('outputModelChartFootnote');
       const costChartFootnoteEl = document.getElementById('costChartFootnote');
-      const forecastQualityCostEl = document.getElementById('forecastQualityCost');
-      const costForecastTbodyEl = document.getElementById('costForecastTbody');
       let lastModelSummaryRows = [];
       let lastBillingOtherRows = [];
       let lastModelProjectSummary = {};
@@ -725,12 +683,26 @@
                 (acc, p) => acc + (Number(p?.cost_usd) || 0),
                 0
               );
-        let text = `Total: ${fmt2(totalActual)}`;
+        let text = `Total CostUSD: ${fmt2(totalActual)}`;
         const catTotal = catalogPayload?.summary?.total_catalog_cost_usd;
         if (catalogPayload?.available && catTotal != null) {
-          text += ` · Market: ${fmt2(catTotal)}`;
+          text += ` · Tariff reference: ${fmt2(catTotal)}`;
         }
         costChartFootnoteEl.textContent = text;
+      }
+
+      function updateSpendChartLegend({ stacked = false, hasTariff = false } = {}) {
+        const sem = window.AppCostSemantics;
+        if (costSpendLegendKeyEl && sem?.billingKey) {
+          costSpendLegendKeyEl.innerHTML = sem.billingKey({ stacked, hasTariff });
+        }
+        if (costSpendLegendPillsEl && sem?.legend) {
+          const kinds = stacked
+            ? (hasTariff ? ['meter', 'platform', 'tariff'] : ['meter', 'platform'])
+            : (hasTariff ? ['opex', 'tariff'] : ['opex']);
+          costSpendLegendPillsEl.innerHTML = sem.legend(kinds);
+          costSpendLegendPillsEl.hidden = true;
+        }
       }
 
       function setModelChartCardsVisible(visible) {
@@ -1024,6 +996,7 @@
           } catch (err) {
             console.error('renderBillingChart failed', err);
           }
+          updateSpendChartLegend({ stacked: false, hasTariff: false });
           return;
         }
 
@@ -1058,12 +1031,6 @@
             vUsd === null || vUsd === undefined
               ? 'OpEx − Tariff'
               : `Δ ${fmt2(vUsd)} (OpEx − Tariff)`;
-        }
-        if (marketChartHintEl) {
-          marketChartHintEl.textContent =
-            catalogPayload.token_data_source === 'imported'
-              ? 'Solid = OpEx actual · stacked Meter/Platform when available · dashed = Tariff reference.'
-              : 'Solid = OpEx actual billing · dashed = Tariff from billing × list price.';
         }
 
         renderModelCostSection(catalogPayload);
@@ -1768,54 +1735,59 @@
 
         if (marketAvailable) {
           if (hasMeterSplit) {
-            datasets.push(
-              costDs?.('opex', { data: meterData, fill: true, pointRadius: ptR }) ?? {
-                label: 'Meter',
+            const meterDs =
+              costDs?.('meter', { data: meterData, fill: true, pointRadius: ptR }) ?? {
+                label: 'Meter (inp+out)',
                 data: meterData,
                 borderColor: C.actual || '#5eead4',
                 fill: true,
                 stack: 'opex',
-              },
+              };
+            meterDs.label = 'Meter (inp+out)';
+            const platDs =
               costDs?.('platform', { data: platformData, fill: true, pointRadius: ptR }) ?? {
-                label: 'Platform',
+                label: 'Platform (other)',
                 data: platformData,
                 borderColor: '#fbbf24',
                 fill: true,
                 stack: 'opex',
-              }
-            );
+              };
+            platDs.label = 'Platform (other)';
+            datasets.push(meterDs, platDs);
           } else {
-            datasets.push(
+            const opexDs =
               costDs?.('opex', { data: actualData, fill: true, pointRadius: ptR }) ?? {
-                label: 'OpEx',
+                label: 'CostUSD',
                 data: actualData,
                 borderColor: C.actual || C.cost || '#5eead4',
                 fill: true,
-              }
-            );
+              };
+            opexDs.label = 'CostUSD';
+            datasets.push(opexDs);
           }
-          datasets.push(
+          const tariffDs =
             costDs?.('tariff', { data: catalogData, dashed: true, pointRadius: ptR }) ?? {
-              label: 'Tariff',
+              label: 'Tariff reference',
               data: catalogData,
               borderColor: C.market || '#c084fc',
               borderDash: [6, 4],
-            }
-          );
+            };
+          tariffDs.label = 'Tariff reference';
+          datasets.push(tariffDs);
         } else {
           const gradient = ctx.createLinearGradient(0, 0, 0, 280);
           gradient.addColorStop(0, 'rgba(94,234,212,0.28)');
           gradient.addColorStop(1, 'rgba(94,234,212,0.00)');
           datasets.push(
             CHART_OPTS?.datasetLineCurrency?.({
-              label: L.costActual || 'Actual',
+              label: 'CostUSD',
               data: actualData,
               borderColor: C.actual || C.cost || '#5eead4',
               backgroundColor: gradient,
               fill: true,
               pointRadius: ptR,
             }) ?? {
-              label: L.costActual || 'Actual',
+              label: 'CostUSD',
               data: actualData,
               borderColor: C.cost || '#5eead4',
               backgroundColor: gradient,
@@ -1895,95 +1867,9 @@
             ...chartPluginsExtra(),
           ],
         });
-        renderCostForecastChart(costPoints);
-      }
-
-      function renderCostForecastChart(costPoints) {
-        const C = window.AppChartStyle?.colors || {};
-        const L = window.AppChartStyle?.labels || {};
-        const F = window.AppForecasting;
-        const rows = (costPoints || []).filter(
-          (p) => p?.date && p.cost_usd !== null && p.cost_usd !== undefined && Number.isFinite(Number(p.cost_usd))
-        );
-        const lastDate = rows.length ? _safeDateStr(rows[rows.length - 1].date) : '';
-        const roundCost = (v) => window.AppMoney?.roundCost(v) ?? v;
-        const built = F?.buildAnchoredForecastSeries?.(costPoints, 'cost_usd', lastDate, {
-          windowDays: 28,
-          horizonDays: 7,
-          roundValue: roundCost,
-        });
-        try {
-          F?.renderQualityBadge?.(forecastQualityCostEl, built?.quality);
-        } catch (e) {
-          /* optional */
-        }
-
-        if (costForecastTbodyEl) {
-          costForecastTbodyEl.innerHTML = '';
-          const fc = built?.forecast || [];
-          if (!fc.length) {
-            const tr = document.createElement('tr');
-            tr.innerHTML = '<td colspan="2" class="muted">Not enough data to forecast (need at least 2 days).</td>';
-            costForecastTbodyEl.appendChild(tr);
-          } else {
-            for (const x of fc) {
-              const tr = document.createElement('tr');
-              tr.innerHTML = `<td>${x.date}</td><td class="num">${fmt2(x.value)}</td>`;
-              costForecastTbodyEl.appendChild(tr);
-            }
-          }
-        }
-
-        if (chartCostForecast) chartCostForecast.destroy();
-        chartCostForecast = null;
-        const ctx = document.getElementById('timeseriesChartCostForecast')?.getContext('2d');
-        if (!ctx || !built?.labels?.length) return;
-
-        const horizonShade =
-          window.AppChartPlugins?.forecastHorizonShade?.({
-            startIndex: built.horizonStartIndex,
-            label: 'Forecast horizon',
-          }) || null;
-
-        chartCostForecast = new Chart(ctx, {
-          type: 'line',
-          data: {
-            labels: built.labels,
-            datasets: [
-              {
-                label: L.costActual || 'OpEx (last)',
-                data: built.actualTailData,
-                borderColor: C.actual || C.cost || '#5eead4',
-                backgroundColor: 'rgba(0,0,0,0)',
-                fill: false,
-                tension: 0.25,
-                pointRadius: 2,
-                borderWidth: 2.2,
-                spanGaps: true,
-                unitType: 'currency',
-              },
-              {
-                label: L.costForecast || 'OpEx (forecast 7d)',
-                data: built.forecastDashedData,
-                borderColor: 'rgba(94,234,212,0.92)',
-                backgroundColor: 'rgba(0,0,0,0)',
-                fill: false,
-                tension: 0.25,
-                pointRadius: 2,
-                borderWidth: 2.2,
-                borderDash: [5, 4],
-                spanGaps: true,
-                unitType: 'currency',
-              },
-            ],
-          },
-          options: buildCostLineOptions({
-            labelCount: built.labels.length,
-            showLegend: true,
-            legendVariant: 'compact',
-            tooltipCallbacks: { label: tooltipLabelForValue },
-          }),
-          plugins: [emptyStatePlugin('Not enough billing history'), horizonShade, ...chartPluginsExtra()].filter(Boolean),
+        updateSpendChartLegend({
+          stacked: marketAvailable && hasMeterSplit,
+          hasTariff: marketAvailable,
         });
       }
 

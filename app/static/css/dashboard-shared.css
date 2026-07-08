@@ -1728,3 +1728,30 @@
   }
 }
 
+/* Daily spend billing key (Cost + Reports) */
+.costBillingKey {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin: 0 0 8px;
+  font-size: 11.5px;
+  line-height: 1.4;
+}
+
+.costBillingKeyRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.costBillingKeyRow .costPill {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.costBillingKeyText {
+  color: rgba(159, 178, 199, 0.92);
+  min-width: 0;
+}
+

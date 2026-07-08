@@ -72,7 +72,6 @@
   let tokenInputChart = null;
   let tokenOutputChart = null;
   let tokenRatioChart = null;
-  let tokenForecastChart = null;
   let chartImpliedUnitInput = null;
   let chartImpliedUnitOutput = null;
   let cacheMatchChart = null;
@@ -1566,100 +1565,6 @@
     });
   }
 
-  function renderTokenForecastChart(points) {
-    const panel = document.getElementById("metric-token-forecast");
-    const emptyEl = panel?.querySelector("[data-metric-empty]");
-    const qualityEl = document.getElementById("forecastQualityToken");
-    const validRows = (points || []).filter(
-      (p) =>
-        p?.date &&
-        ((p.estimated_input_tokens != null && Number(p.estimated_input_tokens) > 0) ||
-          (p.estimated_output_tokens != null && Number(p.estimated_output_tokens) > 0))
-    );
-    const hasData = validRows.length >= 2;
-    if (panel) panel.hidden = !hasData;
-    if (emptyEl) emptyEl.hidden = hasData;
-    if (!hasData) {
-      if (tokenForecastChart) {
-        tokenForecastChart.destroy();
-        tokenForecastChart = null;
-      }
-      return;
-    }
-
-    const lastDate = validRows[validRows.length - 1]?.date || "";
-    const roundTok = (v) => Math.round(Number(v));
-    const inBuilt = F.buildAnchoredForecastSeries?.(points, "estimated_input_tokens", lastDate, {
-      windowDays: 28,
-      horizonDays: 7,
-      roundValue: roundTok,
-    });
-    const outBuilt = F.buildAnchoredForecastSeries?.(points, "estimated_output_tokens", lastDate, {
-      windowDays: 28,
-      horizonDays: 7,
-      roundValue: roundTok,
-    });
-    try {
-      F.renderQualityBadge?.(qualityEl, inBuilt?.quality || outBuilt?.quality);
-    } catch (e) {
-      /* optional */
-    }
-
-    const labels =
-      inBuilt?.labels?.length >= (outBuilt?.labels?.length || 0)
-        ? inBuilt.labels
-        : outBuilt?.labels || [];
-    const padSeries = (built) => {
-      const data = built?.forecastDashedData || [];
-      if (data.length >= labels.length) return data.slice(0, labels.length);
-      return data.concat(Array(labels.length - data.length).fill(null));
-    };
-
-    const ctx = document.getElementById("tokenForecastChart")?.getContext("2d");
-    if (!ctx) return;
-    if (tokenForecastChart) tokenForecastChart.destroy();
-
-    const horizonShade = window.AppChartPlugins?.forecastHorizonShade?.({
-      startIndex: Math.max(inBuilt?.horizonStartIndex ?? 0, outBuilt?.horizonStartIndex ?? 0),
-      label: "Forecast horizon",
-    });
-
-    tokenForecastChart = new Chart(ctx, {
-      type: "line",
-      data: {
-        labels,
-        datasets: [
-          {
-            label: L.tokenInputForecast || "Input (forecast 7d)",
-            data: padSeries(inBuilt),
-            borderColor: C.input || "#60a5fa",
-            backgroundColor: "rgba(0,0,0,0)",
-            fill: false,
-            tension: 0.25,
-            pointRadius: 2,
-            borderWidth: 2.2,
-            borderDash: [5, 4],
-            spanGaps: true,
-          },
-          {
-            label: L.tokenOutputForecast || "Output (forecast 7d)",
-            data: padSeries(outBuilt),
-            borderColor: C.output || "#a78bfa",
-            backgroundColor: "rgba(0,0,0,0)",
-            fill: false,
-            tension: 0.25,
-            pointRadius: 2,
-            borderWidth: 2.2,
-            borderDash: [5, 4],
-            spanGaps: true,
-          },
-        ],
-      },
-      options: chartOptions("tokens", "", labels.length),
-      plugins: [horizonShade, ...chartPlugins()].filter(Boolean),
-    });
-  }
-
   function auditCostPipeline(series, dailyRows) {
     const meta = series._cost_meta || {};
     const rows = dailyRows || series.daily_by_model || [];
@@ -1843,11 +1748,6 @@
         renderRatioChart(points);
       } catch (e) {
         console.error("renderRatioChart failed", e);
-      }
-      try {
-        renderTokenForecastChart(points);
-      } catch (e) {
-        console.error("renderTokenForecastChart failed", e);
       }
     } catch (err) {
       console.error(err);
