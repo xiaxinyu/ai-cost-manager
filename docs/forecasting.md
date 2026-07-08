@@ -23,15 +23,15 @@ Forecasts are computed **client-side** (no server-side ML pipeline today).
     - `window.AppForecasting.forecastNextDaysDOW(points, key, lastDateStr, { windowDays=28, horizonDays=7 })`
 - **Dashboard (`/`) wiring**
   - `app/templates/index.html`
-    - `loadProject()` builds daily timeseries inputs, calls `forecastNextDaysDOW(...)`, then renders:
-      - `timeseriesChartActual` (actual only)
-      - `timeseriesChartCostForecast` (forecast only, with last actual point as the dashed start)
-      - `timeseriesChartTokenForecast` (forecast only, with last actual point as the dashed start)
+    - `renderCostForecastChart()` uses `buildAnchoredForecastSeries()` on daily billing points
+    - `timeseriesChartCostForecast` — 7-day OpEx outlook with quality badge and forecast table
 - **Reports (`/reports`) wiring**
   - `app/templates/reports.html`
-    - `renderForecastReports(report)` calls `forecastNextDaysDOW(...)` and renders:
-      - `costForecastChart`
-      - `tokenForecastChart`
+    - `renderForecastReports(report)` uses `buildMixedForecastSeries()` and renders:
+      - `costForecastChart` (actual + dashed forecast on one canvas)
+- **Tokens (`/tokens`) wiring**
+  - `app/static/js/pages/tokens.js`
+    - `renderTokenForecastChart()` — input/output 7-day outlook on `tokenForecastChart`
 
 Cost and token series are forecast **independently** from their own history.
 

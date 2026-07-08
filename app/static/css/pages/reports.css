@@ -1039,8 +1039,8 @@
 .reportFinOpexCompositionKpi,
 .reportFinVolumeKpi {
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  margin-top: 10px;
-  padding-top: 10px;
+  margin-top: 6px;
+  padding-top: 8px;
   border-top: 1px dashed rgba(173, 196, 228, 0.14);
 }
 

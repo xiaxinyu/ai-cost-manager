@@ -204,11 +204,114 @@
     return out;
   }
 
+  function renderQualityBadge(el, q) {
+    if (!el) return;
+    const level = q?.level || 'medium';
+    const txt = level === 'high' ? 'High' : level === 'low' ? 'Low' : 'Medium';
+    el.textContent = `Forecast quality: ${txt}`;
+    el.classList.remove('qualityHigh', 'qualityMedium', 'qualityLow');
+    el.classList.add(level === 'high' ? 'qualityHigh' : level === 'low' ? 'qualityLow' : 'qualityMedium');
+    const details = q
+      ? `samples ${q.valid}/${q.expected} · missing ${(q.missingRatio * 100).toFixed(0)}% · volatility ${(q.relVol * 100).toFixed(0)}%`
+      : '';
+    el.title = details;
+  }
+
+  function _normalizePointValue(v, roundValue) {
+    if (v === null || v === undefined || !Number.isFinite(Number(v))) return null;
+    const n = Number(v);
+    return typeof roundValue === 'function' ? roundValue(n) : n;
+  }
+
+  /** Actual + dashed forecast on one canvas (Reports daily cost, etc.). */
+  function buildMixedForecastSeries(points, key, lastDateStr, { windowDays = 28, horizonDays = 7, roundValue = null } = {}) {
+    const rows = (points || [])
+      .map((p) => ({ date: safeDateStr(p?.date), raw: p?.[key] }))
+      .filter((x) => x.date);
+    const lastDate =
+      safeDateStr(lastDateStr) || (rows.length ? rows[rows.length - 1].date : '');
+    const forecast = forecastNextDaysDOW(points, key, lastDate, { windowDays, horizonDays }) || [];
+    const quality = forecastQuality(points, key, { windowDays });
+    const labels = rows.map((r) => r.date).concat(forecast.map((x) => x.date));
+    const actualData = rows.map((r) => _normalizePointValue(r.raw, roundValue));
+    const forecastData = labels.map(() => null);
+    const fcBy = new Map(forecast.map((x) => [x.date, x.value]));
+    for (let i = rows.length; i < labels.length; i++) {
+      const d = labels[i];
+      if (fcBy.has(d)) forecastData[i] = _normalizePointValue(fcBy.get(d), roundValue);
+    }
+    if (rows.length >= 1) {
+      const lastActual = actualData[rows.length - 1];
+      if (lastActual !== null && lastActual !== undefined && Number.isFinite(Number(lastActual))) {
+        forecastData[rows.length - 1] = lastActual;
+      }
+    }
+    return {
+      labels,
+      actualData,
+      forecastData,
+      forecast,
+      quality,
+      horizonStartIndex: Math.max(0, rows.length - 1),
+    };
+  }
+
+  /** Forecast-only canvas anchored at the last actual point (Cost / Tokens outlook cards). */
+  function buildAnchoredForecastSeries(points, key, lastDateStr, { windowDays = 28, horizonDays = 7, roundValue = null } = {}) {
+    const rows = (points || [])
+      .map((p) => ({ date: safeDateStr(p?.date), raw: p?.[key] }))
+      .filter((x) => x.date && x.raw !== null && x.raw !== undefined && Number.isFinite(Number(x.raw)));
+    const lastDate =
+      safeDateStr(lastDateStr) || (rows.length ? rows[rows.length - 1].date : '');
+    const forecast = forecastNextDaysDOW(points, key, lastDate, { windowDays, horizonDays }) || [];
+    const quality = forecastQuality(points, key, { windowDays });
+    if (!rows.length) {
+      return {
+        labels: forecast.map((x) => x.date),
+        actualTailData: [],
+        forecastDashedData: forecast.map((x) => _normalizePointValue(x.value, roundValue)),
+        forecast,
+        quality,
+        horizonStartIndex: 0,
+      };
+    }
+
+    const lastLabel = rows[rows.length - 1].date;
+    const horizonLabels = Array.from({ length: horizonDays }, (_, i) => addDaysYmd(lastLabel, i + 1)).filter(Boolean);
+    const lastIdx = rows.length - 1;
+    const prevIdx = rows.length - 2;
+    const hasPrev = prevIdx >= 0;
+    const actualValues = rows.map((r) => _normalizePointValue(r.raw, roundValue));
+    const fcBy = new Map(forecast.map((x) => [x.date, x.value]));
+    const forecastOnly = horizonLabels.map((d) => (fcBy.has(d) ? _normalizePointValue(fcBy.get(d), roundValue) : null));
+
+    const labels = [hasPrev ? rows[prevIdx].date : lastLabel, lastLabel].concat(horizonLabels);
+    const actualTail = hasPrev
+      ? [actualValues[prevIdx], actualValues[lastIdx]]
+      : [actualValues[lastIdx]];
+    const paddedActual = actualTail.concat(horizonLabels.map(() => null));
+    const forecastDashed = [null].concat([actualValues[lastIdx]]).concat(forecastOnly);
+    while (forecastDashed.length < labels.length) forecastDashed.push(null);
+    while (paddedActual.length < labels.length) paddedActual.push(null);
+
+    return {
+      labels,
+      actualTailData: paddedActual,
+      forecastDashedData: forecastDashed.slice(0, labels.length),
+      forecast,
+      quality,
+      horizonStartIndex: hasPrev ? 1 : 0,
+    };
+  }
+
   window.AppForecasting = {
     safeDateStr,
     addDaysYmd,
     forecastNextDaysDOW,
     forecastQuality,
+    renderQualityBadge,
+    buildMixedForecastSeries,
+    buildAnchoredForecastSeries,
     dailyTokenRatio,
     ratioStats,
     ratioSuggestedBounds,

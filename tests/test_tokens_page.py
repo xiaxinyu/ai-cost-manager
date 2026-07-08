@@ -112,6 +112,10 @@ def test_tokens_page_redirect_and_access(tmp_path):
     assert 'href="/tokens"' in page.text
     assert "tokenStep" in page.text
     assert "unitPriceSummaryTable" in page.text
+    assert "subprojectTokenStrip" in page.text
+    assert "subprojectTokenCards" in page.text
+    assert "tokenForecastChart" in page.text
+    assert "forecastQualityToken" in page.text
 
 
 def test_login_to_token_workspace_e2e_smoke(tmp_path):
@@ -140,7 +144,7 @@ def test_login_to_token_workspace_e2e_smoke(tmp_path):
         ("/", "Cost"),
         ("/tokens", "Tokens"),
         ("/reports", "Reports"),
-        ("/prices", "CapEx · Tariff schedule"),
+        ("/prices", "Tariff schedule"),
         ("/import", "Import data"),
     ):
         page = client.get(path)

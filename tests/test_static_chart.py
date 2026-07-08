@@ -40,3 +40,6 @@ def test_ratio_bounds_include_full_data_range():
     text = forecasting.read_text(encoding="utf-8")
     assert "always include every data point" in text
     assert "guardHi" not in text
+    assert "buildMixedForecastSeries" in text
+    assert "buildAnchoredForecastSeries" in text
+    assert "renderQualityBadge" in text

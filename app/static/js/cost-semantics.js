@@ -1,6 +1,6 @@
 /* global window */
 
-/** OpEx / CapEx management-report semantics for tables and charts. */
+/** OpEx statement semantics + reference tariff benchmark (not a second spend layer). */
 (function () {
   const opex = {
     color: "#5eead4",
@@ -8,46 +8,59 @@
     label: "OpEx",
     shortLabel: "OpEx",
     subtitle: "Actual billing",
-    hint: "OpEx — meter billing and platform spend in period (CostUSD from invoices)",
+    hint: "OpEx — invoice actuals from billing CSV (CostUSD)",
     pillClass: "costPill--actual",
     colClass: "colCostActual",
     tdClass: "tdCostActual",
   };
 
-  const tariff = {
-    color: "#c084fc",
-    rgb: "192,132,252",
-    label: "CapEx · Tariff",
-    shortLabel: "Tariff",
-    subtitle: "List price reference",
-    hint: "CapEx reference — catalog list price (tokens × USD/1M); not capital assets",
-    pillClass: "costPill--market",
-    colClass: "colCostMarket",
-    tdClass: "tdCostMarket",
+  const meter = {
+    color: "#5eead4",
+    rgb: "94,234,212",
+    label: "OpEx · Meter",
+    shortLabel: "Meter",
+    subtitle: "Token meter (inp/out)",
+    hint: "OpEx variable — token meter billing (inp + out)",
+    pillClass: "costPill--actual",
+    colClass: "colCostActual",
+    tdClass: "tdCostActual",
   };
 
   const platform = {
     color: "#fbbf24",
     rgb: "251,191,36",
-    label: "CapEx · Platform",
+    label: "OpEx · Platform",
     shortLabel: "Platform",
     subtitle: "Non-token services",
-    hint: "CapEx platform layer — billing_other (non-token Azure services); reference attribution",
+    hint: "OpEx — non-token Azure services (billing_other residual)",
     pillClass: "costPill--platform",
     colClass: "colCostPlatform",
     tdClass: "tdCostPlatform",
   };
 
+  const tariff = {
+    color: "#c084fc",
+    rgb: "192,132,252",
+    label: "Reference · Tariff",
+    shortLabel: "Tariff",
+    subtitle: "List price benchmark",
+    hint: "Reference only — catalog list price (tokens × USD/1M); not invoice spend",
+    pillClass: "costPill--market",
+    colClass: "colCostMarket",
+    tdClass: "tdCostMarket",
+  };
+
   /** Backward-compatible aliases for chart/table code still using actual/market. */
   const actual = { ...opex, label: "OpEx", shortLabel: "OpEx" };
-  const market = { ...tariff, label: "CapEx · Tariff", shortLabel: "Tariff" };
+  const market = { ...tariff, label: "Reference · Tariff", shortLabel: "Tariff" };
 
   const KIND_MAP = {
     opex,
     actual: opex,
+    meter,
+    platform,
     tariff,
     market: tariff,
-    platform,
   };
 
   function meta(kind) {
@@ -68,6 +81,7 @@
       const key = String(k).toLowerCase();
       if (key === "tariff" || key === "market") return pill("tariff", { dashed: true });
       if (key === "platform") return pill("platform");
+      if (key === "meter") return pill("meter", { short: true });
       return pill("opex");
     });
     return `<div class="costTypeLegend" aria-label="Cost type">${parts.join('<span class="costLegendSep" aria-hidden="true"></span>')}</div>`;
@@ -81,7 +95,6 @@
     return meta(kind).tdClass;
   }
 
-  /** Chart.js currency dataset — fixed semantic label and color. */
   function chartDataset(kind, { data, dashed = false, fill = false, pointRadius = 2 } = {}) {
     const k = meta(kind);
     const bg = `rgba(${k.rgb}, ${fill ? "0.14" : "0.08"})`;
@@ -115,8 +128,9 @@
 
   window.AppCostSemantics = {
     opex,
-    tariff,
+    meter,
     platform,
+    tariff,
     actual,
     market,
     meta,

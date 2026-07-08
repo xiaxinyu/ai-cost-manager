@@ -9,7 +9,7 @@ from app.bills_layout import (
     subproject_from_resource_id,
 )
 from app.token_ingest import discover_token_csv_files, ingest_token_all
-from app.db import get_connection, get_imported_token_totals, init_db
+from app.db import get_connection, get_imported_token_totals, get_imported_token_totals_by_subproject, init_db
 
 
 def test_subproject_from_relpath_nested_and_flat():
@@ -82,8 +82,61 @@ def test_nested_token_ingest_keeps_subprojects_separate(tmp_path):
         assert in2 == 2_000_000.0
         in_all, _ = get_imported_token_totals(conn, project)
         assert in_all == 3_000_000.0
+        breakdown = get_imported_token_totals_by_subproject(conn, project)
+        assert len(breakdown) == 2
+        by_name = {r["subproject_name"]: r for r in breakdown}
+        assert by_name["coding-1"]["input_tokens"] == 1_000_000.0
+        assert by_name["coding-2"]["input_tokens"] == 2_000_000.0
     finally:
         conn.close()
+
+
+def test_token_timeseries_subproject_breakdown_api(tmp_path):
+    from app.auth import create_user
+    from app.main import create_app
+    from fastapi.testclient import TestClient
+
+    bills_dir = tmp_path / "bills"
+    project = "proj-api"
+    for sub, mil in (("alpha", 1), ("beta", 2)):
+        subdir = bills_dir / project / "token" / sub
+        subdir.mkdir(parents=True)
+        (subdir / "input-tokens.csv").write_text(
+            '"Time","gpt-4o"\n'
+            f"2026-07-01 00:00:00,{mil} Mil\n",
+            encoding="utf-8",
+        )
+        (subdir / "output-tokens.csv").write_text(
+            '"Time","gpt-4o"\n'
+            f"2026-07-01 00:00:00,{mil * 100} K\n",
+            encoding="utf-8",
+        )
+
+    db_path = tmp_path / "cost_mgmt.sqlite3"
+    ingest_token_all(bills_dir=bills_dir, db_path=db_path)
+    app = create_app(db_path=str(db_path), bills_dir=str(bills_dir), auto_ingest=False)
+    client = TestClient(app)
+    conn = get_connection(db_path)
+    init_db(conn)
+    create_user(conn, username="admin", password="admin12345", is_active=True)
+    conn.close()
+    client.post("/auth/login", data={"username": "admin", "password": "admin12345"})
+
+    res = client.get(f"/api/projects/{project}/token-timeseries")
+    assert res.status_code == 200
+    payload = res.json()
+    assert payload["token_data_source"] == "imported"
+    bd = payload.get("subproject_breakdown") or []
+    assert len(bd) == 2
+    names = {r["subproject_name"] for r in bd}
+    assert names == {"alpha", "beta"}
+    alpha = next(r for r in bd if r["subproject_name"] == "alpha")
+    assert alpha["input_tokens"] == 1_000_000.0
+    assert alpha["output_tokens"] == 100_000.0
+
+    filtered = client.get(f"/api/projects/{project}/token-timeseries?subproject=alpha")
+    assert filtered.status_code == 200
+    assert "subproject_breakdown" not in filtered.json()
 
 
 def test_project_stats_respects_subproject_filter(tmp_path):

@@ -6,8 +6,8 @@
 .importPage,
 .pricePage,
 .priceSourcesPage {
-  --dash-gap: 18px;
-  --dash-gap-sm: 14px;
+  --dash-gap: 12px;
+  --dash-gap-sm: 10px;
   --dash-chart-h: clamp(260px, 32vh, 336px);
   --dash-chart-h-sm: clamp(220px, 28vh, 280px);
 }
@@ -1483,8 +1483,8 @@
 .tokenFinBlock,
 .importSection.card,
 .pricingCatalogSection.card {
-  padding: 14px 16px;
-  scroll-margin-top: 72px;
+  padding: 12px 14px;
+  scroll-margin-top: 68px;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.028));
   border-color: rgba(148, 163, 184, 0.18);
 }
@@ -1527,6 +1527,68 @@
   padding: 0 4px 0 8px;
 }
 
+/* Shared subproject / segment card strip (Cost + Tokens) */
+.dashSubprojectStrip,
+.costSubprojectStrip,
+.tokenSubprojectStrip {
+  margin-top: 2px;
+  padding-top: 8px;
+  border-top: 1px dashed rgba(173, 196, 228, 0.12);
+}
+
+.dashSubprojectStripLead,
+.costSubprojectStripLead {
+  margin: 0 0 8px;
+  font-size: 11.5px;
+}
+
+.dashSubprojectCards,
+.costSubprojectCards,
+.tokenSubprojectCards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(152px, 1fr));
+  gap: 10px;
+}
+
+.dashSubprojectCard,
+.costSubprojectCard,
+.tokenSubprojectCard {
+  padding: 10px 12px;
+  min-height: 0;
+}
+
+.dashSubprojectCardLabel,
+.costSubprojectCardLabel {
+  font-size: 11px;
+  line-height: 1.35;
+  word-break: break-word;
+}
+
+.tokenSubprojectCardIo {
+  margin-top: 2px;
+}
+
+.dashSubprojectCard--clickable,
+.costSubprojectCard--clickable,
+.tokenSubprojectCard.dashSubprojectCard--clickable {
+  cursor: pointer;
+  transition: border-color 0.14s ease, box-shadow 0.14s ease, transform 0.14s ease;
+}
+
+.dashSubprojectCard--clickable:hover,
+.costSubprojectCard--clickable:hover,
+.tokenSubprojectCard.dashSubprojectCard--clickable:hover {
+  border-color: rgba(var(--cost-actual-rgb), 0.38);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.14);
+  transform: translateY(-1px);
+}
+
+.dashSubprojectCard--clickable:focus-visible,
+.costSubprojectCard--clickable:focus-visible {
+  outline: 2px solid rgba(var(--cost-actual-rgb), 0.55);
+  outline-offset: 2px;
+}
+
 .detailTableHead.dashSectionHead {
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: start;
@@ -1554,6 +1616,115 @@
     grid-column: 1 / -1;
     grid-row: auto;
     justify-content: flex-start;
+  }
+}
+
+/* Forecast cards (Cost, Reports, Tokens) */
+.costTrendGrid,
+.dashForecastGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--dash-gap, 12px);
+  margin-top: 2px;
+}
+
+@media (max-width: 960px) {
+  .costTrendGrid,
+  .dashForecastGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.dashForecastCardHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.forecastMetaRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+
+.forecastAssumptions {
+  margin-top: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.forecastAssumptions summary {
+  cursor: pointer;
+  color: #9fb2c7;
+  font-size: 12px;
+  font-weight: 650;
+  user-select: none;
+  list-style: none;
+}
+
+.forecastAssumptions summary::-webkit-details-marker {
+  display: none;
+}
+
+.forecastAssumptions .assumptionBody {
+  margin-top: 8px;
+  color: #9fb2c7;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.forecastAssumptions ul {
+  margin: 6px 0 0 18px;
+  padding: 0;
+}
+
+.forecastAssumptions li {
+  margin: 3px 0;
+}
+
+.qualityBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 650;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.04);
+  color: #cbd5e1;
+  white-space: nowrap;
+}
+
+.qualityBadge.qualityHigh {
+  border-color: rgba(94, 234, 212, 0.35);
+  background: rgba(94, 234, 212, 0.12);
+}
+
+.qualityBadge.qualityMedium {
+  border-color: rgba(245, 158, 11, 0.35);
+  background: rgba(245, 158, 11, 0.12);
+}
+
+.qualityBadge.qualityLow {
+  border-color: rgba(248, 113, 113, 0.35);
+  background: rgba(248, 113, 113, 0.12);
+}
+
+.chartGrid2.dashForecastRunRateGrid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+@media (min-width: 1100px) {
+  .chartGrid3.dashForecastRunRateGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 

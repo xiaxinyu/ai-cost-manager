@@ -33,6 +33,7 @@ from .db import (
     get_imported_token_daily_by_model,
     get_imported_token_models_with_prices,
     get_imported_token_meta,
+    get_imported_token_totals_by_subproject,
     get_token_timeseries,
     get_token_metric_points,
     get_all_token_timeseries,
@@ -765,6 +766,13 @@ def create_app(
                     end_date=end_date,
                     subproject_name=subproject_name,
                 )
+                if subproject_name is None:
+                    payload["subproject_breakdown"] = get_imported_token_totals_by_subproject(
+                        conn,
+                        project_name,
+                        start_date=start_date,
+                        end_date=end_date,
+                    )
                 daily_by_model = get_imported_token_daily_by_model(
                     conn,
                     project_name,

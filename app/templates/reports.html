@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="/static/css/page-common.css" />
     <link rel="stylesheet" href="/static/css/pages/reports.css?v=20260708-finlayout" />
     <link rel="stylesheet" href="/static/css/layout-pro.css" />
-    <link rel="stylesheet" href="/static/css/dashboard-shared.css?v=20260708-unified" />
+    <link rel="stylesheet" href="/static/css/dashboard-shared.css?v=20260708-opex-unified" />
     <link rel="stylesheet" href="/static/css/date-range-picker.css?v=20260606-drp" />
   </head>
   <body>
@@ -90,7 +90,7 @@
               </div>
               <span class="reportSectionMeta muted" id="reportCurrencyMeta"></span>
             </div>
-            <p class="reportFinFlowNote muted">OpEx actual billing · composition splits meter vs platform · CapEx tariff row is reference only · consumption drivers are token volume, not CapEx.</p>
+            <p class="reportFinFlowNote muted">OpEx actual billing · meter vs platform composition · tariff reference row is benchmark only · consumption drivers are token volume.</p>
 
             <div class="heroMetricGrid reportFinPrimaryKpi" aria-label="OpEx totals">
               <article class="heroMetric heroMetricPrimary">
@@ -122,7 +122,7 @@
                 <span class="heroMetricSub" id="hero_opex_meter_sub">inp + out (meter matched)</span>
               </article>
               <article class="heroMetric">
-                <span class="heroMetricLabel"><span class="costPill costPill--platform">CapEx</span> · Platform</span>
+                <span class="heroMetricLabel"><span class="costPill costPill--platform">OpEx</span> · Platform</span>
                 <span class="heroMetricValue" id="hero_opex_platform">—</span>
                 <span class="heroMetricSub" id="hero_opex_platform_sub">Non-token billing (billing_other)</span>
               </article>
@@ -133,9 +133,9 @@
               </article>
             </div>
 
-            <div class="heroMetricGrid reportFinBenchmarkKpi" id="reportBenchmarkRow" hidden aria-label="CapEx tariff reference">
+            <div class="heroMetricGrid reportFinBenchmarkKpi" id="reportBenchmarkRow" hidden aria-label="Tariff reference">
               <article class="heroMetric" id="heroCatalogTotalCard">
-                <span class="heroMetricLabel"><span class="costPill costPill--market">CapEx</span> · Tariff</span>
+                <span class="heroMetricLabel"><span class="costPill costPill--market">Reference</span> · Tariff</span>
                 <span class="heroMetricValue" id="hero_catalog_total">—</span>
                 <span class="heroMetricSub" id="hero_catalog_total_sub">Tokens × list USD/1M</span>
               </article>
@@ -165,7 +165,7 @@
               <article class="heroMetric">
                 <span class="heroMetricLabel">Consumption</span>
                 <span class="heroMetricValue heroMetricValue--text">OpEx drivers</span>
-                <span class="heroMetricSub" id="hero_volume_note">Imported CSV volume · not CapEx $</span>
+                <span class="heroMetricSub" id="hero_volume_note">Imported CSV volume · consumption drivers</span>
               </article>
             </div>
             <div id="reportQualityStrip" class="qualityStrip" hidden aria-label="Data coverage"></div>
@@ -207,7 +207,7 @@
                 <p class="reportSectionLead muted" id="costTrendInsight">Daily and monthly <span class="costPill costPill--actual">OpEx</span> billing for the selected scope.</p>
               </div>
             </div>
-            <div class="chartGrid chartGrid2">
+            <div class="chartGrid chartGrid3 dashForecastRunRateGrid">
               <article class="card chartCard">
                 <h3 class="chartCardTitle">Daily cost</h3>
                 <div class="costTypeLegend" aria-label="Cost type"><span class="costPill costPill--actual">OpEx</span><span class="costLegendSep" aria-hidden="true"></span><span class="costPill costPill--actual">Meter</span><span class="costLegendSep" aria-hidden="true"></span><span class="costPill costPill--platform">Platform</span></div>
@@ -221,6 +221,27 @@
                 <p class="chartCardHint muted">Calendar month OpEx totals.</p>
                 <div class="chartCanvasHost chartPlot"><canvas id="monthlyChart"></canvas></div>
                 <footer class="chartCardFoot muted" id="monthlyChartFoot">—</footer>
+              </article>
+              <article class="card chartCard chartCardForecast">
+                <div class="dashForecastCardHead">
+                  <h3 class="chartCardTitle">OpEx forecast (7d)</h3>
+                  <div id="forecastQualityCostReport" class="qualityBadge qualityMedium">Forecast quality: —</div>
+                </div>
+                <p class="chartCardHint muted">Linear trend + day-of-week correction on recent billing.</p>
+                <div class="chartCanvasHost chartPlot chartCanvasHostShort"><canvas id="costForecastChart"></canvas></div>
+                <div class="forecastMetaRow">
+                  <span class="muted">28-day window · dashed = outlook</span>
+                </div>
+                <details class="forecastAssumptions">
+                  <summary>Assumptions</summary>
+                  <div class="assumptionBody">Last 28 valid days · integer non-negative output · dashed line continues from last actual.</div>
+                </details>
+                <div class="tableScroll tableScrollCompact">
+                  <table class="dataTable dashTable">
+                    <thead><tr><th>Date</th><th class="num">Forecast</th></tr></thead>
+                    <tbody id="costForecastTbody"></tbody>
+                  </table>
+                </div>
               </article>
             </div>
           </section>
@@ -248,7 +269,7 @@
                     <th scope="col">Project</th>
                     <th class="num colCostActual" scope="col"><span class="costPill costPill--actual">OpEx</span> Total</th>
                     <th class="num colCostActual" scope="col"><span class="costPill costPill--actual">OpEx</span> · Meter</th>
-                    <th class="num colCostPlatform" scope="col"><span class="costPill costPill--platform">CapEx</span> · Platform</th>
+                    <th class="num colCostPlatform" scope="col"><span class="costPill costPill--platform">OpEx</span> · Platform</th>
                     <th class="num" scope="col">Billed days</th>
                     <th class="num colCostActual" scope="col">Avg / day</th>
                   </tr>
@@ -293,7 +314,7 @@
               <span class="reportStep">4</span>
               <div class="reportExecutiveHead">
                 <h2 class="reportSectionTitle">By model</h2>
-                <p class="reportSectionLead muted"><span class="costPill costPill--actual">OpEx</span> meter billing vs <span class="costPill costPill--market">CapEx · Tariff</span> list price.</p>
+                <p class="reportSectionLead muted"><span class="costPill costPill--actual">OpEx</span> meter billing vs <span class="costPill costPill--market">Reference · Tariff</span> list price.</p>
                 <span id="reportExecutiveHint" class="executiveHint muted"></span>
               </div>
             </div>
@@ -324,7 +345,7 @@
                     <tr class="costColGroupRow">
                       <th colspan="1" scope="colgroup" class="colGroupMeta"></th>
                       <th colspan="3" scope="colgroup" class="colGroupActual"><span class="costPill costPill--actual">OpEx · Meter</span></th>
-                      <th colspan="1" scope="colgroup" class="colGroupMarket"><span class="costPill costPill--market">CapEx · Tariff</span></th>
+                      <th colspan="1" scope="colgroup" class="colGroupMarket"><span class="costPill costPill--market">Reference · Tariff</span></th>
                       <th colspan="2" scope="colgroup" class="colGroupMeta"></th>
                     </tr>
                     <tr>
@@ -366,7 +387,7 @@
               <span class="reportStep">5</span>
               <div>
                 <h2 class="reportSectionTitle">Consumption</h2>
-                <p class="reportSectionLead muted" id="tokenSectionInsight">OpEx consumption drivers — imported token CSV totals by day (not CapEx $).</p>
+                <p class="reportSectionLead muted" id="tokenSectionInsight">OpEx consumption drivers — imported token CSV totals by day.</p>
               </div>
             </div>
             <div class="chartGrid chartGrid2">
@@ -484,10 +505,10 @@
     <script src="/static/js/app-shell.js"></script>
     <script src="/static/js/money.js"></script>
     <script src="/static/js/http.js"></script>
-    <script src="/static/js/forecasting.js?v=20260605-ratio"></script>
+    <script src="/static/js/forecasting.js?v=20260708-forecast"></script>
     <script src="/static/js/chart-plugins.js"></script>
     <script src="/static/js/chart-style.js?v=20260605-dates"></script>
-    <script src="/static/js/cost-semantics.js?v=20260708-capex-opex"></script>
+    <script src="/static/js/cost-semantics.js?v=20260708-opex-only"></script>
     <script src="/static/js/dashboard-ui.js?v=20260605-datesort"></script>
     <script src="/static/js/date-range-picker.js?v=20260606-drp"></script>
     <script src="/static/js/dashboard-interactions.js?v=20260707-ui"></script>
@@ -496,6 +517,7 @@
 
       let dailyChart = null;
       let monthlyChart = null;
+      let costForecastChart = null;
       let dailyTokenChart = null;
       let dailyTokenRatioChart = null;
       let monthlyTokenChart = null;
@@ -1021,7 +1043,7 @@
         set('hero_output_sub', imported ? ratio : '—');
         set(
           'hero_volume_note',
-          imported ? 'OpEx consumption drivers · not CapEx $' : 'No token CSV in scope'
+          imported ? 'OpEx consumption drivers · token volume in scope' : 'No token CSV in scope'
         );
       }
 
@@ -1335,7 +1357,7 @@
           'project_name',
           'opex_total_usd',
           'opex_meter_usd',
-          'capex_platform_usd',
+          'opex_platform_usd',
           'billed_days',
           'avg_daily_cost_usd',
           'currency',
@@ -1585,6 +1607,107 @@
         return await window.AppHttp.getJson(`/api/verify/reports-all-financial-consistency?${params.toString()}`);
       }
 
+      function renderForecastReports(report) {
+        const C = window.AppChartStyle?.colors || {};
+        const L = window.AppChartStyle?.labels || {};
+        const F = window.AppForecasting;
+        const daily = report?.daily_points || [];
+        const lastDate = daily.length ? safeDateStr(daily[daily.length - 1]?.date) : '';
+        const roundCost = (v) => window.AppMoney?.roundCost(v) ?? v;
+        const built = F?.buildMixedForecastSeries?.(daily, 'cost_usd', lastDate, {
+          windowDays: 28,
+          horizonDays: 7,
+          roundValue: roundCost,
+        });
+        const forecastQualityCostReportEl = document.getElementById('forecastQualityCostReport');
+        try {
+          F?.renderQualityBadge?.(forecastQualityCostReportEl, built?.quality);
+        } catch (e) {}
+
+        const costTbody = document.getElementById('costForecastTbody');
+        if (costTbody) {
+          costTbody.innerHTML = '';
+          const fc = built?.forecast || [];
+          if (!fc.length) {
+            const tr = document.createElement('tr');
+            tr.innerHTML = '<td colspan="2" class="muted">Not enough data to forecast (need at least 2 days).</td>';
+            costTbody.appendChild(tr);
+          } else {
+            for (const x of fc) {
+              const tr = document.createElement('tr');
+              tr.innerHTML = `<td>${x.date}</td><td class="num">${fmtCost(x.value)}</td>`;
+              costTbody.appendChild(tr);
+            }
+          }
+        }
+
+        const costCtx = document.getElementById('costForecastChart')?.getContext('2d');
+        if (!costCtx) return;
+        if (costForecastChart) costForecastChart.destroy();
+        if (!built?.labels?.length) return;
+
+        const fcOpts = reportChartOpts(built.labels.length);
+        costForecastChart = new Chart(costCtx, {
+          type: 'line',
+          data: {
+            labels: built.labels,
+            datasets: [
+              {
+                label: L.costActual || 'OpEx',
+                data: built.actualData,
+                borderColor: C.cost || '#5eead4',
+                backgroundColor: 'rgba(94,234,212,0.10)',
+                fill: false,
+                tension: 0.25,
+                pointRadius: 2,
+                borderWidth: 2.2,
+                spanGaps: true,
+                unitType: 'currency',
+              },
+              {
+                label: L.costForecast || 'OpEx (forecast 7d)',
+                data: built.forecastData,
+                borderColor: 'rgba(94,234,212,0.92)',
+                backgroundColor: 'rgba(0,0,0,0)',
+                fill: false,
+                tension: 0.25,
+                pointRadius: 2,
+                borderWidth: 2.2,
+                borderDash: [5, 4],
+                spanGaps: true,
+                unitType: 'currency',
+              },
+            ],
+          },
+          options: {
+            ...fcOpts,
+            plugins: {
+              ...fcOpts.plugins,
+              tooltip: {
+                ...fcOpts.plugins?.tooltip,
+                callbacks: { label: tooltipLabelCurrency },
+              },
+            },
+            scales: {
+              ...fcOpts.scales,
+              y: {
+                ...fcOpts.scales?.y,
+                ticks: {
+                  ...fcOpts.scales?.y?.ticks,
+                  callback: (value) => window.AppMoney?.fmtCost(value, _currency()) ?? String(value),
+                },
+              },
+            },
+          },
+          plugins: [
+            window.AppChartPlugins?.forecastHorizonShade?.({
+              startIndex: built.horizonStartIndex,
+              label: 'Forecast horizon',
+            }),
+          ].filter(Boolean),
+        });
+      }
+
       function renderCharts(report) {
         const C = window.AppChartStyle?.colors || {};
         const L = window.AppChartStyle?.labels || {};
@@ -1596,7 +1719,7 @@
         const tokenInsight = document.getElementById('tokenSectionInsight');
         if (tokenInsight) {
           tokenInsight.textContent = showTokens
-            ? 'OpEx consumption drivers — imported token CSV totals by day (not CapEx $).'
+            ? 'OpEx consumption drivers — imported token CSV totals by day.'
             : 'No imported token CSVs in this scope — run rate charts above still show OpEx billing.';
         }
         if (!showTokens) {
@@ -1749,6 +1872,8 @@
           `${monthlyLabels.length} months · total <strong>${fmtCost(monthlyTotal)}</strong>`,
           { html: true }
         );
+
+        renderForecastReports(report);
 
         if (!showTokens) {
           return;

@@ -1081,6 +1081,52 @@ def get_imported_token_totals(
     return float(row["input_tokens"]), float(row["output_tokens"])
 
 
+def get_imported_token_totals_by_subproject(
+    conn: sqlite3.Connection,
+    project_name: str,
+    *,
+    start_date: str | None = None,
+    end_date: str | None = None,
+) -> list[dict]:
+    """Per-subproject input/output token totals for segment cards (Tokens page)."""
+    where = ["project_name = ?", "COALESCE(TRIM(subproject_name), '') != ''"]
+    params: list[object] = [project_name]
+    if start_date:
+        where.append("usage_date >= ?")
+        params.append(start_date)
+    if end_date:
+        where.append("usage_date <= ?")
+        params.append(end_date)
+    where_sql = " AND ".join(where)
+    rows = conn.execute(
+        f"""
+        SELECT
+            subproject_name,
+            COALESCE(SUM(CASE WHEN token_direction = 'input' THEN token_count ELSE 0 END), 0) AS input_tokens,
+            COALESCE(SUM(CASE WHEN token_direction = 'output' THEN token_count ELSE 0 END), 0) AS output_tokens
+        FROM token_usage_points
+        WHERE {where_sql}
+        GROUP BY subproject_name
+        HAVING input_tokens > 0 OR output_tokens > 0
+        ORDER BY (input_tokens + output_tokens) DESC, subproject_name ASC
+        """,
+        tuple(params),
+    ).fetchall()
+    out: list[dict] = []
+    for r in rows:
+        in_tok = float(r["input_tokens"])
+        out_tok = float(r["output_tokens"])
+        out.append(
+            {
+                "subproject_name": str(r["subproject_name"]),
+                "input_tokens": in_tok,
+                "output_tokens": out_tok,
+                "total_tokens": in_tok + out_tok,
+            }
+        )
+    return out
+
+
 def get_imported_token_timeseries(
     conn: sqlite3.Connection,
     project_name: str,

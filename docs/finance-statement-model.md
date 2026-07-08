@@ -1,27 +1,29 @@
-# Finance statement model (CapEx / OpEx)
+# Finance statement model (OpEx)
 
-This app uses **CapEx / OpEx as a management-report layering**, not strict GAAP classification. Azure OpenAI billing is almost entirely operating expense in accounting terms.
+Azure OpenAI / cloud AI billing is **operating expense (OpEx)** in accounting terms. This app uses a single OpEx narrative with a separate **reference tariff** layer for benchmarks — not a second spend category.
 
 ## Layers
 
 | Layer | UI label | Meaning | Primary data |
 |-------|----------|---------|--------------|
-| **OpEx · Actual** | OpEx Total | Period invoice actuals | `transactions.cost_usd` |
-| **OpEx · Meter** | OpEx · Meter | Token meter variable spend (inp/out) | `catalog_market.summary.total_meter_cost_usd` |
+| **OpEx · Total** | OpEx Total | Period invoice actuals | `transactions.cost_usd` |
+| **OpEx · Meter** | OpEx · Meter | Token meter variable spend (inp/out) | `total_meter_cost_usd` |
+| **OpEx · Platform** | OpEx · Platform | Non-token services on the invoice | `billing_other_usd` |
 | **OpEx · Drivers** | Consumption | Token volume (no $ or implied $/1M) | Imported token CSVs |
-| **CapEx · Tariff** | CapEx · Tariff | Reference list-price benchmark | `model_prices`, `catalog_cost_usd` |
-| **CapEx · Platform** | CapEx · Platform | Non-token services residual | `billing_other_usd` |
+| **Reference · Tariff** | Reference · Tariff | List-price benchmark (not spend) | `model_prices`, `catalog_cost_usd` |
 
-**Actual (OpEx Total) remains the invoice truth.** CapEx layers are for attribution and variance only.
+**OpEx Total remains the invoice truth.** Tariff is reference-only for variance and unit economics.
 
 ## Page narratives
 
-- **Cost** — single-project OpEx statement: OpEx Summary → Run Rate → CapEx Reference → Allocation
-- **Reports** — consolidated OpEx across projects with By project meter/platform columns
-- **Tokens** — consumption drivers + unit economics (OpEx implied $/1M vs tariff)
-- **Pricing** — CapEx tariff schedule and source registry
-- **Import** — data lineage only (no CapEx/OpEx KPIs)
+- **Cost** — OpEx Summary → Run Rate → Tariff Reference → Allocation
+- **Reports** — consolidated OpEx with meter/platform split per project
+- **Tokens** — consumption drivers + unit economics vs reference tariff; subproject IN/OUT segment cards when nested `token/<subproject>/` data exists
+- **Pricing** — Tariff schedule and source registry (configuration, not P&L)
+- **Import** — data lineage: billing → OpEx Actual, tokens → OpEx drivers, price sync → Tariff reference
 
-## Subtitles (avoid finance misread)
+## Visual semantics
 
-CapEx sections include subtitles: *reference / platform — not capital assets*.
+- **Teal** — OpEx actual / meter
+- **Amber** — OpEx platform (non-token)
+- **Purple dashed** — Reference tariff (not invoice $)

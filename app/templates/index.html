@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="/static/css/page-common.css" />
     <link rel="stylesheet" href="/static/css/pages/index.css?v=20260708-finlayout" />
     <link rel="stylesheet" href="/static/css/layout-pro.css" />
-    <link rel="stylesheet" href="/static/css/dashboard-shared.css?v=20260708-unified" />
+    <link rel="stylesheet" href="/static/css/dashboard-shared.css?v=20260708-opex-unified" />
     <link rel="stylesheet" href="/static/css/date-range-picker.css?v=20260606-drp" />
   </head>
   <body>
@@ -24,10 +24,10 @@
               <div>
                 <h1 class="pageTitle">Cost</h1>
                 <p class="pageDesc">
-                  Project OpEx statement — period totals, run rate, CapEx reference, and allocation.
+                  Project OpEx statement — period totals, run rate, tariff reference, and allocation.
                   <span class="costPill costPill--actual">OpEx</span>
-                  <span class="costPill costPill--market">CapEx · Tariff</span>
-                  <span class="costPill costPill--platform">CapEx · Platform</span>
+                  <span class="costPill costPill--market">Reference</span>
+                  <span class="costPill costPill--platform">Platform</span>
                 </p>
               </div>
               <p class="costSourceNote muted">
@@ -70,7 +70,7 @@
             <span class="dashSectionNavLabel muted">Statement</span>
             <a class="dashSectionNavLink" href="#cost-summary">OpEx Summary</a>
             <a class="dashSectionNavLink" href="#cost-trends">Run Rate</a>
-            <a class="dashSectionNavLink" href="#cost-capex-reference">CapEx Reference</a>
+            <a class="dashSectionNavLink" href="#cost-tariff-reference">Tariff Reference</a>
             <a class="dashSectionNavLink" href="#costBreakdownSection">Allocation</a>
           </nav>
 
@@ -127,7 +127,7 @@
               </article>
               <article class="card monitorKpi monitorKpi--platform">
                 <div class="stat">
-                  <div class="label"><span class="costPill costPill--platform">CapEx</span> · Platform</div>
+                  <div class="label"><span class="costPill costPill--platform">OpEx</span> · Platform</div>
                   <div class="value value--md" id="costPlatformTotal">—</div>
                   <div class="sub tokenStats kpiFootnote" id="costPlatformNote">Non-token billing (billing_other)</div>
                 </div>
@@ -141,8 +141,8 @@
               </article>
             </div>
 
-            <div id="subprojectCostStrip" class="costSubprojectStrip" hidden aria-label="Segment totals">
-              <p class="costSubprojectStripLead muted">Segments — cost by Azure resource (click to filter scope)</p>
+            <div id="subprojectCostStrip" class="dashSubprojectStrip costSubprojectStrip" hidden aria-label="Segment totals">
+              <p class="dashSubprojectStripLead costSubprojectStripLead muted">Segments — cost by Azure resource (click to filter scope)</p>
               <div id="subprojectCostCards" class="costSubprojectCards"></div>
             </div>
           </section>
@@ -152,9 +152,10 @@
               <span class="costStep" aria-hidden="true">2</span>
               <div class="costSectionHeadMain">
                 <h2 class="costSectionTitle">Run Rate</h2>
-                <p class="costSectionLead muted" id="costTrendsLead">Daily OpEx actual spend over the reporting period.</p>
+                <p class="costSectionLead muted" id="costTrendsLead">Daily OpEx actual spend and 7-day forward outlook.</p>
               </div>
             </div>
+            <div class="costTrendGrid">
             <article class="card monitorCard monitorCard--primary costTrendCard" id="marketCompareSection">
               <header class="monitorCardHead">
                 <div>
@@ -176,20 +177,50 @@
               </div>
               <footer class="monitorCardFoot muted" id="costChartFootnote">—</footer>
             </article>
+
+            <article class="card monitorCard costTrendCard costForecastCard" id="costForecastSection" aria-label="OpEx forecast">
+              <header class="monitorCardHead dashForecastCardHead">
+                <div>
+                  <h3 class="monitorCardTitle">OpEx forecast (7d)</h3>
+                  <p class="monitorCardDesc muted">Short-horizon outlook from recent daily billing.</p>
+                </div>
+                <div id="forecastQualityCost" class="qualityBadge qualityMedium">Forecast quality: —</div>
+              </header>
+              <div class="chartCanvasHost monitorChartHost chartCanvasHostShort" data-chart-host>
+                <canvas id="timeseriesChartCostForecast" role="img" aria-label="OpEx forecast chart"></canvas>
+              </div>
+              <div class="forecastMetaRow">
+                <span class="muted">Last 28 days · 7-day horizon · DOW correction</span>
+              </div>
+              <details class="forecastAssumptions">
+                <summary>Forecast assumptions</summary>
+                <div class="assumptionBody">
+                  Uses the last <b>28</b> valid daily points to fit a <b>linear trend</b> with <b>day-of-week residual correction</b>.
+                  Output is <b>integer</b> and <b>clamped to ≥ 0</b>. Dashed line starts at the last actual point.
+                </div>
+              </details>
+              <div class="tableScroll tableScrollCompact">
+                <table class="dataTable dashTable">
+                  <thead><tr><th>Date</th><th class="num">Forecast</th></tr></thead>
+                  <tbody id="costForecastTbody"></tbody>
+                </table>
+              </div>
+            </article>
+            </div>
           </section>
 
-          <section id="cost-capex-reference" class="costZone costFinBlock card" aria-label="CapEx reference" hidden>
+          <section id="cost-tariff-reference" class="costZone costFinBlock card" aria-label="Tariff reference" hidden>
             <div class="costSectionHead">
               <span class="costStep" aria-hidden="true">3</span>
               <div class="costSectionHeadMain">
-                <h2 class="costSectionTitle">CapEx Reference</h2>
-                <p class="costSectionLead muted">Tariff list-price benchmark — reference layer, not invoice actuals.</p>
+                <h2 class="costSectionTitle">Tariff Reference</h2>
+                <p class="costSectionLead muted">List-price benchmark — reference only, not invoice spend.</p>
               </div>
             </div>
             <div class="costMonitorKpi costFinBenchmarkKpi" id="costBenchmarkRow" aria-label="Tariff benchmark">
               <article class="card monitorKpi monitorKpi--market" id="catalogMarketCard" data-dash-jump="#cost-by-model" title="Jump to model allocation">
                 <div class="stat">
-                  <div class="label"><span class="costPill costPill--market">CapEx</span> · Tariff</div>
+                  <div class="label"><span class="costPill costPill--market">Reference</span> · Tariff</div>
                   <div class="value" id="catalogMarketTotal">-</div>
                   <div class="sub tokenStats kpiFootnote" id="catalogMarketNote">Tokens × list USD/1M</div>
                 </div>
@@ -235,7 +266,7 @@
                   <div class="detailTableIdentity">
                     <h3 class="detailTableTitle">By model</h3>
                     <p class="detailTableDesc muted modelTableHint">
-                      OpEx meter vs CapEx tariff. <span class="costPill costPill--platform">CapEx · Platform</span> = non-token billing.
+                      OpEx meter vs reference tariff. <span class="costPill costPill--platform">OpEx · Platform</span> = non-token billing.
                       List prices from <a href="/prices">Model Prices</a>.
                     </p>
                   </div>
@@ -496,8 +527,9 @@
     <script src="/static/js/money.js"></script>
     <script src="/static/js/http.js"></script>
     <script src="/static/js/chart-plugins.js"></script>
+    <script src="/static/js/forecasting.js?v=20260708-forecast"></script>
     <script src="/static/js/chart-style.js?v=20260605-dates"></script>
-    <script src="/static/js/cost-semantics.js?v=20260708-capex-opex"></script>
+    <script src="/static/js/cost-semantics.js?v=20260708-opex-only"></script>
     <script src="/static/js/dashboard-ui.js?v=20260707-detail"></script>
     <script src="/static/js/dashboard-interactions.js?v=20260707-ui"></script>
     <script src="/static/js/billing-detail-table.js?v=20260707-detail"></script>
@@ -522,7 +554,7 @@
       const billedDaysCountEl = document.getElementById('billedDaysCount');
       const periodFootnoteEl = document.getElementById('periodFootnote');
       const costBenchmarkRowEl = document.getElementById('costBenchmarkRow');
-      const costCapexReferenceSectionEl = document.getElementById('cost-capex-reference');
+      const costTariffReferenceSectionEl = document.getElementById('cost-tariff-reference');
       const costOpexCompositionRowEl = document.getElementById('costOpexCompositionRow');
       const costMeterTotalEl = document.getElementById('costMeterTotal');
       const costPlatformTotalEl = document.getElementById('costPlatformTotal');
@@ -536,6 +568,7 @@
       const applyFiltersBtn = document.getElementById('applyFiltersBtn');
 
       let chartMarket = null;
+      let chartCostForecast = null;
       let chartInputByModel = null;
       let chartOutputByModel = null;
       let currentProjectName = null;
@@ -595,6 +628,8 @@
       const inputModelChartFootnoteEl = document.getElementById('inputModelChartFootnote');
       const outputModelChartFootnoteEl = document.getElementById('outputModelChartFootnote');
       const costChartFootnoteEl = document.getElementById('costChartFootnote');
+      const forecastQualityCostEl = document.getElementById('forecastQualityCost');
+      const costForecastTbodyEl = document.getElementById('costForecastTbody');
       let lastModelSummaryRows = [];
       let lastBillingOtherRows = [];
       let lastModelProjectSummary = {};
@@ -950,7 +985,7 @@
       function renderCatalogMarketUi(catalogPayload, costPoints, authoritativeActualTotal) {
         const summary = catalogPayload?.summary || {};
         const available = catalogPayload?.available === true;
-        if (costCapexReferenceSectionEl) costCapexReferenceSectionEl.hidden = !available;
+        if (costTariffReferenceSectionEl) costTariffReferenceSectionEl.hidden = !available;
         if (catalogMarketCard) catalogMarketCard.style.opacity = available ? '1' : '0.55';
         if (catalogVarianceCard) catalogVarianceCard.style.opacity = available ? '1' : '0.55';
         if (marketCompareSectionEl) marketCompareSectionEl.hidden = false;
@@ -1859,6 +1894,96 @@
             emptyStatePlugin(marketAvailable ? 'No tariff data in range' : 'No data in selected range'),
             ...chartPluginsExtra(),
           ],
+        });
+        renderCostForecastChart(costPoints);
+      }
+
+      function renderCostForecastChart(costPoints) {
+        const C = window.AppChartStyle?.colors || {};
+        const L = window.AppChartStyle?.labels || {};
+        const F = window.AppForecasting;
+        const rows = (costPoints || []).filter(
+          (p) => p?.date && p.cost_usd !== null && p.cost_usd !== undefined && Number.isFinite(Number(p.cost_usd))
+        );
+        const lastDate = rows.length ? _safeDateStr(rows[rows.length - 1].date) : '';
+        const roundCost = (v) => window.AppMoney?.roundCost(v) ?? v;
+        const built = F?.buildAnchoredForecastSeries?.(costPoints, 'cost_usd', lastDate, {
+          windowDays: 28,
+          horizonDays: 7,
+          roundValue: roundCost,
+        });
+        try {
+          F?.renderQualityBadge?.(forecastQualityCostEl, built?.quality);
+        } catch (e) {
+          /* optional */
+        }
+
+        if (costForecastTbodyEl) {
+          costForecastTbodyEl.innerHTML = '';
+          const fc = built?.forecast || [];
+          if (!fc.length) {
+            const tr = document.createElement('tr');
+            tr.innerHTML = '<td colspan="2" class="muted">Not enough data to forecast (need at least 2 days).</td>';
+            costForecastTbodyEl.appendChild(tr);
+          } else {
+            for (const x of fc) {
+              const tr = document.createElement('tr');
+              tr.innerHTML = `<td>${x.date}</td><td class="num">${fmt2(x.value)}</td>`;
+              costForecastTbodyEl.appendChild(tr);
+            }
+          }
+        }
+
+        if (chartCostForecast) chartCostForecast.destroy();
+        chartCostForecast = null;
+        const ctx = document.getElementById('timeseriesChartCostForecast')?.getContext('2d');
+        if (!ctx || !built?.labels?.length) return;
+
+        const horizonShade =
+          window.AppChartPlugins?.forecastHorizonShade?.({
+            startIndex: built.horizonStartIndex,
+            label: 'Forecast horizon',
+          }) || null;
+
+        chartCostForecast = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: built.labels,
+            datasets: [
+              {
+                label: L.costActual || 'OpEx (last)',
+                data: built.actualTailData,
+                borderColor: C.actual || C.cost || '#5eead4',
+                backgroundColor: 'rgba(0,0,0,0)',
+                fill: false,
+                tension: 0.25,
+                pointRadius: 2,
+                borderWidth: 2.2,
+                spanGaps: true,
+                unitType: 'currency',
+              },
+              {
+                label: L.costForecast || 'OpEx (forecast 7d)',
+                data: built.forecastDashedData,
+                borderColor: 'rgba(94,234,212,0.92)',
+                backgroundColor: 'rgba(0,0,0,0)',
+                fill: false,
+                tension: 0.25,
+                pointRadius: 2,
+                borderWidth: 2.2,
+                borderDash: [5, 4],
+                spanGaps: true,
+                unitType: 'currency',
+              },
+            ],
+          },
+          options: buildCostLineOptions({
+            labelCount: built.labels.length,
+            showLegend: true,
+            legendVariant: 'compact',
+            tooltipCallbacks: { label: tooltipLabelForValue },
+          }),
+          plugins: [emptyStatePlugin('Not enough billing history'), horizonShade, ...chartPluginsExtra()].filter(Boolean),
         });
       }
 

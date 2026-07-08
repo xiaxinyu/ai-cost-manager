@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="/static/css/page-common.css" />
     <link rel="stylesheet" href="/static/css/pages/tokens.css?v=20260708-finlayout" />
     <link rel="stylesheet" href="/static/css/layout-pro.css" />
-    <link rel="stylesheet" href="/static/css/dashboard-shared.css?v=20260708-unified" />
+    <link rel="stylesheet" href="/static/css/dashboard-shared.css?v=20260708-opex-unified" />
     <link rel="stylesheet" href="/static/css/date-range-picker.css?v=20260606-drp" />
   </head>
   <body>
@@ -24,7 +24,7 @@
             <div class="tokenTitleRow">
               <div>
                 <h1 class="pageTitle">Tokens</h1>
-                <p class="pageDesc">OpEx consumption drivers, performance, and unit economics vs CapEx tariff list prices.</p>
+                <p class="pageDesc">OpEx consumption drivers, performance, and unit economics vs reference tariff list prices.</p>
               </div>
               <div id="tokenSourceBadge" class="sourceBadge sourceEstimated" hidden>
                 <span class="sourceDot" aria-hidden="true"></span>
@@ -167,6 +167,11 @@
                   <div class="sub muted" id="tokenMetaExtra"></div>
                 </article>
               </div>
+
+              <div id="subprojectTokenStrip" class="dashSubprojectStrip tokenSubprojectStrip" hidden aria-label="Subproject consumption">
+                <p class="dashSubprojectStripLead muted">Segments — input/output by subproject (click to filter scope)</p>
+                <div id="subprojectTokenCards" class="dashSubprojectCards tokenSubprojectCards"></div>
+              </div>
             </section>
 
             <section id="token-trends" class="tokenZone tokenFinBlock card" aria-label="Run rate">
@@ -214,6 +219,29 @@
                       <canvas id="tokenRatioChart"></canvas>
                     </div>
                   </details>
+                </div>
+              </article>
+
+              <article id="metric-token-forecast" class="metricPanel card chartPanel" data-metric-key="token_forecast">
+                <header class="metricPanelHead dashForecastCardHead">
+                  <div>
+                    <h3 class="metricPanelTitle">Token forecast (7d)</h3>
+                    <p class="metricPanelDesc muted">Short-horizon outlook for input and output volume.</p>
+                  </div>
+                  <div id="forecastQualityToken" class="qualityBadge qualityMedium">Forecast quality: —</div>
+                </header>
+                <div class="metricPanelBody">
+                  <div class="chartCanvasHost chartCanvasHostShort" data-chart-host>
+                    <canvas id="tokenForecastChart"></canvas>
+                  </div>
+                  <div class="forecastMetaRow">
+                    <span class="muted">Last 28 days · dashed = forecast · integers only</span>
+                  </div>
+                  <details class="forecastAssumptions">
+                    <summary>Forecast assumptions</summary>
+                    <div class="assumptionBody">Independent linear trend + day-of-week correction per direction (input / output).</div>
+                  </details>
+                  <p class="metricPanelEmpty muted" data-metric-empty hidden>No token history for forecast in this scope.</p>
                 </div>
               </article>
             </section>
@@ -319,7 +347,7 @@
                 <span class="tokenStep" aria-hidden="true">4</span>
                 <div class="tokenZoneHeadMain">
                   <h2 class="tokenZoneTitle">Unit Economics</h2>
-                  <p class="tokenZoneLead muted">OpEx implied $/1M vs CapEx tariff list $/1M — by model and billing unit price.</p>
+                  <p class="tokenZoneLead muted">OpEx implied $/1M vs reference tariff list $/1M — by model and billing unit price.</p>
                 </div>
               </div>
               <nav class="tokenBreakdownNav muted" aria-label="Unit economics views">
@@ -432,13 +460,13 @@
     <script src="/static/js/app-shell.js"></script>
     <script src="/static/js/money.js"></script>
     <script src="/static/js/http.js"></script>
-    <script src="/static/js/forecasting.js?v=20260605-ratio"></script>
+    <script src="/static/js/forecasting.js?v=20260708-forecast"></script>
     <script src="/static/js/chart-plugins.js"></script>
     <script src="/static/js/chart-style.js?v=20260605-perf2"></script>
     <script src="/static/js/cost-semantics.js?v=20260605-cost"></script>
     <script src="/static/js/dashboard-ui.js?v=20260605-datesort"></script>
     <script src="/static/js/dashboard-interactions.js?v=20260707-ui"></script>
     <script src="/static/js/date-range-picker.js?v=20260606-drp"></script>
-    <script src="/static/js/pages/tokens.js?v=20260708-points-fix"></script>
+    <script src="/static/js/pages/tokens.js?v=20260708-forecast"></script>
   </body>
 </html>
