@@ -38,11 +38,11 @@ def _verify_billing_merge_csv(
     (UsageDate + ResourceId + ResourceGroupName + ServiceTier + Meter within project_name).
 
     - Every non-empty CSV row must resolve to a DB row with matching cost_usd.
-    - Duplicate keys in the same file: last row wins (must match DB).
+    - Duplicate keys in the same file: merge preserves Actual when a later row is forecast-only.
     - ingested_files row_count must match CSV data row count.
     """
     eps = 1e-6
-    last_cost_by_key: dict[tuple[str, str, str, str, str], float] = {}
+    last_cost_by_key: dict[tuple[str, str, str, str, str], float | None] = {}
     csv_data_rows = 0
     with csv_path_abs.open("r", newline="", encoding="utf-8-sig") as f:
         reader = csv.DictReader(f)
@@ -52,8 +52,10 @@ def _verify_billing_merge_csv(
                 continue
             csv_data_rows += 1
             key = _billing_natural_key_tuple(usage_date, normalized_row)
-            c = float(cost_usd) if cost_usd is not None else 0.0
-            last_cost_by_key[key] = c
+            last_cost_by_key[key] = _merge_billing_cost_usd(
+                last_cost_by_key.get(key),
+                cost_usd,
+            )
 
     if csv_data_rows != expected_row_count:
         raise ValueError(
@@ -80,7 +82,13 @@ def _verify_billing_merge_csv(
             raise ValueError(
                 f"Ingest audit missing DB row for natural key after ingest: {file_path_rel} {key!r}"
             )
-        db_c = float(r["cost_usd"] or 0.0)
+        db_c = float(r["cost_usd"]) if r["cost_usd"] is not None else None
+        if exp_c is None and db_c is None:
+            continue
+        if exp_c is None or db_c is None:
+            raise ValueError(
+                f"Ingest audit cost_usd mismatch for {file_path_rel} key={key!r}: db={db_c}, expected={exp_c}"
+            )
         if abs(db_c - exp_c) > eps:
             raise ValueError(
                 f"Ingest audit cost_usd mismatch for {file_path_rel} key={key!r}: db={db_c}, expected={exp_c}"
@@ -259,6 +267,11 @@ def _normalize_key(k: str) -> str:
     return k.strip().strip("\ufeff").strip('"').strip("'").lower().replace(" ", "_")
 
 
+def _csv_field(row: dict[str, Any], column: str) -> str | None:
+    normalized = {_normalize_key(k): v for k, v in row.items()}
+    return _trim_optional_str(normalized.get(_normalize_key(column)))
+
+
 def _to_float_or_none(val: Any) -> float | None:
     if val is None:
         return None
@@ -304,6 +317,34 @@ def _extract_row(
     cost = _to_float_or_none(normalized_row.get("Cost"))
 
     return usage_date, normalized_row, cost_usd, cost
+
+
+def _to_forecast_or_none(val: Any) -> float | None:
+    return _to_float_or_none(val)
+
+
+def _merge_billing_cost_usd(
+    existing: float | None,
+    incoming: float | None,
+) -> float | None:
+    """
+    Merge CostUSD for rows sharing a billing natural key.
+
+    Forecast-only trailing rows (empty CostUSD) must not erase an earlier Actual
+    row for the same UsageDate + resource dimensions within one CSV export.
+    """
+    if incoming is not None:
+        return incoming
+    return existing
+
+
+def _merge_billing_forecast_cost(
+    existing: float | None,
+    incoming: float | None,
+) -> float | None:
+    if incoming is not None:
+        return incoming
+    return existing
 
 
 _TX_INSERT = """
@@ -401,6 +442,7 @@ def _upsert_one_billing_row(
     normalized_row: dict[str, str | None],
     cost_usd: float | None,
     cost: float | None,
+    forecast_cost: float | None,
     raw_json: str,
 ) -> str:
     """
@@ -415,6 +457,23 @@ def _upsert_one_billing_row(
     )
     rid = _find_tx_by_file_slot(conn, project_name, file_path_rel, source_row_index)
 
+    existing_cost_usd: float | None = None
+    existing_cost: float | None = None
+    existing_forecast: float | None = None
+    if kid is not None:
+        existing_row = conn.execute(
+            "SELECT cost_usd, cost, forecast_cost FROM transactions WHERE id = ?",
+            (kid,),
+        ).fetchone()
+        if existing_row is not None:
+            existing_cost_usd = _to_float_or_none(existing_row["cost_usd"])
+            existing_cost = _to_float_or_none(existing_row["cost"])
+            existing_forecast = _to_float_or_none(existing_row["forecast_cost"])
+
+    merged_cost_usd = _merge_billing_cost_usd(existing_cost_usd, cost_usd)
+    merged_cost = _merge_billing_cost_usd(existing_cost, cost)
+    merged_forecast = _merge_billing_forecast_cost(existing_forecast, forecast_cost)
+
     tup = (
         project_name,
         usage_date,
@@ -425,10 +484,10 @@ def _upsert_one_billing_row(
         normalized_row.get("ServiceName"),
         normalized_row.get("ServiceTier"),
         normalized_row.get("Meter"),
-        cost_usd,
-        cost,
+        merged_cost_usd,
+        merged_cost,
         normalized_row.get("Currency"),
-        None,
+        merged_forecast,
         raw_json,
         file_path_rel,
         source_row_index,
@@ -467,6 +526,9 @@ def _ingest_billing_csv_rows(
                 continue
 
             raw_json = json.dumps(normalized_row, ensure_ascii=False)
+            forecast_cost = _to_forecast_or_none(
+                _csv_field(row, "ForecastCost"),
+            )
             op = _upsert_one_billing_row(
                 conn,
                 project_name=project_name,
@@ -476,6 +538,7 @@ def _ingest_billing_csv_rows(
                 normalized_row=normalized_row,
                 cost_usd=cost_usd,
                 cost=cost,
+                forecast_cost=forecast_cost,
                 raw_json=raw_json,
             )
             if op == "insert":
@@ -553,11 +616,42 @@ def discover_csv_files(bills_dir: str | os.PathLike[str]) -> list[tuple[str, Pat
     return results
 
 
+def _billing_reimport_should_skip(
+    *,
+    existing,
+    csv_path_abs: Path,
+    reimport_changed: bool,
+    reimport_force: bool,
+) -> bool:
+    if existing is None:
+        return False
+    if not reimport_changed and not reimport_force:
+        return True
+    if reimport_force:
+        return False
+    checksum = _sha256_file(csv_path_abs)
+    return str(existing["checksum_sha256"]) == checksum
+
+
+def _billing_clear_file_slot_for_reimport(
+    conn,
+    *,
+    project_name: str,
+    file_path_rel: str,
+) -> None:
+    conn.execute("DELETE FROM ingested_files WHERE file_path = ?", (file_path_rel,))
+    conn.execute(
+        "DELETE FROM transactions WHERE project_name = ? AND source_file = ?",
+        (project_name, file_path_rel),
+    )
+
+
 def ingest_all(
     bills_dir: str | os.PathLike[str],
     db_path: str | os.PathLike[str],
     *,
     reimport_changed: bool = False,
+    reimport_force: bool = False,
 ) -> IngestResult:
     ensure_parent_dir(db_path)
     conn = get_connection(db_path)
@@ -583,24 +677,24 @@ def ingest_all(
             (file_path_rel,),
         ).fetchone()
 
+        if _billing_reimport_should_skip(
+            existing=existing,
+            csv_path_abs=csv_path_abs,
+            reimport_changed=reimport_changed,
+            reimport_force=reimport_force,
+        ):
+            files_skipped += 1
+            continue
+
+        conn.execute("SAVEPOINT ingest_file")
         if existing is not None:
-            if not reimport_changed:
-                files_skipped += 1
-                continue
-            checksum = _sha256_file(csv_path_abs)
-            if str(existing["checksum_sha256"]) == checksum:
-                files_skipped += 1
-                continue
-            # Re-import changed file: replace ingested_files metadata; rows merge by natural key.
-            conn.execute("SAVEPOINT ingest_file")
-            conn.execute("DELETE FROM ingested_files WHERE file_path = ?", (file_path_rel,))
-            conn.execute(
-                "DELETE FROM transactions WHERE project_name = ? AND source_file = ?",
-                (project_name, file_path_rel),
+            _billing_clear_file_slot_for_reimport(
+                conn,
+                project_name=project_name,
+                file_path_rel=file_path_rel,
             )
         else:
-            checksum = _sha256_file(csv_path_abs)
-            conn.execute("SAVEPOINT ingest_file")
+            _sha256_file(csv_path_abs)
 
         file_ins, file_upd = _ingest_billing_csv_rows(
             conn,
@@ -653,6 +747,7 @@ def ingest_selected(
     *,
     file_path_rels: list[str],
     reimport_changed: bool = False,
+    reimport_force: bool = False,
 ) -> IngestResult:
     """
     Ingest only the specified bills files (by `file_path_rel` = <project>/<filename>.csv).
@@ -684,24 +779,24 @@ def ingest_selected(
             (file_path_rel,),
         ).fetchone()
 
-        if existing is not None:
-            if not reimport_changed:
-                files_skipped += 1
-                continue
-            checksum = _sha256_file(csv_path_abs)
-            if str(existing["checksum_sha256"]) == checksum:
-                files_skipped += 1
-                continue
+        if _billing_reimport_should_skip(
+            existing=existing,
+            csv_path_abs=csv_path_abs,
+            reimport_changed=reimport_changed,
+            reimport_force=reimport_force,
+        ):
+            files_skipped += 1
+            continue
 
-            conn.execute("SAVEPOINT ingest_file")
-            conn.execute("DELETE FROM ingested_files WHERE file_path = ?", (file_path_rel,))
-            conn.execute(
-                "DELETE FROM transactions WHERE project_name = ? AND source_file = ?",
-                (project_name, file_path_rel),
+        conn.execute("SAVEPOINT ingest_file")
+        if existing is not None:
+            _billing_clear_file_slot_for_reimport(
+                conn,
+                project_name=project_name,
+                file_path_rel=file_path_rel,
             )
         else:
-            checksum = _sha256_file(csv_path_abs)
-            conn.execute("SAVEPOINT ingest_file")
+            _sha256_file(csv_path_abs)
 
         file_ins, file_upd = _ingest_billing_csv_rows(
             conn,

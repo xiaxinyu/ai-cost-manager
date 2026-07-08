@@ -66,6 +66,22 @@ def test_all_financial_report_stats(tmp_path):
     by_name = {r["project_name"]: r for r in pb}
     assert by_name["projA"]["actual_cost_usd_total"] == 4.0
     assert by_name["projB"]["actual_cost_usd_total"] == 2.0
+    assert by_name["projA"]["avg_daily_cost_usd"] == 2.0
+    assert by_name["projB"]["avg_daily_cost_usd"] == 2.0
+
+    pdc = payload["project_daily_cost"]
+    assert pdc["currency"] == "USD"
+    assert pdc["dates"] == ["2026-01-01", "2026-01-02"]
+    assert set(pdc["projects"]) == {"projA", "projB"}
+    summaries = {s["project_name"]: s for s in pdc["summaries"]}
+    assert summaries["projA"]["avg_daily_cost_usd"] == 2.0
+    assert summaries["projA"]["billed_days"] == 2
+    points_by_key = {(p["project_name"], p["date"]): p["cost_usd"] for p in pdc["points"]}
+    assert points_by_key[("projA", "2026-01-01")] == 1.0
+    assert points_by_key[("projA", "2026-01-02")] == 3.0
+    assert points_by_key[("projB", "2026-01-01")] == 2.0
+    assert by_name["projA"]["actual_cost_usd_total"] == summaries["projA"]["total_cost_usd"]
+    assert by_name["projA"]["actual_days"] == summaries["projA"]["billed_days"]
 
     daily = payload["daily"]
     # daily points are summed per day, so values are [3, 3]
@@ -128,6 +144,12 @@ def test_all_financial_report_stats(tmp_path):
     assert ver_payload["failed_count"] == 0
     assert payload["scope_quality"]["projects_in_scope"] == 2
     assert payload["scope_quality"]["projects_with_billing"] == 2
+
+    summary_res = client.get("/api/billing/projects-summary?currency=USD")
+    assert summary_res.status_code == 200
+    summary_payload = summary_res.json()
+    assert summary_payload["currency"] == "USD"
+    assert len(summary_payload["summaries"]) == 2
 
 
 def test_all_financial_report_includes_token_only_projects_and_verifies(tmp_path):
@@ -203,6 +225,8 @@ def test_reports_page_layout_without_token_forecast(tmp_path):
     assert "chartGrid2" in page.text
     assert "costForecastChart" not in page.text
     assert "report-tokens" in page.text
+    assert "projectSummariesTable" in page.text
+    assert "report-daily-by-project" not in page.text
     assert "report-glance" in page.text
     assert "report-raw-data" in page.text
     assert "filterCard" in page.text

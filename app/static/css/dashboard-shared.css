@@ -647,6 +647,10 @@
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.03));
 }
 
+.costDashboard .costFilterCard.filterCard {
+  padding: 8px 12px 10px;
+}
+
 .costDashboard .filterCardHead,
 .tokenPage .filterCardHead,
 .reportPage .filterCardHead,
@@ -1011,13 +1015,72 @@
 }
 
 .importPage .typeBadge {
-  display: inline-block;
-  padding: 2px 8px;
-  border-radius: 999px;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 0;
+  padding: 3px 8px;
+  border-radius: 6px;
   font-size: 10px;
   font-weight: 700;
-  letter-spacing: 0.04em;
+  line-height: 1.2;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+.importPage .typeBadgeKind {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
+  line-height: 1.15;
+}
+
+.importPage .typeBadgeDetail {
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0;
+  text-transform: none;
+  line-height: 1.2;
+  opacity: 0.95;
+}
+
+.importPage .dashTable .colPick {
+  width: 44px;
+  min-width: 44px;
+  max-width: 44px;
+  text-align: center;
+  padding-left: 6px;
+  padding-right: 6px;
+}
+
+.importPage .dashTable .colType {
+  width: 96px;
+  min-width: 96px;
+  max-width: 96px;
+  white-space: nowrap;
+}
+
+.importPage .dashTable .colProject {
+  width: 168px;
+  min-width: 140px;
+  max-width: 200px;
+}
+
+.importPage .dashTable tbody td {
+  padding: 6px 10px;
+  vertical-align: middle;
+}
+
+.importPage .dashTable tbody td.colType {
+  padding-top: 5px;
+  padding-bottom: 5px;
+}
+
+.importPage .dashTable tbody td.colPick input[type="checkbox"] {
+  margin: 0;
+  vertical-align: middle;
 }
 
 .importPage .typeBadge--billing {

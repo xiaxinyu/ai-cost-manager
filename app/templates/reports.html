@@ -77,7 +77,7 @@
             <a class="dashSectionNavLink" href="#report-glance">Summary</a>
             <a class="dashSectionNavLink" href="#report-spend-trends">Spend trends</a>
             <a class="dashSectionNavLink" href="#report-by-model">By model</a>
-            <a class="dashSectionNavLink" href="#report-by-project">By project</a>
+            <a class="dashSectionNavLink" href="#report-by-project">All projects</a>
             <a class="dashSectionNavLink" href="#report-tokens">Tokens</a>
             <a class="dashSectionNavLink" href="#report-raw-data">Detail tables</a>
           </nav>
@@ -257,14 +257,37 @@
             <div class="reportSectionHead">
               <span class="reportStep">4</span>
               <div>
-                <h2 class="reportSectionTitle">By project</h2>
-                <p class="reportSectionLead muted" id="projectBreakdownInsight">Share of total spend and token volume per project.</p>
+                <h2 class="reportSectionTitle">All projects</h2>
+                <p class="reportSectionLead muted" id="projectSummariesInsight">Daily average billing per project in the selected scope.</p>
               </div>
+              <span class="reportSectionMeta muted" id="projectSummariesMeta"></span>
             </div>
             <div class="rowsToolbar">
               <div>
-                <h3 class="panelTitle">Project breakdown</h3>
-                <p class="tableNote panelDesc">Per-project billing actual; token columns are imported CSV totals only.</p>
+                <h3 class="panelTitle">Daily average billing</h3>
+                <p class="tableNote panelDesc">Avg / day = total ÷ billed days with non-zero spend.</p>
+              </div>
+              <button id="exportProjectSummariesBtn" class="btnSmall" type="button">Export CSV</button>
+            </div>
+            <div class="tableScroll reportTableScroll">
+              <table id="projectSummariesTable" class="dataTable dashTable reportProjectSummaryTable">
+                <thead>
+                  <tr>
+                    <th scope="col">Project</th>
+                    <th class="num colCostActual" scope="col"><span class="costPill costPill--actual">Actual</span> Total</th>
+                    <th class="num" scope="col">Billed days</th>
+                    <th class="num colCostActual" scope="col">Avg / day</th>
+                  </tr>
+                </thead>
+                <tbody id="projectSummariesTbody">
+                  <tr><td colspan="4" class="muted emptyRow">Load a report to see project averages.</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="rowsToolbar reportSubPanelToolbar">
+              <div>
+                <h3 class="panelTitle">Token &amp; share</h3>
+                <p class="tableNote panelDesc" id="projectBreakdownInsight">Imported token volume and spend share per project.</p>
               </div>
               <button id="exportProjectBreakdownBtn" class="btnSmall" type="button">Export CSV</button>
             </div>
@@ -273,9 +296,7 @@
                 <colgroup>
                   <col class="reportColProject" />
                   <col class="reportColModels" />
-                  <col class="reportColMoney" />
                   <col class="reportColShare" />
-                  <col class="reportColDays" />
                   <col class="reportColTokens" />
                   <col class="reportColTokens" />
                 </colgroup>
@@ -283,9 +304,7 @@
                   <tr>
                     <th class="sortable" data-label="Project" data-sort-key="project_name" scope="col">Project</th>
                     <th data-label="Models" scope="col">Models</th>
-                    <th class="num sortable colCostActual" data-label="Actual (USD)" data-sort-key="actual_cost_usd_total" scope="col"><span class="costPill costPill--actual">Actual</span><span class="thLabel">Cost</span></th>
                     <th class="num" scope="col">Share</th>
-                    <th class="num sortable" data-label="Days" data-sort-key="actual_days" scope="col">Days</th>
                     <th class="num sortable" data-label="Input tokens" data-sort-key="input_tokens" scope="col">Input tokens</th>
                     <th class="num sortable" data-label="Output tokens" data-sort-key="output_tokens" scope="col">Output tokens</th>
                   </tr>
@@ -1027,6 +1046,7 @@
         renderAtAGlance(report);
         updateReportQualityStrip(report);
         renderExecutiveOverview(report);
+        renderProjectSummaries(report);
         renderProjectBreakdown(report);
         renderCharts(report);
         renderTables(report);
@@ -1150,7 +1170,7 @@
         const rows = getSortedProjectBreakdown();
         tbody.innerHTML = '';
         if (!rows.length) {
-          tbody.innerHTML = '<tr><td colspan="7" class="muted emptyRow">No projects in selected scope.</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="5" class="muted emptyRow">No projects in selected scope.</td></tr>';
           return;
         }
         const totalCost = rows.reduce((s, r) => s + Number(r.actual_cost_usd_total ?? 0), 0);
@@ -1173,15 +1193,84 @@
           tr.innerHTML = `
             <td class="tdText">${projectName}${costHref ? ` <a class="drillLink" href="${costHref}" title="Open in Cost">Cost →</a>` : ''}</td>
             <td class="tdModelName" title="${escapeHtml(modelName)}">${modelHtml}${tokenOnly ? '<span class="rowBadge">token-only</span>' : ''}</td>
-            <td class="num mono tdCostActual">${fmtCostCell(r.actual_cost_usd_total)}</td>
             <td class="num shareCol">${renderShareBar(share)}</td>
-            <td class="num">${fmt(r.actual_days)}</td>
             <td class="num">${inTok == null ? '—' : fmtInt(inTok)}</td>
             <td class="num">${outTok == null ? '—' : fmtInt(outTok)}</td>
           `;
           tbody.appendChild(tr);
         }
         updateProjectBreakdownHeaderLabels();
+      }
+
+      function renderProjectSummaries(report) {
+        const tbody = document.getElementById('projectSummariesTbody');
+        const metaEl = document.getElementById('projectSummariesMeta');
+        const insightEl = document.getElementById('projectSummariesInsight');
+        if (!tbody) return;
+
+        const payload = report?.project_daily_cost || {};
+        const summaries = Array.isArray(payload.summaries) ? payload.summaries : [];
+        const currency = payload.currency || report.currency || 'USD';
+        const q = report.scope_quality || {};
+        const start = q.cost_start_date || document.getElementById('startDate')?.value;
+        const end = q.cost_end_date || document.getElementById('endDate')?.value;
+        const rangeLabel = start && end ? `${start} – ${end}` : start || end || 'selected scope';
+
+        if (metaEl) {
+          metaEl.textContent = summaries.length
+            ? `${currency} · ${summaries.length} project${summaries.length === 1 ? '' : 's'}`
+            : '';
+        }
+        if (insightEl) {
+          insightEl.textContent = summaries.length
+            ? `Average daily billing per project (${rangeLabel}).`
+            : `No billing in ${rangeLabel}.`;
+        }
+
+        tbody.innerHTML = '';
+        if (!summaries.length) {
+          tbody.innerHTML = '<tr><td colspan="4" class="muted emptyRow">No billing in selected scope.</td></tr>';
+          return;
+        }
+
+        for (const row of summaries) {
+          const tr = document.createElement('tr');
+          tr.classList.add('dashRowSelectable');
+          const name = String(row.project_name || '');
+          const costHref = name ? `/?project=${encodeURIComponent(name)}` : null;
+          tr.innerHTML = `
+            <td class="tdText">${escapeHtml(name)}${costHref ? ` <a class="drillLink" href="${costHref}" title="Open in Cost">Cost →</a>` : ''}</td>
+            <td class="num mono tdCostActual">${fmtCostCell(row.total_cost_usd)}</td>
+            <td class="num">${fmt(row.billed_days)}</td>
+            <td class="num mono tdCostActual">${fmtCostCell(row.avg_daily_cost_usd)}</td>
+          `;
+          tbody.appendChild(tr);
+        }
+      }
+
+      function exportProjectSummariesCsv() {
+        const payload = lastReport?.project_daily_cost || {};
+        const summaries = Array.isArray(payload.summaries) ? payload.summaries : [];
+        const header = ['project_name', 'total_cost_usd', 'billed_days', 'avg_daily_cost_usd', 'currency'];
+        const lines = [header.join(',')];
+        const currency = payload.currency || lastReport?.currency || '';
+        for (const row of summaries) {
+          lines.push(
+            [
+              csvEscapeCell(row.project_name),
+              csvEscapeCell(row.total_cost_usd),
+              csvEscapeCell(row.billed_days),
+              csvEscapeCell(row.avg_daily_cost_usd),
+              csvEscapeCell(currency),
+            ].join(',')
+          );
+        }
+        const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'project-daily-average-billing.csv';
+        a.click();
+        URL.revokeObjectURL(a.href);
       }
 
       function renderProjectBreakdown(report) {
@@ -1209,22 +1298,21 @@
         const rows = getSortedProjectBreakdown();
         const header = [
           'project_name',
-          'actual_cost_usd_total',
-          'actual_days',
-          'currency',
+          'share_pct',
           'token_models',
           'input_tokens',
           'output_tokens',
         ];
+        const totalCost = rows.reduce((s, r) => s + Number(r.actual_cost_usd_total ?? 0), 0);
         const lines = [header.join(',')];
         for (const r of rows) {
           const models = Array.isArray(r.token_models) ? r.token_models.join('; ') : '';
+          const cost = Number(r.actual_cost_usd_total ?? 0);
+          const share = totalCost > 0 ? (cost / totalCost) * 100 : '';
           lines.push(
             [
               csvEscapeCell(r.project_name),
-              csvEscapeCell(r.actual_cost_usd_total),
-              csvEscapeCell(r.actual_days),
-              csvEscapeCell(r.currency),
+              csvEscapeCell(share === '' ? '' : Number(share.toFixed(2))),
               csvEscapeCell(models),
               csvEscapeCell(r.input_tokens ?? ''),
               csvEscapeCell(r.output_tokens ?? ''),
@@ -1277,6 +1365,10 @@
         const ex = document.getElementById('exportProjectBreakdownBtn');
         if (ex) {
           ex.addEventListener('click', () => exportProjectBreakdownCsv());
+        }
+        const sumEx = document.getElementById('exportProjectSummariesBtn');
+        if (sumEx) {
+          sumEx.addEventListener('click', () => exportProjectSummariesCsv());
         }
       }
 

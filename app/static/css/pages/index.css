@@ -35,13 +35,13 @@
         font-size: 12px;
         line-height: 1.35;
       }
-      .costModelSection {
+      .costBreakdownSection {
         margin-top: 14px;
         display: flex;
         flex-direction: column;
         gap: 12px;
       }
-      .costModelSection[hidden] {
+      .costBreakdownSection[hidden] {
         display: none !important;
       }
       .modelTableHint {
@@ -416,10 +416,10 @@
 
 /* Cost dashboard — finance MIS layout */
 .costDashboard {
-  --cost-gap: 16px;
-  --cost-gutter: 14px;
+  --cost-gap: 10px;
+  --cost-gutter: 10px;
   --cost-gap-sm: var(--cost-gutter);
-  --cost-control-h: 40px;
+  --cost-control-h: 34px;
   --cost-chart-h: clamp(260px, 32vh, 336px);
   --cost-chart-h-tall: clamp(280px, 34vh, 360px);
   display: grid;
@@ -431,7 +431,7 @@
 /* —— Page chrome —— */
 .costPageHeader {
   margin: 0;
-  padding: 6px 4px 2px;
+  padding: 2px 2px 0;
   border: none;
   background: transparent;
   box-shadow: none;
@@ -443,17 +443,17 @@
 }
 
 .costPageHeader .pageTitle {
-  font-size: clamp(20px, 2.4vw, 24px);
+  font-size: clamp(18px, 2.2vw, 22px);
   font-weight: 800;
-  margin: 4px 0 0;
+  margin: 2px 0 0;
 }
 
 .costPageHeader .pageDesc {
   display: block;
-  margin: 6px 0 0;
+  margin: 4px 0 0;
   max-width: 62ch;
-  line-height: 1.5;
-  font-size: 12px;
+  line-height: 1.4;
+  font-size: 11.5px;
   color: var(--text-muted);
 }
 
@@ -471,23 +471,23 @@
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 16px;
+  gap: 12px;
   flex-wrap: wrap;
-  margin-top: 4px;
+  margin-top: 0;
 }
 
 .costSourceNote {
   margin: 0;
-  font-size: 11.5px;
+  font-size: 11px;
   white-space: nowrap;
   flex-shrink: 0;
   align-self: flex-start;
-  padding-top: 4px;
+  padding-top: 2px;
 }
 
 /* —— Filter card —— */
 .costDashboard .costFilterCard {
-  padding: 14px 16px;
+  padding: 8px 12px 10px;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.03));
 }
 
@@ -495,11 +495,23 @@
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  gap: 12px;
+  gap: 10px;
   flex-wrap: wrap;
-  margin-bottom: 12px;
-  padding-bottom: 10px;
-  border-bottom: 1px solid rgba(173, 196, 228, 0.12);
+  margin-bottom: 8px;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.costDashboard .filterCardHead--compact {
+  margin-bottom: 6px;
+}
+
+.costDashboard .filterCardHead--compact .filterCardTitle {
+  font-size: 11px;
+}
+
+.costDashboard .filterCardHead--compact .filterCardHint {
+  font-size: 10.5px;
 }
 
 .costDashboard .filterCardTitle {
@@ -517,14 +529,59 @@
 }
 
 .costDashboard .costToolbarGrid {
-  display: grid;
-  grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.95fr) minmax(0, 1.4fr) auto;
-  gap: var(--cost-gutter);
-  align-items: end;
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: flex-end;
+  gap: 8px 10px;
+  min-width: 0;
 }
 
-.costDashboard .costToolbarGrid--noSubproject {
-  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1.4fr) auto;
+.costDashboard .costToolbarGrid > .field {
+  min-width: 0 !important;
+}
+
+.costDashboard .costToolbarGrid > .filterFieldProject {
+  flex: 1.15 1 160px;
+  min-width: 0;
+}
+
+.costDashboard .costToolbarGrid > .subprojectField {
+  flex: 0.9 1 130px;
+  min-width: 0;
+  max-width: 220px;
+}
+
+.costDashboard .costToolbarGrid > .subprojectField[hidden] {
+  display: none !important;
+}
+
+.costDashboard .costToolbarGrid--noSubproject > .subprojectField {
+  display: none !important;
+}
+
+.costDashboard .costToolbarGrid > .filterFieldDateRange {
+  flex: 1.35 1 240px;
+  min-width: 0;
+}
+
+.costDashboard .costToolbarGrid > .toolbarActions {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: flex-end;
+  margin-left: 0;
+}
+
+.costDashboard .costToolbarGrid .dateRangePicker {
+  width: 100%;
+  min-width: 0;
+}
+
+.costDashboard .costToolbarGrid .dateRangePickerInputs {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
 }
 
 .costDashboard .subprojectField select {
@@ -566,8 +623,8 @@
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 8px 12px;
-  padding: 10px 14px;
+  gap: 6px 10px;
+  padding: 6px 10px;
 }
 
 .costNavLabel {
@@ -604,16 +661,16 @@
 .costZone {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
   scroll-margin-top: 72px;
 }
 
 .costSectionHead {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
-  gap: 10px 14px;
+  gap: 8px 12px;
   align-items: start;
-  padding-bottom: 10px;
+  padding-bottom: 8px;
   border-bottom: 1px solid rgba(173, 196, 228, 0.12);
 }
 
@@ -663,9 +720,58 @@
   gap: var(--cost-gutter);
 }
 
+.costFinBlock {
+  scroll-margin-top: 72px;
+}
+
+.costFinFlowNote {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.costFinPrimaryKpi {
+  margin-top: 2px;
+}
+
+.costFinBenchmarkKpi {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-top: 2px;
+  padding-top: 10px;
+  border-top: 1px dashed rgba(173, 196, 228, 0.14);
+}
+
+.monitorKpi--hero {
+  border-color: rgba(94, 234, 212, 0.32);
+  background: linear-gradient(
+    145deg,
+    rgba(94, 234, 212, 0.08) 0%,
+    rgba(255, 255, 255, 0.04) 55%
+  );
+}
+
+.monitorKpi--hero .value {
+  font-size: clamp(24px, 2.4vw, 32px);
+  font-weight: 700;
+}
+
+.monitorKpi .value--md {
+  font-size: clamp(18px, 1.8vw, 22px);
+}
+
+.monitorKpi .value--text {
+  font-size: clamp(14px, 1.4vw, 16px);
+  font-weight: 650;
+  letter-spacing: 0.01em;
+}
+
+.costModelCharts {
+  margin-top: 4px;
+}
+
 .monitorKpi {
-  padding: 14px 16px;
-  min-height: 96px;
+  padding: 10px 12px;
+  min-height: 82px;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -883,25 +989,31 @@
 .costDashboard .filterField {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 3px;
   min-width: 0;
 }
 
-.costDashboard .filterFieldProject .projectModelHint {
-  margin: 0;
+.costDashboard .filterFieldProject .projectModelHint,
+.costDashboard .costScopeMeta {
+  margin: 6px 0 0;
   min-height: 0;
-  font-size: 11px;
+  font-size: 10.5px;
   line-height: 1.35;
   color: var(--text-subtle, #7a8fa8);
 }
 
+.costDashboard .costScopeMeta:not(:empty) {
+  padding-top: 4px;
+  border-top: 1px solid rgba(173, 196, 228, 0.08);
+}
+
 .costDashboard .filterFieldProject .projectModelHint:not(:empty) {
-  min-height: 1.35em;
-  margin-bottom: 1px;
+  min-height: 0;
+  margin-bottom: 0;
 }
 
 .costDashboard .filterLabel {
-  font-size: 10px;
+  font-size: 9.5px;
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -910,21 +1022,36 @@
 
 .costDashboard .filterBar select,
 .costDashboard .filterBar input[type="date"] {
-  min-height: 40px;
+  min-height: var(--cost-control-h);
   width: 100%;
-  font-size: 13px;
-  border-radius: 8px;
+  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: 7px;
   background: var(--surface-2);
   border-color: var(--border);
 }
 
+.costDashboard .dateRangePickerInputs {
+  gap: 4px;
+}
+
+.costDashboard .dateRangePickerSep {
+  font-size: 12px;
+}
+
+.costDashboard .dateRangePickerToggle {
+  width: 32px;
+  min-height: var(--cost-control-h);
+  border-radius: 7px;
+}
+
 .costDashboard .filterBar .btnApply {
-  min-height: 40px;
+  min-height: var(--cost-control-h);
   align-self: end;
-  padding: 0 20px;
-  font-size: 13px;
+  padding: 0 16px;
+  font-size: 12px;
   font-weight: 700;
-  border-radius: 8px;
+  border-radius: 7px;
   border-color: rgba(20, 184, 166, 0.5);
   background: rgba(20, 184, 166, 0.18);
   transition: background-color 140ms ease, border-color 140ms ease, opacity 140ms ease;
@@ -1112,12 +1239,51 @@
   pointer-events: none;
 }
 
-.costDashboard .costModelSection {
+.costDashboard .costBreakdownSection {
   margin-top: 4px;
   gap: var(--cost-gap-sm);
 }
 
-.costDashboard .costResourceSection[hidden] {
+.costBreakdownNav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+  margin: 0 0 12px;
+  font-size: 12px;
+}
+
+.costBreakdownNavLink {
+  color: var(--accent, #38bdf8);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.costBreakdownNavLink:hover {
+  text-decoration: underline;
+}
+
+.costBreakdownNavSep {
+  opacity: 0.45;
+  user-select: none;
+}
+
+.costBreakdownPanel + .costBreakdownPanel {
+  margin-top: calc(var(--cost-gutter) + 4px);
+  padding-top: calc(var(--cost-gutter) + 4px);
+  border-top: 1px solid color-mix(in srgb, var(--border, #334155) 55%, transparent);
+}
+
+.costBreakdownPanel[hidden] {
+  display: none !important;
+}
+
+.costBreakdownPanelHint {
+  margin: 0;
+  max-width: 42rem;
+}
+
+.costDashboard .costBreakdownSection[hidden] {
   display: none !important;
 }
 
@@ -1393,7 +1559,7 @@
   font-size: 11px;
 }
 
-.costDashboard .costModelSection[hidden] {
+.costDashboard .costBreakdownSection[hidden] {
   display: none !important;
 }
 
@@ -1688,6 +1854,10 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .costFinBenchmarkKpi {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .costKpiBoard {
     grid-template-columns: 1fr;
   }
@@ -1697,29 +1867,23 @@
   }
 }
 
-@media (max-width: 900px) {
-  .costDashboard .costToolbarGrid,
-  .costDashboard .costToolbarGrid--noSubproject {
-    grid-template-columns: 1fr 1fr;
+@media (max-width: 820px) {
+  .costDashboard .costToolbarGrid {
+    flex-wrap: wrap;
   }
 
-  .costDashboard .filterFieldProject {
-    grid-column: 1 / -1;
+  .costDashboard .costToolbarGrid > .filterFieldProject,
+  .costDashboard .costToolbarGrid > .subprojectField,
+  .costDashboard .costToolbarGrid > .filterFieldDateRange {
+    flex: 1 1 100%;
+    max-width: none;
   }
 
-  .costDashboard .subprojectField {
-    grid-column: 1 / -1;
+  .costDashboard .costToolbarGrid > .toolbarActions {
+    flex: 1 1 100%;
   }
 
-  .costDashboard .filterFieldDateRange {
-    grid-column: 1 / -1;
-  }
-
-  .costDashboard .toolbarActions {
-    grid-column: 1 / -1;
-  }
-
-  .costDashboard .toolbarActions .btnApply {
+  .costDashboard .costToolbarGrid > .toolbarActions .btnApply {
     width: 100%;
   }
 }

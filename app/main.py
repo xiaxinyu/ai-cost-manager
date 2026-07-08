@@ -23,6 +23,7 @@ from .db import (
     get_project_model_config,
     get_all_currencies,
     get_all_financial_stats,
+    get_financial_project_daily_cost,
     get_all_catalog_market_breakdown,
     get_available_currencies,
     get_connection,
@@ -82,6 +83,7 @@ from .insights import (
 
 class ImportRunRequest(BaseModel):
     reimport_changed: bool = False
+    reimport_force: bool = False
     file_path_rels: Optional[list[str]] = None
 
 
@@ -350,6 +352,32 @@ def create_app(
                     "projects_with_imported_tokens": token_projects,
                     "project_details": details,
                 }
+            )
+        finally:
+            conn.close()
+
+    @app.get("/api/billing/projects-summary")
+    def api_billing_projects_summary(
+        from_date: Optional[str] = Query(default=None, description="YYYY-MM-DD"),
+        to_date: Optional[str] = Query(default=None, description="YYYY-MM-DD"),
+        currency: Optional[str] = Query(default=None, description="Currency code"),
+        _: str = Depends(_auth_dep),
+    ) -> JSONResponse:
+        from_date, to_date = _normalize_date_range(
+            from_date,
+            to_date,
+            start_name="from_date",
+            end_name="to_date",
+        )
+        conn = get_connection(db_path)
+        try:
+            return JSONResponse(
+                get_financial_project_daily_cost(
+                    conn,
+                    start_date=from_date,
+                    end_date=to_date,
+                    currency=currency,
+                )
             )
         finally:
             conn.close()
@@ -915,7 +943,10 @@ def create_app(
 
             if req.file_path_rels is None:
                 billing_result = ingest_all(
-                    bills_dir=bills_dir, db_path=db_path, reimport_changed=req.reimport_changed
+                    bills_dir=bills_dir,
+                    db_path=db_path,
+                    reimport_changed=req.reimport_changed,
+                    reimport_force=req.reimport_force,
                 )
                 token_result = ingest_token_all(
                     bills_dir=bills_dir, db_path=db_path, reimport_changed=req.reimport_changed
@@ -929,6 +960,7 @@ def create_app(
                     db_path=db_path,
                     file_path_rels=billing_paths,
                     reimport_changed=req.reimport_changed,
+                    reimport_force=req.reimport_force,
                 )
                 token_result = ingest_token_selected(
                     bills_dir=bills_dir,

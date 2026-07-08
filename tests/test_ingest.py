@@ -153,3 +153,78 @@ def test_billing_natural_key_distinct_resources_same_meter(tmp_path):
     finally:
         conn.close()
 
+
+def test_billing_forecast_only_row_does_not_erase_actual_cost(tmp_path):
+    """Azure daily exports may append a forecast-only row for the same UsageDate."""
+    bills_dir = tmp_path / "bills"
+    project_dir = bills_dir / "RG-HK-S56-DEP"
+    project_dir.mkdir(parents=True, exist_ok=True)
+    (project_dir / "cost-2026-7-7.csv").write_text(
+        '"UsageDate","CostUSD","Cost","ForecastCost","Currency"\n'
+        '"2026-07-07","14.88278316","14.88278316","","USD"\n'
+        '"2026-07-07","","","0","USD"\n'
+        '"2026-07-08","","","15.123807635999999","USD"\n',
+        encoding="utf-8",
+    )
+    db_path = tmp_path / "cost_mgmt.sqlite3"
+    r = ingest_all(bills_dir=bills_dir, db_path=db_path, reimport_changed=False)
+    assert r.rows_inserted == 2
+
+    conn = sqlite3.connect(db_path)
+    try:
+        rows = conn.execute(
+            """
+            SELECT usage_date, cost_usd, forecast_cost
+            FROM transactions
+            WHERE project_name = 'RG-HK-S56-DEP'
+            ORDER BY usage_date
+            """
+        ).fetchall()
+        assert len(rows) == 2
+        assert rows[0][0] == "2026-07-07"
+        assert abs(float(rows[0][1]) - 14.88278316) < 1e-6
+        assert rows[1][0] == "2026-07-08"
+        assert rows[1][1] is None
+        assert abs(float(rows[1][2]) - 15.123807635999999) < 1e-6
+        total = conn.execute(
+            "SELECT SUM(cost_usd) FROM transactions WHERE project_name = 'RG-HK-S56-DEP'"
+        ).fetchone()[0]
+        assert abs(float(total) - 14.88278316) < 1e-6
+    finally:
+        conn.close()
+
+
+def test_billing_reimport_force_reprocesses_unchanged_checksum(tmp_path):
+    bills_dir = tmp_path / "bills"
+    project_dir = bills_dir / "projForce"
+    project_dir.mkdir(parents=True, exist_ok=True)
+    csv_path = project_dir / "day.csv"
+    csv_path.write_text(
+        '"UsageDate","CostUSD","Cost","ForecastCost","Currency"\n'
+        '"2026-07-07","14.88278316","14.88278316","","USD"\n'
+        '"2026-07-07","","","0","USD"\n',
+        encoding="utf-8",
+    )
+    db_path = tmp_path / "cost_mgmt.sqlite3"
+
+    r1 = ingest_all(bills_dir=bills_dir, db_path=db_path, reimport_changed=False)
+    assert r1.files_ingested == 1
+
+    conn = sqlite3.connect(db_path)
+    try:
+        assert conn.execute("SELECT cost_usd FROM transactions").fetchone()[0] == 14.88278316
+        conn.execute("UPDATE transactions SET cost_usd = NULL, cost = NULL")
+        conn.commit()
+        assert conn.execute("SELECT cost_usd FROM transactions").fetchone()[0] is None
+    finally:
+        conn.close()
+
+    r2 = ingest_all(bills_dir=bills_dir, db_path=db_path, reimport_force=True)
+    assert r2.files_ingested == 1
+
+    conn = sqlite3.connect(db_path)
+    try:
+        assert abs(float(conn.execute("SELECT cost_usd FROM transactions").fetchone()[0]) - 14.88278316) < 1e-6
+    finally:
+        conn.close()
+

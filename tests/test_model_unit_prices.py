@@ -528,8 +528,13 @@ def test_catalog_market_cost_timeseries(tmp_path):
     assert "timeseriesChartOutputByModel" in page.text
     assert "inputModelChartFootnote" in page.text
     assert "outputModelChartFootnote" in page.text
-    assert "costModelSection" in page.text
-    assert "cost-overview" in page.text
+    assert "costBreakdownSection" in page.text
+    assert "cost-by-model" in page.text
+    assert "cost-by-resource" in page.text
+    assert "cost-summary" in page.text
+    assert "cost-trends" in page.text
+    assert "avgDailyCost" in page.text
+    assert "costBenchmarkRow" in page.text
     assert "dashSectionNav" in page.text
     assert "data-sort-key" in page.text
 

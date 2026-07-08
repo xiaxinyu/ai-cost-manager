@@ -6,9 +6,9 @@
     <title>Cost - Models Cost Management</title>
     <link rel="stylesheet" href="/static/css/app-shell.css" />
     <link rel="stylesheet" href="/static/css/page-common.css" />
-    <link rel="stylesheet" href="/static/css/pages/index.css?v=20260707-monitor" />
+    <link rel="stylesheet" href="/static/css/pages/index.css?v=20260708-finlayout" />
     <link rel="stylesheet" href="/static/css/layout-pro.css" />
-    <link rel="stylesheet" href="/static/css/dashboard-shared.css?v=20260707-ui" />
+    <link rel="stylesheet" href="/static/css/dashboard-shared.css?v=20260708-compact" />
     <link rel="stylesheet" href="/static/css/date-range-picker.css?v=20260606-drp" />
     <link rel="stylesheet" href="/static/css/insight-panel.css?v=20260706-align" />
   </head>
@@ -25,7 +25,7 @@
               <div>
                 <h1 class="pageTitle">Cost</h1>
                 <p class="pageDesc">
-                  Actual billing vs market list price.
+                  Project cost statement — period totals, daily trends, and allocation.
                   <span class="costPill costPill--actual">Actual</span>
                   <span class="costPill costPill--market">Market</span>
                 </p>
@@ -37,14 +37,13 @@
           </header>
 
           <section class="card costFilterCard filterCard" aria-label="Filters">
-            <div class="filterCardHead">
-              <h2 class="filterCardTitle">Scope</h2>
-              <p class="filterCardHint muted">Project and date range · Enter or Apply to load</p>
+            <div class="filterCardHead filterCardHead--compact">
+              <h2 class="filterCardTitle">Reporting scope</h2>
+              <p class="filterCardHint muted">Project · accounting period · Apply to refresh</p>
             </div>
-            <div class="filterBar controls costToolbarGrid costToolbarGrid--noSubproject" id="costToolbarGrid" role="group" aria-label="Scope filters">
+            <div class="filterBar costToolbarGrid costToolbarGrid--noSubproject" id="costToolbarGrid" role="group" aria-label="Scope filters">
               <div class="field filterField filterFieldProject">
                 <label class="filterLabel" for="projectSelect">Project</label>
-                <p id="projectModelHint" class="projectModelHint muted" aria-live="polite"></p>
                 <select id="projectSelect" title="Folder under bills/ — suffix shows primary deployment model"></select>
               </div>
               <div class="field filterField subprojectField" id="subprojectField" hidden>
@@ -64,131 +63,148 @@
                 <button id="applyFiltersBtn" class="btn btnPrimary btnApply" type="button" aria-busy="false">Apply</button>
               </div>
             </div>
+            <p id="projectModelHint" class="projectModelHint costScopeMeta muted" aria-live="polite"></p>
           </section>
 
           <nav class="dashSectionNav card costNav" aria-label="Cost sections">
-            <span class="dashSectionNavLabel muted">Jump to</span>
-            <a class="dashSectionNavLink" href="#cost-overview">Overview</a>
-            <a class="dashSectionNavLink" href="#costModelSection">Models</a>
-            <a class="dashSectionNavLink" href="#costResourceSection">Billing</a>
+            <span class="dashSectionNavLabel muted">Statement</span>
+            <a class="dashSectionNavLink" href="#cost-summary">Summary</a>
+            <a class="dashSectionNavLink" href="#cost-trends">Trends</a>
+            <a class="dashSectionNavLink" href="#costBreakdownSection">Allocation</a>
           </nav>
 
-          <section id="cost-overview" class="costZone costZone--overview" aria-label="Overview">
+          <section id="cost-summary" class="costZone costFinBlock card" aria-label="Period summary">
             <div class="costSectionHead">
               <span class="costStep" aria-hidden="true">1</span>
               <div class="costSectionHeadMain">
-                <h2 class="costSectionTitle">Overview</h2>
-                <p class="costSectionLead muted" id="costOverviewLead">Totals, daily trends, and model cost charts for the selected scope.</p>
+                <h2 class="costSectionTitle">Summary</h2>
+                <p class="costSectionLead muted" id="costSummaryLead">Period totals for the selected project and date range.</p>
               </div>
               <span class="costSectionMeta muted" id="currencyLabel"></span>
             </div>
 
-            <div class="costMonitorKpi">
-              <article class="card monitorKpi monitorKpi--actual" data-dash-jump="#marketCompareSection" title="Jump to daily billing chart">
+            <p class="costFinFlowNote muted">Actual billing in scope · benchmark row compares token usage to Market list price.</p>
+
+            <div class="costMonitorKpi costFinPrimaryKpi" aria-label="Period totals">
+              <article class="card monitorKpi monitorKpi--actual monitorKpi--hero" data-dash-jump="#cost-trends" title="Jump to daily trends">
                 <div class="stat">
                   <div class="label"><span class="costPill costPill--actual">Actual</span> Total</div>
                   <div class="value" id="actualCost">-</div>
                   <div class="sub tokenStats kpiFootnote" id="costStats">Max: - · Mean: - · Min: -</div>
                 </div>
               </article>
-              <article class="card monitorKpi monitorKpi--market" id="catalogMarketCard" data-dash-jump="#costModelSection" title="Jump to model breakdown">
+              <article class="card monitorKpi monitorKpi--rate">
                 <div class="stat">
-                  <div class="label"><span class="costPill costPill--market">Market</span> Total</div>
+                  <div class="label">Avg / day</div>
+                  <div class="value value--md" id="avgDailyCost">-</div>
+                  <div class="sub tokenStats kpiFootnote">Total ÷ billed days</div>
+                </div>
+              </article>
+              <article class="card monitorKpi monitorKpi--days">
+                <div class="stat">
+                  <div class="label">Billed days</div>
+                  <div class="value value--md" id="billedDaysCount">-</div>
+                  <div class="sub tokenStats kpiFootnote">Days with non-zero spend</div>
+                </div>
+              </article>
+              <article class="card monitorKpi monitorKpi--period">
+                <div class="stat">
+                  <div class="label">Period</div>
+                  <div class="value value--md value--scope" id="dateRange">-</div>
+                  <div class="sub tokenStats kpiFootnote" id="periodFootnote">Data range in scope</div>
+                </div>
+              </article>
+            </div>
+
+            <div class="costMonitorKpi costFinBenchmarkKpi" id="costBenchmarkRow" hidden aria-label="Market benchmark">
+              <article class="card monitorKpi monitorKpi--market" id="catalogMarketCard" data-dash-jump="#cost-by-model" title="Jump to model allocation">
+                <div class="stat">
+                  <div class="label"><span class="costPill costPill--market">Market</span> Reference</div>
                   <div class="value" id="catalogMarketTotal">-</div>
                   <div class="sub tokenStats kpiFootnote" id="catalogMarketNote">Tokens × list USD/1M</div>
                 </div>
               </article>
               <article class="card monitorKpi monitorKpi--delta" id="catalogVarianceCard">
                 <div class="stat">
-                  <div class="label">Actual − Market</div>
+                  <div class="label">Variance</div>
                   <div class="value value--md" id="catalogVariancePct">-</div>
-                  <div class="sub tokenStats kpiFootnote" id="catalogVarianceNote">Variance</div>
+                  <div class="sub tokenStats kpiFootnote" id="catalogVarianceNote">Actual − Market</div>
                 </div>
               </article>
-              <article class="card monitorKpi monitorKpi--scope">
+              <article class="card monitorKpi monitorKpi--benchmarkMeta">
                 <div class="stat">
-                  <div class="label">Scope</div>
-                  <div class="value value--md value--scope" id="dateRange">-</div>
-                  <div class="sub tokenStats kpiFootnote" id="daysCount">Days: -</div>
+                  <div class="label">Benchmark</div>
+                  <div class="value value--md value--text">List price</div>
+                  <div class="sub tokenStats kpiFootnote">From <a href="/prices">Model Prices</a> · not an invoice</div>
                 </div>
               </article>
             </div>
 
-            <div id="subprojectCostStrip" class="costSubprojectStrip" hidden aria-label="Cost by subproject">
-              <p class="costSubprojectStripLead muted">Cost by subproject (Azure resource)</p>
+            <div id="subprojectCostStrip" class="costSubprojectStrip" hidden aria-label="Segment totals">
+              <p class="costSubprojectStripLead muted">Segments — cost by Azure resource (click to filter scope)</p>
               <div id="subprojectCostCards" class="costSubprojectCards"></div>
             </div>
 
             <div id="costInsightPanel" class="insightPanel" hidden aria-label="Cost insights"></div>
+          </section>
 
-            <div class="costMonitorGrid" aria-label="Cost charts">
-              <article class="card monitorCard monitorCard--primary" id="marketCompareSection">
-                <header class="monitorCardHead">
-                  <div>
-                    <h3 class="monitorCardTitle">Daily billing</h3>
-                    <p class="monitorCardDesc muted" id="marketChartHint">Actual billing per day.</p>
-                  </div>
-                  <div class="costTypeLegend monitorCardLegend" aria-label="Cost type">
-                    <span class="costPill costPill--actual">Actual</span>
-                    <span class="costLegendSep" aria-hidden="true"></span>
-                    <span class="costPill costPill--market costPill--dashed">Market</span>
-                  </div>
-                </header>
-                <div class="chartCanvasHost monitorChartHost" data-chart-host>
-                  <canvas id="timeseriesChartMarket" role="img" aria-label="Daily billing chart"></canvas>
-                </div>
-                <footer class="monitorCardFoot muted" id="costChartFootnote">—</footer>
-              </article>
-              <article class="card monitorCard" id="inputModelChartCard" hidden>
-                <header class="monitorCardHead">
-                  <div>
-                    <h3 class="monitorCardTitle">Input cost by model</h3>
-                    <p class="monitorCardDesc muted">Meter input (inp) billing per model/day.</p>
-                  </div>
-                  <span class="costPill costPill--actual">Actual</span>
-                </header>
-                <div class="chartCanvasHost monitorChartHost" data-chart-host>
-                  <canvas id="timeseriesChartInputByModel" role="img" aria-label="Input cost by model"></canvas>
-                </div>
-                <footer class="monitorCardFoot muted" id="inputModelChartFootnote" hidden></footer>
-              </article>
-              <article class="card monitorCard" id="outputModelChartCard" hidden>
-                <header class="monitorCardHead">
-                  <div>
-                    <h3 class="monitorCardTitle">Output cost by model</h3>
-                    <p class="monitorCardDesc muted">Meter output (opt) billing per model/day.</p>
-                  </div>
-                  <span class="costPill costPill--actual">Actual</span>
-                </header>
-                <div class="chartCanvasHost monitorChartHost" data-chart-host>
-                  <canvas id="timeseriesChartOutputByModel" role="img" aria-label="Output cost by model"></canvas>
-                </div>
-                <footer class="monitorCardFoot muted" id="outputModelChartFootnote" hidden></footer>
-              </article>
+          <section id="cost-trends" class="costZone costFinBlock card" aria-label="Spend trends">
+            <div class="costSectionHead">
+              <span class="costStep" aria-hidden="true">2</span>
+              <div class="costSectionHeadMain">
+                <h2 class="costSectionTitle">Trends</h2>
+                <p class="costSectionLead muted" id="costTrendsLead">Daily actual spend over the reporting period.</p>
+              </div>
             </div>
+            <article class="card monitorCard monitorCard--primary costTrendCard" id="marketCompareSection">
+              <header class="monitorCardHead">
+                <div>
+                  <h3 class="monitorCardTitle">Daily spend</h3>
+                  <p class="monitorCardDesc muted" id="marketChartHint">Actual billing per day.</p>
+                </div>
+                <div class="costTypeLegend monitorCardLegend" aria-label="Cost type">
+                  <span class="costPill costPill--actual">Actual</span>
+                  <span class="costLegendSep" aria-hidden="true"></span>
+                  <span class="costPill costPill--market costPill--dashed">Market</span>
+                </div>
+              </header>
+              <div class="chartCanvasHost monitorChartHost" data-chart-host>
+                <canvas id="timeseriesChartMarket" role="img" aria-label="Daily billing chart"></canvas>
+              </div>
+              <footer class="monitorCardFoot muted" id="costChartFootnote">—</footer>
+            </article>
           </section>
 
           <div class="costZones">
 
-            <section class="costZone costZone--models costModelSection" id="costModelSection" hidden aria-label="Model breakdown">
+            <section class="costZone costBreakdownSection card costFinBlock" id="costBreakdownSection" hidden aria-label="Cost allocation">
               <div class="costSectionHead">
-                <span class="costStep" aria-hidden="true">2</span>
+                <span class="costStep" aria-hidden="true">3</span>
                 <div class="costSectionHeadMain">
-                  <h2 class="costSectionTitle">Models</h2>
-                  <p class="costSectionLead muted">Meter-matched billing by model. Market list from <a href="/prices">Model Prices</a>.</p>
+                  <h2 class="costSectionTitle">Allocation</h2>
+                  <p class="costSectionLead muted">Where spend lands — by model (usage) and by Azure resource (infrastructure).</p>
                 </div>
-                <span class="costSectionMeta muted" id="modelSectionHint"></span>
               </div>
+              <nav class="costBreakdownNav muted" aria-label="Allocation views">
+                <a class="costBreakdownNavLink" href="#cost-by-model">By model</a>
+                <span class="costBreakdownNavSep" aria-hidden="true">·</span>
+                <a class="costBreakdownNavLink" href="#cost-by-resource">By resource</a>
+                <span class="costBreakdownNavSep" aria-hidden="true">·</span>
+                <a class="costBreakdownNavLink" href="#cost-line-items">Line items</a>
+              </nav>
 
-              <section class="detailTableBlock" aria-label="Model totals">
+              <div id="costByModelBlock" class="costBreakdownPanel" hidden aria-label="By model">
+              <section class="detailTableBlock" id="cost-by-model" aria-label="By model">
                 <header class="detailTableHead">
                   <div class="detailTableIdentity">
                     <h3 class="detailTableTitle">By model</h3>
                     <p class="detailTableDesc muted modelTableHint">
                       Actual vs Market totals. <span class="costPill costPill--actual">Others</span> = non-token billing.
+                      List prices from <a href="/prices">Model Prices</a>.
                     </p>
                   </div>
                   <div class="detailTableActions">
+                    <span id="modelSectionHint" class="detailTableDesc muted costBreakdownPanelHint" hidden></span>
                     <span id="modelTableBadge" class="tableRowBadge muted" hidden></span>
                   </div>
                 </header>
@@ -229,12 +245,41 @@
                 </div>
               </section>
 
-              <section class="detailTableBlock" aria-label="Billing detail by model">
+              <div class="costModelCharts costMonitorGrid" id="costModelChartsRow" aria-label="Model spend trends" hidden>
+                <article class="card monitorCard" id="inputModelChartCard" hidden>
+                  <header class="monitorCardHead">
+                    <div>
+                      <h3 class="monitorCardTitle">Input by model</h3>
+                      <p class="monitorCardDesc muted">Meter input (inp) per day.</p>
+                    </div>
+                    <span class="costPill costPill--actual">Actual</span>
+                  </header>
+                  <div class="chartCanvasHost monitorChartHost" data-chart-host>
+                    <canvas id="timeseriesChartInputByModel" role="img" aria-label="Input cost by model"></canvas>
+                  </div>
+                  <footer class="monitorCardFoot muted" id="inputModelChartFootnote" hidden></footer>
+                </article>
+                <article class="card monitorCard" id="outputModelChartCard" hidden>
+                  <header class="monitorCardHead">
+                    <div>
+                      <h3 class="monitorCardTitle">Output by model</h3>
+                      <p class="monitorCardDesc muted">Meter output (opt) per day.</p>
+                    </div>
+                    <span class="costPill costPill--actual">Actual</span>
+                  </header>
+                  <div class="chartCanvasHost monitorChartHost" data-chart-host>
+                    <canvas id="timeseriesChartOutputByModel" role="img" aria-label="Output cost by model"></canvas>
+                  </div>
+                  <footer class="monitorCardFoot muted" id="outputModelChartFootnote" hidden></footer>
+                </article>
+              </div>
+
+              <section class="detailTableBlock" aria-label="Daily detail by model">
                 <header class="detailTableHead">
                   <div class="detailTableIdentity">
                     <h3 class="detailTableTitle">Daily detail</h3>
                     <p class="detailTableDesc muted">
-                      One row per model/day — tokens, costs, unit $/1M, meter status.
+                      Model/day ledger — tokens, meter costs, and billing match status.
                     </p>
                   </div>
                   <div class="detailTableActions">
@@ -298,25 +343,17 @@
                   </div>
                 </div>
               </section>
-            </section>
-
-            <section class="costZone costZone--billing costResourceSection" id="costResourceSection" hidden aria-label="Billing breakdown">
-              <div class="costSectionHead">
-                <span class="costStep" aria-hidden="true">3</span>
-                <div class="costSectionHeadMain">
-                  <h2 class="costSectionTitle">Billing</h2>
-                  <p class="costSectionLead muted">Azure resource totals and raw CSV line items.</p>
-                </div>
-                <span class="costSectionMeta muted" id="resourceBillingHint"></span>
               </div>
 
-              <section class="detailTableBlock" aria-label="By resource">
+              <div id="costByResourceBlock" class="costBreakdownPanel" hidden aria-label="By resource">
+              <section class="detailTableBlock" id="cost-by-resource" aria-label="By resource">
                 <header class="detailTableHead">
                   <div class="detailTableIdentity">
                     <h3 class="detailTableTitle">By resource</h3>
                     <p class="detailTableDesc muted">Aggregated actual cost per resource and service.</p>
                   </div>
                   <div class="detailTableActions">
+                    <span id="resourceBillingHint" class="detailTableDesc muted costBreakdownPanelHint" hidden></span>
                     <span id="resourceTableBadge" class="tableRowBadge muted" hidden></span>
                   </div>
                 </header>
@@ -357,8 +394,9 @@
                 </div>
                 <p id="resourceBillingSelectionHint" class="tableSelectionHint muted" hidden aria-live="polite"></p>
               </section>
+              </div>
 
-              <details class="costBillingDetails card">
+              <details class="costBillingDetails card" id="cost-line-items">
                 <summary class="costBillingDetailsSummary">
                   <span class="costBillingDetailsTitle">Line items</span>
                   <span id="billingRawBadge" class="tableRowBadge muted">—</span>
@@ -438,13 +476,18 @@
       const subprojectSelect = document.getElementById('subprojectSelect');
       const subprojectField = document.getElementById('subprojectField');
       const costToolbarGrid = document.getElementById('costToolbarGrid');
-      const costOverviewLeadEl = document.getElementById('costOverviewLead');
+      const costSummaryLeadEl = document.getElementById('costSummaryLead');
+      const costTrendsLeadEl = document.getElementById('costTrendsLead');
       const subprojectCostStripEl = document.getElementById('subprojectCostStrip');
       const subprojectCostCardsEl = document.getElementById('subprojectCostCards');
       const actualCostEl = document.getElementById('actualCost');
+      const avgDailyCostEl = document.getElementById('avgDailyCost');
       const costStatsEl = document.getElementById('costStats');
       const dateRangeEl = document.getElementById('dateRange');
-      const daysCountEl = document.getElementById('daysCount');
+      const billedDaysCountEl = document.getElementById('billedDaysCount');
+      const periodFootnoteEl = document.getElementById('periodFootnote');
+      const costBenchmarkRowEl = document.getElementById('costBenchmarkRow');
+      const costModelChartsRowEl = document.getElementById('costModelChartsRow');
       const currencyLabelEl = document.getElementById('currencyLabel');
       const startDateInput = document.getElementById('startDateInput');
       const endDateInput = document.getElementById('endDateInput');
@@ -465,8 +508,9 @@
       const marketCompareSectionEl = document.getElementById('marketCompareSection');
       const catalogMarketCard = document.getElementById('catalogMarketCard');
       const catalogVarianceCard = document.getElementById('catalogVarianceCard');
-      const costModelSectionEl = document.getElementById('costModelSection');
-      const costResourceSectionEl = document.getElementById('costResourceSection');
+      const costBreakdownSectionEl = document.getElementById('costBreakdownSection');
+      const costByModelBlockEl = document.getElementById('costByModelBlock');
+      const costByResourceBlockEl = document.getElementById('costByResourceBlock');
       const resourceBillingHintEl = document.getElementById('resourceBillingHint');
       const resourceTableBadgeEl = document.getElementById('resourceTableBadge');
       const resourceBillingTbodyEl = document.getElementById('resourceBillingTbody');
@@ -613,6 +657,7 @@
       }
 
       function setModelChartCardsVisible(visible) {
+        if (costModelChartsRowEl) costModelChartsRowEl.hidden = !visible;
         if (inputModelChartCardEl) inputModelChartCardEl.hidden = !visible;
         if (outputModelChartCardEl) outputModelChartCardEl.hidden = !visible;
         if (!visible) {
@@ -823,9 +868,18 @@
         }) ?? (onClick ? { onClick } : {});
       }
 
+      function updateBreakdownSectionVisibility() {
+        const modelVisible = costByModelBlockEl && !costByModelBlockEl.hidden;
+        const resourceVisible = costByResourceBlockEl && !costByResourceBlockEl.hidden;
+        if (costBreakdownSectionEl) {
+          costBreakdownSectionEl.hidden = !modelVisible && !resourceVisible;
+        }
+      }
+
       function renderCatalogMarketUi(catalogPayload, costPoints, authoritativeActualTotal) {
         const summary = catalogPayload?.summary || {};
         const available = catalogPayload?.available === true;
+        if (costBenchmarkRowEl) costBenchmarkRowEl.hidden = !available;
         if (catalogMarketCard) catalogMarketCard.style.opacity = available ? '1' : '0.55';
         if (catalogVarianceCard) catalogVarianceCard.style.opacity = available ? '1' : '0.55';
         if (marketCompareSectionEl) marketCompareSectionEl.hidden = false;
@@ -853,7 +907,8 @@
             chartOutputByModel = null;
           }
           setModelChartCardsVisible(false);
-          if (costModelSectionEl) costModelSectionEl.hidden = true;
+          if (costByModelBlockEl) costByModelBlockEl.hidden = true;
+          updateBreakdownSectionVisibility();
           if (modelCostSummaryTbodyEl) modelCostSummaryTbodyEl.innerHTML = '';
           if (modelCostSummaryTfootEl) modelCostSummaryTfootEl.innerHTML = '';
           try {
@@ -991,8 +1046,10 @@
         const show =
           catalogPayload?.available === true && (summary.length > 0 || daily.length > 0);
 
-        if (costModelSectionEl) costModelSectionEl.hidden = !show;
+        if (costByModelBlockEl) costByModelBlockEl.hidden = !show;
+        updateBreakdownSectionVisibility();
         if (!show) {
+          if (modelSectionHintEl) modelSectionHintEl.hidden = true;
           if (chartInputByModel) {
             chartInputByModel.destroy();
             chartInputByModel = null;
@@ -1012,6 +1069,7 @@
         setModelChartCardsVisible(true);
 
         if (modelSectionHintEl) {
+          modelSectionHintEl.hidden = false;
           const n = summary.length;
           const unpriced = catalogPayload.unpriced_models || [];
           const other = catalogPayload?.summary?.billing_other_usd;
@@ -1521,7 +1579,7 @@
           chartInputByModel?.resize?.();
           chartOutputByModel?.resize?.();
         };
-        if (costModelSectionEl && costModelSectionEl.hidden) return;
+        if (costByModelBlockEl && costByModelBlockEl.hidden) return;
         if (inputModelChartCardEl && inputModelChartCardEl.hidden) return;
         requestAnimationFrame(() => requestAnimationFrame(run));
       }
@@ -1749,20 +1807,26 @@
       }
 
       function updateCostScopeLead(projectName, subproject) {
-        if (!costOverviewLeadEl) return;
         const rangeText =
           currentStartDate || currentEndDate
             ? ` · ${currentStartDate || '…'} – ${currentEndDate || '…'}`
             : '';
-        if (subproject) {
-          costOverviewLeadEl.textContent =
-            `Billing and charts for subproject “${subproject}” in ${projectName}${rangeText}.`;
-        } else if (subprojectField && !subprojectField.hidden) {
-          costOverviewLeadEl.textContent =
-            `Project totals across all subprojects${rangeText}. Use the filter to drill into one Azure resource.`;
-        } else {
-          costOverviewLeadEl.textContent =
-            'Totals, daily trends, and model cost charts for the selected scope.';
+        if (costSummaryLeadEl) {
+          if (subproject) {
+            costSummaryLeadEl.textContent =
+              `Period totals for subproject “${subproject}” in ${projectName}${rangeText}.`;
+          } else if (subprojectField && !subprojectField.hidden) {
+            costSummaryLeadEl.textContent =
+              `Project-level totals${rangeText}. Use Segments or the subproject filter to drill down.`;
+          } else {
+            costSummaryLeadEl.textContent =
+              `Period totals for ${projectName}${rangeText}.`;
+          }
+        }
+        if (costTrendsLeadEl) {
+          costTrendsLeadEl.textContent = subproject
+            ? `Daily spend for “${subproject}”${rangeText}.`
+            : `Daily actual spend for ${projectName}${rangeText}.`;
         }
       }
 
@@ -1969,13 +2033,17 @@
       function renderResourceBillingSection(payload) {
         const rows = Array.isArray(payload?.rows) ? payload.rows : [];
         const available = payload?.available === true && rows.length > 0;
-        if (costResourceSectionEl) costResourceSectionEl.hidden = !available;
+        if (costByResourceBlockEl) costByResourceBlockEl.hidden = !available;
+        updateBreakdownSectionVisibility();
         if (!resourceBillingTbodyEl || !resourceBillingTfootEl) return;
 
         if (!available) {
           resourceBillingTbodyEl.replaceChildren();
           resourceBillingTfootEl.replaceChildren();
-          if (resourceBillingHintEl) resourceBillingHintEl.textContent = '';
+          if (resourceBillingHintEl) {
+            resourceBillingHintEl.hidden = true;
+            resourceBillingHintEl.textContent = '';
+          }
           if (resourceTableBadgeEl) resourceTableBadgeEl.hidden = true;
           billingRawTotal = 0;
           if (billingRawTbodyEl) {
@@ -1988,6 +2056,7 @@
 
         const distinctResources = new Set(rows.map((r) => String(r.resource_name || ''))).size;
         if (resourceBillingHintEl) {
+          resourceBillingHintEl.hidden = false;
           resourceBillingHintEl.textContent =
             `${distinctResources} resource(s) · ${rows.length} service line(s)`;
         }
@@ -2298,8 +2367,17 @@
 
         actualCostEl.textContent = fmt2(stats.actual_cost_usd_total);
         dateRangeEl.textContent = `${stats.min_usage_date ?? '-'} ~ ${stats.max_usage_date ?? '-'}`;
-        daysCountEl.textContent = `Days: ${stats.actual_days}`;
-        currencyLabelEl.textContent = `Currency: ${stats.currency ?? '-'}`;
+        const billedDays = Number(stats.actual_days ?? 0);
+        if (billedDaysCountEl) billedDaysCountEl.textContent = billedDays > 0 ? String(billedDays) : '—';
+        const total = Number(stats.actual_cost_usd_total ?? 0);
+        if (avgDailyCostEl) {
+          avgDailyCostEl.textContent =
+            billedDays > 0 && Number.isFinite(total) ? fmt2(total / billedDays) : '—';
+        }
+        if (periodFootnoteEl) {
+          periodFootnoteEl.textContent = stats.currency ? `${stats.currency} · in-scope dates` : 'Data range in scope';
+        }
+        currencyLabelEl.textContent = stats.currency ? `${stats.currency}` : '—';
         currentCurrency = stats.currency ?? null;
 
         if (!startDateInput.value && stats.min_usage_date) {

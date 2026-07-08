@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="/static/css/page-common.css" />
     <link rel="stylesheet" href="/static/css/pages/import.css" />
     <link rel="stylesheet" href="/static/css/layout-pro.css" />
-    <link rel="stylesheet" href="/static/css/dashboard-shared.css?v=20260707-ui" />
+    <link rel="stylesheet" href="/static/css/dashboard-shared.css?v=20260708-import-type" />
   </head>
   <body>
     {% set active_page = 'import' %}
@@ -54,9 +54,9 @@
               <table class="dashTable" id="missingFilesTable">
                 <thead>
                   <tr>
-                    <th style="width:56px; text-align:center;" scope="col"><span class="thLabel">Pick</span></th>
-                    <th style="width:90px;" data-sortable data-sort-type="text" scope="col"><span class="thLabel">Type</span></th>
-                    <th style="width:180px;" data-sortable data-sort-type="text" scope="col"><span class="thLabel">Project</span></th>
+                    <th class="colPick" scope="col"><span class="thLabel">Pick</span></th>
+                    <th class="colType" data-sortable data-sort-type="text" scope="col"><span class="thLabel">Type</span></th>
+                    <th class="colProject" data-sortable data-sort-type="text" scope="col"><span class="thLabel">Project</span></th>
                     <th data-sortable data-sort-type="text" scope="col"><span class="thLabel">File</span></th>
                     <th style="width:200px;" data-sortable data-sort-type="date" scope="col"><span class="thLabel">Last Modified</span></th>
                   </tr>
@@ -74,6 +74,7 @@
               </div>
               <div class="importToolbar">
                 <button id="verifyImportedBtn" class="btnSecondary" type="button" disabled>Verify imported</button>
+                <button id="reimportSelectedBtn" class="btnSecondary" type="button" disabled>Re-import selected</button>
               </div>
             </div>
             <div class="importStatGrid">
@@ -100,9 +101,9 @@
               <table class="dashTable" id="ingestedFilesTable">
                 <thead>
                   <tr>
-                    <th style="width:56px; text-align:center;" scope="col"><span class="thLabel">Verify</span></th>
-                    <th style="width:90px;" scope="col"><span class="thLabel">Type</span></th>
-                    <th style="width:180px;" scope="col"><span class="thLabel">Project</span></th>
+                    <th class="colPick" scope="col"><span class="thLabel">Verify</span></th>
+                    <th class="colType" scope="col"><span class="thLabel">Type</span></th>
+                    <th class="colProject" scope="col"><span class="thLabel">Project</span></th>
                     <th scope="col"><span class="thLabel">File</span></th>
                     <th class="num" style="width:120px;" scope="col"><span class="thLabel">Rows</span><span class="thUnit">count</span></th>
                     <th class="is-sorted" aria-sort="descending" style="width:200px;" scope="col"><span class="thLabel">Ingested</span><span class="thUnit">local time</span></th>
@@ -135,22 +136,37 @@
       const ingestedBreakdownEl = document.getElementById('ingestedBreakdown');
       const ingestedShownNoteEl = document.getElementById('ingestedShownNote');
       const verifyImportedBtn = document.getElementById('verifyImportedBtn');
+      const reimportSelectedBtn = document.getElementById('reimportSelectedBtn');
       const verifyImportedStatus = document.getElementById('verifyImportedStatus');
+
+      function metricShortLabel(name) {
+        const n = String(name || '').toLowerCase();
+        if (n === 'cache_match_rate') return 'cache match';
+        if (n === 'model_requests') return 'requests';
+        if (n === 'avg_latency') return 'latency';
+        return String(name || '').replace(/_/g, '-');
+      }
 
       function fmtKind(f) {
         const kind = (f.file_kind || 'billing').toLowerCase();
         let cls = 'typeBadge--billing';
-        let label = 'Billing';
+        let kindLabel = 'Billing';
+        let detail = '';
         if (kind === 'token') {
           cls = 'typeBadge--token';
-          const dir = f.token_direction ? ` ${f.token_direction}` : '';
-          label = `Token${dir}`;
+          kindLabel = 'Token';
+          const dir = String(f.token_direction || '').toLowerCase();
+          if (dir === 'input' || dir === 'output') detail = dir;
         } else if (kind === 'token_metric') {
           cls = 'typeBadge--metric';
-          const metric = f.metric_name ? ` ${String(f.metric_name).replace(/_/g, '-')}` : '';
-          label = `Metric${metric}`;
+          kindLabel = 'Metric';
+          detail = metricShortLabel(f.metric_name);
         }
-        return `<span class="typeBadge ${cls}">${label}</span>`;
+        const title = detail ? `${kindLabel} · ${detail}` : kindLabel;
+        if (!detail) {
+          return `<span class="typeBadge ${cls}" title="${title.replace(/"/g, '&quot;')}">${kindLabel}</span>`;
+        }
+        return `<span class="typeBadge ${cls}" title="${title.replace(/"/g, '&quot;')}"><span class="typeBadgeKind">${kindLabel}</span><span class="typeBadgeDetail">${detail}</span></span>`;
       }
 
       function bindImportRowToggle(tr, inputSelector) {
@@ -301,11 +317,11 @@
         for (const f of missing) {
           const tr = document.createElement('tr');
           tr.innerHTML = `
-            <td style="text-align:center;">
+            <td class="colPick">
               <input type="checkbox" class="filePick" value="${f.file_path_rel}" ${selectedFiles.has(f.file_path_rel) ? 'checked' : ''} />
             </td>
-            <td>${fmtKind(f)}</td>
-            <td>${f.project_name}</td>
+            <td class="colType">${fmtKind(f)}</td>
+            <td class="colProject">${f.project_name}</td>
             <td class="cellFile" title="${String(f.file_path_rel || '').replace(/"/g, '&quot;')}">${f.file_path_rel}</td>
             <td>${fmtTs(f.source_last_modified)}</td>
           `;
@@ -363,6 +379,45 @@
         } finally {
           setImportLoading(false);
           selectedFiles.clear();
+          ingestedPage = 1;
+          await loadMissingFiles();
+          bindPickEvents();
+          await loadIngestedFiles();
+        }
+      }
+
+      async function runReimportSelected() {
+        const chosen = Array.from(selectedVerifyFiles);
+        if (chosen.length === 0) {
+          if (verifyImportedStatus) {
+            verifyImportedStatus.style.display = 'block';
+            verifyImportedStatus.textContent = 'Please select at least one imported file to re-import.';
+          }
+          return;
+        }
+
+        setImportLoading(true, { activeBtn: reimportSelectedBtn, btnLabel: 'Re-import selected', btnLoadingLabel: 'Re-importing…' });
+        if (verifyImportedStatus) {
+          verifyImportedStatus.style.display = 'block';
+          verifyImportedStatus.textContent = 'Re-importing selected files with updated merge rules…';
+        }
+        try {
+          const data = await window.AppHttp.postJson('/api/import/run', {
+            reimport_force: true,
+            file_path_rels: chosen,
+          });
+          if (data?.verification_passed) {
+            verifyImportedStatus.textContent = `Re-imported ${data.files_ingested ?? 0} file(s); billing ${data.billing_rows_inserted ?? 0} inserted, ${data.billing_rows_updated ?? 0} updated.`;
+          } else {
+            const err = data?.import_error ? String(data.import_error) : 'Unknown verification error';
+            verifyImportedStatus.textContent = `Re-import failed: ${err}`;
+          }
+        } catch (e) {
+          console.error(e);
+          if (verifyImportedStatus) verifyImportedStatus.textContent = 'Re-import request failed';
+        } finally {
+          setImportLoading(false);
+          selectedVerifyFiles.clear();
           ingestedPage = 1;
           await loadMissingFiles();
           bindPickEvents();
@@ -443,17 +498,18 @@
           }
           selectedVerifyFiles.clear();
           if (verifyImportedBtn) verifyImportedBtn.disabled = selectedVerifyFiles.size === 0 || files.length === 0;
+          if (reimportSelectedBtn) reimportSelectedBtn.disabled = selectedVerifyFiles.size === 0 || files.length === 0;
           ingestedFilesTbody.innerHTML = '';
           for (const f of files) {
             const ingestedLabel = fmtIngestedAt(f.ingested_at, f.ingested_at_epoch);
             const ingestedEpoch = f.ingested_at_epoch ?? '';
             const tr = document.createElement('tr');
             tr.innerHTML = `
-              <td style="text-align:center;">
+              <td class="colPick">
                 <input type="checkbox" class="verifyFilePick" value="${f.file_path_rel}" />
               </td>
-              <td>${fmtKind(f)}</td>
-              <td>${f.project_name}</td>
+              <td class="colType">${fmtKind(f)}</td>
+              <td class="colProject">${f.project_name}</td>
               <td class="cellFile" title="${String(f.file_path_rel || '').replace(/"/g, '&quot;')}">${f.file_path_rel}</td>
               <td class="num">${f.row_count}</td>
               <td title="${String(ingestedLabel).replace(/"/g, '&quot;')}">${ingestedLabel}</td>
@@ -502,6 +558,7 @@
             if (e.target.checked) selectedVerifyFiles.add(val);
             else selectedVerifyFiles.delete(val);
             if (verifyImportedBtn) verifyImportedBtn.disabled = selectedVerifyFiles.size === 0;
+            if (reimportSelectedBtn) reimportSelectedBtn.disabled = selectedVerifyFiles.size === 0;
             const tr = e.target.closest('tr');
             if (tr) tr.classList.toggle('is-rowSelected', e.target.checked);
           });
@@ -527,6 +584,9 @@
       importBtn.addEventListener('click', () => runImport());
       if (verifyImportedBtn) {
         verifyImportedBtn.addEventListener('click', () => verifyImported().catch((e) => console.error(e)));
+      }
+      if (reimportSelectedBtn) {
+        reimportSelectedBtn.addEventListener('click', () => runReimportSelected().catch((e) => console.error(e)));
       }
       if (refreshBtn) {
         refreshBtn.addEventListener('click', () => refreshAll().catch((e) => console.error(e)));

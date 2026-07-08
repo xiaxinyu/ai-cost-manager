@@ -4720,6 +4720,125 @@ def _variance(vals: list[float]) -> float:
     return _mean([x * x for x in vals]) - m * m
 
 
+def get_financial_project_daily_cost(
+    conn: sqlite3.Connection,
+    *,
+    start_date: str | None = None,
+    end_date: str | None = None,
+    currency: str | None = None,
+    project_names: list[str] | None = None,
+) -> dict[str, object]:
+    """
+    Per-project daily billing and averages for the selected scope.
+
+    avg_daily_cost_usd = total_cost_usd / billed_days (days with non-zero billing rows).
+    """
+    _, chosen_currency = get_all_timeseries(
+        conn,
+        start_date=start_date,
+        end_date=end_date,
+        granularity="day",
+        currency=currency,
+        project_names=project_names,
+    )
+    if chosen_currency is None:
+        return {
+            "currency": None,
+            "dates": [],
+            "projects": [],
+            "summaries": [],
+            "points": [],
+        }
+
+    where: list[str] = []
+    params: list[object] = []
+    project_sql, project_params = _project_where(project_names)
+    if project_sql != "1=1":
+        where.append(project_sql)
+        params.extend(project_params)
+    where.append("currency = ?")
+    params.append(chosen_currency)
+    if start_date:
+        where.append("usage_date >= ?")
+        params.append(start_date)
+    if end_date:
+        where.append("usage_date <= ?")
+        params.append(end_date)
+    where_sql = " AND ".join(where)
+
+    rows = conn.execute(
+        f"""
+        SELECT
+            project_name,
+            usage_date,
+            COALESCE(SUM(cost_usd), 0) AS cost_usd
+        FROM transactions
+        WHERE {where_sql}
+        GROUP BY project_name, usage_date
+        HAVING COALESCE(SUM(cost_usd), 0) <> 0
+        ORDER BY usage_date ASC, project_name ASC
+        """,
+        tuple(params),
+    ).fetchall()
+
+    by_project: dict[str, dict[str, object]] = {}
+    dates_set: set[str] = set()
+    points: list[dict[str, object]] = []
+    for r in rows:
+        pn = str(r["project_name"])
+        day = str(r["usage_date"])
+        cost = round_cost(_safe_float(r["cost_usd"])) or 0.0
+        dates_set.add(day)
+        points.append({"project_name": pn, "date": day, "cost_usd": cost})
+        bucket = by_project.setdefault(
+            pn,
+            {"days": set(), "daily": []},
+        )
+        days_set = bucket["days"]
+        assert isinstance(days_set, set)
+        days_set.add(day)
+        daily_list = bucket["daily"]
+        assert isinstance(daily_list, list)
+        daily_list.append({"date": day, "cost_usd": cost})
+
+    summary_rows = conn.execute(
+        f"""
+        SELECT
+            project_name,
+            COALESCE(SUM(cost_usd), 0) AS total_cost_usd,
+            COUNT(DISTINCT CASE WHEN cost_usd IS NOT NULL AND cost_usd <> 0 THEN usage_date END) AS billed_days
+        FROM transactions
+        WHERE {where_sql}
+        GROUP BY project_name
+        HAVING COALESCE(SUM(cost_usd), 0) > 0
+        ORDER BY total_cost_usd DESC, project_name ASC
+        """,
+        tuple(params),
+    ).fetchall()
+
+    summaries: list[dict[str, object]] = []
+    for r in summary_rows:
+        total = round_cost(_safe_float(r["total_cost_usd"])) or 0.0
+        billed_days = int(r["billed_days"])
+        avg_daily = round_cost(total / billed_days) if billed_days > 0 else None
+        summaries.append(
+            {
+                "project_name": str(r["project_name"]),
+                "total_cost_usd": total,
+                "billed_days": billed_days,
+                "avg_daily_cost_usd": avg_daily,
+            }
+        )
+
+    return {
+        "currency": chosen_currency,
+        "dates": sorted(dates_set),
+        "projects": [str(s["project_name"]) for s in summaries],
+        "summaries": summaries,
+        "points": points,
+    }
+
+
 def get_financial_project_breakdown(
     conn: sqlite3.Connection,
     *,
@@ -4766,7 +4885,7 @@ def get_financial_project_breakdown(
             SELECT
                 project_name,
                 COALESCE(SUM(cost_usd), 0) AS cost_usd_total,
-                COUNT(DISTINCT CASE WHEN cost_usd IS NOT NULL THEN usage_date END) AS actual_days
+                COUNT(DISTINCT CASE WHEN cost_usd IS NOT NULL AND cost_usd <> 0 THEN usage_date END) AS actual_days
             FROM transactions
             WHERE {where_sql}
             GROUP BY project_name
@@ -4802,11 +4921,14 @@ def get_financial_project_breakdown(
         has_tokens = (in_tok is not None and in_tok > 0) or (out_tok is not None and out_tok > 0)
         if not has_cost and not has_tokens:
             continue
+        actual_days = int(cost_row.get("actual_days") or 0)
+        avg_daily = round_cost(total / actual_days) if actual_days > 0 and total > 0 else None
         out.append(
             {
                 "project_name": pn,
                 "actual_cost_usd_total": total,
-                "actual_days": int(cost_row.get("actual_days") or 0),
+                "actual_days": actual_days,
+                "avg_daily_cost_usd": avg_daily,
                 "currency": chosen_currency,
                 "input_tokens": in_tok,
                 "output_tokens": out_tok,
@@ -4898,6 +5020,13 @@ def get_all_financial_stats(
             "output_tokens_total": output_tokens_total,
         },
         "project_breakdown": get_financial_project_breakdown(
+            conn,
+            start_date=start_date,
+            end_date=end_date,
+            currency=currency,
+            project_names=project_names,
+        ),
+        "project_daily_cost": get_financial_project_daily_cost(
             conn,
             start_date=start_date,
             end_date=end_date,

@@ -71,6 +71,11 @@ def main() -> None:
         help="Ingest bills/<project>/*.csv and bills/<project>/token/*.csv into SQLite",
     )
     ingest_p.add_argument("--reimport-changed", action="store_true", help="Re-import files whose checksum changed")
+    ingest_p.add_argument(
+        "--reimport-force",
+        action="store_true",
+        help="Re-import all billing CSVs even when checksum is unchanged (after ingest logic fixes)",
+    )
 
     admin_p = sub.add_parser("create-admin", parents=[common], help="Create/Update admin user for login")
     admin_p.add_argument("--username", default=os.getenv("COST_MGMT_ADMIN_USER", "admin"))
@@ -143,7 +148,12 @@ def main() -> None:
     Path(db_path).expanduser().resolve().parent.mkdir(parents=True, exist_ok=True)
 
     if args.cmd == "ingest":
-        billing = ingest_all(bills_dir=bills_dir, db_path=db_path, reimport_changed=bool(args.reimport_changed))
+        billing = ingest_all(
+            bills_dir=bills_dir,
+            db_path=db_path,
+            reimport_changed=bool(args.reimport_changed),
+            reimport_force=bool(args.reimport_force),
+        )
         token = ingest_token_all(bills_dir=bills_dir, db_path=db_path, reimport_changed=bool(args.reimport_changed))
         print({"billing": billing, "token": token})
         return

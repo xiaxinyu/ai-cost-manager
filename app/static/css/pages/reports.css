@@ -1260,3 +1260,48 @@
     flex: 1;
   }
 }
+
+.reportDailyMatrixScroll {
+  max-height: min(520px, 70vh);
+}
+
+.reportSectionMeta {
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.reportSubPanelToolbar {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid color-mix(in srgb, var(--border, #334155) 65%, transparent);
+}
+
+.reportProjectSummaryTable th,
+.reportProjectSummaryTable td {
+  vertical-align: middle;
+}
+
+.reportDailyMatrix thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--card-bg, #fff);
+  white-space: nowrap;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.reportDailyMatrix tbody td:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: var(--card-bg, #fff);
+  font-weight: 500;
+}
+
+.reportDailyMatrix thead th:first-child {
+  left: 0;
+  z-index: 2;
+}
+
