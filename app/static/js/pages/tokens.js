@@ -49,22 +49,14 @@
     modelTbody: document.getElementById("modelBreakdownTbody"),
     modelRowBadge: document.getElementById("modelRowBadge"),
     unitPriceSection: document.getElementById("unitPriceSection"),
-    unitPriceNote: document.getElementById("unitPriceNote"),
     catalogRefLine: document.getElementById("catalogRefLine"),
     unitPriceSummaryTbody: document.getElementById("unitPriceSummaryTbody"),
     unitPriceSummaryDate: document.getElementById("unitPriceSummaryDate"),
-    impliedChartsRow: document.getElementById("impliedChartsRow"),
     modelPager: document.getElementById("modelPager"),
     modelPageSizeSelect: document.getElementById("modelPageSizeSelect"),
     modelPrevBtn: document.getElementById("modelPrevBtn"),
     modelNextBtn: document.getElementById("modelNextBtn"),
     modelPageInfo: document.getElementById("modelPageInfo"),
-    perfRowBadge: document.getElementById("perfRowBadge"),
-    perfRowsTbody: document.getElementById("perfRowsTbody"),
-    perfRowsTfoot: document.getElementById("perfRowsTfoot"),
-    perfFootMetricCount: document.getElementById("perfFootMetricCount"),
-    perfFootRowNote: document.getElementById("perfFootRowNote"),
-    perfRowsTable: document.getElementById("perfRowsTable"),
     subprojectTokenStrip: document.getElementById("subprojectTokenStrip"),
     subprojectTokenCards: document.getElementById("subprojectTokenCards"),
   };
@@ -72,8 +64,6 @@
   let tokenInputChart = null;
   let tokenOutputChart = null;
   let tokenRatioChart = null;
-  let chartImpliedUnitInput = null;
-  let chartImpliedUnitOutput = null;
   let cacheMatchChart = null;
   let avgLatencyChart = null;
   let modelRequestsChart = null;
@@ -89,31 +79,8 @@
     },
   };
 
-  function emptyStatePluginImplied(emptyMessage) {
-    const msg = emptyMessage || "No data in selected range";
-    return {
-      id: "emptyStateImplied",
-      afterDraw: (c) => {
-        const hasData = (c?.data?.datasets || []).some((ds) =>
-          (ds.data || []).some((v) => v !== null && v !== undefined && !Number.isNaN(v))
-        );
-        if (hasData) return;
-        const x = c?.ctx;
-        const chartArea = c?.chartArea;
-        if (!x || !chartArea) return;
-        x.save();
-        x.fillStyle = "rgba(159,178,199,0.85)";
-        x.font = "600 14px system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif";
-        x.textAlign = "center";
-        x.fillText(msg, (chartArea.left + chartArea.right) / 2, (chartArea.top + chartArea.bottom) / 2);
-        x.restore();
-      },
-    };
-  }
-
   let perfModelColorMap = {};
   let perfHiddenModels = new Set();
-  let perfHighlightKey = null;
 
   function escHtml(s) {
     return String(s ?? "")
@@ -125,12 +92,6 @@
 
   /** Grafana dashboard panel order for performance metrics. */
   const GRAFANA_PERF_METRIC_ORDER = ["model_requests", "cache_match_rate", "avg_latency"];
-
-  function _metricRank(name) {
-    const key = String(name || "").replace(/-/g, "_");
-    const idx = GRAFANA_PERF_METRIC_ORDER.indexOf(key);
-    return idx >= 0 ? idx : 99;
-  }
 
   function setMetricPanelData(metricKey, hasData, emptyMessage) {
     const panel = document.querySelector(`.metricPanel[data-metric-key="${metricKey}"]`);
@@ -257,40 +218,13 @@
     renderPerfCharts(lastPerfSeries);
   }
 
-  function _perfRowKey(recordedAt, metricName) {
-    return `${String(recordedAt || "")}||${String(metricName || "")}`;
-  }
-
-  function highlightPerfTableRow(key) {
-    perfHighlightKey = key || null;
-    if (!els.perfRowsTbody) return;
-    for (const tr of els.perfRowsTbody.querySelectorAll("tr[data-perf-key]")) {
-      const match = key && tr.dataset.perfKey === key;
-      tr.classList.toggle("is-perfHighlight", !!match);
-      tr.classList.toggle("is-perfDim", !!key && !match);
-    }
-    if (key) {
-      const row = els.perfRowsTbody.querySelector(`tr[data-perf-key="${CSS.escape(key)}"]`);
-      row?.scrollIntoView?.({ block: "nearest", behavior: "smooth" });
-    }
-  }
-
-  function _perfChartOptions(unit, labelCount, metricName, fullLabels, datasets) {
+  function _perfChartOptions(unit, labelCount, fullLabels, datasets) {
     const unitType = unit === "pct" ? "pct" : unit === "ms" ? "ms" : "count";
     return CHART?.buildSeriesLineChartOptions?.({
       unitType,
       labelCount,
       yScale: _yAxisForPerfUnit(unit, datasets),
       legendOnClick: _perfLegendClick,
-      onHover: (_ev, elements) => {
-        if (!elements?.length) {
-          highlightPerfTableRow(null);
-          return;
-        }
-        const idx = elements[0].index;
-        const recordedAt = fullLabels[idx];
-        if (recordedAt) highlightPerfTableRow(_perfRowKey(recordedAt, metricName));
-      },
       tooltipCallbacks: {
         title: (items) => {
           const idx = items?.[0]?.dataIndex;
@@ -350,7 +284,6 @@
       const opts = _perfChartOptions(
         unit,
         chartData.labels.length,
-        c.key,
         chartData.fullLabels,
         chartData.datasets
       );
@@ -369,83 +302,8 @@
       if (c.key === "avg_latency") avgLatencyChart = ch;
       if (c.key === "model_requests") modelRequestsChart = ch;
     }
-    highlightPerfTableRow(perfHighlightKey);
   }
 
-  function renderPerfTable(series) {
-    if (!els.perfRowsTbody) return;
-    const metricRoot = series?.token_metrics;
-    const metrics = metricRoot?.metrics || {};
-    const metricList = Object.values(metrics);
-    const rows = [];
-    for (const m of metricList) {
-      for (const p of m.points || []) {
-        rows.push({
-          recorded_at: p.recorded_at,
-          metric_name: m.metric_name,
-          unit: m.unit,
-          values: p.values || {},
-        });
-      }
-    }
-    rows.sort((a, b) => {
-      const byDate = String(b.recorded_at || "").localeCompare(String(a.recorded_at || ""));
-      if (byDate !== 0) return byDate;
-      return _metricRank(a.metric_name) - _metricRank(b.metric_name);
-    });
-    els.perfRowsTbody.innerHTML = "";
-    if (!rows.length) {
-      const tr = document.createElement("tr");
-      tr.innerHTML = `<td colspan="3" class="muted">No performance metrics imported for this project.</td>`;
-      els.perfRowsTbody.appendChild(tr);
-      if (els.perfRowBadge) els.perfRowBadge.hidden = true;
-      if (els.perfRowsTfoot) els.perfRowsTfoot.hidden = true;
-      return;
-    }
-    const modelsOrder = _collectPerfModels(metricRoot);
-    _buildPerfModelColorMap(modelsOrder);
-    const shown = rows.slice(0, 80);
-    const metricKinds = new Set(shown.map((r) => r.metric_name));
-    for (const r of shown) {
-      const tr = document.createElement("tr");
-      const key = _perfRowKey(r.recorded_at, r.metric_name);
-      tr.dataset.perfKey = key;
-      tr.dataset.sortValue = String(r.recorded_at || "");
-      const chips = modelsOrder
-        .filter((name) => r.values[name] !== undefined && r.values[name] !== null)
-        .map((name) => {
-          const col = perfModelColorMap[name] || CHART?.modelColorAt?.(0);
-          const val = _fmtPerfValue(r.values[name], r.unit);
-          return `<span class="perfModelChip" title="${escHtml(name)}: ${escHtml(val)}"><span class="perfSwatch" style="background:${col.border}"></span><code class="modelId">${escHtml(name)}</code> ${escHtml(val)}</span>`;
-        })
-        .join("");
-      tr.innerHTML = `
-        <td title="${escHtml(r.recorded_at)}">${escHtml(r.recorded_at)}</td>
-        <td><code class="modelId">${escHtml(String(r.metric_name || "").replace(/_/g, "-"))}</code></td>
-        <td><div class="perfModelChips">${chips || '<span class="muted">—</span>'}</div></td>
-      `;
-      tr.addEventListener("mouseenter", () => highlightPerfTableRow(key));
-      tr.addEventListener("mouseleave", () => highlightPerfTableRow(null));
-      els.perfRowsTbody.appendChild(tr);
-    }
-    if (els.perfRowsTfoot) {
-      els.perfRowsTfoot.hidden = !shown.length;
-      if (els.perfFootMetricCount) els.perfFootMetricCount.textContent = String(metricKinds.size);
-      if (els.perfFootRowNote) {
-        els.perfFootRowNote.textContent = `${shown.length} row(s) shown · newest first · hover chart to sync`;
-      }
-    }
-    if (els.perfRowBadge) {
-      if (!shown.length) {
-        els.perfRowBadge.hidden = true;
-      } else {
-        els.perfRowBadge.hidden = false;
-        const totalNote = rows.length > shown.length ? ` · ${rows.length} total` : "";
-        els.perfRowBadge.textContent = `${shown.length} rows · ${metricKinds.size} metric(s)${totalNote}`;
-      }
-    }
-    highlightPerfTableRow(perfHighlightKey);
-  }
   let lastSource = "estimated";
   let projectsWithImportedTokens = [];
   let projectDetailsByName = new Map();
@@ -555,22 +413,13 @@
     return window.AppMoney?.fmtCost(n, currency || lastBillingCurrency) ?? "—";
   }
 
-  function fmtUsdAxis(n) {
-    return window.AppMoney?.fmtCostAxis(n) ?? "";
-  }
-
   function syncUnitPriceSection() {
     if (!els.unitPriceSection) return;
-    const chartsHidden = !els.impliedChartsRow || els.impliedChartsRow.hidden;
-    els.unitPriceSection.hidden = chartsHidden;
+    const hasTable = els.catalogRefLine && !els.catalogRefLine.hidden;
+    els.unitPriceSection.hidden = !hasTable;
   }
 
   function clearUnitPriceUi() {
-    if (chartImpliedUnitInput) chartImpliedUnitInput.destroy();
-    if (chartImpliedUnitOutput) chartImpliedUnitOutput.destroy();
-    chartImpliedUnitInput = null;
-    chartImpliedUnitOutput = null;
-    if (els.impliedChartsRow) els.impliedChartsRow.hidden = true;
     if (els.unitPriceSection) els.unitPriceSection.hidden = true;
     if (els.catalogRefLine) els.catalogRefLine.hidden = true;
     if (els.unitPriceSummaryTbody) els.unitPriceSummaryTbody.innerHTML = "";
@@ -607,6 +456,7 @@
       els.catalogRefLine.hidden = true;
       els.unitPriceSummaryTbody.innerHTML = "";
       if (els.unitPriceSummaryDate) els.unitPriceSummaryDate.hidden = true;
+      syncUnitPriceSection();
       return;
     }
 
@@ -653,12 +503,13 @@
     if (els.unitPriceSummaryDate) {
       if (latestDate) {
         els.unitPriceSummaryDate.hidden = false;
-        els.unitPriceSummaryDate.textContent = `Date: ${latestDate}`;
+        els.unitPriceSummaryDate.textContent = `As of ${latestDate}`;
       } else {
         els.unitPriceSummaryDate.hidden = true;
       }
     }
     els.catalogRefLine.hidden = false;
+    syncUnitPriceSection();
   }
 
   function sumTokenPoints(points) {
@@ -865,257 +716,6 @@
     };
   }
 
-  /** Horizontal dashed lines: catalog list price (USD/1M) from model_prices. */
-  function catalogReferenceDatasets(labels, models, catalogKey) {
-    const datasets = [];
-    (models || []).forEach((model, idx) => {
-      const raw = model[catalogKey];
-      if (raw == null || !Number.isFinite(Number(raw))) return;
-      const y = Number(raw);
-      const col = MODEL_CHART_COLORS[idx % MODEL_CHART_COLORS.length];
-      const name = model.model_name || "model";
-      datasets.push({
-        label: `${name} (Market)`,
-        data: (labels || []).map(() => y),
-        borderColor: window.AppCostSemantics?.market?.color || window.AppChartStyle?.colors?.market || "#c084fc",
-        backgroundColor: "transparent",
-        borderDash: [7, 5],
-        borderWidth: 1.6,
-        pointRadius: 0,
-        pointHoverRadius: 0,
-        tension: 0,
-        fill: false,
-        spanGaps: true,
-        order: 0,
-        catalogReference: true,
-      });
-    });
-    return datasets;
-  }
-
-  function pctVsCatalog(actual, catalog) {
-    if (actual == null || catalog == null || !Number.isFinite(Number(actual)) || !Number.isFinite(Number(catalog))) {
-      return null;
-    }
-    const c = Number(catalog);
-    if (c <= 0) return null;
-    return ((Number(actual) - c) / c) * 100;
-  }
-
-  function modelLineDatasets(labels, models, valueKey) {
-    const datasets = [];
-    (models || []).forEach((model, idx) => {
-      const daily = model.daily || [];
-      if (!daily.length) return;
-      const byDate = new Map(daily.map((d) => [d.date, d]));
-      const series = labels.map((d) => {
-        const row = byDate.get(d);
-        const raw = row?.[valueKey];
-        return raw != null && Number.isFinite(Number(raw)) ? Number(raw) : null;
-      });
-      if (!series.some((v) => v !== null && Number.isFinite(v))) return;
-      const col = MODEL_CHART_COLORS[idx % MODEL_CHART_COLORS.length];
-      datasets.push({
-        label: model.model_name || "model",
-        data: series,
-        borderColor: col.border,
-        backgroundColor: col.fill,
-        fill: false,
-        tension: 0.22,
-        pointRadius: 2,
-        pointHoverRadius: 4,
-        borderWidth: 2,
-        spanGaps: true,
-        order: 1,
-      });
-    });
-    return datasets;
-  }
-
-  function renderImpliedUnitPrices(payload, billingCurrency, tokenRange, modelPayload, chartLabels) {
-    if (!els.impliedChartsRow) return;
-    if (chartImpliedUnitInput) chartImpliedUnitInput.destroy();
-    if (chartImpliedUnitOutput) chartImpliedUnitOutput.destroy();
-    chartImpliedUnitInput = null;
-    chartImpliedUnitOutput = null;
-    if (!modelPayload?.models?.length) {
-      els.impliedChartsRow.hidden = true;
-      syncUnitPriceSection();
-      return;
-    }
-
-    els.impliedChartsRow.hidden = false;
-    if (els.unitPriceSection) els.unitPriceSection.hidden = false;
-    const ccy = billingCurrency || payload.currency || "";
-    const tStart = tokenRange?.start || payload.from_date || "—";
-    const tEnd = tokenRange?.end || payload.to_date || "—";
-    const pts = payload.points || [];
-    const overlapDays = (modelPayload?.models || []).reduce(
-      (n, m) => n + (m.daily || []).filter(
-        (d) =>
-          Number.isFinite(Number(d?.usd_per_1m_input)) || Number.isFinite(Number(d?.usd_per_1m_output))
-      ).length,
-      0
-    );
-    if (els.unitPriceNote) {
-      els.unitPriceNote.textContent = `Actual vs Market · ${tStart} → ${tEnd} · ${overlapDays} model-days · ${ccy || "USD"}/1M`;
-    }
-    const labels =
-      chartLabels?.length > 0
-        ? chartLabels
-        : [...new Set((modelPayload?.models || []).flatMap((m) => (m.daily || []).map((d) => d.date)))].sort();
-    const labelsFromPts = pts.map((p) => p.date);
-    const xLabels = labels.length ? labels : labelsFromPts;
-    const models = modelPayload?.models || [];
-    let datasetsIn = [
-      ...catalogReferenceDatasets(xLabels, models, "catalog_usd_per_1m_input"),
-      ...modelLineDatasets(xLabels, models, "usd_per_1m_input"),
-    ];
-    let datasetsOut = [
-      ...catalogReferenceDatasets(xLabels, models, "catalog_usd_per_1m_output"),
-      ...modelLineDatasets(xLabels, models, "usd_per_1m_output"),
-    ];
-    const Ch = window.AppChartStyle?.colors || {};
-    if (!datasetsIn.length) {
-      const dataIn = pts.map((p) => (p.usd_per_1m_input != null ? Number(p.usd_per_1m_input) : null));
-      datasetsIn = [
-        {
-          label: ccy ? `Project (${ccy}/1M in)` : "Project input",
-          data: dataIn,
-          borderColor: Ch.input || "#60a5fa",
-          backgroundColor: "rgba(96, 165, 250, 0.12)",
-          fill: true,
-          tension: 0.22,
-          pointRadius: 2,
-          pointHoverRadius: 4,
-          borderWidth: 2.2,
-          spanGaps: true,
-        },
-      ];
-    }
-    if (!datasetsOut.length) {
-      const dataOut = pts.map((p) => (p.usd_per_1m_output != null ? Number(p.usd_per_1m_output) : null));
-      datasetsOut = [
-        {
-          label: ccy ? `Project (${ccy}/1M out)` : "Project output",
-          data: dataOut,
-          borderColor: Ch.output || "#a78bfa",
-          backgroundColor: "rgba(167, 139, 250, 0.12)",
-          fill: true,
-          tension: 0.22,
-          pointRadius: 2,
-          pointHoverRadius: 4,
-          borderWidth: 2.2,
-          spanGaps: true,
-        },
-      ];
-    }
-    const hasIn = datasetsIn.some((ds) => (ds.data || []).some((v) => v !== null && Number.isFinite(v)));
-    const hasOut = datasetsOut.some((ds) => (ds.data || []).some((v) => v !== null && Number.isFinite(v)));
-
-    const ctxIn = document.getElementById("impliedUnitPriceInputChart")?.getContext("2d");
-    const ctxOut = document.getElementById("impliedUnitPriceOutputChart")?.getContext("2d");
-    if (!ctxIn || !ctxOut) {
-      syncUnitPriceSection();
-      return;
-    }
-
-    const xTicks = CHART?.xAxisTicks?.(xLabels.length) || {
-      color: "#9fb2c7",
-      font: { size: 11, weight: "500" },
-      autoSkip: true,
-      maxTicksLimit: 12,
-      maxRotation: 0,
-    };
-
-    const yTickFmt = (value) => {
-      const n = Number(value);
-      if (!Number.isFinite(n)) return String(value);
-      const num = fmtUsdAxis(n);
-      return ccy ? `${num} ${ccy}` : num;
-    };
-
-    const scales = {
-      x: { ticks: xTicks, grid: { color: "rgba(255,255,255,0.08)" } },
-      y: {
-        type: "linear",
-        display: true,
-        position: "left",
-        beginAtZero: true,
-        ticks: { color: "#9fb2c7", font: { size: 11, weight: "500" }, callback: yTickFmt },
-        grid: { color: "rgba(255,255,255,0.08)" },
-        title: {
-          display: true,
-          text: `${ccy || "Cost"} / 1M`,
-          color: "#9fb2c7",
-          font: { size: 11 },
-        },
-      },
-    };
-    const buildChart = (ctx, datasets, emptyMsg) =>
-      new Chart(ctx, {
-        type: "line",
-        data: {
-          labels: xLabels,
-          datasets,
-        },
-        plugins: [...chartPlugins(), emptyStatePluginImplied(emptyMsg)],
-        options: {
-          ...chartLineDefaults,
-          plugins: {
-            decimation: { enabled: true, algorithm: "min-max" },
-            legend: {
-              display: true,
-              position: "top",
-              labels: {
-                color: "#e6edf3",
-                font: { size: 12, weight: "600" },
-                filter: (item) => item.text != null,
-              },
-            },
-            tooltip: {
-              enabled: true,
-              backgroundColor: "rgba(11,18,32,0.92)",
-              borderColor: "rgba(255,255,255,0.16)",
-              borderWidth: 1,
-              callbacks: {
-                label: (ctx2) => {
-                  const v = ctx2.parsed?.y;
-                  if (v === null || v === undefined || !Number.isFinite(Number(v))) return `${ctx2.dataset.label}: -`;
-                  const isList = ctx2.dataset.catalogReference === true || /\(Market\)/i.test(String(ctx2.dataset.label || ""));
-                  let line = `${ctx2.dataset.label}: ${fmtUsdPer1m(v, ccy)}`;
-                  if (!isList && models.length) {
-                    const modelLabel = String(ctx2.dataset.label || "");
-                    const m = models.find((x) => x.model_name === modelLabel);
-                    if (m) {
-                      const catKey =
-                        ctx2.chart?.canvas?.id === "impliedUnitPriceOutputChart"
-                          ? "catalog_usd_per_1m_output"
-                          : "catalog_usd_per_1m_input";
-                      const cat = m[catKey];
-                      const pct = pctVsCatalog(v, cat);
-                      if (pct != null) {
-                        line += ` (${pct >= 0 ? "+" : ""}${pct.toFixed(0)}% vs Market)`;
-                      }
-                    }
-                  }
-                  return line;
-                },
-              },
-            },
-          },
-          scales,
-        },
-      });
-
-    chartImpliedUnitInput = buildChart(ctxIn, datasetsIn, "No input unit-price days with billing overlap");
-    chartImpliedUnitOutput = buildChart(ctxOut, datasetsOut, "No output unit-price days with billing overlap");
-
-    if (!hasIn && chartImpliedUnitInput) chartImpliedUnitInput.update();
-    if (!hasOut && chartImpliedUnitOutput) chartImpliedUnitOutput.update();
-    syncUnitPriceSection();
-  }
-
   const tokenPageRoot = document.querySelector(".tokenPage.dashPage");
 
   function setLoading(loading) {
@@ -1186,7 +786,7 @@
       const min = stats?.min_usage_date ?? series?.import_meta?.min_date;
       const max = stats?.max_usage_date ?? series?.import_meta?.max_date;
       els.tokenPeriodRange.textContent =
-        min || max ? `${min ?? "—"} ~ ${max ?? "—"}` : "—";
+        min || max ? `${min ?? "—"} – ${max ?? "—"}` : "—";
     }
     if (els.tokenPeriodFootnote) {
       els.tokenPeriodFootnote.textContent = stats?.currency
@@ -1251,14 +851,22 @@
       }
     }
     if (els.tokenRegion) {
-      els.tokenRegion.textContent = imported ? importPath : `Region: ${series.token_estimate_region || "-"}`;
+      if (imported) {
+        els.tokenRegion.title = importPath;
+        els.tokenRegion.textContent = importPath;
+      } else {
+        els.tokenRegion.title = "";
+        els.tokenRegion.textContent = `Region: ${series.token_estimate_region || "-"}`;
+      }
     }
     if (els.tokenMetaExtra) {
       if (imported && series.import_meta) {
         const days = series.import_meta.day_count ?? "-";
-        els.tokenMetaExtra.textContent = `${days} day(s) with token rows in range`;
+        els.tokenMetaExtra.textContent = `${days} days with data in range`;
+        els.tokenMetaExtra.hidden = false;
       } else {
         els.tokenMetaExtra.textContent = "";
+        els.tokenMetaExtra.hidden = true;
       }
     }
 
@@ -1693,9 +1301,7 @@
 
       try {
         perfHiddenModels = new Set();
-        perfHighlightKey = null;
         renderPerfCharts(series, { project, subproject });
-        renderPerfTable(series);
       } catch (e) {
         console.error("renderPerf failed", e);
       }
@@ -1708,7 +1314,6 @@
       if (stats.currency) pricingParams.set("currency", stats.currency);
 
       const dailyForPricing = series.daily_by_model || [];
-      const chartDates = [...new Set(dailyForPricing.map((r) => r.date))].sort();
       const mpFromTable = modelUnitPricesFromDaily(dailyForPricing);
       let mpCatalog = { available: false };
       try {
@@ -1721,15 +1326,8 @@
       const mp = mergeCatalogPrices(mpFromTable, mpCatalog);
       try {
         renderCatalogRefLine(mp, stats.currency);
-        renderImpliedUnitPrices(
-          { available: true, currency: stats.currency, from_date: tokenRangeStart, to_date: tokenRangeEnd },
-          stats.currency,
-          { start: tokenRangeStart, end: tokenRangeEnd },
-          mp,
-          chartDates
-        );
       } catch (e) {
-        console.error("Unit price charts failed", e);
+        console.error("Unit price summary failed", e);
       }
 
       try {
@@ -1919,8 +1517,6 @@
       renderModelBreakdown(lastModelBreakdown);
     });
   }
-
-  DASH?.makeSortableTable?.(els.perfRowsTable);
 
   init();
 })();

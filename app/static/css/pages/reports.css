@@ -1,5 +1,7 @@
 /* Reports — financial control room */
 .reportPage {
+  --report-gap: 10px;
+  --report-gutter: 10px;
   --control-h: 40px;
   --control-radius: 8px;
   --control-bg: rgba(12, 22, 38, 0.65);
@@ -8,8 +10,71 @@
   --control-shadow: 0 1px 0 rgba(255, 255, 255, 0.04) inset;
   --chart-plot-bg: rgba(6, 12, 22, 0.45);
   display: grid;
-  gap: 14px;
-  max-width: 1320px;
+  gap: var(--report-gap);
+  max-width: min(var(--content-max-width, 1440px), 100%);
+}
+
+.reportTitleRow {
+  margin-top: 4px;
+}
+
+.reportLegendRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+  font-size: 10.5px;
+}
+
+.reportNavSticky {
+  position: sticky;
+  top: 6px;
+  z-index: 20;
+  scroll-margin-top: 6px;
+}
+
+.reportFilterCard {
+  padding: 10px 12px;
+}
+
+.reportChartHead {
+  padding: 10px 12px 6px;
+  border-bottom: 1px solid rgba(173, 196, 228, 0.08);
+}
+
+.reportChartHead .chartCardTitle {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 760;
+}
+
+.reportChartHead .chartCardHint {
+  margin: 3px 0 0;
+  font-size: 11.5px;
+}
+
+.reportTrendGrid {
+  gap: var(--report-gutter);
+}
+
+.reportTrendCard {
+  padding: 0;
+  overflow: hidden;
+}
+
+.reportTrendCard .chartCardFoot {
+  padding: 7px 12px 10px;
+  border-top: 1px solid rgba(173, 196, 228, 0.08);
+  font-size: 11.5px;
+}
+
+.reportChartHost {
+  height: clamp(200px, 24vh, 248px);
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  padding: 6px 10px 8px;
 }
 
 .reportPageHeader .pageTitle {
@@ -944,6 +1009,102 @@
   height: 240px;
 }
 
+.reportPageRoot .reportExecutiveCharts {
+  gap: var(--report-gutter);
+}
+
+.reportPageRoot .reportExecChartCard {
+  padding: 0;
+  overflow: hidden;
+}
+
+.reportPageRoot .reportExecChartHost {
+  height: clamp(196px, 22vh, 232px);
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  padding: 4px 10px 6px;
+}
+
+.reportPageRoot .reportExecChartFoot {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 12px 10px;
+  border-top: 1px solid rgba(173, 196, 228, 0.08);
+  font-size: 11px;
+}
+
+.reportExecChartKey {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.reportExecChartSwatch {
+  width: 14px;
+  height: 3px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.reportExecChartSwatch--actual {
+  background: var(--cost-actual, #5eead4);
+  box-shadow: 0 0 6px rgba(var(--cost-actual-rgb), 0.35);
+}
+
+.reportExecChartSwatch--market {
+  background: var(--cost-market, #c084fc);
+  opacity: 0.85;
+  border: none;
+  height: 2px;
+  background: repeating-linear-gradient(
+    90deg,
+    var(--cost-market, #c084fc) 0 4px,
+    transparent 4px 7px
+  );
+}
+
+.reportModelLegendRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 6px;
+  margin: 0 10px 4px;
+  padding: 5px 8px;
+  max-height: 52px;
+  overflow-y: auto;
+  border-radius: 8px;
+  border: 1px solid rgba(173, 196, 228, 0.09);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.reportModelLegendPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 650;
+  color: var(--report-text-muted);
+  border: 1px solid rgba(173, 196, 228, 0.1);
+  background: rgba(255, 255, 255, 0.03);
+  white-space: nowrap;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.reportModelLegendPill::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--seg-color, #60a5fa);
+  flex-shrink: 0;
+}
+
 #report-by-model .reportSectionTitle::before,
 #report-by-model .sectionTitle::before {
   background: linear-gradient(135deg, var(--finance), var(--token));
@@ -1367,5 +1528,909 @@
 .reportDailyMatrix thead th:first-child {
   left: 0;
   z-index: 2;
+}
+
+/* =============================================================================
+   Reports page visual system — aligned with Cost / Tokens
+   ============================================================================= */
+.reportPageRoot .reportDashboard {
+  --report-text-primary: #eef4fc;
+  --report-text-secondary: #a8bdd4;
+  --report-text-muted: #7d92ab;
+  --report-surface: rgba(14, 20, 30, 0.55);
+  --report-surface-card: rgba(255, 255, 255, 0.04);
+  --report-surface-card-hover: rgba(255, 255, 255, 0.055);
+  --report-border-subtle: rgba(148, 163, 184, 0.14);
+  --report-gap: 14px;
+  --report-gutter: 12px;
+  font-feature-settings: "tnum" 1, "lnum" 1;
+  -webkit-font-smoothing: antialiased;
+}
+
+.reportPageRoot .reportPage {
+  gap: var(--report-gap);
+}
+
+.reportPageRoot .reportPageHeader {
+  background: linear-gradient(
+    135deg,
+    rgba(var(--cost-actual-rgb), 0.08) 0%,
+    rgba(var(--cost-market-rgb), 0.05) 48%,
+    rgba(255, 255, 255, 0.02) 100%
+  ) !important;
+}
+
+.reportPageRoot .reportPageHeader .pageTitle {
+  letter-spacing: -0.02em;
+  color: var(--report-text-primary);
+}
+
+.reportPageRoot .reportPageHeader .pageDesc {
+  color: var(--report-text-secondary);
+  font-size: 12px;
+  max-width: 58ch;
+}
+
+.reportPageRoot .reportLegendRow {
+  opacity: 0.92;
+}
+
+.reportPageRoot .reportFinBlock,
+.reportPageRoot .reportPanel,
+.reportPageRoot .reportStatement {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.025));
+  border-color: var(--report-border-subtle);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.03) inset;
+}
+
+.reportPageRoot .reportSectionTitle {
+  color: var(--report-text-primary);
+  font-size: 15px;
+  font-weight: 780;
+  letter-spacing: -0.01em;
+}
+
+.reportPageRoot .reportSectionLead,
+.reportPageRoot .panelDesc,
+.reportPageRoot .tableNote,
+.reportPageRoot .chartCardHint {
+  color: var(--report-text-muted);
+  font-size: 12px;
+}
+
+.reportPageRoot .reportCurrencyBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--report-text-secondary);
+  border: 1px solid var(--report-border-subtle);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.reportPageRoot .reportStep {
+  width: 24px;
+  height: 24px;
+  font-size: 11px;
+  border-radius: 7px;
+  color: #99f6e4;
+  background: rgba(var(--cost-actual-rgb), 0.1);
+  border-color: rgba(var(--cost-actual-rgb), 0.28);
+}
+
+.reportPageRoot .heroMetricGrid {
+  gap: var(--report-gutter);
+}
+
+.reportPageRoot .heroMetric {
+  position: relative;
+  padding: 10px 12px 10px 14px;
+  border-radius: 9px;
+  border: 1px solid var(--report-border-subtle);
+  background: var(--report-surface-card);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.03) inset;
+  min-height: 68px;
+}
+
+.reportPageRoot .heroMetric::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 10px;
+  bottom: 10px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: rgba(148, 163, 184, 0.28);
+}
+
+.reportPageRoot .heroMetricPrimary::before {
+  width: 4px;
+  background: var(--cost-actual);
+  box-shadow: 0 0 10px rgba(var(--cost-actual-rgb), 0.35);
+}
+
+.reportPageRoot .heroMetricPrimary {
+  border-color: rgba(var(--cost-actual-rgb), 0.28);
+  background: linear-gradient(
+    145deg,
+    rgba(var(--cost-actual-rgb), 0.1) 0%,
+    rgba(255, 255, 255, 0.035) 58%
+  );
+}
+
+.reportPageRoot .heroMetricLabel {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--report-text-secondary);
+}
+
+.reportPageRoot .heroMetricLabel .costPill {
+  margin-right: 2px;
+  vertical-align: middle;
+  transform: translateY(-1px);
+}
+
+.reportPageRoot .heroMetricValue {
+  color: var(--report-text-primary);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+.reportPageRoot .heroMetricPrimary .heroMetricValue {
+  font-size: clamp(22px, 2.2vw, 30px);
+  font-weight: 700;
+}
+
+.reportPageRoot .heroMetricSub {
+  color: var(--report-text-muted);
+  font-size: 10.5px;
+  line-height: 1.38;
+}
+
+.reportPageRoot .reportFinBenchmarkKpi,
+.reportPageRoot .reportFinOpexCompositionKpi,
+.reportPageRoot .reportFinVolumeKpi {
+  padding-top: 8px;
+  border-top: 1px dashed rgba(173, 196, 228, 0.13);
+}
+
+.reportPageRoot .reportAtAGlance {
+  padding: 14px 16px 16px;
+}
+
+.reportPageRoot .reportSectionShell {
+  gap: var(--report-gutter);
+}
+
+.reportPageRoot .reportStatement {
+  padding: 14px 16px 16px;
+}
+
+.reportPageRoot .chartCard {
+  border-color: var(--report-border-subtle);
+  background: var(--report-surface);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.reportPageRoot .reportTrendCard {
+  background: var(--report-surface);
+}
+
+.reportPageRoot .chartCardTitle {
+  color: var(--report-text-primary);
+}
+
+.reportPageRoot .reportPage .rowsToolbar {
+  border-bottom-color: rgba(173, 196, 228, 0.1);
+  margin-bottom: 8px;
+  padding-bottom: 8px;
+}
+
+.reportPageRoot .reportPage .panelTitle {
+  color: var(--report-text-primary);
+  font-size: 13px;
+  font-weight: 740;
+}
+
+.reportPageRoot .reportPage .dataTable thead th {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: none;
+  color: var(--report-text-secondary);
+}
+
+.reportPageRoot .reportDashboard .dashSectionNav.card {
+  background: rgba(10, 16, 26, 0.92) !important;
+  border-color: var(--report-border-subtle);
+}
+
+.reportPageRoot .reportDashboard .dashSectionNavLink.is-active {
+  color: #5eead4;
+  background: rgba(var(--cost-actual-rgb), 0.12);
+  border: 1px solid rgba(var(--cost-actual-rgb), 0.28);
+}
+
+.reportPageRoot .reportKpiDetails {
+  margin-top: 10px;
+  border: 1px solid rgba(173, 196, 228, 0.1);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.reportPageRoot .reportKpiDetails > summary {
+  padding: 8px 10px;
+  font-size: 11px;
+  font-weight: 650;
+  color: var(--report-text-muted);
+}
+
+.reportPageRoot .kpiCard {
+  border-color: var(--report-border-subtle);
+  background: var(--report-surface-card);
+}
+
+.reportPageRoot .meterTotalCard {
+  border-color: var(--report-border-subtle);
+  background: var(--report-surface-card);
+}
+
+.reportPageRoot .shareBarTrack {
+  height: 8px;
+}
+
+/* Daily cost — multi-segment chart (aligned with Cost page) */
+.reportPageRoot .costSpendLegendRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px 8px;
+  margin: 0 12px 8px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  border: 1px solid rgba(173, 196, 228, 0.1);
+  background: rgba(255, 255, 255, 0.025);
+  max-height: 72px;
+  overflow-y: auto;
+}
+
+.reportPageRoot .costSpendLegendPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+  color: var(--report-text-muted, #a8bdd4);
+  border: 1px solid rgba(173, 196, 228, 0.12);
+  background: rgba(255, 255, 255, 0.03);
+  white-space: nowrap;
+  max-width: 168px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.reportPageRoot .costSpendLegendPill::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--seg-color, #60a5fa);
+  flex-shrink: 0;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.2);
+}
+
+.reportPageRoot .costSpendLegendPill--total {
+  color: var(--report-text-primary, #eef4fc);
+  font-weight: 720;
+  border-color: rgba(var(--cost-actual-rgb), 0.28);
+  background: rgba(var(--cost-actual-rgb), 0.08);
+}
+
+.reportPageRoot .costSpendLegendPill--total::before {
+  width: 10px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--seg-color, #5eead4);
+  box-shadow: 0 0 8px rgba(var(--cost-actual-rgb), 0.35);
+}
+
+.reportPageRoot .costSpendLegendPill--other::before {
+  background: transparent;
+  border: 1px dashed var(--seg-color, #94a3b8);
+  box-shadow: none;
+}
+
+.reportPageRoot .reportTrendCard--segments .reportChartHost {
+  padding-top: 2px;
+}
+
+/* Consumption section — structured token run rate */
+.reportConsumeSection {
+  scroll-margin-top: 72px;
+}
+
+.reportConsumeStatement {
+  padding: 0;
+  overflow: hidden;
+  border-color: rgba(173, 196, 228, 0.12);
+  background: var(--report-surface-card, rgba(255, 255, 255, 0.02));
+}
+
+.reportConsumeMetaBar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(173, 196, 228, 0.1);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.reportConsumeMetaItem {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.reportConsumeMetaLabel {
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--report-text-muted, #8fa3ba);
+}
+
+.reportConsumeMetaValue {
+  font-size: 14px;
+  font-weight: 760;
+  font-variant-numeric: tabular-nums;
+  color: var(--report-text-primary, #eef4fc);
+}
+
+.reportConsumeMetaSep {
+  width: 1px;
+  height: 28px;
+  background: rgba(173, 196, 228, 0.12);
+  flex-shrink: 0;
+}
+
+.reportConsumeMetaFoot {
+  flex: 1 1 180px;
+  margin-left: auto;
+  font-size: 11px;
+  text-align: right;
+}
+
+.reportConsumeRunRate {
+  padding: 12px 14px 14px;
+}
+
+.reportConsumeRunRateHead {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  margin-bottom: 10px;
+}
+
+.reportConsumeRunRateTitle {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 760;
+  color: var(--report-text-primary, #eef4fc);
+}
+
+.reportConsumeRunRateLead {
+  margin: 0;
+  flex: 1 1 200px;
+  font-size: 11.5px;
+  line-height: 1.4;
+}
+
+.reportConsumeGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--report-gutter, 12px);
+  align-items: stretch;
+}
+
+.reportConsumeChartCard {
+  min-width: 0;
+}
+
+.reportConsumeChartCard--empty {
+  opacity: 0.72;
+}
+
+.reportChartHead--compact {
+  padding: 8px 12px 4px;
+  border-bottom: none;
+}
+
+.reportChartHead--compact .chartCardTitle {
+  font-size: 12px;
+  font-weight: 720;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.reportChartHead--compact .chartCardHint {
+  margin-top: 2px;
+  font-size: 11px;
+}
+
+.reportChartHost--consume {
+  height: clamp(180px, 22vh, 220px);
+}
+
+.reportChartHost--ratio {
+  height: clamp(120px, 16vh, 160px);
+  padding-bottom: 6px;
+}
+
+.reportConsumeRatioDetails {
+  margin: 0 10px 10px;
+  border: 1px solid rgba(173, 196, 228, 0.1);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.reportConsumeRatioSummary {
+  padding: 7px 10px;
+  font-size: 11px;
+  font-weight: 650;
+  color: var(--report-text-muted, #a8bdd4);
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+
+.reportConsumeRatioSummary::-webkit-details-marker {
+  display: none;
+}
+
+.reportConsumeRatioSummary::before {
+  content: "▸ ";
+  color: #5eead4;
+  font-size: 10px;
+}
+
+.reportConsumeRatioDetails[open] .reportConsumeRatioSummary::before {
+  content: "▾ ";
+}
+
+.reportConsumeRatioBody {
+  padding: 0 8px 8px;
+  border-top: 1px solid rgba(173, 196, 228, 0.08);
+}
+
+.reportConsumeRatioToolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  flex-wrap: wrap;
+  padding: 6px 2px 4px;
+}
+
+.reportConsumeRatioToolbar .ratioKpiLine {
+  margin: 0;
+  flex: 1 1 180px;
+  font-size: 11px;
+}
+
+@media (max-width: 900px) {
+  .reportConsumeGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .reportConsumeMetaFoot {
+    flex-basis: 100%;
+    margin-left: 0;
+    text-align: left;
+  }
+}
+
+/* Detail ledger — financial statement tables */
+.reportPageRoot .reportDetailSection {
+  padding: 14px 16px 16px;
+  scroll-margin-top: 72px;
+}
+
+.reportPageRoot .reportDetailSection .reportSectionHead {
+  margin-bottom: 4px;
+}
+
+.reportLedgerInsightBar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 12px;
+}
+
+.reportLedgerInsightChip {
+  display: inline-flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(173, 196, 228, 0.1);
+  background: rgba(255, 255, 255, 0.025);
+  font-size: 11.5px;
+}
+
+.reportLedgerInsightLabel {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--report-text-muted);
+}
+
+.reportLedgerInsightValue {
+  font-size: 12px;
+  font-weight: 720;
+  font-variant-numeric: tabular-nums;
+  color: var(--report-text-primary);
+}
+
+.reportLedgerInsightMeta {
+  font-size: 11px;
+  color: var(--report-text-muted);
+}
+
+.reportLedgerGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--report-gutter);
+  align-items: stretch;
+}
+
+.reportLedgerCard {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  border: 1px solid var(--report-border-subtle);
+  border-radius: 10px;
+  background: rgba(8, 14, 24, 0.45);
+  overflow: hidden;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.03) inset;
+}
+
+.reportLedgerHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px 14px;
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(173, 196, 228, 0.1);
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.reportLedgerHeadMain {
+  min-width: 0;
+}
+
+.reportLedgerTitle {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 760;
+  letter-spacing: 0.01em;
+  color: var(--report-text-primary);
+}
+
+.reportLedgerHint {
+  margin: 2px 0 0;
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.reportLedgerScope {
+  flex-shrink: 0;
+  font-size: 10px;
+  padding: 3px 8px;
+}
+
+.reportLedgerTableWrap {
+  --report-ledger-h: clamp(320px, 38vh, 400px);
+  flex: 1 1 auto;
+  height: var(--report-ledger-h);
+  min-height: var(--report-ledger-h);
+  max-height: var(--report-ledger-h);
+  overflow: auto;
+  margin: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  scrollbar-gutter: stable;
+}
+
+.reportPageRoot .reportLedgerTable thead th {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background: rgba(12, 18, 28, 0.96);
+  backdrop-filter: blur(6px);
+  padding-top: 9px;
+  padding-bottom: 9px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--report-text-secondary);
+  border-bottom: 1px solid rgba(173, 196, 228, 0.14);
+}
+
+.reportPageRoot .reportLedgerTable thead th.colCostActual {
+  box-shadow: none;
+  border-top: none;
+  background: rgba(12, 18, 28, 0.96);
+}
+
+.reportPageRoot .reportLedgerTable thead th .thLabel {
+  display: block;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--report-text-secondary);
+}
+
+.reportPageRoot .reportLedgerTable thead th .thUnit {
+  display: block;
+  margin-top: 1px;
+  font-size: 9px;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--report-text-muted);
+  opacity: 0.85;
+}
+
+.reportPageRoot .reportLedgerTable tbody td {
+  padding: 7px 10px;
+  font-size: 12px;
+  line-height: 1.4;
+  border-bottom: 1px solid rgba(173, 196, 228, 0.05);
+}
+
+.reportPageRoot .reportLedgerTable tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.reportPageRoot .reportLedgerTable tbody tr:nth-child(even) td {
+  background: rgba(255, 255, 255, 0.012);
+}
+
+.reportPageRoot .reportLedgerTable tbody tr:hover td {
+  background: rgba(96, 165, 250, 0.045);
+}
+
+.reportPageRoot .reportLedgerTable tbody tr.reportLedgerRowPeak td {
+  background: rgba(var(--cost-actual-rgb), 0.06);
+}
+
+.reportPageRoot .reportLedgerTable tbody tr.reportLedgerRowPeak td.tdCostActual {
+  font-weight: 700;
+  color: var(--report-text-primary);
+}
+
+.reportPageRoot .reportLedgerDate {
+  font-variant-numeric: tabular-nums;
+  color: var(--report-text-secondary);
+  font-size: 11.5px;
+  letter-spacing: 0.01em;
+}
+
+.reportPageRoot .reportLedgerTable td.tdCostActual {
+  font-weight: 660;
+  font-variant-numeric: tabular-nums;
+  color: var(--report-text-primary);
+  background: transparent;
+  box-shadow: none;
+}
+
+.reportPageRoot .reportLedgerTable .deltaCell--over {
+  color: #f59e0b;
+}
+
+.reportPageRoot .reportLedgerTable .deltaCell--under {
+  color: #34d399;
+}
+
+.reportPageRoot .reportLedgerTable .deltaCell--flat,
+.reportPageRoot .reportLedgerTable .deltaCell--na {
+  color: var(--report-text-muted);
+}
+
+.reportShareCell {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  width: 100%;
+  max-width: 108px;
+  margin-left: auto;
+}
+
+.reportShareTrack {
+  flex: 1 1 auto;
+  height: 5px;
+  min-width: 32px;
+  border-radius: 999px;
+  background: rgba(173, 196, 228, 0.1);
+  overflow: hidden;
+}
+
+.reportShareFill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, rgba(var(--cost-actual-rgb), 0.25), rgba(var(--cost-actual-rgb), 0.55));
+  opacity: 0.9;
+}
+
+.reportShareVal {
+  flex-shrink: 0;
+  min-width: 2.5em;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--report-text-muted);
+}
+
+.reportLedgerFoot {
+  padding: 8px 12px;
+  border-top: 1px solid rgba(173, 196, 228, 0.1);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.reportLedgerPager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 14px;
+  flex-wrap: wrap;
+}
+
+.reportLedgerPageInfo {
+  font-size: 11.5px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--report-text-muted);
+}
+
+.reportLedgerPagerControls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.reportLedgerPagerLabel {
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.reportLedgerSelect {
+  min-height: 28px;
+  padding: 0 24px 0 8px;
+  font-size: 11px;
+  font-weight: 650;
+  font-family: inherit;
+  appearance: none;
+  color: var(--report-text-primary);
+  background: var(--control-bg);
+  border: 1px solid var(--control-border);
+  border-radius: 6px;
+}
+
+.reportLedgerBtn {
+  min-height: 28px;
+  padding: 0 10px;
+  font-size: 11px;
+}
+
+/* By-project tables — align with ledger polish */
+.reportPageRoot .reportPanel {
+  padding: 14px 16px;
+}
+
+.reportPageRoot .reportPanel .reportTableScroll {
+  border: 1px solid var(--report-border-subtle);
+  border-radius: 8px;
+  background: rgba(8, 14, 24, 0.35);
+  max-height: clamp(280px, 34vh, 380px);
+  overflow: auto;
+  scrollbar-gutter: stable;
+}
+
+.reportPageRoot .reportPanel .dashTable thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: rgba(12, 18, 28, 0.96);
+  backdrop-filter: blur(6px);
+}
+
+.reportPageRoot .reportPanel .rowsToolbar {
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(173, 196, 228, 0.1);
+}
+
+.reportPageRoot .reportPanel .panelTitle {
+  font-size: 13px;
+  font-weight: 760;
+}
+
+.reportPageRoot .reportSubPanelToolbar {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px dashed rgba(173, 196, 228, 0.12);
+}
+
+/* Soften model cost table column accents on Reports */
+.reportPageRoot .reportModelTable td.tdCostActual,
+.reportPageRoot .reportModelTable th.tdCostActual {
+  box-shadow: inset 1px 0 0 rgba(var(--cost-actual-rgb), 0.18);
+  background: transparent;
+}
+
+.reportPageRoot .reportModelTable td.tdCostMarket,
+.reportPageRoot .reportModelTable th.tdCostMarket {
+  box-shadow: inset 1px 0 0 rgba(var(--cost-market-rgb), 0.2);
+  background: transparent;
+}
+
+.reportPageRoot .reportModelTable thead th.colCostActual,
+.reportPageRoot .reportModelTable thead th.colCostMarket {
+  border-top-width: 1px;
+  background: rgba(12, 18, 28, 0.96);
+}
+
+.reportPageRoot .reportModelTable tbody tr:hover td.tdCostActual {
+  background: rgba(var(--cost-actual-rgb), 0.06);
+}
+
+.reportPageRoot .reportModelTable tbody tr:hover td.tdCostMarket {
+  background: rgba(var(--cost-market-rgb), 0.06);
+}
+
+.reportPageRoot .reportModelTable .modelCostTotalRow th,
+.reportPageRoot .reportModelTable .modelCostTotalRow td {
+  background: rgba(12, 18, 28, 0.98);
+  border-top: 1px solid rgba(173, 196, 228, 0.14);
+  box-shadow: none;
+}
+
+@media (max-width: 1100px) {
+  .reportLedgerGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .reportLedgerPager {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .reportLedgerPagerControls {
+    justify-content: space-between;
+  }
 }
 

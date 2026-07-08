@@ -109,6 +109,28 @@
   max-width: min(var(--content-max-width, 1440px), 100%) !important;
 }
 
+.reportDashboard {
+  gap: 10px !important;
+}
+
+.reportDashboard .chartGrid,
+.reportDashboard .reportSectionShell {
+  gap: 10px !important;
+}
+
+.reportDashboard .chartCanvasHost,
+.reportDashboard .reportChartHost {
+  height: clamp(200px, 24vh, 248px) !important;
+}
+
+.reportDashboard .chartCanvasHostShort {
+  height: clamp(180px, 22vh, 220px) !important;
+}
+
+.reportFilters {
+  padding: 10px 12px !important;
+}
+
 /* Forecast page `.container` was 1180px; align with app content width */
 .contentArea > .container {
   max-width: min(var(--content-max-width, 1440px), 100%);
@@ -120,34 +142,30 @@
   margin-bottom: var(--lp-section-gap-lg) !important;
 }
 
-.reportFilters {
-  padding: 11px 13px !important;
-}
-
 .forecastHero {
   margin-bottom: var(--lp-section-gap-lg) !important;
 }
 
 /* Cost dashboard */
 .costDashboard {
-  gap: var(--lp-section-gap-lg) !important;
+  gap: 10px !important;
 }
 
 .costDashboard .costZones {
-  gap: calc(var(--lp-section-gap-lg) + 6px) !important;
+  gap: 10px !important;
 }
 
 .costDashboard .chartStack {
-  gap: var(--cost-gutter, 14px) !important;
+  gap: 10px !important;
 }
 
 .costDashboard .chartCanvasHost {
-  height: var(--lp-chart-h) !important;
-  max-height: var(--lp-chart-h);
+  height: clamp(228px, 29vh, 288px) !important;
+  max-height: clamp(228px, 29vh, 288px);
 }
 
 .costDashboard .chartCanvasHost--tall {
-  height: min(var(--lp-chart-h), 300px) !important;
+  height: clamp(240px, 30vh, 300px) !important;
 }
 
 .costDashboard .chartCanvasHost canvas {
@@ -158,7 +176,7 @@
 @media (max-width: 960px) {
   .costDashboard .chartCanvasHost,
   .costDashboard .chartCanvasHost--tall {
-    height: min(var(--lp-chart-h), 300px) !important;
+    height: min(clamp(228px, 29vh, 288px), 272px) !important;
   }
 }
 
@@ -191,9 +209,43 @@
   margin-bottom: 6px !important;
 }
 
+/* Token dashboard density (align with Cost) */
+.tokenDashboard {
+  gap: 10px !important;
+}
+
+.tokenDashboard .monitorChartHost--runRate {
+  min-height: clamp(168px, 20vh, 208px) !important;
+  height: clamp(168px, 20vh, 208px) !important;
+}
+
+.tokenDashboard .chartCanvasHost {
+  height: clamp(228px, 29vh, 288px) !important;
+  max-height: clamp(228px, 29vh, 288px);
+}
+
+.tokenDashboard .chartCanvasHostShort {
+  height: clamp(200px, 24vh, 248px) !important;
+}
+
+.tokenDashboard .monitorChartHost {
+  min-height: clamp(214px, 27vh, 268px);
+}
+
+.tokenDashboard .monitorChartHost--stacked {
+  min-height: clamp(180px, 22vh, 220px) !important;
+  height: clamp(180px, 22vh, 220px) !important;
+}
+
+@media (max-width: 960px) {
+  .tokenDashboard .chartCanvasHost,
+  .tokenDashboard .chartCanvasHostShort {
+    height: min(clamp(228px, 29vh, 288px), 272px) !important;
+  }
+}
+
 /* Token charts */
-.tokenCharts .chartCanvasWrap,
-.impliedUnitPriceChartWrap {
+.tokenCharts .chartCanvasWrap {
   height: var(--lp-chart-h) !important;
 }
 

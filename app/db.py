@@ -2181,6 +2181,201 @@ def get_project_billing_by_resource(
     }
 
 
+def get_project_daily_cost_by_resource(
+    conn: sqlite3.Connection,
+    project_name: str,
+    *,
+    start_date: str | None = None,
+    end_date: str | None = None,
+    currency: str | None = None,
+) -> dict[str, object]:
+    """Daily OpEx totals per Azure resource (subproject segment) for chart breakdown."""
+    currency_filter = currency
+    if currency_filter is None:
+        currencies = get_available_currencies(conn, project_name)
+        currency_filter = currencies[0] if currencies else "USD"
+
+    where = ["project_name = ?"]
+    params: list[object] = [project_name]
+    if start_date:
+        where.append("usage_date >= ?")
+        params.append(start_date)
+    if end_date:
+        where.append("usage_date <= ?")
+        params.append(end_date)
+    if currency_filter:
+        where.append("currency = ?")
+        params.append(currency_filter)
+    where_sql = " AND ".join(where)
+
+    raw_rows = conn.execute(
+        f"""
+        SELECT
+            usage_date AS date,
+            resource_id,
+            COALESCE(SUM(cost_usd), 0) AS cost_usd
+        FROM transactions
+        WHERE {where_sql}
+        GROUP BY usage_date, resource_id
+        ORDER BY date ASC, resource_id ASC
+        """,
+        tuple(params),
+    ).fetchall()
+
+    if not raw_rows:
+        return {
+            "available": False,
+            "project": project_name,
+            "currency": currency_filter,
+            "resource_count": 0,
+            "series": [],
+        }
+
+    by_resource: dict[str, dict[str, float]] = {}
+    all_dates: set[str] = set()
+    for row in raw_rows:
+        d = str(row["date"])
+        name = resource_short_name(str(row["resource_id"] or "").strip() or None)
+        cost = float(row["cost_usd"] or 0)
+        all_dates.add(d)
+        bucket = by_resource.setdefault(name, {})
+        bucket[d] = bucket.get(d, 0.0) + cost
+
+    sorted_dates = sorted(all_dates)
+    series: list[dict[str, object]] = []
+    for name in sorted(by_resource.keys(), key=lambda n: (-sum(by_resource[n].values()), n)):
+        by_date = by_resource[name]
+        points = [
+            {
+                "date": d,
+                "cost_usd": round_cost(by_date[d]) if d in by_date else None,
+            }
+            for d in sorted_dates
+        ]
+        series.append({"resource_name": name, "points": points})
+
+    return {
+        "available": True,
+        "project": project_name,
+        "currency": currency_filter,
+        "from_date": start_date,
+        "to_date": end_date,
+        "resource_count": len(series),
+        "series": series,
+    }
+
+
+def get_financial_daily_cost_by_segment(
+    conn: sqlite3.Connection,
+    *,
+    start_date: str | None = None,
+    end_date: str | None = None,
+    currency: str | None = None,
+    project_names: list[str] | None = None,
+) -> dict[str, object]:
+    """
+    Daily OpEx by segment for consolidated reports.
+
+    - Single project in scope: segments = Azure resources (same as Cost page).
+    - Multiple projects: segments = project names.
+    """
+    scoped_projects = list(project_names) if project_names else list_projects(conn)
+    scoped_projects = [p for p in scoped_projects if str(p).strip()]
+    segment_mode = "resource" if len(scoped_projects) == 1 else "project"
+
+    currency_filter = currency
+    if currency_filter is None:
+        currencies = get_all_currencies(
+            conn,
+            start_date=start_date,
+            end_date=end_date,
+            project_names=project_names,
+        )
+        currency_filter = currencies[0] if currencies else "USD"
+
+    where: list[str] = []
+    params: list[object] = []
+    project_sql, project_params = _project_where(project_names)
+    if project_sql != "1=1":
+        where.append(project_sql)
+        params.extend(project_params)
+    if start_date:
+        where.append("usage_date >= ?")
+        params.append(start_date)
+    if end_date:
+        where.append("usage_date <= ?")
+        params.append(end_date)
+    if currency_filter:
+        where.append("currency = ?")
+        params.append(currency_filter)
+    where_sql = " AND ".join(where) if where else "1=1"
+
+    if segment_mode == "resource":
+        group_cols = "usage_date, resource_id"
+        select_cols = "usage_date AS date, resource_id, NULL AS project_name"
+    else:
+        group_cols = "usage_date, project_name"
+        select_cols = "usage_date AS date, NULL AS resource_id, project_name"
+
+    raw_rows = conn.execute(
+        f"""
+        SELECT
+            {select_cols},
+            COALESCE(SUM(cost_usd), 0) AS cost_usd
+        FROM transactions
+        WHERE {where_sql}
+        GROUP BY {group_cols}
+        ORDER BY date ASC
+        """,
+        tuple(params),
+    ).fetchall()
+
+    if not raw_rows:
+        return {
+            "available": False,
+            "segment_mode": segment_mode,
+            "currency": currency_filter,
+            "resource_count": 0,
+            "series": [],
+        }
+
+    by_segment: dict[str, dict[str, float]] = {}
+    all_dates: set[str] = set()
+    for row in raw_rows:
+        d = str(row["date"])
+        if segment_mode == "resource":
+            name = resource_short_name(str(row["resource_id"] or "").strip() or None)
+        else:
+            name = str(row["project_name"] or "Unknown")
+        cost = float(row["cost_usd"] or 0)
+        all_dates.add(d)
+        bucket = by_segment.setdefault(name, {})
+        bucket[d] = bucket.get(d, 0.0) + cost
+
+    sorted_dates = sorted(all_dates)
+    series: list[dict[str, object]] = []
+    for name in sorted(by_segment.keys(), key=lambda n: (-sum(by_segment[n].values()), n)):
+        by_date = by_segment[name]
+        points = [
+            {
+                "date": d,
+                "cost_usd": round_cost(by_date[d]) if d in by_date else None,
+            }
+            for d in sorted_dates
+        ]
+        series.append({"resource_name": name, "points": points})
+
+    return {
+        "available": True,
+        "segment_mode": segment_mode,
+        "currency": currency_filter,
+        "from_date": start_date,
+        "to_date": end_date,
+        "resource_count": len(series),
+        "series": series,
+    }
+
+
 def _project_token_model_names(
     conn: sqlite3.Connection,
     project_name: str,
@@ -5112,6 +5307,13 @@ def get_all_financial_stats(
             start_date=start_date,
             end_date=end_date,
             currency=currency,
+            project_names=project_names,
+        ),
+        "daily_by_segment": get_financial_daily_cost_by_segment(
+            conn,
+            start_date=start_date,
+            end_date=end_date,
+            currency=chosen_currency,
             project_names=project_names,
         ),
         "daily_points": daily_points,

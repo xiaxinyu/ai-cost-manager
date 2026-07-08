@@ -207,7 +207,8 @@ def test_model_unit_prices_api(tmp_path):
     page = client.get("/tokens")
     assert page.status_code == 200
     assert "unitPriceSection" in page.text
-    assert "impliedUnitPriceInputChart" in page.text
+    assert "unitPriceSummaryTable" in page.text
+    assert "impliedUnitPriceInputChart" not in page.text
 
 
 def test_catalog_prefers_global_standard_over_cheaper_fuzzy(tmp_path):

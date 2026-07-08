@@ -414,18 +414,235 @@
         }
       }
 
-/* Cost dashboard — finance MIS layout */
+/* Cost dashboard — finance MIS layout (balanced density) */
 .costDashboard {
-  --cost-gap: 10px;
+  --cost-gap: 8px;
   --cost-gutter: 10px;
-  --cost-gap-sm: var(--cost-gutter);
-  --cost-control-h: 34px;
-  --cost-chart-h: clamp(260px, 32vh, 336px);
-  --cost-chart-h-tall: clamp(280px, 34vh, 360px);
+  --cost-gap-sm: 8px;
+  --cost-control-h: 33px;
+  --cost-chart-h: clamp(228px, 29vh, 288px);
+  --cost-chart-h-tall: clamp(240px, 30vh, 300px);
+  --cost-chart-h-model: clamp(214px, 27vh, 268px);
   display: grid;
   gap: var(--cost-gap);
   width: 100%;
   max-width: 100%;
+}
+
+.costLegendRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+  font-size: 10.5px;
+}
+
+.costNavSticky {
+  position: sticky;
+  top: 6px;
+  z-index: 20;
+  scroll-margin-top: 6px;
+}
+
+.costStatement {
+  padding-bottom: 10px;
+}
+
+.costStatementBody {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--cost-gutter) + 2px);
+}
+
+.costStatementMetrics {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.costStatementSubzone {
+  scroll-margin-top: 76px;
+  padding-top: calc(var(--cost-gutter) + 2px);
+  border-top: 1px solid rgba(173, 196, 228, 0.11);
+}
+
+.costSubzoneHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.costSubzoneTitle {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 760;
+  letter-spacing: 0.01em;
+  color: var(--text, #e7edf6);
+}
+
+.costSubzoneLead {
+  margin: 4px 0 0;
+  font-size: 12px;
+  line-height: 1.45;
+  max-width: 58ch;
+}
+
+.costTariffSubzone .costFinBenchmarkKpi {
+  margin-top: 6px;
+}
+
+.costRunRateSubzone {
+  min-width: 0;
+}
+
+.costDashboard .monitorKpi {
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.costDashboard .monitorCard--inset {
+  border: 1px solid rgba(173, 196, 228, 0.14);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.03);
+  overflow: hidden;
+}
+
+.costDashboard .monitorCard--inset .monitorCardTitle {
+  font-size: 13px;
+}
+
+.costDailyDetailDetails {
+  margin-top: calc(var(--cost-gutter) + 2px);
+}
+
+.costDailyDetailLead {
+  margin: 0 16px 10px;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.costBreakdownSection .costBreakdownNav {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 3px;
+  margin: 0 0 8px;
+  padding: 3px;
+  border-radius: 8px;
+  border: 1px solid rgba(173, 196, 228, 0.14);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.costBreakdownSection .costBreakdownNavLink {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 10px;
+  border-radius: 6px;
+  font-size: 11.5px;
+  font-weight: 650;
+  color: #c8d8ec;
+  text-decoration: none;
+  border: 1px solid transparent;
+  transition: background 0.14s ease, border-color 0.14s ease, color 0.14s ease;
+}
+
+.costBreakdownSection .costBreakdownNavLink:hover {
+  color: #f1f5f9;
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(173, 196, 228, 0.16);
+  text-decoration: none;
+}
+
+.costBreakdownSection .costBreakdownPanel + .costBreakdownPanel,
+.costBreakdownSection .costModelCharts + .costDailyDetailDetails,
+.costBreakdownSection .costDailyDetailDetails + .costBreakdownPanel {
+  margin-top: calc(var(--cost-gutter) + 4px);
+}
+
+.costModelCharts {
+  margin-top: 4px;
+  margin-bottom: 4px;
+  align-items: stretch;
+}
+
+.costModelCharts .monitorCard--modelChart {
+  overflow: visible;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.costModelCharts .monitorCardChartBody {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.costModelCharts .monitorCard--modelChart .monitorChartHost {
+  flex: 0 0 auto;
+  height: var(--cost-chart-h-model) !important;
+  max-height: none !important;
+  min-height: 214px;
+  padding: 6px 10px 12px;
+  box-sizing: border-box;
+}
+
+.costModelCharts .monitorCardFoot--summary {
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 8px 12px 10px;
+  line-height: 1.45;
+  font-size: 11.5px;
+  border-top: 1px solid rgba(173, 196, 228, 0.1);
+  background: rgba(8, 12, 18, 0.28);
+}
+
+.costModelCharts .monitorCardFoot--summary:not([hidden]) {
+  display: block;
+}
+
+.costModelCharts .monitorCardHead {
+  flex-shrink: 0;
+}
+
+@media (min-width: 1180px) {
+  .costStatementBody {
+    display: grid;
+    grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr);
+    gap: calc(var(--cost-gutter) + 4px);
+    align-items: start;
+  }
+
+  .costStatementMetrics {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .costRunRateSubzone {
+    grid-column: 2;
+    grid-row: 1;
+    padding-top: 0;
+    border-top: none;
+    position: sticky;
+    top: 52px;
+  }
+
+  .costRunRateSubzone .monitorChartHost,
+  .costRunRateSubzone .monitorCard--primary .monitorChartHost {
+    min-height: 268px;
+  }
+}
+
+@media (max-width: 1179px) {
+  .costRunRateSubzone {
+    padding-top: var(--cost-gutter);
+  }
 }
 
 /* —— Page chrome (inherits unified dashPageHeader band) —— */
@@ -481,7 +698,7 @@
 
 /* —— Filter card —— */
 .costDashboard .costFilterCard {
-  padding: 8px 12px 10px;
+  padding: 6px 10px 8px;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.03));
 }
 
@@ -489,15 +706,15 @@
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  gap: 10px;
+  gap: 8px;
   flex-wrap: wrap;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
   padding-bottom: 0;
   border-bottom: none;
 }
 
 .costDashboard .filterCardHead--compact {
-  margin-bottom: 6px;
+  margin-bottom: 4px;
 }
 
 .costDashboard .filterCardHead--compact .filterCardTitle {
@@ -617,7 +834,7 @@
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 6px 10px;
+  gap: 5px 9px;
   padding: 6px 10px;
 }
 
@@ -655,8 +872,8 @@
 .costZone {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  scroll-margin-top: 72px;
+  gap: 8px;
+  scroll-margin-top: 68px;
 }
 
 .costSectionHead {
@@ -664,8 +881,8 @@
   grid-template-columns: auto minmax(0, 1fr) auto;
   gap: 8px 12px;
   align-items: start;
-  padding-bottom: 8px;
-  border-bottom: 1px solid rgba(173, 196, 228, 0.12);
+  padding-bottom: 7px;
+  border-bottom: 1px solid rgba(173, 196, 228, 0.11);
 }
 
 .costStep {
@@ -719,9 +936,9 @@
 }
 
 .costFinFlowNote {
-  margin: 0;
-  font-size: 12px;
-  line-height: 1.45;
+  margin: 0 0 2px;
+  font-size: 11.5px;
+  line-height: 1.42;
 }
 
 .costFinPrimaryKpi {
@@ -736,8 +953,8 @@
 .costFinOpexCompositionKpi {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   margin-top: 2px;
-  padding-top: 10px;
-  border-top: 1px dashed rgba(173, 196, 228, 0.14);
+  padding-top: 8px;
+  border-top: 1px dashed rgba(173, 196, 228, 0.13);
 }
 
 .monitorKpi--platform {
@@ -754,12 +971,12 @@
 }
 
 .monitorKpi--hero .value {
-  font-size: clamp(24px, 2.4vw, 32px);
+  font-size: clamp(22px, 2.2vw, 30px);
   font-weight: 700;
 }
 
 .monitorKpi .value--md {
-  font-size: clamp(18px, 1.8vw, 22px);
+  font-size: clamp(17px, 1.7vw, 21px);
 }
 
 .monitorKpi .value--text {
@@ -768,13 +985,9 @@
   letter-spacing: 0.01em;
 }
 
-.costModelCharts {
-  margin-top: 4px;
-}
-
 .monitorKpi {
-  padding: 10px 12px;
-  min-height: 82px;
+  padding: 9px 11px;
+  min-height: 74px;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -817,21 +1030,21 @@
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 12px;
-  padding: 14px 16px 10px;
-  border-bottom: 1px solid rgba(173, 196, 228, 0.1);
+  gap: 10px;
+  padding: 10px 12px 8px;
+  border-bottom: 1px solid rgba(173, 196, 228, 0.09);
 }
 
 .monitorCardTitle {
   margin: 0;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 750;
   letter-spacing: 0.01em;
 }
 
 .monitorCardDesc {
-  margin: 4px 0 0;
-  font-size: 12px;
+  margin: 3px 0 0;
+  font-size: 11.5px;
   line-height: 1.4;
 }
 
@@ -840,8 +1053,8 @@
 }
 
 .monitorChartHost {
-  min-height: 260px;
-  padding: 8px 12px 4px;
+  min-height: 220px;
+  padding: 6px 10px 4px;
 }
 
 .monitorCardHeadMain {
@@ -849,11 +1062,11 @@
 }
 
 .monitorChartHost--stacked {
-  min-height: 280px;
+  min-height: var(--cost-chart-h-model, 214px);
 }
 
 .monitorCardFoot:not([hidden]) {
-  padding: 8px 16px 12px;
+  padding: 7px 12px 10px;
   border-top: 1px solid rgba(173, 196, 228, 0.08);
   font-size: 11.5px;
 }
@@ -864,12 +1077,12 @@
 }
 
 .monitorCard--primary .monitorChartHost {
-  min-height: 300px;
+  min-height: var(--cost-chart-h, 228px);
 }
 
 .monitorCardFoot {
-  padding: 8px 16px 12px;
-  font-size: 12px;
+  padding: 7px 12px 10px;
+  font-size: 11.5px;
   border-top: 1px solid rgba(173, 196, 228, 0.08);
 }
 
@@ -1220,11 +1433,11 @@
   position: relative;
   width: 100%;
   height: var(--cost-chart-h);
-  min-height: 228px;
+  min-height: 220px;
   border-radius: 8px;
   background: rgba(8, 12, 18, 0.35);
   border: 1px solid rgba(148, 163, 184, 0.1);
-  padding: 6px 4px 2px;
+  padding: 5px 6px 4px;
   cursor: crosshair;
 }
 
@@ -1936,8 +2149,8 @@
 
 @media (max-width: 640px) {
   .costDashboard {
-    --cost-gap: 12px;
-    --cost-gutter: 12px;
+    --cost-gap: 8px;
+    --cost-gutter: 10px;
   }
 
   .costMonitorKpi {
@@ -1961,4 +2174,540 @@
     white-space: normal;
     padding-top: 0;
   }
+}
+
+/* Cost page — balanced density (between compact and loose) */
+.costDashboard.dashPage {
+  gap: var(--cost-gap);
+  padding-bottom: 6px;
+}
+
+.costDashboard .costFinBlock {
+  padding: 10px 12px;
+  scroll-margin-top: 64px;
+}
+
+.costDashboard .dashSectionNav.card {
+  padding: 7px 10px;
+  gap: 6px 10px;
+}
+
+.costDashboard .costPageHeader {
+  padding: 10px 12px !important;
+}
+
+.costDashboard .costPageHeader .pageTitle {
+  font-size: clamp(19px, 2.3vw, 23px);
+  margin: 3px 0 0;
+}
+
+.costDashboard .costPageHeader .pageDesc {
+  margin: 5px 0 0;
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+.costDashboard .costSectionTitle {
+  font-size: 15px;
+}
+
+.costDashboard .costSectionLead {
+  margin: 3px 0 0;
+  font-size: 12px;
+  line-height: 1.42;
+}
+
+.costDashboard .costSubzoneTitle {
+  font-size: 13px;
+}
+
+.costDashboard .costSubzoneLead {
+  font-size: 11.5px;
+  margin-top: 3px;
+  line-height: 1.42;
+}
+
+.costDashboard .costBillingKey {
+  gap: 6px;
+  margin: 0 0 10px;
+  line-height: 1.45;
+}
+
+.costDashboard .costSubprojectStrip {
+  margin-top: 6px;
+  padding-top: 4px;
+}
+
+.costDashboard .costSubprojectStripLead {
+  margin: 0 0 8px;
+  font-size: 11.5px;
+}
+
+.costDashboard .costSubprojectCards {
+  gap: 8px;
+}
+
+.costDashboard .costSubprojectCard {
+  padding: 10px 12px;
+}
+
+.costDashboard .detailTableBlock {
+  gap: 8px;
+  scroll-margin-top: 68px;
+}
+
+.costDashboard .detailTableHead {
+  gap: 8px 10px;
+}
+
+.costDashboard .detailTableTitle {
+  font-size: 13px;
+}
+
+.costDashboard .detailTableDesc {
+  font-size: 11.5px;
+  line-height: 1.4;
+  margin-top: 3px;
+}
+
+.costDashboard .modelSummaryCard,
+.costDashboard .dashTablePanel {
+  padding: 10px 12px;
+}
+
+.costDashboard .modelSummaryTableWrap {
+  max-height: min(400px, 48vh);
+}
+
+.costDashboard .modelSummaryTable thead th,
+.costDashboard .modelSummaryTable tbody td,
+.costDashboard .modelSummaryTable tfoot td,
+.costDashboard .modelSummaryTable tfoot th {
+  padding: 8px 9px;
+  font-size: 12px;
+}
+
+.costDashboard .costModelDailyTableWrap {
+  max-height: min(48vh, 460px);
+}
+
+.costDashboard .costBillingDetailsSummary {
+  padding: 11px 14px;
+}
+
+.costDashboard .costBreakdownPanel + .costBreakdownPanel {
+  margin-top: calc(var(--cost-gutter) + 2px);
+  padding-top: calc(var(--cost-gutter) + 2px);
+}
+
+.costDashboard .costMonitorGrid {
+  gap: var(--cost-gutter);
+}
+
+.costDashboard .stat .label {
+  font-size: 10px;
+}
+
+.costDashboard .stat .sub,
+.costDashboard .kpiFootnote {
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.costDashboard .monitorKpi .value {
+  font-size: clamp(19px, 1.9vw, 25px);
+}
+
+.costDashboard .costNav {
+  padding: 6px 10px;
+  gap: 5px 9px;
+}
+
+/* =============================================================================
+   Cost page visual system — typography, color, layout polish
+   ============================================================================= */
+.costPageRoot .costDashboard {
+  --cost-text-primary: #eef4fc;
+  --cost-text-secondary: #a8bdd4;
+  --cost-text-muted: #7d92ab;
+  --cost-surface: rgba(14, 20, 30, 0.55);
+  --cost-surface-card: rgba(255, 255, 255, 0.04);
+  --cost-surface-card-hover: rgba(255, 255, 255, 0.055);
+  --cost-border-subtle: rgba(148, 163, 184, 0.14);
+  --cost-border-strong: rgba(148, 163, 184, 0.22);
+  font-feature-settings: "tnum" 1, "lnum" 1;
+  -webkit-font-smoothing: antialiased;
+}
+
+.costPageRoot .costPageHeader {
+  background: linear-gradient(
+    135deg,
+    rgba(var(--cost-actual-rgb), 0.08) 0%,
+    rgba(var(--cost-market-rgb), 0.05) 48%,
+    rgba(255, 255, 255, 0.02) 100%
+  ) !important;
+}
+
+.costPageRoot .costPageHeader .pageTitle {
+  letter-spacing: -0.02em;
+  color: var(--cost-text-primary);
+}
+
+.costPageRoot .costPageHeader .pageDesc {
+  color: var(--cost-text-secondary);
+}
+
+.costPageRoot .costLegendRow {
+  opacity: 0.92;
+}
+
+.costPageRoot .costFinBlock {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.025));
+  border-color: var(--cost-border-subtle);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.03) inset;
+}
+
+.costPageRoot .costSectionTitle {
+  color: var(--cost-text-primary);
+  letter-spacing: -0.01em;
+}
+
+.costPageRoot .costSectionLead,
+.costPageRoot .costSubzoneLead,
+.costPageRoot .monitorCardDesc,
+.costPageRoot .detailTableDesc {
+  color: var(--cost-text-muted);
+}
+
+.costPageRoot .costCurrencyBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--cost-text-secondary);
+  border: 1px solid var(--cost-border-subtle);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.costPageRoot .costStep {
+  width: 24px;
+  height: 24px;
+  font-size: 11px;
+  border-radius: 7px;
+  color: #99f6e4;
+  background: rgba(var(--cost-actual-rgb), 0.1);
+  border-color: rgba(var(--cost-actual-rgb), 0.28);
+}
+
+.costPageRoot .costSubzoneTitle {
+  color: var(--cost-text-primary);
+  font-weight: 740;
+  letter-spacing: 0.01em;
+}
+
+.costPageRoot .costDashboard .monitorKpi {
+  position: relative;
+  padding: 10px 12px 10px 14px;
+  border-radius: 9px;
+  border-color: var(--cost-border-subtle);
+  background: var(--cost-surface-card);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.03) inset;
+}
+
+.costPageRoot .costDashboard .monitorKpi::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 10px;
+  bottom: 10px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: rgba(148, 163, 184, 0.28);
+}
+
+.costPageRoot .costDashboard .monitorKpi--actual::before,
+.costPageRoot .costDashboard .monitorKpi--hero::before {
+  background: var(--cost-actual);
+  box-shadow: 0 0 10px rgba(var(--cost-actual-rgb), 0.35);
+}
+
+.costPageRoot .costDashboard .monitorKpi--hero::before {
+  width: 4px;
+}
+
+.costPageRoot .costDashboard .monitorKpi--platform::before {
+  background: var(--cost-platform);
+}
+
+.costPageRoot .costDashboard .monitorKpi--market::before {
+  background: var(--cost-market);
+}
+
+.costPageRoot .costDashboard .monitorKpi--neutral::before {
+  background: rgba(148, 163, 184, 0.35);
+}
+
+.costPageRoot .costDashboard .monitorKpi--hero {
+  border-color: rgba(var(--cost-actual-rgb), 0.28);
+  background: linear-gradient(
+    145deg,
+    rgba(var(--cost-actual-rgb), 0.1) 0%,
+    rgba(255, 255, 255, 0.035) 58%
+  );
+}
+
+.costPageRoot .costDashboard .monitorKpi .label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--cost-text-secondary);
+}
+
+.costPageRoot .costDashboard .monitorKpi .label .costPill {
+  margin-right: 2px;
+  vertical-align: middle;
+  transform: translateY(-1px);
+}
+
+.costPageRoot .costDashboard .monitorKpi .value {
+  color: var(--cost-text-primary);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+.costPageRoot .costDashboard .monitorKpi .value--md {
+  font-size: clamp(17px, 1.65vw, 21px);
+  font-weight: 720;
+}
+
+.costPageRoot .costDashboard .monitorKpi .value--period {
+  font-size: clamp(12px, 1.15vw, 13.5px);
+  font-weight: 650;
+  line-height: 1.35;
+  letter-spacing: 0;
+  color: var(--cost-text-primary);
+  word-break: break-word;
+}
+
+.costPageRoot .costDashboard .monitorKpi .value--text {
+  font-size: clamp(14px, 1.3vw, 16px);
+  font-weight: 680;
+}
+
+.costPageRoot .costDashboard .kpiFootnote {
+  color: var(--cost-text-muted);
+  font-size: 10.5px;
+  line-height: 1.38;
+}
+
+.costPageRoot .costDashboard .kpiFootnote--stats {
+  font-size: 10px;
+  letter-spacing: 0.01em;
+}
+
+.costPageRoot .costDashboard .kpiFootnote a {
+  color: #7dd3fc;
+  text-decoration: none;
+}
+
+.costPageRoot .costDashboard .kpiFootnote a:hover {
+  text-decoration: underline;
+}
+
+.costPageRoot .costTariffSubzone {
+  padding-top: calc(var(--cost-gutter) + 4px);
+  margin-top: 2px;
+}
+
+.costPageRoot .costRunRateSubzone {
+  border-top: none;
+  padding-top: 0;
+}
+
+.costPageRoot .costTrendCard {
+  border-color: var(--cost-border-subtle);
+  background: var(--cost-surface);
+}
+
+.costPageRoot .monitorCardHead--chart {
+  padding-bottom: 6px;
+  border-bottom-color: rgba(173, 196, 228, 0.07);
+}
+
+.costPageRoot .monitorCardHead--chart .monitorCardTitle {
+  font-size: 14px;
+  font-weight: 760;
+  color: var(--cost-text-primary);
+}
+
+.costPageRoot .costChartLegendDetails {
+  margin: 0 12px 8px;
+  border: 1px solid rgba(173, 196, 228, 0.1);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.costPageRoot .costChartLegendSummary {
+  padding: 7px 10px;
+  font-size: 11px;
+  font-weight: 650;
+  color: var(--cost-text-muted);
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+
+.costPageRoot .costChartLegendSummary::-webkit-details-marker {
+  display: none;
+}
+
+.costPageRoot .costChartLegendSummary::before {
+  content: "▸ ";
+  color: #5eead4;
+  font-size: 10px;
+}
+
+.costPageRoot .costChartLegendDetails[open] .costChartLegendSummary::before {
+  content: "▾ ";
+}
+
+.costPageRoot .costChartLegendDetails .costBillingKeyHost {
+  padding: 0 10px 8px;
+}
+
+.costPageRoot .costDashboard .costBillingKey {
+  gap: 5px;
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.42;
+}
+
+.costPageRoot .costDashboard .costBillingKeyText {
+  color: var(--cost-text-muted);
+}
+
+.costPageRoot .costDashboard .costBillingKeyFoot {
+  margin: 4px 0 0;
+  font-size: 10.5px;
+}
+
+.costPageRoot .costDashboard .monitorCardFoot {
+  color: var(--cost-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.costPageRoot .costDashboard .dashSectionNav.card {
+  background: rgba(10, 16, 26, 0.92) !important;
+  border-color: var(--cost-border-subtle);
+}
+
+.costPageRoot .costDashboard .dashSectionNavLink.is-active {
+  color: #5eead4;
+  background: rgba(var(--cost-actual-rgb), 0.12);
+  border: 1px solid rgba(var(--cost-actual-rgb), 0.28);
+}
+
+.costPageRoot .costBreakdownSection .costBreakdownNav {
+  background: rgba(255, 255, 255, 0.025);
+  border-color: var(--cost-border-subtle);
+}
+
+.costPageRoot .costDashboard .detailTableTitle {
+  color: var(--cost-text-primary);
+  font-weight: 740;
+}
+
+.costPageRoot .costSubprojectCard {
+  border-color: var(--cost-border-subtle);
+  background: var(--cost-surface-card);
+  transition: border-color 0.14s ease, background 0.14s ease;
+}
+
+.costPageRoot .costSubprojectCard:hover {
+  border-color: rgba(var(--cost-actual-rgb), 0.32);
+  background: var(--cost-surface-card-hover);
+}
+
+@media (min-width: 1180px) {
+  .costPageRoot .costStatementBody {
+    grid-template-columns: minmax(0, 0.88fr) minmax(0, 1.12fr);
+    gap: calc(var(--cost-gutter) + 6px);
+  }
+}
+
+/* Daily spend — multi-segment (subproject) chart polish */
+.costSpendLegendRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px 8px;
+  margin: 0 12px 8px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  border: 1px solid rgba(173, 196, 228, 0.1);
+  background: rgba(255, 255, 255, 0.025);
+  max-height: 72px;
+  overflow-y: auto;
+}
+
+.costSpendLegendPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+  color: var(--cost-text-secondary, #a8bdd4);
+  border: 1px solid rgba(173, 196, 228, 0.12);
+  background: rgba(255, 255, 255, 0.03);
+  white-space: nowrap;
+  max-width: 168px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.costSpendLegendPill::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--seg-color, #60a5fa);
+  flex-shrink: 0;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.2);
+}
+
+.costSpendLegendPill--total {
+  color: var(--cost-text-primary, #eef4fc);
+  font-weight: 720;
+  border-color: rgba(var(--cost-actual-rgb), 0.28);
+  background: rgba(var(--cost-actual-rgb), 0.08);
+}
+
+.costSpendLegendPill--total::before {
+  width: 10px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--seg-color, #5eead4);
+  box-shadow: 0 0 8px rgba(var(--cost-actual-rgb), 0.35);
+}
+
+.costSpendLegendPill--other::before {
+  background: transparent;
+  border: 1px dashed var(--seg-color, #94a3b8);
+  box-shadow: none;
+}
+
+.costTrendCard--segments .monitorChartHost {
+  padding-top: 2px;
+}
+
+.costTrendCard--segments .monitorCardFoot {
+  font-variant-numeric: tabular-nums;
 }

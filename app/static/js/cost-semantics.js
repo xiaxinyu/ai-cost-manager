@@ -87,31 +87,29 @@
     return `<div class="costTypeLegend" aria-label="Cost type">${parts.join('<span class="costLegendSep" aria-hidden="true"></span>')}</div>`;
   }
 
-  /** Plain-language billing key — aligned with Allocation → By model table columns/rows. */
-  function billingKey({ stacked = false, hasTariff = false, allocationHref = null } = {}) {
+  /** Plain-language billing key — aligned with Allocation → By model table. */
+  function billingKey({ stacked = false, meterSplit = false, hasTariff = false, allocationHref = null } = {}) {
     const rows = [];
-    if (stacked) {
+    const split = stacked || meterSplit;
+    if (split) {
       rows.push({
         kind: "meter",
-        text:
-          "By model — model rows (e.g. gpt-5.1) · <b>Meter</b> column = Input + Output USD from matched token meter lines (MeterCategory inp/opt)",
+        text: "Model rows · <b>Meter</b> column (Input + Output USD)",
       });
       rows.push({
         kind: "platform",
-        text:
-          "By model — <b>Others · …</b> rows (Defender, Bing, Foundry unmatched, …) · same total as chart <b>Platform</b> stack = non-token CostUSD",
+        text: "<b>Others · …</b> rows · non-token platform services",
       });
     } else {
       rows.push({
         kind: "opex",
-        text: "Daily <b>CostUSD</b> from billing CSV — equals <b>All billing</b> footer in By model",
+        text: "Daily <b>CostUSD</b> from billing CSV",
       });
     }
     if (hasTariff) {
       rows.push({
         kind: "tariff",
-        text:
-          "By model — <b>Tariff</b> column · tokens × list USD/1M from <a href=\"/prices\">Model Prices</a> (benchmark only, not invoice)",
+        text: "<b>Tariff</b> column · list USD/1M benchmark (<a href=\"/prices\">Model Prices</a>)",
       });
     }
     if (!rows.length) return "";
@@ -126,7 +124,7 @@
       .join("");
     const link =
       allocationHref != null && String(allocationHref).trim()
-        ? `<p class="costBillingKeyFoot muted"><a href="${String(allocationHref).trim()}">Allocation → By model</a> — same Meter / Others / Tariff breakdown</p>`
+        ? `<p class="costBillingKeyFoot muted"><a href="${String(allocationHref).trim()}">Open Allocation → By model</a></p>`
         : "";
     return `<div class="costBillingKey" aria-label="Billing legend">${items}${link}</div>`;
   }

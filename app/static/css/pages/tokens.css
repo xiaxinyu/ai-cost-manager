@@ -1,7 +1,11 @@
 /* Token workspace — refined operational layout */
 .tokenPage {
-  --token-gap: 16px;
-  --token-gap-sm: 12px;
+  --token-gap: 10px;
+  --token-gap-sm: 8px;
+  --token-gutter: 10px;
+  --token-chart-h: clamp(228px, 29vh, 288px);
+  --token-chart-h-sm: clamp(200px, 24vh, 248px);
+  --token-chart-h-model: clamp(214px, 27vh, 268px);
   --control-h: 40px;
   --control-radius: 8px;
   --control-bg: rgba(12, 22, 38, 0.65);
@@ -367,48 +371,6 @@
   height: clamp(248px, 30vh, 300px);
 }
 
-.perfTableShell {
-  max-height: min(52vh, 480px);
-}
-
-.perfTableShell .perfTableTotalRow th,
-.perfTableShell .perfTableTotalRow td {
-  font-weight: 750;
-}
-
-.perfModelChips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px 10px;
-}
-
-.perfModelChip {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 11px;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  padding: 2px 7px;
-  border-radius: 6px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(148, 163, 184, 0.14);
-}
-
-.perfModelChip .perfSwatch {
-  width: 8px;
-  height: 8px;
-  border-radius: 999px;
-}
-
-#perfRowsTbody tr.is-perfHighlight td {
-  background: rgba(94, 234, 212, 0.1) !important;
-  box-shadow: inset 3px 0 0 rgba(94, 234, 212, 0.55);
-}
-
-#perfRowsTbody tr.is-perfDim td {
-  opacity: 0.45;
-}
-
 .flowStepNum {
   display: inline-flex;
   align-items: center;
@@ -744,8 +706,8 @@
 }
 
 .shareBar {
-  height: 8px;
-  border-radius: 4px;
+  height: 10px;
+  border-radius: 5px;
   background: rgba(255, 255, 255, 0.08);
   overflow: hidden;
 }
@@ -834,10 +796,6 @@
 .chartCanvasWrap canvas {
   width: 100% !important;
   height: 100% !important;
-}
-
-.impliedUnitPriceChartWrap {
-  height: 272px;
 }
 
 .sectionTitle {
@@ -1220,15 +1178,26 @@
   background: rgba(255, 255, 255, 0.02);
 }
 
-.unitPriceChartsRow {
-  margin-top: 0;
+.unitPriceSummary {
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
 }
 
-.unitPriceSummary {
-  padding: 14px 16px;
-  border-radius: 10px;
-  border: 1px solid rgba(173, 196, 228, 0.14);
-  background: rgba(255, 255, 255, 0.03);
+.unitPriceSummaryMeta {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-bottom: 10px;
+  min-height: 0;
+}
+
+.unitPriceSummaryMeta:empty,
+.unitPriceSummaryMeta:not(:has(:not([hidden]))) {
+  display: none;
+  margin-bottom: 0;
 }
 
 .unitPriceSummaryHead {
@@ -1270,8 +1239,8 @@
   padding: 8px 10px;
   font-size: 10px;
   font-weight: 700;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  text-transform: none;
   color: #8fa3ba;
   border-bottom: 1px solid rgba(173, 196, 228, 0.14);
   white-space: nowrap;
@@ -1302,7 +1271,25 @@
   text-align: center;
   color: #c8d4e0;
   border-bottom: none;
-  padding-bottom: 4px;
+  padding-bottom: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  vertical-align: bottom;
+}
+
+.unitPriceSummaryTable thead th.unitPriceGroupHead .costPill {
+  margin-right: 6px;
+  vertical-align: middle;
+}
+
+.unitPriceSummaryTable thead th.unitPriceGroupHead--tariff {
+  color: #e9d5ff;
+}
+
+.unitPriceSummaryTable thead th.unitPriceGroupHead--effective {
+  color: #99f6e4;
 }
 
 .unitPriceSummaryTable .unitPriceList {
@@ -1436,8 +1423,7 @@
     justify-content: flex-start;
   }
 
-  .flowChartGrid,
-  .unitPriceChartsRow {
+  .flowChartGrid {
     grid-template-columns: 1fr;
   }
 
@@ -1547,19 +1533,6 @@
   color: #8b98a8;
 }
 
-.impliedUnitPriceStatsCard {
-  margin-bottom: 10px;
-}
-
-.impliedUnitPriceChartCard {
-  padding: 12px 14px 14px;
-}
-
-.impliedUnitPriceChartWrap canvas {
-  width: 100% !important;
-  height: 100% !important;
-}
-
 .modelUnitPriceTableWrap {
   max-height: min(52vh, 520px);
   border: 1px solid rgba(173, 196, 228, 0.14);
@@ -1640,11 +1613,6 @@
   margin-left: auto;
 }
 
-.perfTablePanel .tableScroll {
-  border: none;
-  border-radius: 0;
-}
-
 .tokenZone {
   display: flex;
   flex-direction: column;
@@ -1721,7 +1689,228 @@
 .tokenMonitorKpi {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 14px;
+  gap: var(--token-gutter);
+}
+
+.tokenStatement {
+  padding-bottom: 10px;
+}
+
+.tokenStatementBody {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.tokenScopeMetaBar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(173, 196, 228, 0.12);
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.tokenScopeMetaItem {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
+
+.tokenScopeMetaLabel {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-subtle, #8fa3ba);
+}
+
+.tokenScopeMetaValue {
+  font-size: 13px;
+  font-weight: 720;
+  font-variant-numeric: tabular-nums;
+  color: var(--text, #e7edf6);
+}
+
+.tokenScopeMetaValue--period {
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: 0;
+}
+
+.tokenScopeMetaSep {
+  width: 1px;
+  height: 14px;
+  background: rgba(173, 196, 228, 0.16);
+  flex-shrink: 0;
+}
+
+.tokenScopeMetaFoot {
+  margin-left: auto;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.tokenScopeMetaPath {
+  display: none !important;
+}
+
+.tokenRunRateSubzone {
+  scroll-margin-top: 76px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(173, 196, 228, 0.11);
+}
+
+.tokenRunRateHead {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  margin-bottom: 8px;
+}
+
+.tokenRunRateTitle {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 760;
+  letter-spacing: 0.01em;
+  color: var(--text, #e7edf6);
+}
+
+.tokenRunRateLead {
+  margin: 0;
+  flex: 1 1 180px;
+  font-size: 11.5px;
+  line-height: 1.4;
+}
+
+.tokenRunRateGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--token-gutter);
+  align-items: stretch;
+}
+
+.tokenEconomicsGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--token-gutter);
+  margin-top: 4px;
+}
+
+.tokenEconomicsPanel {
+  gap: 0;
+  min-width: 0;
+}
+
+.tokenEconomicsPanelHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px 14px;
+  padding: 0 0 8px;
+  margin-bottom: 0;
+  border-bottom: 1px solid rgba(173, 196, 228, 0.1);
+}
+
+.tokenEconomicsPanelHead .detailTableTitle {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 740;
+}
+
+.tokenEconomicsPanelHead .detailTableDesc {
+  margin: 3px 0 0;
+  font-size: 11.5px;
+  line-height: 1.35;
+}
+
+.tokenEconomicsPanelActions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.tokenEconomicsPanelBody {
+  margin-top: 0;
+  border: 1px solid rgba(173, 196, 228, 0.12);
+  border-top: none;
+  border-radius: 0 0 9px 9px;
+  overflow: hidden;
+}
+
+.dashPager--inline {
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  gap: 6px;
+}
+
+.dashPager--inline select {
+  min-width: 52px;
+  padding: 3px 6px;
+  font-size: 11px;
+}
+
+.dashPager--inline .btnSmall {
+  padding: 3px 8px;
+  font-size: 11px;
+}
+
+.dashPager--inline .pageInfo {
+  font-size: 11px;
+  min-width: 0;
+}
+
+.monitorCardHead--compact {
+  padding: 8px 12px 4px;
+  border-bottom: none;
+}
+
+.monitorCardHead--compact .monitorCardTitle {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-subtle, #9fb2c7);
+}
+
+.monitorChartHost--runRate {
+  min-height: clamp(168px, 20vh, 208px) !important;
+  height: clamp(168px, 20vh, 208px) !important;
+  padding: 4px 8px 8px;
+}
+
+.tokenPerfGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--token-gutter);
+}
+
+.tokenPerfCard--wide {
+  grid-column: 1 / -1;
+}
+
+.tokenLegendRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+  font-size: 10.5px;
+}
+
+.tokenNavSticky {
+  position: sticky;
+  top: 6px;
+  z-index: 20;
+  scroll-margin-top: 6px;
 }
 
 .tokenFinPrimaryKpi {
@@ -1731,8 +1920,40 @@
 .tokenFinSecondaryKpi {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   margin-top: 2px;
-  padding-top: 10px;
-  border-top: 1px dashed rgba(173, 196, 228, 0.14);
+  padding-top: 8px;
+  border-top: 1px dashed rgba(173, 196, 228, 0.13);
+}
+
+.tokenBreakdownSection .tokenBreakdownNav {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 3px;
+  margin: 0 0 8px;
+  padding: 3px;
+  border-radius: 8px;
+  border: 1px solid rgba(173, 196, 228, 0.14);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.tokenBreakdownSection .tokenBreakdownNavLink {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 10px;
+  border-radius: 6px;
+  font-size: 11.5px;
+  font-weight: 650;
+  color: #c8d8ec;
+  text-decoration: none;
+  border: 1px solid transparent;
+  transition: background 0.14s ease, border-color 0.14s ease, color 0.14s ease;
+}
+
+.tokenBreakdownSection .tokenBreakdownNavLink:hover {
+  color: #f1f5f9;
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(173, 196, 228, 0.16);
+  text-decoration: none;
 }
 
 .stat--hero {
@@ -1944,12 +2165,21 @@
   font-size: 12px;
 }
 
-#perfRawSection {
+.modelBreakdownPanel {
   scroll-margin-top: 72px;
 }
 
-.modelBreakdownPanel {
-  scroll-margin-top: 72px;
+@media (min-width: 1100px) {
+  .tokenEconomicsGrid {
+    grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+    align-items: start;
+  }
+}
+
+@media (max-width: 900px) {
+  .tokenRunRateGrid {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 1100px) {
@@ -1993,5 +2223,356 @@
 
   .detailTableActions {
     justify-content: flex-start;
+  }
+}
+
+/* =============================================================================
+   Token page visual system — typography, color, layout (aligned with Cost)
+   ============================================================================= */
+.tokenPageRoot .tokenDashboard {
+  --token-text-primary: #eef4fc;
+  --token-text-secondary: #a8bdd4;
+  --token-text-muted: #7d92ab;
+  --token-surface: rgba(14, 20, 30, 0.55);
+  --token-surface-card: rgba(255, 255, 255, 0.04);
+  --token-surface-card-hover: rgba(255, 255, 255, 0.055);
+  --token-border-subtle: rgba(148, 163, 184, 0.14);
+  --token-border-strong: rgba(148, 163, 184, 0.22);
+  font-feature-settings: "tnum" 1, "lnum" 1;
+  -webkit-font-smoothing: antialiased;
+}
+
+.tokenPageRoot .tokenPageHeader {
+  background: linear-gradient(
+    135deg,
+    rgba(var(--cost-actual-rgb), 0.08) 0%,
+    rgba(var(--cost-market-rgb), 0.05) 48%,
+    rgba(255, 255, 255, 0.02) 100%
+  ) !important;
+}
+
+.tokenPageRoot .tokenPageHeader .pageTitle {
+  letter-spacing: -0.02em;
+  color: var(--token-text-primary);
+}
+
+.tokenPageRoot .tokenPageHeader .pageDesc {
+  color: var(--token-text-secondary);
+}
+
+.tokenPageRoot .tokenLegendRow {
+  opacity: 0.92;
+}
+
+.tokenPageRoot .tokenFinBlock {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.025));
+  border-color: var(--token-border-subtle);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.03) inset;
+}
+
+.tokenPageRoot .tokenZoneTitle {
+  color: var(--token-text-primary);
+  letter-spacing: -0.01em;
+}
+
+.tokenPageRoot .tokenZoneLead,
+.tokenPageRoot .monitorCardDesc,
+.tokenPageRoot .detailTableDesc,
+.tokenPageRoot .tokenTrendsFoot {
+  color: var(--token-text-muted);
+}
+
+.tokenPageRoot .tokenSourceMetaBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--token-text-secondary);
+  border: 1px solid var(--token-border-subtle);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.tokenPageRoot .tokenStep {
+  width: 24px;
+  height: 24px;
+  font-size: 11px;
+  border-radius: 7px;
+  color: #99f6e4;
+  background: rgba(var(--cost-actual-rgb), 0.1);
+  border-color: rgba(var(--cost-actual-rgb), 0.28);
+}
+
+.tokenPageRoot .tokenDashboard .monitorKpi {
+  position: relative;
+  padding: 9px 11px 9px 13px;
+  border-radius: 9px;
+  border: 1px solid var(--token-border-subtle);
+  background: var(--token-surface-card);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.03) inset;
+  min-height: 68px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  transition: border-color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
+}
+
+.tokenPageRoot .tokenDashboard .monitorKpi::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 10px;
+  bottom: 10px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: rgba(148, 163, 184, 0.28);
+}
+
+.tokenPageRoot .tokenDashboard .monitorKpi--volume::before,
+.tokenPageRoot .tokenDashboard .monitorKpi--hero::before {
+  background: var(--cost-actual);
+  box-shadow: 0 0 10px rgba(var(--cost-actual-rgb), 0.35);
+}
+
+.tokenPageRoot .tokenDashboard .monitorKpi--hero::before {
+  width: 4px;
+}
+
+.tokenPageRoot .tokenDashboard .monitorKpi--input::before {
+  background: #60a5fa;
+  box-shadow: 0 0 8px rgba(96, 165, 250, 0.35);
+}
+
+.tokenPageRoot .tokenDashboard .monitorKpi--output::before {
+  background: #a78bfa;
+  box-shadow: 0 0 8px rgba(167, 139, 250, 0.35);
+}
+
+.tokenPageRoot .tokenDashboard .monitorKpi--neutral::before {
+  background: rgba(148, 163, 184, 0.35);
+}
+
+.tokenPageRoot .tokenDashboard .monitorKpi--hero {
+  border-color: rgba(var(--cost-actual-rgb), 0.28);
+  background: linear-gradient(
+    145deg,
+    rgba(var(--cost-actual-rgb), 0.1) 0%,
+    rgba(255, 255, 255, 0.035) 58%
+  );
+}
+
+.tokenPageRoot .tokenDashboard .monitorKpi--input {
+  border-color: rgba(96, 165, 250, 0.22);
+}
+
+.tokenPageRoot .tokenDashboard .monitorKpi--output {
+  border-color: rgba(167, 139, 250, 0.22);
+}
+
+.tokenPageRoot .tokenDashboard .monitorKpi:hover {
+  border-color: rgba(148, 163, 184, 0.28);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14);
+  transform: translateY(-1px);
+}
+
+.tokenPageRoot .tokenDashboard .monitorKpi .label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--token-text-secondary);
+}
+
+.tokenPageRoot .tokenDashboard .monitorKpi .label .costPill {
+  margin-right: 2px;
+  vertical-align: middle;
+  transform: translateY(-1px);
+}
+
+.tokenPageRoot .tokenDashboard .monitorKpi .value {
+  color: var(--token-text-primary);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  font-size: clamp(20px, 2vw, 26px);
+  font-weight: 780;
+}
+
+.tokenPageRoot .tokenDashboard .monitorKpi--hero .value {
+  font-size: clamp(22px, 2.2vw, 30px);
+  font-weight: 700;
+}
+
+.tokenPageRoot .tokenDashboard .monitorKpi .value--md {
+  font-size: clamp(17px, 1.65vw, 21px);
+  font-weight: 720;
+}
+
+.tokenPageRoot .tokenDashboard .monitorKpi .value--period {
+  font-size: clamp(12px, 1.15vw, 13.5px);
+  font-weight: 650;
+  line-height: 1.35;
+  letter-spacing: 0;
+  color: var(--token-text-primary);
+  word-break: break-word;
+}
+
+.tokenPageRoot .tokenDashboard .monitorKpi .value--text {
+  font-size: clamp(14px, 1.3vw, 16px);
+  font-weight: 680;
+}
+
+.tokenPageRoot .tokenDashboard .kpiFootnote {
+  color: var(--token-text-muted);
+  font-size: 10.5px;
+  line-height: 1.38;
+}
+
+.tokenPageRoot .tokenDashboard .kpiFootnote--stats {
+  font-size: 10px;
+  letter-spacing: 0.01em;
+}
+
+.tokenPageRoot .tokenDashboard .monitorCard {
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  overflow: hidden;
+  border-radius: 10px;
+}
+
+.tokenPageRoot .tokenDashboard .monitorCard--inset {
+  border: 1px solid var(--token-border-subtle);
+  background: var(--token-surface);
+}
+
+.tokenPageRoot .monitorCardHead--chart {
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(173, 196, 228, 0.07);
+}
+
+.tokenPageRoot .monitorCardHead--chart .monitorCardTitle {
+  font-size: 14px;
+  font-weight: 760;
+  color: var(--token-text-primary);
+}
+
+.tokenPageRoot .tokenTrendCard,
+.tokenPageRoot .tokenPerfCard {
+  border-color: var(--token-border-subtle);
+}
+
+.tokenPageRoot .tokenChartLegendDetails {
+  margin: 0 12px 8px;
+  border: 1px solid rgba(173, 196, 228, 0.1);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.tokenPageRoot .tokenChartLegendSummary {
+  padding: 7px 10px;
+  font-size: 11px;
+  font-weight: 650;
+  color: var(--token-text-muted);
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+
+.tokenPageRoot .tokenChartLegendSummary::-webkit-details-marker {
+  display: none;
+}
+
+.tokenPageRoot .tokenChartLegendSummary::before {
+  content: "▸ ";
+  color: #5eead4;
+  font-size: 10px;
+}
+
+.tokenPageRoot .tokenChartLegendDetails[open] .tokenChartLegendSummary::before {
+  content: "▾ ";
+}
+
+.tokenPageRoot .tokenDashboard .dashSectionNav.card {
+  background: rgba(10, 16, 26, 0.92) !important;
+  border-color: var(--token-border-subtle);
+}
+
+.tokenPageRoot .tokenDashboard .dashSectionNavLink.is-active {
+  color: #5eead4;
+  background: rgba(var(--cost-actual-rgb), 0.12);
+  border: 1px solid rgba(var(--cost-actual-rgb), 0.28);
+}
+
+.tokenPageRoot .tokenBreakdownSection .tokenBreakdownNav {
+  background: rgba(255, 255, 255, 0.025);
+  border-color: var(--token-border-subtle);
+}
+
+.tokenPageRoot .tokenDashboard .detailTableTitle {
+  color: var(--token-text-primary);
+  font-weight: 740;
+}
+
+.tokenPageRoot .tokenSubprojectStripLead {
+  color: var(--token-text-muted);
+}
+
+.tokenPageRoot .metricPanelEmpty {
+  padding: 16px 12px;
+  font-size: 12px;
+  color: var(--token-text-muted);
+}
+
+.tokenPageRoot .metricPanelScope {
+  font-size: 10.5px;
+  color: var(--token-text-muted);
+}
+
+.tokenPageRoot .tokenFilterCard {
+  padding: 10px 12px;
+}
+
+.tokenPageRoot .tokenScopeMetaBar {
+  border-color: var(--token-border-subtle);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.tokenPageRoot .tokenRunRateTitle {
+  color: var(--token-text-primary);
+}
+
+.tokenPageRoot .tokenRunRateLead,
+.tokenPageRoot .tokenScopeMetaLabel {
+  color: var(--token-text-muted);
+}
+
+.tokenPageRoot .tokenScopeMetaValue {
+  color: var(--token-text-primary);
+}
+
+.tokenPageRoot .tokenEconomicsPanelHead .detailTableTitle {
+  color: var(--token-text-primary);
+}
+
+.tokenPageRoot .tokenEconomicsPanelBody {
+  border-color: var(--token-border-subtle);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.tokenPageRoot .tokenModelTable thead th,
+.tokenPageRoot .unitPriceSummaryTable thead th {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: none;
+  color: var(--token-text-secondary);
+}
+
+@media (min-width: 1180px) {
+  .tokenPageRoot .tokenFinPrimaryKpi {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }

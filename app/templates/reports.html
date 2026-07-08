@@ -1,14 +1,14 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" class="reportPageRoot">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Reports - Models Cost Management</title>
     <link rel="stylesheet" href="/static/css/app-shell.css" />
     <link rel="stylesheet" href="/static/css/page-common.css" />
-    <link rel="stylesheet" href="/static/css/pages/reports.css?v=20260708-finlayout" />
+    <link rel="stylesheet" href="/static/css/pages/reports.css?v=20260708-report-polish" />
     <link rel="stylesheet" href="/static/css/layout-pro.css" />
-    <link rel="stylesheet" href="/static/css/dashboard-shared.css?v=20260708-opex-unified" />
+    <link rel="stylesheet" href="/static/css/dashboard-shared.css?v=20260708-report-visual" />
     <link rel="stylesheet" href="/static/css/date-range-picker.css?v=20260606-drp" />
   </head>
   <body>
@@ -17,17 +17,26 @@
     {% include "_app_nav.html" %}
     <div class="appLayout">
       <main class="contentArea">
-        <div class="container reportPage dashPage">
+        <div class="container reportDashboard reportPage dashPage">
           <header class="pageHeader reportPageHeader dashPageHeader">
             <div class="breadcrumb">Home / Reports</div>
-            <h1 class="pageTitle">Reports</h1>
-            <p class="pageDesc">Consolidated OpEx billing and token consumption for your selected scope — summary first, detail on demand.</p>
+            <div class="reportTitleRow">
+              <div>
+                <h1 class="pageTitle">Reports</h1>
+                <p class="pageDesc">Consolidated OpEx statement — billing totals, run rate, and consumption for the selected scope.</p>
+                <div class="reportLegendRow muted" aria-label="Report semantics">
+                  <span class="costPill costPill--actual">OpEx</span>
+                  <span class="costPill costPill--market">Reference</span>
+                  <span class="costPill costPill--actual">Volume</span>
+                </div>
+              </div>
+            </div>
           </header>
 
-          <section class="card reportFilters filterCard" aria-label="Filters">
-            <div class="filterCardHead">
+          <section class="card reportFilters filterCard reportFilterCard" aria-label="Filters">
+            <div class="filterCardHead filterCardHead--compact">
               <h2 class="filterCardTitle">Report scope</h2>
-              <p class="filterCardHint muted">Projects, currency, and dates · press Enter to load</p>
+              <p class="filterCardHint muted">Projects · currency · dates · Load to refresh</p>
             </div>
             <div class="controlsRow toolbarGrid reportToolbarGrid">
               <div class="field fieldProject">
@@ -66,31 +75,29 @@
               </div>
             </div>
             <div id="verifyResult" class="verifyBanner" hidden role="status"></div>
-            <p class="tableNote reportSourceNote">Billing and token volumes are actuals from imported CSVs only; token-only projects stay visible in the selected scope.</p>
           </section>
 
-          <div id="reportStatusBar" class="dataStatusBar" hidden aria-live="polite" aria-label="Load summary"></div>
+          <div id="reportStatusBar" class="dataStatusBar dataStatusBar--compact" hidden aria-live="polite" aria-label="Load summary"></div>
 
-          <nav class="dashSectionNav card" aria-label="Report sections">
+          <nav class="dashSectionNav card reportNav reportNavSticky" aria-label="Report sections">
             <span class="dashSectionNavLabel muted">Statement</span>
-            <a class="dashSectionNavLink" href="#report-glance">OpEx Summary</a>
+            <a class="dashSectionNavLink" href="#report-glance">Overview</a>
             <a class="dashSectionNavLink" href="#report-spend-trends">Run Rate</a>
             <a class="dashSectionNavLink" href="#report-by-project">By project</a>
             <a class="dashSectionNavLink" href="#report-by-model">By model</a>
             <a class="dashSectionNavLink" href="#report-tokens">Consumption</a>
-            <a class="dashSectionNavLink" href="#report-raw-data">Detail</a>
+            <a class="dashSectionNavLink" href="#report-raw-data">Ledger</a>
           </nav>
 
-          <section id="report-glance" class="card reportAtAGlance reportFinBlock" aria-label="OpEx summary">
+          <section id="report-glance" class="card reportAtAGlance reportFinBlock reportStatement" aria-label="OpEx summary">
             <div class="reportSectionHead">
-              <span class="reportStep">1</span>
+              <span class="reportStep" aria-hidden="true">1</span>
               <div>
-                <h2 class="reportSectionTitle">OpEx Summary</h2>
+                <h2 class="reportSectionTitle">OpEx Statement</h2>
                 <p class="reportSectionLead muted" id="reportInsightLine">Actual billing totals for the selected scope.</p>
               </div>
-              <span class="reportSectionMeta muted" id="reportCurrencyMeta"></span>
+              <span class="reportSectionMeta reportCurrencyBadge" id="reportCurrencyMeta"></span>
             </div>
-            <p class="reportFinFlowNote muted">OpEx actual billing · meter vs platform composition · tariff reference row is benchmark only · consumption drivers are token volume.</p>
 
             <div class="heroMetricGrid reportFinPrimaryKpi" aria-label="OpEx totals">
               <article class="heroMetric heroMetricPrimary">
@@ -207,18 +214,22 @@
                 <p class="reportSectionLead muted" id="costTrendInsight">Daily and monthly <span class="costPill costPill--actual">OpEx</span> billing for the selected scope.</p>
               </div>
             </div>
-            <div class="chartGrid chartGrid2">
-              <article class="card chartCard">
-                <h3 class="chartCardTitle">Daily cost</h3>
-                <div id="reportDailyLegendKey" class="costBillingKeyHost"></div>
-                <div class="chartCanvasHost chartPlot"><canvas id="dailyChart"></canvas></div>
+            <div class="chartGrid chartGrid2 reportTrendGrid">
+              <article class="card chartCard reportTrendCard" id="reportDailyChartCard">
+                <header class="reportChartHead">
+                  <h3 class="chartCardTitle">Daily cost</h3>
+                  <p class="chartCardHint muted" id="reportDailyChartHint">Daily OpEx total for the selected scope.</p>
+                </header>
+                <div id="reportDailySegmentLegend" class="costSpendLegendRow" hidden aria-label="Daily cost segments"></div>
+                <div class="chartCanvasHost chartPlot reportChartHost"><canvas id="dailyChart"></canvas></div>
                 <footer class="chartCardFoot muted" id="dailyChartFoot">—</footer>
               </article>
-              <article class="card chartCard">
-                <h3 class="chartCardTitle">Monthly cost</h3>
-                <p class="chartCardHint muted">Calendar month CostUSD totals from billing CSV.</p>
-                <div class="costTypeLegend" aria-label="Cost type"><span class="costPill costPill--actual">OpEx</span></div>
-                <div class="chartCanvasHost chartPlot"><canvas id="monthlyChart"></canvas></div>
+              <article class="card chartCard reportTrendCard">
+                <header class="reportChartHead">
+                  <h3 class="chartCardTitle">Monthly cost</h3>
+                  <p class="chartCardHint muted">Calendar month CostUSD totals.</p>
+                </header>
+                <div class="chartCanvasHost chartPlot reportChartHost"><canvas id="monthlyChart"></canvas></div>
                 <footer class="chartCardFoot muted" id="monthlyChartFoot">—</footer>
               </article>
             </div>
@@ -342,138 +353,213 @@
               </div>
             </article>
             <div class="chartGrid chartGrid3 reportExecutiveCharts">
-              <article class="card chartCard">
-                <h3 class="chartCardTitle">Daily comparison</h3>
-                <div class="costTypeLegend" aria-label="Cost type"><span class="costPill costPill--actual">Actual</span><span class="costLegendSep" aria-hidden="true"></span><span class="costPill costPill--market costPill--dashed">Market</span></div>
-                <div class="chartCanvasHost chartPlot"><canvas id="reportMarketChart"></canvas></div>
+              <article class="card chartCard reportTrendCard reportExecChartCard">
+                <header class="reportChartHead reportChartHead--compact">
+                  <h3 class="chartCardTitle">Daily comparison</h3>
+                  <p class="chartCardHint muted">OpEx billing vs Tariff reference</p>
+                </header>
+                <div class="chartCanvasHost chartPlot reportChartHost reportExecChartHost"><canvas id="reportMarketChart"></canvas></div>
+                <footer class="reportExecChartFoot muted" aria-label="Series key">
+                  <span class="reportExecChartKey"><span class="reportExecChartSwatch reportExecChartSwatch--actual"></span>OpEx</span>
+                  <span class="reportExecChartKey"><span class="reportExecChartSwatch reportExecChartSwatch--market"></span>Tariff</span>
+                </footer>
               </article>
-              <article class="card chartCard">
-                <h3 class="chartCardTitle">Input by model</h3>
-                <div class="costTypeLegend" aria-label="Cost type"><span class="costPill costPill--actual">Actual</span></div>
-                <div class="chartCanvasHost chartPlot"><canvas id="reportInputByModelChart"></canvas></div>
+              <article class="card chartCard reportTrendCard reportExecChartCard">
+                <header class="reportChartHead reportChartHead--compact">
+                  <h3 class="chartCardTitle">Input by model</h3>
+                  <p class="chartCardHint muted">Meter input cost per model</p>
+                </header>
+                <div id="reportInputModelLegend" class="reportModelLegendRow" hidden aria-label="Input model series"></div>
+                <div class="chartCanvasHost chartPlot reportChartHost reportExecChartHost"><canvas id="reportInputByModelChart"></canvas></div>
               </article>
-              <article class="card chartCard">
-                <h3 class="chartCardTitle">Output by model</h3>
-                <div class="costTypeLegend" aria-label="Cost type"><span class="costPill costPill--actual">Actual</span></div>
-                <div class="chartCanvasHost chartPlot"><canvas id="reportOutputByModelChart"></canvas></div>
+              <article class="card chartCard reportTrendCard reportExecChartCard">
+                <header class="reportChartHead reportChartHead--compact">
+                  <h3 class="chartCardTitle">Output by model</h3>
+                  <p class="chartCardHint muted">Meter output cost per model</p>
+                </header>
+                <div id="reportOutputModelLegend" class="reportModelLegendRow" hidden aria-label="Output model series"></div>
+                <div class="chartCanvasHost chartPlot reportChartHost reportExecChartHost"><canvas id="reportOutputByModelChart"></canvas></div>
               </article>
             </div>
           </section>
 
-          <section id="report-tokens" class="reportSection reportSectionShell" aria-label="Token usage">
+          <section id="report-tokens" class="reportSection reportSectionShell reportConsumeSection" aria-label="Token usage">
             <div class="reportSectionHead">
               <span class="reportStep">5</span>
               <div>
                 <h2 class="reportSectionTitle">Consumption</h2>
-                <p class="reportSectionLead muted" id="tokenSectionInsight">OpEx consumption drivers — imported token CSV totals by day.</p>
+                <p class="reportSectionLead muted" id="tokenSectionInsight">Imported token CSV volume — consumption drivers for OpEx in scope.</p>
               </div>
             </div>
-            <div class="chartGrid chartGrid2">
-              <article class="card chartCard">
-                <h3 class="chartCardTitle">Daily usage</h3>
-                <div class="chartCanvasHost chartPlot"><canvas id="dailyTokenChart"></canvas></div>
-              </article>
-              <article class="card chartCard">
-                <div class="chartCardHead rowsToolbar">
-                  <h3 class="chartCardTitle">Output / input ratio</h3>
-                  <button id="exportTokenRatioBtn" class="btnSmall" type="button">Export CSV</button>
+
+            <div class="reportConsumeStatement card">
+              <div class="reportConsumeMetaBar" aria-label="Consumption summary">
+                <span class="reportConsumeMetaItem">
+                  <span class="reportConsumeMetaLabel">Input total</span>
+                  <strong class="reportConsumeMetaValue" id="reportConsumeInputTotal">—</strong>
+                </span>
+                <span class="reportConsumeMetaSep" aria-hidden="true"></span>
+                <span class="reportConsumeMetaItem">
+                  <span class="reportConsumeMetaLabel">Output total</span>
+                  <strong class="reportConsumeMetaValue" id="reportConsumeOutputTotal">—</strong>
+                </span>
+                <span class="reportConsumeMetaSep" aria-hidden="true"></span>
+                <span class="reportConsumeMetaItem">
+                  <span class="reportConsumeMetaLabel">Active days</span>
+                  <strong class="reportConsumeMetaValue" id="reportConsumeActiveDays">—</strong>
+                </span>
+                <span class="reportConsumeMetaSep" aria-hidden="true"></span>
+                <span class="reportConsumeMetaItem">
+                  <span class="reportConsumeMetaLabel">Avg / day</span>
+                  <strong class="reportConsumeMetaValue" id="reportConsumeAvgDaily">—</strong>
+                </span>
+                <span class="reportConsumeMetaSep" aria-hidden="true"></span>
+                <span class="reportConsumeMetaItem">
+                  <span class="reportConsumeMetaLabel">Out / in</span>
+                  <strong class="reportConsumeMetaValue" id="reportConsumeOutIn">—</strong>
+                </span>
+                <span class="reportConsumeMetaFoot muted" id="reportConsumePeriod">—</span>
+              </div>
+
+              <div class="reportConsumeRunRate" aria-label="Run rate">
+                <header class="reportConsumeRunRateHead">
+                  <h3 class="reportConsumeRunRateTitle">Run rate</h3>
+                  <p class="reportConsumeRunRateLead muted" id="reportConsumeRunRateLead">Daily input and output token volume for the selected scope.</p>
+                </header>
+                <div class="reportConsumeGrid">
+                  <article class="card chartCard reportTrendCard reportConsumeChartCard" id="reportTokenInputCard">
+                    <header class="reportChartHead reportChartHead--compact">
+                      <h3 class="chartCardTitle">Input</h3>
+                      <p class="chartCardHint muted">Prompt tokens per day</p>
+                    </header>
+                    <div class="chartCanvasHost chartPlot reportChartHost reportChartHost--consume"><canvas id="reportTokenInputChart"></canvas></div>
+                    <footer class="chartCardFoot muted" id="reportTokenInputFoot">—</footer>
+                  </article>
+                  <article class="card chartCard reportTrendCard reportConsumeChartCard" id="reportTokenOutputCard">
+                    <header class="reportChartHead reportChartHead--compact">
+                      <h3 class="chartCardTitle">Output</h3>
+                      <p class="chartCardHint muted">Completion tokens per day</p>
+                    </header>
+                    <div class="chartCanvasHost chartPlot reportChartHost reportChartHost--consume"><canvas id="reportTokenOutputChart"></canvas></div>
+                    <footer class="chartCardFoot muted" id="reportTokenOutputFoot">—</footer>
+                    <details class="reportConsumeRatioDetails" id="reportConsumeRatioDetails">
+                      <summary class="reportConsumeRatioSummary">Output / input ratio</summary>
+                      <div class="reportConsumeRatioBody">
+                        <div class="reportConsumeRatioToolbar">
+                          <p class="ratioKpiLine muted" id="ratioKpiSummaryReport">Valid days: - · &gt;1: - · &lt;1: -</p>
+                          <button id="exportTokenRatioBtn" class="btnSmall" type="button">Export CSV</button>
+                        </div>
+                        <div class="chartCanvasHost chartPlot reportChartHost reportChartHost--ratio"><canvas id="dailyTokenRatioChart"></canvas></div>
+                      </div>
+                    </details>
+                  </article>
                 </div>
-                <p class="ratioKpiLine muted" id="ratioKpiSummaryReport">Valid days: - · &gt;1: - · &lt;1: -</p>
-                <div class="chartCanvasHost chartPlot chartCanvasHostShort"><canvas id="dailyTokenRatioChart"></canvas></div>
-                <div class="tableScroll tableScrollCompact">
-                  <table class="dataTable reportBillingTable">
-                    <colgroup>
-                      <col class="reportColPeriod" />
-                      <col class="reportColPct" />
-                    </colgroup>
-                    <thead><tr><th>Date</th><th class="num">Ratio</th></tr></thead>
-                    <tbody id="tokenRatioTbody"></tbody>
-                  </table>
-                </div>
-              </article>
+              </div>
             </div>
-            <article class="card chartCard chartCardWide">
-              <h3 class="chartCardTitle">Monthly usage</h3>
-              <div class="chartCanvasHost chartPlot"><canvas id="monthlyTokenChart"></canvas></div>
-            </article>
           </section>
 
-          <details id="report-raw-data" class="reportSection reportDetailsSection">
-            <summary class="reportDetailsSummary">
+          <section id="report-raw-data" class="reportSectionShell reportDetailSection card" aria-label="Detail ledger">
+            <div class="reportSectionHead">
               <span class="reportStep">6</span>
-              <span class="reportDetailsSummaryText">
-                <strong>Detail tables</strong>
-                <span class="muted"> — daily & monthly rows with share % and change</span>
-              </span>
-            </summary>
-            <p class="reportSectionLead muted tableAnalysisNote" id="tableAnalysisNote">Newest first. Share = % of total in range.</p>
-            <div class="chartGrid chartGrid2 reportRawTablesGrid">
-              <article class="card reportTableCard reportRawTableCard">
-                <div class="rowsToolbar reportRawToolbar">
-                  <h3 class="chartCardTitle">Daily actual</h3>
-                  <div class="pager reportRawPager">
-                    <span class="muted">Page size</span>
-                    <select id="dailyPageSizeSelect" aria-label="Daily page size">
-                      <option value="25" selected>25</option>
-                      <option value="50">50</option>
-                      <option value="100">100</option>
-                      <option value="200">200</option>
-                    </select>
-                    <button id="dailyPrevBtn" class="btnSmall" type="button">Prev</button>
-                    <button id="dailyNextBtn" class="btnSmall" type="button">Next</button>
-                    <span id="dailyPageInfo" class="pageInfo">-</span>
-                    <span class="muted">Go</span>
-                    <input id="dailyGoInput" class="pagerGoInput" inputmode="numeric" placeholder="page" />
-                    <button id="dailyGoBtn" class="btnSmall" type="button">Go</button>
+              <div>
+                <h2 class="reportSectionTitle">Detail ledger</h2>
+                <p class="reportSectionLead muted" id="tableAnalysisNote">Newest first · Share = % of total in range · Δ vs prior period.</p>
+                <div class="reportLedgerInsightBar" id="reportLedgerInsightBar" hidden aria-label="Ledger highlights"></div>
+              </div>
+            </div>
+
+            <div class="reportLedgerGrid">
+              <article class="reportLedgerCard">
+                <header class="reportLedgerHead">
+                  <div class="reportLedgerHeadMain">
+                    <h3 class="reportLedgerTitle">Daily actual</h3>
+                    <p class="reportLedgerHint muted">OpEx by calendar day</p>
                   </div>
-                </div>
-                <div class="tableScroll reportRawTableScroll dashTableShell">
-                  <table class="dataTable dashTable reportBillingTable">
+                  <span class="reportLedgerScope costPill costPill--actual">OpEx · USD</span>
+                </header>
+                <div class="reportLedgerTableWrap dashTableShell">
+                  <table class="dataTable dashTable reportBillingTable reportLedgerTable">
                     <colgroup>
                       <col class="reportColPeriod" />
                       <col class="reportColMoney" />
                       <col class="reportColPct" />
                       <col class="reportColDelta" />
                     </colgroup>
-                    <thead><tr><th>Date</th><th class="num colCostActual"><span class="costPill costPill--actual">Actual</span><span class="thLabel">USD</span></th><th class="num">Share</th><th class="num">Δ vs prior</th></tr></thead>
+                    <thead>
+                      <tr>
+                        <th scope="col">Date</th>
+                        <th class="num colCostActual" scope="col"><span class="thLabel">Amount</span><span class="thUnit">USD</span></th>
+                        <th class="num" scope="col"><span class="thLabel">Share</span><span class="thUnit">%</span></th>
+                        <th class="num" scope="col"><span class="thLabel">Δ vs prior</span><span class="thUnit">day</span></th>
+                      </tr>
+                    </thead>
                     <tbody id="dailyTbody"></tbody>
                   </table>
                 </div>
+                <footer class="reportLedgerFoot">
+                  <nav class="reportLedgerPager" aria-label="Daily ledger pagination">
+                    <span id="dailyPageInfo" class="reportLedgerPageInfo">—</span>
+                    <div class="reportLedgerPagerControls">
+                      <label class="reportLedgerPagerLabel muted" for="dailyPageSizeSelect">Rows</label>
+                      <select id="dailyPageSizeSelect" class="reportLedgerSelect" aria-label="Daily page size">
+                        <option value="25" selected>25</option>
+                        <option value="50">50</option>
+                        <option value="100">100</option>
+                        <option value="200">200</option>
+                      </select>
+                      <button id="dailyPrevBtn" class="btnSmall reportLedgerBtn" type="button" aria-label="Previous page">Prev</button>
+                      <button id="dailyNextBtn" class="btnSmall reportLedgerBtn" type="button" aria-label="Next page">Next</button>
+                    </div>
+                  </nav>
+                </footer>
               </article>
-              <article class="card reportTableCard reportRawTableCard">
-                <div class="rowsToolbar reportRawToolbar">
-                  <h3 class="chartCardTitle">Monthly cost</h3>
-                  <div class="pager reportRawPager">
-                    <span class="muted">Page size</span>
-                    <select id="monthlyPageSizeSelect" aria-label="Monthly page size">
-                      <option value="25" selected>25</option>
-                      <option value="50">50</option>
-                      <option value="100">100</option>
-                      <option value="200">200</option>
-                    </select>
-                    <button id="monthlyPrevBtn" class="btnSmall" type="button">Prev</button>
-                    <button id="monthlyNextBtn" class="btnSmall" type="button">Next</button>
-                    <span id="monthlyPageInfo" class="pageInfo">-</span>
-                    <span class="muted">Go</span>
-                    <input id="monthlyGoInput" class="pagerGoInput" inputmode="numeric" placeholder="page" />
-                    <button id="monthlyGoBtn" class="btnSmall" type="button">Go</button>
+
+              <article class="reportLedgerCard">
+                <header class="reportLedgerHead">
+                  <div class="reportLedgerHeadMain">
+                    <h3 class="reportLedgerTitle">Monthly cost</h3>
+                    <p class="reportLedgerHint muted">OpEx by calendar month</p>
                   </div>
-                </div>
-                <div class="tableScroll reportRawTableScroll dashTableShell">
-                  <table class="dataTable dashTable reportBillingTable">
+                  <span class="reportLedgerScope costPill costPill--actual">OpEx · USD</span>
+                </header>
+                <div class="reportLedgerTableWrap dashTableShell">
+                  <table class="dataTable dashTable reportBillingTable reportLedgerTable">
                     <colgroup>
                       <col class="reportColPeriod" />
                       <col class="reportColMoney" />
                       <col class="reportColPct" />
                       <col class="reportColDelta" />
                     </colgroup>
-                    <thead><tr><th>Month</th><th class="num colCostActual"><span class="costPill costPill--actual">Actual</span><span class="thLabel">USD</span></th><th class="num">Share</th><th class="num">Δ vs prior</th></tr></thead>
+                    <thead>
+                      <tr>
+                        <th scope="col">Month</th>
+                        <th class="num colCostActual" scope="col"><span class="thLabel">Amount</span><span class="thUnit">USD</span></th>
+                        <th class="num" scope="col"><span class="thLabel">Share</span><span class="thUnit">%</span></th>
+                        <th class="num" scope="col"><span class="thLabel">Δ vs prior</span><span class="thUnit">mo</span></th>
+                      </tr>
+                    </thead>
                     <tbody id="monthlyTbody"></tbody>
                   </table>
                 </div>
+                <footer class="reportLedgerFoot">
+                  <nav class="reportLedgerPager" aria-label="Monthly ledger pagination">
+                    <span id="monthlyPageInfo" class="reportLedgerPageInfo">—</span>
+                    <div class="reportLedgerPagerControls">
+                      <label class="reportLedgerPagerLabel muted" for="monthlyPageSizeSelect">Rows</label>
+                      <select id="monthlyPageSizeSelect" class="reportLedgerSelect" aria-label="Monthly page size">
+                        <option value="25" selected>25</option>
+                        <option value="50">50</option>
+                        <option value="100">100</option>
+                        <option value="200">200</option>
+                      </select>
+                      <button id="monthlyPrevBtn" class="btnSmall reportLedgerBtn" type="button" aria-label="Previous page">Prev</button>
+                      <button id="monthlyNextBtn" class="btnSmall reportLedgerBtn" type="button" aria-label="Next page">Next</button>
+                    </div>
+                  </nav>
+                </footer>
               </article>
             </div>
-          </details>
+          </section>
 
         </div>
       </main>
@@ -495,9 +581,9 @@
 
       let dailyChart = null;
       let monthlyChart = null;
-      let dailyTokenChart = null;
+      let reportTokenInputChart = null;
+      let reportTokenOutputChart = null;
       let dailyTokenRatioChart = null;
-      let monthlyTokenChart = null;
       let reportMarketChart = null;
       let reportInputByModelChart = null;
       let reportOutputByModelChart = null;
@@ -523,12 +609,16 @@
       const ratioKpiSummaryReportEl = document.getElementById('ratioKpiSummaryReport');
 
       const reportPageRoot = document.querySelector('.reportPage.dashPage');
+      const reportDailyChartCardEl = document.getElementById('reportDailyChartCard');
+      const reportDailySegmentLegendEl = document.getElementById('reportDailySegmentLegend');
+      const reportDailyChartHintEl = document.getElementById('reportDailyChartHint');
 
-      function reportChartOpts(labelCount, tooltipCallbacks = {}) {
+      function reportChartOpts(labelCount, tooltipCallbacks = {}, showLegend = true) {
         return (
           window.AppChartStyle?.buildLineChartOptions?.({
             currency: _currency(),
             labelCount,
+            showLegend,
             tooltipCallbacks: { label: tooltipLabelCurrency, ...tooltipCallbacks },
           }) || {
             responsive: true,
@@ -634,12 +724,42 @@
       }
 
       function _chartLineTension(pointCount) {
-        return pointCount >= MODEL_CHART_SMOOTH_MIN_DAYS ? 0.22 : 0;
+        return pointCount >= MODEL_CHART_SMOOTH_MIN_DAYS ? 0.32 : 0.12;
       }
 
       function _modelChartPointRadius(labelCount) {
-        if (labelCount < MODEL_CHART_SMOOTH_MIN_DAYS) return Math.max(3, 5 - labelCount);
-        return 2;
+        if (labelCount > 28) return 0;
+        if (labelCount > 14) return 0;
+        if (labelCount >= MODEL_CHART_SMOOTH_MIN_DAYS) return 1;
+        return Math.max(2, 4 - labelCount);
+      }
+
+      function _reportChartPointRadius(labelCount, { sparse = 2, dense = 0 } = {}) {
+        const denseCutoff = 21;
+        if (labelCount > denseCutoff) return dense;
+        return CHART_OPTS?.pointRadiusForCount?.(labelCount, { sparse, dense }) ?? sparse;
+      }
+
+      function _renderReportModelLegend(containerId, models, datasets) {
+        const el = document.getElementById(containerId);
+        if (!el) return;
+        if (!models?.length) {
+          el.hidden = true;
+          el.replaceChildren();
+          return;
+        }
+        el.hidden = false;
+        const frag = document.createDocumentFragment();
+        models.forEach((name, idx) => {
+          const pill = document.createElement('span');
+          pill.className = 'reportModelLegendPill';
+          const color = datasets?.[idx]?.borderColor || MODEL_CHART_COLORS[idx % MODEL_CHART_COLORS.length]?.border || '#60a5fa';
+          pill.style.setProperty('--seg-color', color);
+          pill.title = name;
+          pill.textContent = name.length > 22 ? `${name.slice(0, 21)}…` : name;
+          frag.appendChild(pill);
+        });
+        el.replaceChildren(frag);
       }
 
       function _unionSortedDates(...lists) {
@@ -660,6 +780,8 @@
         reportMarketChart = null;
         reportInputByModelChart = null;
         reportOutputByModelChart = null;
+        _renderReportModelLegend('reportInputModelLegend', [], []);
+        _renderReportModelLegend('reportOutputModelLegend', [], []);
       }
 
       function _buildModelDirCostChart(dailyByModel, valueKey) {
@@ -681,34 +803,31 @@
             label: model,
             data,
             borderColor: col.border,
-            backgroundColor: col.fill,
+            backgroundColor: 'transparent',
             fill: false,
             tension,
             pointRadius: _modelChartPointRadius(labels.length),
             pointHoverRadius: 4,
-            borderWidth: 2,
+            pointHitRadius: 8,
+            borderWidth: 1.75,
             spanGaps: false,
+            unitType: 'currency',
           };
         });
         return { labels, datasets, models };
       }
 
-      function _renderReportDirCostChart(canvasId, existingChart, dailyByModel, valueKey) {
+      function _renderReportDirCostChart(canvasId, existingChart, dailyByModel, valueKey, legendContainerId) {
         const { labels, datasets, models } = _buildModelDirCostChart(dailyByModel, valueKey);
         if (existingChart) existingChart.destroy();
         const ctx = document.getElementById(canvasId)?.getContext('2d');
         if (!ctx) return null;
-        const opts = reportChartOpts(labels.length);
+        _renderReportModelLegend(legendContainerId, models, datasets);
+        const opts = reportChartOpts(labels.length, {}, false);
         return new Chart(ctx, {
           type: 'line',
           data: { labels, datasets },
-          options: {
-            ...opts,
-            plugins: {
-              ...opts.plugins,
-              legend: { ...opts.plugins?.legend, display: models.length > 0 },
-            },
-          },
+          options: opts,
           plugins: reportChartPlugins(),
         });
       }
@@ -831,32 +950,41 @@
         if (marketCtx) {
           if (reportMarketChart) reportMarketChart.destroy();
           const costDs = window.AppCostSemantics?.chartDataset;
-          const ptR = 2;
+          const ptR = _reportChartPointRadius(labels.length, { sparse: 2, dense: 0 });
+          const ptRTotal = _reportChartPointRadius(labels.length, { sparse: 2, dense: 1 });
           reportMarketChart = new Chart(marketCtx, {
             type: 'line',
             data: {
               labels,
               datasets: [
-                costDs?.('actual', { data: actualData, fill: true, pointRadius: ptR }) ?? {
-                  label: 'Actual',
+                costDs?.('actual', { data: actualData, fill: true, pointRadius: ptRTotal, borderWidth: 2.4 }) ?? {
+                  label: 'OpEx',
                   data: actualData,
                   borderColor: C.actual || '#5eead4',
-                  backgroundColor: 'rgba(94,234,212,0.12)',
+                  backgroundColor: 'rgba(94,234,212,0.1)',
                   fill: true,
-                  pointRadius: ptR,
+                  tension: 0.28,
+                  pointRadius: ptRTotal,
+                  borderWidth: 2.4,
                   spanGaps: true,
+                  unitType: 'currency',
                 },
-                costDs?.('market', { data: catalogData, dashed: true, pointRadius: ptR }) ?? {
-                  label: 'Market',
+                costDs?.('market', { data: catalogData, dashed: true, pointRadius: ptR, borderWidth: 1.6 }) ?? {
+                  label: 'Tariff',
                   data: catalogData,
                   borderColor: C.market || '#c084fc',
-                  borderDash: [6, 4],
+                  backgroundColor: 'transparent',
+                  borderDash: [5, 4],
+                  fill: false,
+                  tension: 0.28,
                   pointRadius: ptR,
+                  borderWidth: 1.6,
                   spanGaps: true,
+                  unitType: 'currency',
                 },
               ],
             },
-            options: reportChartOpts(labels.length),
+            options: reportChartOpts(labels.length, {}, false),
             plugins: reportChartPlugins(),
           });
         }
@@ -865,13 +993,15 @@
           'reportInputByModelChart',
           reportInputByModelChart,
           daily,
-          'input_cost_usd'
+          'input_cost_usd',
+          'reportInputModelLegend'
         );
         reportOutputByModelChart = _renderReportDirCostChart(
           'reportOutputByModelChart',
           reportOutputByModelChart,
           daily,
-          'output_cost_usd'
+          'output_cost_usd',
+          'reportOutputModelLegend'
         );
       }
 
@@ -900,10 +1030,19 @@
       }
 
       function fmtDeltaPct(n) {
-        if (n === null || n === undefined || !Number.isFinite(Number(n))) return '—';
+        if (n === null || n === undefined || !Number.isFinite(Number(n))) {
+          return '<span class="deltaCell deltaCell--na">—</span>';
+        }
         const v = Number(n);
-        const cls = v > 0 ? 'deltaUp' : v < 0 ? 'deltaDown' : 'deltaFlat';
-        return `<span class="deltaCell ${cls}">${fmtPct(v)}</span>`;
+        const cls = v > 0 ? 'deltaCell--over' : v < 0 ? 'deltaCell--under' : 'deltaCell--flat';
+        const sign = v > 0 ? '+' : '';
+        return `<span class="deltaCell ${cls}">${sign}${v.toFixed(1)}%</span>`;
+      }
+
+      function fmtShareCell(pct) {
+        if (pct === null || pct === undefined || !Number.isFinite(Number(pct))) return '—';
+        const w = Math.min(100, Math.max(0, Number(pct)));
+        return `<span class="reportShareCell"><span class="reportShareTrack" aria-hidden="true"><span class="reportShareFill" style="width:${w}%"></span></span><span class="reportShareVal">${fmtPct(pct)}</span></span>`;
       }
 
       function enrichCostPoints(points, { newestFirst = true } = {}) {
@@ -1040,6 +1179,148 @@
         if (!s) return '';
         const t = String(s).trim();
         return t.length > 0 ? t : '';
+      }
+
+      const CHART_OPTS = window.AppChartStyle;
+
+      function _shortSegmentLabel(name, maxLen = 18) {
+        const s = String(name || 'Segment').trim();
+        if (s.length <= maxLen) return s;
+        return `${s.slice(0, maxLen - 1)}…`;
+      }
+
+      function _seriesDataForLabels(entry, labels) {
+        const byDate = new Map(
+          (entry?.points || []).map((p) => [safeDateStr(p?.date), p?.cost_usd])
+        );
+        return labels.map((d) => {
+          const v = byDate.get(d);
+          return v === null || v === undefined ? null : window.AppMoney?.roundCost(v);
+        });
+      }
+
+      function _rollupResourceSeries(resourceSeries, labels, maxSegments = 5) {
+        const ranked = (resourceSeries || [])
+          .map((entry) => {
+            const data = _seriesDataForLabels(entry, labels);
+            const total = data.reduce((sum, v) => sum + (Number(v) || 0), 0);
+            return {
+              fullLabel: String(entry.resource_name || 'Segment'),
+              data,
+              total,
+            };
+          })
+          .sort((a, b) => b.total - a.total);
+
+        const kept = ranked.slice(0, maxSegments);
+        const rest = ranked.slice(maxSegments);
+        if (rest.length) {
+          const otherData = labels.map((_d, i) => {
+            let sum = 0;
+            let any = false;
+            for (const row of rest) {
+              const v = row.data[i];
+              if (v != null && Number.isFinite(Number(v))) {
+                sum += Number(v);
+                any = true;
+              }
+            }
+            return any ? window.AppMoney?.roundCost(sum) : null;
+          });
+          kept.push({
+            fullLabel: `Other (${rest.length} segments)`,
+            label: `Other (+${rest.length})`,
+            data: otherData,
+            total: otherData.reduce((sum, v) => sum + (Number(v) || 0), 0),
+            isOther: true,
+          });
+        }
+        return kept.map((row) => ({
+          ...row,
+          label: row.label || _shortSegmentLabel(row.fullLabel),
+        }));
+      }
+
+      function _renderReportDailyLegend(items, visible) {
+        if (!reportDailySegmentLegendEl) return;
+        if (!visible || !items?.length) {
+          reportDailySegmentLegendEl.hidden = true;
+          reportDailySegmentLegendEl.replaceChildren();
+          return;
+        }
+        reportDailySegmentLegendEl.hidden = false;
+        const frag = document.createDocumentFragment();
+        for (const item of items) {
+          const pill = document.createElement('span');
+          pill.className = `costSpendLegendPill${item.isTotal ? ' costSpendLegendPill--total' : ''}${item.isOther ? ' costSpendLegendPill--other' : ''}`;
+          pill.style.setProperty('--seg-color', item.color || '#5eead4');
+          pill.title = item.fullLabel || item.label;
+          pill.textContent = item.label;
+          frag.appendChild(pill);
+        }
+        reportDailySegmentLegendEl.replaceChildren(frag);
+      }
+
+      function _reportTokenLineDataset(label, data, color, bg, labelCount = 0) {
+        const n = (data || []).filter((v) => v != null && !Number.isNaN(v)).length;
+        const dense = labelCount > 21;
+        const pr = dense ? 0 : (CHART_OPTS?.pointRadiusForCount?.(n, { sparse: 2, dense: 0 }) ?? 2);
+        return {
+          label,
+          data,
+          borderColor: color,
+          backgroundColor: bg,
+          fill: true,
+          tension: 0.28,
+          spanGaps: true,
+          pointRadius: pr,
+          pointHoverRadius: 5,
+          borderWidth: 2.2,
+          unitType: 'tokens',
+        };
+      }
+
+      function _reportTokenChartOptions(labelCount) {
+        return (
+          CHART_OPTS?.buildChartOptionsForUnit?.({
+            unitType: 'tokens',
+            labelCount,
+            showLegend: false,
+            tooltipCallbacks: { label: tooltipLabelTokens },
+          }) || reportChartOpts(labelCount, {}, false)
+        );
+      }
+
+      function _updateReportConsumeMeta(report, dailyTokens) {
+        const t = report?.token_actual || {};
+        const inTotal = Number(t.input_tokens_total || 0);
+        const outTotal = Number(t.output_tokens_total || 0);
+        const activeRows = (dailyTokens || []).filter((p) => {
+          const inn = tokenIn(p);
+          const out = tokenOut(p);
+          return (inn != null && inn > 0) || (out != null && out > 0);
+        });
+        const activeDays = activeRows.length;
+        const totalTok = inTotal + outTotal;
+        const avgDaily = activeDays > 0 && totalTok > 0 ? Math.round(totalTok / activeDays) : null;
+        const outIn = inTotal > 0 && outTotal != null ? (outTotal / inTotal).toFixed(3) : null;
+        const dates = (dailyTokens || []).map((p) => p.date).filter(Boolean).sort();
+        const period = dates.length >= 2
+          ? `${dates[0]} → ${dates[dates.length - 1]}`
+          : dates.length === 1
+            ? dates[0]
+            : '—';
+
+        const set = (id, val) => {
+          const el = document.getElementById(id);
+          if (el) el.textContent = val;
+        };
+        set('reportConsumeInputTotal', fmtInt(inTotal));
+        set('reportConsumeOutputTotal', fmtInt(outTotal));
+        set('reportConsumeActiveDays', activeDays > 0 ? String(activeDays) : '—');
+        set('reportConsumeAvgDaily', avgDaily == null ? '—' : fmtInt(avgDaily));
+        set('reportConsumeOutIn', outIn ?? '—');
+        set('reportConsumePeriod', period !== '—' ? `Period · ${period}` : 'No token days in scope');
       }
 
       function validateDateRange() {
@@ -1595,117 +1876,154 @@
         const tokenInsight = document.getElementById('tokenSectionInsight');
         if (tokenInsight) {
           tokenInsight.textContent = showTokens
-            ? 'OpEx consumption drivers — imported token CSV totals by day.'
+            ? 'Volume summary, daily run rate, and output/input ratio for imported token CSVs.'
             : 'No imported token CSVs in this scope — run rate charts above still show OpEx billing.';
         }
         if (!showTokens) {
-          for (const ch of [dailyTokenChart, dailyTokenRatioChart, monthlyTokenChart]) {
+          for (const ch of [reportTokenInputChart, reportTokenOutputChart, dailyTokenRatioChart]) {
             if (ch) ch.destroy();
           }
-          dailyTokenChart = null;
+          reportTokenInputChart = null;
+          reportTokenOutputChart = null;
           dailyTokenRatioChart = null;
-          monthlyTokenChart = null;
         }
 
-        // Daily — OpEx with optional meter/platform stack
-        const dailyLabels = daily.map(p => p.date);
-        const dailyActual = daily.map(p => p.cost_usd);
-        const catalog = report?.catalog_market || {};
-        const dailyByModel = catalog.daily_by_model || [];
-        const meterByDate = new Map();
-        for (const row of dailyByModel) {
-          const d = safeDateStr(row?.date);
-          if (!d) continue;
-          let m = 0;
-          if (row.input_cost_usd != null || row.output_cost_usd != null) {
-            m = Number(row.input_cost_usd || 0) + Number(row.output_cost_usd || 0);
-          } else if (row.actual_cost_usd != null) {
-            m = Number(row.actual_cost_usd);
-          }
-          if (m > 0) meterByDate.set(d, (meterByDate.get(d) || 0) + m);
+        // Daily — OpEx line chart (Total + segment lines when multiple resources/projects)
+        const dailyLabels = daily.map((p) => p.date);
+        const dailyActual = daily.map((p) => p.cost_usd);
+        const dailyBySegment = report.daily_by_segment || {};
+        const segmentSeries = Array.isArray(dailyBySegment.series) ? dailyBySegment.series : [];
+        const useSegmentSplit = dailyBySegment.available === true && segmentSeries.length > 1;
+        const segmentMode = String(dailyBySegment.segment_mode || 'resource');
+
+        if (reportDailyChartCardEl) {
+          reportDailyChartCardEl.classList.toggle('reportTrendCard--segments', useSegmentSplit);
         }
-        const dailyMeter = dailyLabels.map((d) => {
-          const v = meterByDate.get(d);
-          return v == null ? null : window.AppMoney?.roundCost(v);
-        });
-        const dailyPlatform = dailyLabels.map((d, i) => {
-          const actual = dailyActual[i];
-          const meter = dailyMeter[i];
-          if (actual == null) return null;
-          if (meter == null) return actual;
-          const plat = Number(actual) - Number(meter);
-          return plat > 0 ? window.AppMoney?.roundCost(plat) : null;
-        });
-        const hasMeterSplit = dailyMeter.some((v) => v != null && Number(v) > 0);
+        if (reportDailyChartHintEl) {
+          reportDailyChartHintEl.textContent = useSegmentSplit
+            ? segmentMode === 'project'
+              ? 'Daily OpEx by project — Total plus top segments.'
+              : 'Daily OpEx by Azure resource — Total plus top segments.'
+            : 'Daily OpEx total for the selected scope.';
+        }
+        const costTrendInsightEl = document.getElementById('costTrendInsight');
+        if (costTrendInsightEl) {
+          costTrendInsightEl.innerHTML = useSegmentSplit
+            ? `Daily line chart shows <strong>Total</strong> plus top ${segmentMode === 'project' ? 'project' : 'resource'} segments; monthly remains calendar-month totals.`
+            : 'Daily and monthly <span class="costPill costPill--actual">OpEx</span> billing for the selected scope.';
+        }
 
         const dailyCtx = document.getElementById('dailyChart').getContext('2d');
         if (dailyChart) dailyChart.destroy();
 
-        const dailyGradient = dailyCtx.createLinearGradient(0, 0, 0, 360);
-        dailyGradient.addColorStop(0, 'rgba(94,234,212,0.28)');
-        dailyGradient.addColorStop(1, 'rgba(94,234,212,0.00)');
+        const dense = dailyLabels.length > 21;
+        const ptR = dense ? 0 : (CHART_OPTS?.pointRadiusForCount?.(dailyLabels.length, { sparse: 3, dense: 0 }) ?? 2);
+        const ptRTotal = CHART_OPTS?.pointRadiusForCount?.(dailyLabels.length, { sparse: 3, dense: 1 }) ?? 2;
+        const dailyDatasets = [];
+        const legendItems = [];
 
-        const costDs = window.AppCostSemantics?.chartDataset;
-        const dailyDatasets = hasMeterSplit
-          ? [
-              (() => {
-                const ds = costDs?.('meter', { data: dailyMeter, fill: true, pointRadius: 2 }) ?? {
-                  label: 'Meter (inp+out)',
-                  data: dailyMeter,
-                  borderColor: C.actual || '#5eead4',
-                  backgroundColor: 'rgba(94,234,212,0.35)',
-                  fill: true,
-                  stack: 'opex',
-                };
-                ds.label = 'By model · Meter';
-                return ds;
-              })(),
-              (() => {
-                const ds = costDs?.('platform', { data: dailyPlatform, fill: true, pointRadius: 2 }) ?? {
-                  label: 'Platform (other)',
-                  data: dailyPlatform,
-                  borderColor: '#fbbf24',
-                  backgroundColor: 'rgba(251,191,36,0.35)',
-                  fill: true,
-                  stack: 'opex',
-                };
-                ds.label = 'Others · Platform';
-                return ds;
-              })(),
-            ]
-          : [
-              {
-                label: 'CostUSD',
-                data: dailyActual,
-                borderColor: C.actual || C.cost || '#5eead4',
-                backgroundColor: dailyGradient,
-                fill: true,
-                tension: 0.28,
-                pointRadius: 2,
-                pointHoverRadius: 4,
-                borderWidth: 2.2,
-                spanGaps: true,
-              },
-            ];
-
-        const reportLegendEl = document.getElementById('reportDailyLegendKey');
-        if (reportLegendEl && window.AppCostSemantics?.billingKey) {
-          reportLegendEl.innerHTML = window.AppCostSemantics.billingKey({
-            stacked: hasMeterSplit,
-            hasTariff: false,
-            allocationHref: '#report-by-model',
+        if (useSegmentSplit) {
+          const segments = _rollupResourceSeries(segmentSeries, dailyLabels, 5);
+          segments.forEach((seg, idx) => {
+            const col = CHART_OPTS?.modelColorAt?.(idx + 1) || window.AppChartStyle?.modelColorAt?.(idx + 1);
+            const borderColor = col?.border || '#60a5fa';
+            dailyDatasets.push({
+              label: seg.label,
+              fullLabel: seg.fullLabel,
+              data: seg.data,
+              borderColor,
+              backgroundColor: 'transparent',
+              fill: false,
+              tension: 0.32,
+              borderWidth: seg.isOther ? 1.25 : 1.5,
+              borderDash: seg.isOther ? [4, 3] : undefined,
+              pointRadius: ptR,
+              pointHoverRadius: 4,
+              pointHitRadius: 10,
+              spanGaps: true,
+              unitType: 'currency',
+              order: 20 + idx,
+            });
+            legendItems.push({
+              label: seg.label,
+              fullLabel: seg.fullLabel,
+              color: borderColor,
+              isOther: !!seg.isOther,
+            });
           });
+
+          const dailyGradient = dailyCtx.createLinearGradient(0, 0, 0, 360);
+          dailyGradient.addColorStop(0, 'rgba(94,234,212,0.22)');
+          dailyGradient.addColorStop(1, 'rgba(94,234,212,0.00)');
+          const totalColor = C.actual || C.cost || '#5eead4';
+          dailyDatasets.push({
+            label: 'Total',
+            fullLabel: 'Total daily cost',
+            data: dailyActual,
+            borderColor: totalColor,
+            backgroundColor: dailyGradient,
+            fill: true,
+            tension: 0.28,
+            borderWidth: 2.75,
+            pointRadius: ptRTotal,
+            pointHoverRadius: 5,
+            pointHitRadius: 12,
+            spanGaps: true,
+            unitType: 'currency',
+            order: 0,
+          });
+          legendItems.unshift({
+            label: 'Total',
+            fullLabel: 'Total daily cost',
+            color: totalColor,
+            isTotal: true,
+          });
+          _renderReportDailyLegend(legendItems, true);
+        } else {
+          _renderReportDailyLegend([], false);
+          const dailyGradient = dailyCtx.createLinearGradient(0, 0, 0, 360);
+          dailyGradient.addColorStop(0, 'rgba(94,234,212,0.28)');
+          dailyGradient.addColorStop(1, 'rgba(94,234,212,0.00)');
+          dailyDatasets.push(
+            CHART_OPTS?.datasetLineCurrency?.({
+              label: 'Daily cost',
+              data: dailyActual,
+              borderColor: C.actual || C.cost || '#5eead4',
+              backgroundColor: dailyGradient,
+              fill: true,
+              pointRadius: ptRTotal,
+            }) ?? {
+              label: 'Daily cost',
+              data: dailyActual,
+              borderColor: C.cost || '#5eead4',
+              backgroundColor: dailyGradient,
+              fill: true,
+              tension: 0.28,
+              pointRadius: ptRTotal,
+              spanGaps: true,
+              unitType: 'currency',
+              order: 0,
+            }
+          );
         }
 
         dailyChart = new Chart(dailyCtx, {
-          type: hasMeterSplit ? 'bar' : 'line',
+          type: 'line',
           data: {
             labels: dailyLabels,
             datasets: dailyDatasets,
           },
           options: {
-            ...reportChartOpts(dailyLabels.length),
-            scales: hasMeterSplit ? { x: { stacked: true }, y: { stacked: true } } : undefined,
+            ...reportChartOpts(dailyLabels.length, {
+              title: (items) => (items?.[0] ? String(dailyLabels[items[0].dataIndex] ?? '') : ''),
+              label: (ctx) => {
+                const ds = ctx.dataset || {};
+                const name = ds.fullLabel || ds.label || '';
+                const v = ctx.parsed?.y;
+                if (v === null || v === undefined || Number.isNaN(v)) return `${name}: -`;
+                return `${name}: ${window.AppMoney?.fmtCost(v, _currency()) ?? '-'}`;
+              },
+            }, false),
             onClick: (_evt, elements) => {
               if (!elements?.length) {
                 selectedDailyChartIndex = null;
@@ -1728,9 +2046,12 @@
         });
 
         const dailyTotal = dailyActual.reduce((s, v) => s + Number(v || 0), 0);
+        const segmentNote = useSegmentSplit
+          ? ` · ${segmentSeries.length} ${segmentMode === 'project' ? 'projects' : 'resources'}`
+          : '';
         window.AppDashboardInteractions?.setChartFootnote?.(
           document.getElementById('dailyChartFoot'),
-          `${dailyLabels.length} days · total CostUSD <strong>${fmtCost(dailyTotal)}</strong> · click a point to inspect`,
+          `${dailyLabels.length} days · total CostUSD <strong>${fmtCost(dailyTotal)}</strong>${segmentNote} · click a point to inspect`,
           { html: true }
         );
 
@@ -1770,9 +2091,10 @@
           return;
         }
 
-        // Daily tokens (imported actuals)
+        // Consumption — split input/output run rate + collapsible ratio
         const dailyTokens = report.token_daily_points || [];
-        const dailyTokenLabels = dailyTokens.map(p => p.date);
+        _updateReportConsumeMeta(report, dailyTokens);
+        const dailyTokenLabels = dailyTokens.map((p) => p.date);
         const dailyTokenInput = dailyTokens.map((p) => {
           const v = tokenIn(p);
           return v === null ? null : Math.round(v);
@@ -1781,80 +2103,73 @@
           const v = tokenOut(p);
           return v === null ? null : Math.round(v);
         });
-        const dailyTokenTotal = dailyTokens.map((p) => {
-          const v = tokenTotal(p);
-          return v === null ? null : Math.round(v);
-        });
-        const dailyTokenCtx = document.getElementById('dailyTokenChart').getContext('2d');
-        if (dailyTokenChart) dailyTokenChart.destroy();
-        const dailyTokenOpts = window.AppChartStyle?.buildChartOptionsForUnit?.({
-          unitType: 'tokens',
-          labelCount: dailyTokenLabels.length,
-          tooltipCallbacks: { label: tooltipLabelTokens },
-        });
-        dailyTokenChart = new Chart(dailyTokenCtx, {
-          type: 'line',
-          data: {
-            labels: dailyTokenLabels,
-            datasets: [
-              {
-                label: 'Input tokens',
-                data: dailyTokenInput,
-                borderColor: C.input || '#60a5fa',
-                fill: false,
-                tension: 0.25,
-                pointRadius: 2,
-                borderWidth: 2.2,
-                spanGaps: true,
-                unitType: 'tokens',
-                yAxisID: 'yTokens'
-              },
-              {
-                label: 'Output tokens',
-                data: dailyTokenOutput,
-                borderColor: C.output || '#a78bfa',
-                fill: false,
-                tension: 0.25,
-                pointRadius: 2,
-                borderWidth: 2.2,
-                spanGaps: true,
-                unitType: 'tokens',
-                yAxisID: 'yTokens'
-              },
-              {
-                label: 'Total tokens',
-                data: dailyTokenTotal,
-                borderColor: C.total || '#f59e0b',
-                fill: false,
-                tension: 0.25,
-                pointRadius: 3,
-                borderWidth: 3.0,
-                spanGaps: true,
-                unitType: 'tokens',
-                yAxisID: 'yTokens'
-              }
-            ]
-          },
-          options: {
-            ...dailyTokenOpts,
-            scales: {
-              x: {
-                ticks: window.AppChartStyle?.xAxisTicks?.(dailyTokenLabels.length),
-                grid: { drawOnChartArea: false },
-                border: { display: false },
-              },
-              y: { display: false },
-              yTokens: {
-                ...(window.AppChartStyle?.yAxisTokens?.() || {}),
-                position: 'right',
-                grid: { drawOnChartArea: false },
-              },
-            },
-          },
-          plugins: reportChartPlugins(),
-        });
+        const hasInput = dailyTokenInput.some((v) => v != null && v > 0);
+        const hasOutput = dailyTokenOutput.some((v) => v != null && v > 0);
+        const inputCard = document.getElementById('reportTokenInputCard');
+        const outputCard = document.getElementById('reportTokenOutputCard');
+        if (inputCard) inputCard.classList.toggle('reportConsumeChartCard--empty', !hasInput);
+        if (outputCard) outputCard.classList.toggle('reportConsumeChartCard--empty', !hasOutput);
 
-        // Daily Token Ratio (Output / Input)
+        const inputCtx = document.getElementById('reportTokenInputChart')?.getContext('2d');
+        if (inputCtx) {
+          if (reportTokenInputChart) reportTokenInputChart.destroy();
+          const inputDs = _reportTokenLineDataset(
+            'Input tokens',
+            dailyTokenInput,
+            C.input || '#60a5fa',
+            'rgba(96,165,250,0.14)',
+            dailyTokenLabels.length
+          );
+          reportTokenInputChart = new Chart(inputCtx, {
+            type: 'line',
+            data: { labels: dailyTokenLabels, datasets: [inputDs] },
+            options: _reportTokenChartOptions(dailyTokenLabels.length),
+            plugins: reportChartPlugins(),
+          });
+        }
+        const inputTotal = dailyTokenInput.reduce((s, v) => s + Number(v || 0), 0);
+        window.AppDashboardInteractions?.setChartFootnote?.(
+          document.getElementById('reportTokenInputFoot'),
+          hasInput
+            ? `${dailyTokenLabels.length} days · total <strong>${fmtInt(inputTotal)}</strong> input tokens`
+            : 'No input token data in selected range.',
+          { html: hasInput }
+        );
+
+        const outputCtx = document.getElementById('reportTokenOutputChart')?.getContext('2d');
+        if (outputCtx) {
+          if (reportTokenOutputChart) reportTokenOutputChart.destroy();
+          const outputDs = _reportTokenLineDataset(
+            'Output tokens',
+            dailyTokenOutput,
+            C.output || '#a78bfa',
+            'rgba(167,139,250,0.14)',
+            dailyTokenLabels.length
+          );
+          reportTokenOutputChart = new Chart(outputCtx, {
+            type: 'line',
+            data: { labels: dailyTokenLabels, datasets: [outputDs] },
+            options: _reportTokenChartOptions(dailyTokenLabels.length),
+            plugins: reportChartPlugins(),
+          });
+        }
+        const outputTotal = dailyTokenOutput.reduce((s, v) => s + Number(v || 0), 0);
+        window.AppDashboardInteractions?.setChartFootnote?.(
+          document.getElementById('reportTokenOutputFoot'),
+          hasOutput
+            ? `${dailyTokenLabels.length} days · total <strong>${fmtInt(outputTotal)}</strong> output tokens`
+            : 'No output token data in selected range.',
+          { html: hasOutput }
+        );
+
+        const runRateLead = document.getElementById('reportConsumeRunRateLead');
+        if (runRateLead) {
+          runRateLead.textContent = hasInput || hasOutput
+            ? 'Daily input and output token volume — expand Output card for out/in ratio trend.'
+            : 'No token volume in the selected date range.';
+        }
+
+        // Output / input ratio (collapsible)
         const ratioRows = window.AppForecasting?.dailyTokenRatio?.(dailyTokens || [], { inputKey: 'input_tokens', outputKey: 'output_tokens' }) || [];
         lastTokenRatioRows = ratioRows;
         const ratioLabels = ratioRows.map((r) => r.date);
@@ -1869,46 +2184,51 @@
           ratioKpiSummaryReportEl.textContent = 'Valid days: - · >1: - · <1: -';
         }
         const ratioCtx = document.getElementById('dailyTokenRatioChart')?.getContext('2d');
+        const ratioDetails = document.getElementById('reportConsumeRatioDetails');
+        if (ratioDetails) ratioDetails.hidden = !ratioRows.length;
         if (ratioCtx) {
           if (dailyTokenRatioChart) dailyTokenRatioChart.destroy();
+          const ratioDense = ratioLabels.length > 21;
+          const ratioPtR = ratioDense ? 0 : (CHART_OPTS?.pointRadiusForCount?.(ratioLabels.length, { sparse: 2, dense: 0 }) ?? 2);
           const ratioDatasets = [
             {
               label: 'Output / input',
               data: ratioData,
               borderColor: '#34d399',
-              backgroundColor: 'rgba(52,211,153,0.14)',
+              backgroundColor: 'rgba(52,211,153,0.12)',
               fill: true,
               tension: 0.22,
-              pointRadius: 2,
+              pointRadius: ratioPtR,
               pointHoverRadius: 4,
               borderWidth: 2.2,
-              spanGaps: true
-            }
+              spanGaps: true,
+            },
           ];
           if (showRatioParity) {
             ratioDatasets.push({
               label: 'Baseline (1.0)',
               data: ratioLabels.map(() => 1),
               borderColor: 'rgba(159,178,199,0.65)',
-              backgroundColor: 'rgba(0,0,0,0)',
+              backgroundColor: 'transparent',
               fill: false,
               tension: 0,
               pointRadius: 0,
               borderWidth: 1.4,
               borderDash: [3, 4],
-              spanGaps: true
+              spanGaps: true,
             });
           }
           dailyTokenRatioChart = new Chart(ratioCtx, {
             type: 'line',
             data: {
               labels: ratioLabels,
-              datasets: ratioDatasets
+              datasets: ratioDatasets,
             },
             options: {
               ...window.AppChartStyle?.buildChartOptionsForUnit?.({
                 unitType: 'ratio',
                 labelCount: ratioLabels.length,
+                showLegend: false,
                 tooltipCallbacks: {
                   label: (ctx) => {
                     const v = ctx.parsed?.y;
@@ -1918,14 +2238,6 @@
                   },
                 },
               }),
-              plugins: {
-                ...window.AppChartStyle?.buildChartOptionsForUnit?.({ unitType: 'ratio', labelCount: ratioLabels.length })
-                  ?.plugins,
-                legend: {
-                  position: 'top',
-                  labels: { filter: (item) => !String(item?.text || '').includes('Baseline') },
-                },
-              },
               scales: {
                 x: {
                   ticks: window.AppChartStyle?.xAxisTicks?.(ratioLabels.length),
@@ -1955,111 +2267,9 @@
           });
         }
 
-        const ratioTbody = document.getElementById('tokenRatioTbody');
-        if (ratioTbody) {
-          ratioTbody.innerHTML = '';
-          if (!ratioRows.length) {
-            const tr = document.createElement('tr');
-            tr.innerHTML = `<td colspan="2" class="muted">No ratio data in selected range.</td>`;
-            ratioTbody.appendChild(tr);
-          } else {
-            const ratioSorted = window.AppDashboardUi?.sortByDateDesc?.(ratioRows) || ratioRows.slice().sort((a, b) => String(b.date).localeCompare(String(a.date)));
-            for (const r of ratioSorted) {
-              const tr = document.createElement('tr');
-              const val = r.ratio === null || r.ratio === undefined ? '-' : Number(r.ratio).toLocaleString(undefined, { maximumFractionDigits: 3 });
-              tr.innerHTML = `<td class="tdText">${r.date}</td><td class="num">${val}</td>`;
-              ratioTbody.appendChild(tr);
-            }
-          }
-        }
-
-        // Monthly Token Estimates
-        const monthlyTokens = report.token_monthly_points || [];
-        const monthlyTokenLabels = monthlyTokens.map(p => p.date);
-        const monthlyTokenInput = monthlyTokens.map((p) => {
-          const v = tokenIn(p);
-          return v === null ? null : Math.round(v);
-        });
-        const monthlyTokenOutput = monthlyTokens.map((p) => {
-          const v = tokenOut(p);
-          return v === null ? null : Math.round(v);
-        });
-        const monthlyTokenTotal = monthlyTokens.map((p) => {
-          const v = tokenTotal(p);
-          return v === null ? null : Math.round(v);
-        });
-        const monthlyTokenCtx = document.getElementById('monthlyTokenChart').getContext('2d');
-        if (monthlyTokenChart) monthlyTokenChart.destroy();
-        const monthlyTokenOpts = window.AppChartStyle?.buildChartOptionsForUnit?.({
-          unitType: 'tokens',
-          labelCount: monthlyTokenLabels.length,
-          tooltipCallbacks: { label: tooltipLabelTokens },
-        });
-        monthlyTokenChart = new Chart(monthlyTokenCtx, {
-          type: 'line',
-          data: {
-            labels: monthlyTokenLabels,
-            datasets: [
-              {
-                label: 'Input tokens',
-                data: monthlyTokenInput,
-                borderColor: C.input || '#60a5fa',
-                fill: false,
-                tension: 0.25,
-                pointRadius: 2,
-                borderWidth: 2.2,
-                spanGaps: true,
-                unitType: 'tokens',
-                yAxisID: 'yTokens'
-              },
-              {
-                label: 'Output tokens',
-                data: monthlyTokenOutput,
-                borderColor: C.output || '#a78bfa',
-                fill: false,
-                tension: 0.25,
-                pointRadius: 2,
-                borderWidth: 2.2,
-                spanGaps: true,
-                unitType: 'tokens',
-                yAxisID: 'yTokens'
-              },
-              {
-                label: 'Total tokens',
-                data: monthlyTokenTotal,
-                borderColor: C.total || '#f59e0b',
-                fill: false,
-                tension: 0.25,
-                pointRadius: 3,
-                borderWidth: 3.0,
-                spanGaps: true,
-                unitType: 'tokens',
-                yAxisID: 'yTokens'
-              }
-            ]
-          },
-          options: {
-            ...monthlyTokenOpts,
-            scales: {
-              x: {
-                ticks: window.AppChartStyle?.xAxisTicks?.(monthlyTokenLabels.length),
-                grid: { drawOnChartArea: false },
-                border: { display: false },
-              },
-              y: { display: false },
-              yTokens: {
-                ...(window.AppChartStyle?.yAxisTokens?.() || {}),
-                position: 'right',
-                grid: { drawOnChartArea: false },
-              },
-            },
-          },
-          plugins: reportChartPlugins(),
-        });
-
       }
 
-      function renderPagedTable({ points, page, pageSize, tbodyEl, pageInfoEl, prevBtn, nextBtn, label }) {
+      function renderPagedTable({ points, page, pageSize, tbodyEl, pageInfoEl, prevBtn, nextBtn, label, peakDate = null }) {
         const total = points.length;
         const pageCount = Math.max(1, Math.ceil(total / pageSize));
         const safePage = Math.max(1, Math.min(pageCount, Math.floor(page)));
@@ -2074,14 +2284,17 @@
         } else {
           for (const p of slice) {
             const tr = document.createElement('tr');
-            tr.innerHTML = `<td class="tdText">${p.date ?? ''}</td><td class="num mono tdCostActual">${fmtCostCell(p.cost_usd)}</td><td class="num">${fmtPct(p.share_pct)}</td><td class="num">${fmtDeltaPct(p.change_pct)}</td>`;
+            if (peakDate && p.date === peakDate) tr.classList.add('reportLedgerRowPeak');
+            tr.innerHTML = `<td class="tdText reportLedgerDate">${p.date ?? ''}</td><td class="num mono tdCostActual">${fmtCostCell(p.cost_usd)}</td><td class="num">${fmtShareCell(p.share_pct)}</td><td class="num">${fmtDeltaPct(p.change_pct)}</td>`;
             tbodyEl.appendChild(tr);
           }
         }
 
         prevBtn.disabled = safePage <= 1 || total === 0;
         nextBtn.disabled = safePage >= pageCount;
-        pageInfoEl.textContent = `${safePage} / ${pageCount} · ${total} ${label}`;
+        pageInfoEl.textContent = total === 0
+          ? `No ${label}`
+          : `Page ${safePage} of ${pageCount} · ${total} ${label}`;
         return safePage;
       }
 
@@ -2089,11 +2302,38 @@
         const daily = enrichCostPoints(report.daily_points || []);
         const monthly = enrichCostPoints(report.monthly_points || []);
         const note = document.getElementById('tableAnalysisNote');
-        if (note && daily.length) {
-          const top = daily.reduce((b, r) => (r.cost_usd > (b?.cost_usd ?? -1) ? r : b), null);
-          note.textContent = top
-            ? `Newest first. Peak row ${top.date}: ${fmtCost(top.cost_usd)} (${fmtPct(top.share_pct)} of total). Δ vs prior = previous calendar ${daily[0]?.date?.length === 7 ? 'month' : 'day'}.`
-            : note.textContent;
+        const insightBar = document.getElementById('reportLedgerInsightBar');
+        const dailyPeak = daily.length
+          ? daily.reduce((b, r) => (r.cost_usd > (b?.cost_usd ?? -1) ? r : b), null)
+          : null;
+        const monthlyPeak = monthly.length
+          ? monthly.reduce((b, r) => (r.cost_usd > (b?.cost_usd ?? -1) ? r : b), null)
+          : null;
+        if (note) {
+          note.textContent = 'Newest first · Share = % of total · Δ vs prior period';
+        }
+        if (insightBar) {
+          insightBar.replaceChildren();
+          const chips = [];
+          if (dailyPeak) {
+            chips.push({ label: 'Daily peak', value: `${dailyPeak.date} · ${fmtCost(dailyPeak.cost_usd)}`, pct: dailyPeak.share_pct });
+          }
+          if (monthlyPeak) {
+            chips.push({ label: 'Monthly peak', value: `${monthlyPeak.date} · ${fmtCost(monthlyPeak.cost_usd)}`, pct: monthlyPeak.share_pct });
+          }
+          if (!chips.length) {
+            insightBar.hidden = true;
+          } else {
+            insightBar.hidden = false;
+            const frag = document.createDocumentFragment();
+            for (const chip of chips) {
+              const el = document.createElement('span');
+              el.className = 'reportLedgerInsightChip';
+              el.innerHTML = `<span class="reportLedgerInsightLabel">${chip.label}</span><strong class="reportLedgerInsightValue">${chip.value}</strong>${chip.pct != null ? `<span class="reportLedgerInsightMeta">${fmtPct(chip.pct)} share</span>` : ''}`;
+              frag.appendChild(el);
+            }
+            insightBar.replaceChildren(frag);
+          }
         }
 
         const dailyTbody = document.getElementById('dailyTbody');
@@ -2108,7 +2348,8 @@
           pageInfoEl: dailyPageInfo,
           prevBtn: dailyPrevBtn,
           nextBtn: dailyNextBtn,
-          label: 'days'
+          label: 'days',
+          peakDate: dailyPeak?.date ?? null,
         });
 
         const monthlyTbody = document.getElementById('monthlyTbody');
@@ -2123,7 +2364,8 @@
           pageInfoEl: monthlyPageInfo,
           prevBtn: monthlyPrevBtn,
           nextBtn: monthlyNextBtn,
-          label: 'months'
+          label: 'months',
+          peakDate: monthlyPeak?.date ?? null,
         });
       }
 
@@ -2247,8 +2489,6 @@
         const dailyPageSizeSelect = document.getElementById('dailyPageSizeSelect');
         const dailyPrevBtn = document.getElementById('dailyPrevBtn');
         const dailyNextBtn = document.getElementById('dailyNextBtn');
-        const dailyGoInput = document.getElementById('dailyGoInput');
-        const dailyGoBtn = document.getElementById('dailyGoBtn');
 
         dailyPageSizeSelect.addEventListener('change', () => {
           dailyPageSize = Math.max(1, Math.min(200, Number(dailyPageSizeSelect.value || 25)));
@@ -2263,18 +2503,10 @@
           dailyPage = dailyPage + 1;
           if (lastReport) renderTables(lastReport);
         });
-        dailyGoBtn.addEventListener('click', () => {
-          const n = Number((dailyGoInput.value || '').trim());
-          if (!Number.isFinite(n) || n < 1) return;
-          dailyPage = Math.floor(n);
-          if (lastReport) renderTables(lastReport);
-        });
 
         const monthlyPageSizeSelect = document.getElementById('monthlyPageSizeSelect');
         const monthlyPrevBtn = document.getElementById('monthlyPrevBtn');
         const monthlyNextBtn = document.getElementById('monthlyNextBtn');
-        const monthlyGoInput = document.getElementById('monthlyGoInput');
-        const monthlyGoBtn = document.getElementById('monthlyGoBtn');
 
         monthlyPageSizeSelect.addEventListener('change', () => {
           monthlyPageSize = Math.max(1, Math.min(200, Number(monthlyPageSizeSelect.value || 25)));
@@ -2287,12 +2519,6 @@
         });
         monthlyNextBtn.addEventListener('click', () => {
           monthlyPage = monthlyPage + 1;
-          if (lastReport) renderTables(lastReport);
-        });
-        monthlyGoBtn.addEventListener('click', () => {
-          const n = Number((monthlyGoInput.value || '').trim());
-          if (!Number.isFinite(n) || n < 1) return;
-          monthlyPage = Math.floor(n);
           if (lastReport) renderTables(lastReport);
         });
       }

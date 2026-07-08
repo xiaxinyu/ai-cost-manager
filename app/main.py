@@ -40,6 +40,7 @@ from .db import (
     verify_all_financial_consistency,
     get_billing_token_bridge,
     get_project_billing_by_resource,
+    get_project_daily_cost_by_resource,
     get_catalog_market_cost_timeseries,
     trace_transaction_cost_match,
     get_model_implied_usd_per_1m_analysis,
@@ -659,6 +660,15 @@ def create_app(
                 currency=currency,
                 subproject_name=subproject_name,
             )
+            daily_by_resource: dict[str, object] = {"available": False, "series": [], "resource_count": 0}
+            if granularity == "day" and subproject_name is None:
+                daily_by_resource = get_project_daily_cost_by_resource(
+                    conn,
+                    project_name,
+                    start_date=start_date,
+                    end_date=end_date,
+                    currency=chosen_currency,
+                )
             if currency is None:
                 available = get_available_currencies(conn, project_name)
             else:
@@ -685,6 +695,7 @@ def create_app(
                     "available_currencies": available,
                     "granularity": granularity,
                     "points": points,
+                    "daily_by_resource": daily_by_resource,
                     "insights": insight_cards_to_dicts(
                         compute_cost_insights(
                             project=project_name,
