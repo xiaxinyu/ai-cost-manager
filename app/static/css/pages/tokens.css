@@ -2566,9 +2566,15 @@
 .tokenPageRoot .unitPriceSummaryTable thead th {
   font-size: 10px;
   font-weight: 700;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.05em;
   text-transform: none;
   color: var(--token-text-secondary);
+}
+
+.tokenPageRoot .tokenDashboard .tokenEconomicsPanelBody .dashTableShell {
+  border: 1px solid var(--token-border-subtle);
+  border-radius: 8px;
+  background: rgba(8, 14, 24, 0.32);
 }
 
 @media (min-width: 1180px) {

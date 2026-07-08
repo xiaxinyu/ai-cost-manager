@@ -2711,3 +2711,17 @@
 .costTrendCard--segments .monitorCardFoot {
   font-variant-numeric: tabular-nums;
 }
+
+/* Table shells — align with cross-page dash polish */
+.costPageRoot .costDashboard .detailTableBlock .dashTableShell,
+.costPageRoot .costModelDailyPanel .dashTableShell,
+.costPageRoot .resourceRawTableScroll.dashTableShell {
+  border: 1px solid var(--cost-border-subtle, rgba(148, 163, 184, 0.12));
+  border-radius: 8px;
+  background: rgba(8, 14, 24, 0.32);
+}
+
+.costPageRoot .costDashboard .dashTable thead th .costPill {
+  font-size: 9px;
+  padding: 2px 6px;
+}
