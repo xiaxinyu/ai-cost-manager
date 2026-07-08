@@ -10,13 +10,7 @@
   const exportBtn = document.getElementById("exportBtn");
   const pivotBtn = document.getElementById("pivotBtn");
   const detailLayoutBtn = document.getElementById("detailLayoutBtn");
-  const viewLabel = document.getElementById("viewLabel");
-  const kpiTotalRowsEl = document.getElementById("kpiTotalRows");
-  const kpiSourceCountEl = document.getElementById("kpiSourceCount");
-  const kpiSourceNoteEl = document.getElementById("kpiSourceNote");
-  const kpiLastSyncEl = document.getElementById("kpiLastSync");
-  const kpiLastSyncNoteEl = document.getElementById("kpiLastSyncNote");
-  const kpiFilteredNoteEl = document.getElementById("kpiFilteredNote");
+  const pricesStatusBarEl = document.getElementById("pricesStatusBar");
   const catalogBadgeEl = document.getElementById("catalogBadge");
   const priceRowSelectionHintEl = document.getElementById("priceRowSelectionHint");
   const priceDetailDialog = document.getElementById("priceDetailDialog");
@@ -76,15 +70,14 @@
   function updateMetaKpis(meta) {
     catalogMeta = meta || catalogMeta;
     if (!catalogMeta) return;
+    updatePricesStatusBar();
+  }
+
+  function updatePricesStatusBar() {
+    const bar = pricesStatusBarEl;
+    if (!bar || !catalogMeta) return;
     const total = Number(catalogMeta.total_rows) || 0;
     const sources = Array.isArray(catalogMeta.sources) ? catalogMeta.sources : [];
-    if (kpiTotalRowsEl) kpiTotalRowsEl.textContent = fmtInt(total);
-    if (kpiSourceCountEl) kpiSourceCountEl.textContent = fmtInt(sources.length);
-    if (kpiSourceNoteEl) {
-      kpiSourceNoteEl.textContent = sources.length
-        ? sources.map((s) => `${s.source_id || "source"} (${fmtInt(s.row_count)})`).slice(0, 2).join(" · ")
-        : "No rows yet";
-    }
     const retail = sources.find((s) => String(s.source_id || "").includes("retail"));
     const latest = sources
       .map((s) => s.last_retrieved_at_utc)
@@ -92,14 +85,26 @@
       .sort()
       .pop();
     const syncTs = retail?.last_retrieved_at_utc || latest;
-    if (kpiLastSyncEl) kpiLastSyncEl.textContent = formatUtcShort(syncTs);
-    if (kpiLastSyncNoteEl) {
-      kpiLastSyncNoteEl.textContent = retail?.source_id ? String(retail.source_id) : "No retail sync yet";
-    }
     const filters = activeFilterCount();
-    if (kpiFilteredNoteEl) {
-      kpiFilteredNoteEl.textContent = filters ? `${filters} filter(s) active` : "All sources";
+    const mk = (html) => {
+      const span = document.createElement("span");
+      span.className = "statusPill";
+      span.innerHTML = html;
+      return span;
+    };
+    const pills = [
+      mk(`<strong>${fmtInt(totalMatching || total)}</strong> matching`),
+      mk(`<strong>${fmtInt(total)}</strong> in catalog`),
+      mk(`<strong>${sources.length}</strong> sources`),
+    ];
+    if (syncTs) {
+      pills.push(Object.assign(document.createElement("span"), { className: "statusPill", textContent: `Sync ${formatUtcShort(syncTs)}` }));
     }
+    if (filters) {
+      pills.push(Object.assign(document.createElement("span"), { className: "statusPill", textContent: `${filters} filter(s)` }));
+    }
+    bar.replaceChildren(...pills);
+    bar.hidden = false;
   }
 
   async function loadMeta() {
@@ -526,7 +531,6 @@
         ${th("Details", "", { className: "colDetail" })}
       `;
       renderPivot(rows, serialBase);
-      if (viewLabel) viewLabel.textContent = "Pivot";
       pivotBtn.textContent = "Detail view";
     } else if (isCompactDetail) {
       if (tableShell) tableShell.classList.add("is-compact");
@@ -542,7 +546,6 @@
         ${th("Series", "", { sortable: true })}
       `;
       renderDetailCompact(rows, serialBase);
-      if (viewLabel) viewLabel.textContent = "Compact";
       pivotBtn.textContent = "Pivot view";
     } else {
       if (tableShell) tableShell.classList.remove("is-compact");
@@ -563,7 +566,6 @@
         ${th("Details", "", { className: "colDetail" })}
       `;
       renderDetail(rows, serialBase);
-      if (viewLabel) viewLabel.textContent = "Detail";
       pivotBtn.textContent = "Pivot view";
     }
     if (!rows || rows.length === 0) {
@@ -615,6 +617,7 @@
       }
       summary.textContent = sum;
       updateMetaKpis(catalogMeta);
+      updatePricesStatusBar();
       renderRows(currentRows);
       renderPagination();
       window.AppDashboardInteractions?.refreshDashPage?.();

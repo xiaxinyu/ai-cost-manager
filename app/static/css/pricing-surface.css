@@ -3,63 +3,64 @@
  * Load after page-common.css so .dataTable rules win over global table styles.
  */
 
-.pricingKpiGrid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+.pricePage.dashPage,
+.priceSourcesPage.dashPage {
+  display: flex;
+  flex-direction: column;
   gap: 12px;
-  margin: 14px 0 12px;
+  padding: 16px 20px 24px;
 }
 
-.priceSourcesPage .pricingKpiGrid {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+.pricePage.dashPage > .card,
+.priceSourcesPage.dashPage > .card {
+  margin-bottom: 0;
 }
 
-.pricingKpi {
-  padding: 14px 16px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.03));
-  border: 1px solid rgba(148, 163, 184, 0.14);
-  border-radius: 14px;
-  transition: border-color 0.16s ease, box-shadow 0.16s ease;
+.pageHeader--compact {
+  margin-bottom: 0;
 }
 
-.pricingKpi .label {
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: #8b9cb3;
+.pageHeader--compact .pageDesc {
+  margin-bottom: 0;
+  max-width: 52ch;
+  font-size: 12px;
 }
 
-.pricingKpi .value {
-  margin-top: 6px;
-  font-size: 22px;
-  font-weight: 780;
-  letter-spacing: -0.02em;
-  color: #f1f5f9;
+.dataStatusBar--compact {
+  margin: 10px 0 0;
+  padding: 8px 0 0;
+  border: none;
+  border-top: 1px solid rgba(173, 196, 228, 0.12);
+  border-radius: 0;
+  background: transparent;
+  gap: 6px 8px;
+}
+
+.dataStatusBar--compact .statusPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(173, 196, 228, 0.2);
+  background: rgba(255, 255, 255, 0.05);
+  font-size: 11px;
+  color: #d4e0ef;
   font-variant-numeric: tabular-nums;
 }
 
-.pricingKpi .value--md {
-  font-size: 16px;
-  font-weight: 700;
+.dataStatusBar--compact .statusPill strong {
+  font-weight: 750;
+  color: #f1f5f9;
 }
 
-.pricingKpi .value--scope {
-  font-size: 13px;
-  font-weight: 650;
-  line-height: 1.35;
-  word-break: break-word;
-}
-
-.pricingKpi .sub {
-  margin-top: 4px;
-  font-size: 11px;
-  line-height: 1.4;
-  color: #9fb2c7;
+.detailTableHead--tight {
+  margin-bottom: 8px;
+  padding-bottom: 8px;
 }
 
 .pricingCatalogSection {
-  padding: 16px 18px 18px;
+  padding: 14px 16px 16px;
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 14px;
@@ -67,19 +68,13 @@
 }
 
 .pricingCatalogSection .pricingTableShell {
-  margin-top: 10px;
-}
-
-@media (max-width: 960px) {
-  .pricingKpiGrid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
+  margin-top: 6px;
 }
 
 @media (max-width: 720px) {
-  .pricingKpiGrid,
-  .priceSourcesPage .pricingKpiGrid {
-    grid-template-columns: 1fr;
+  .pricePage.dashPage,
+  .priceSourcesPage.dashPage {
+    padding: 12px 14px 20px;
   }
 }
 

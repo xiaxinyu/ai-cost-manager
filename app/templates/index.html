@@ -10,7 +10,6 @@
     <link rel="stylesheet" href="/static/css/layout-pro.css" />
     <link rel="stylesheet" href="/static/css/dashboard-shared.css?v=20260708-compact" />
     <link rel="stylesheet" href="/static/css/date-range-picker.css?v=20260606-drp" />
-    <link rel="stylesheet" href="/static/css/insight-panel.css?v=20260706-align" />
   </head>
   <body>
     {% set active_page = 'cost' %}
@@ -144,8 +143,6 @@
               <p class="costSubprojectStripLead muted">Segments — cost by Azure resource (click to filter scope)</p>
               <div id="subprojectCostCards" class="costSubprojectCards"></div>
             </div>
-
-            <div id="costInsightPanel" class="insightPanel" hidden aria-label="Cost insights"></div>
           </section>
 
           <section id="cost-trends" class="costZone costFinBlock card" aria-label="Spend trends">
@@ -466,7 +463,6 @@
     <script src="/static/js/dashboard-interactions.js?v=20260707-ui"></script>
     <script src="/static/js/billing-detail-table.js?v=20260707-detail"></script>
     <script src="/static/js/date-range-picker.js?v=20260606-drp"></script>
-    <script src="/static/js/insight-panel.js?v=20260605-insights"></script>
     <script>
       window.AppChartStyle?.applyDefaults?.();
       const CHART_OPTS = window.AppChartStyle;
@@ -2438,10 +2434,6 @@
         const costStats = _calcSeriesStatsFloat(costPts, 'cost_usd');
         _renderCostStats(costStatsEl, costStats);
 
-        window.AppInsightPanel?.render?.('costInsightPanel', ts.insights || [], {
-          title: 'Insights',
-          limit: 3,
-        });
         window.AppDashboardInteractions?.refreshDashPage?.();
       }
 

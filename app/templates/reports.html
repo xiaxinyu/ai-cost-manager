@@ -10,7 +10,6 @@
     <link rel="stylesheet" href="/static/css/layout-pro.css" />
     <link rel="stylesheet" href="/static/css/dashboard-shared.css?v=20260707-ui" />
     <link rel="stylesheet" href="/static/css/date-range-picker.css?v=20260606-drp" />
-    <link rel="stylesheet" href="/static/css/insight-panel.css?v=20260605-insights" />
   </head>
   <body>
     {% set active_page = 'reports' %}
@@ -152,7 +151,6 @@
               </article>
             </div>
             <div id="reportQualityStrip" class="qualityStrip" hidden aria-label="Data coverage"></div>
-            <div id="reportInsightPanel" class="insightPanel" hidden aria-label="Executive insights"></div>
             <details class="reportKpiDetails">
               <summary>More stats (daily / monthly)</summary>
               <div class="gridStats reportKpis reportKpisCompact">
@@ -473,7 +471,6 @@
     <script src="/static/js/dashboard-ui.js?v=20260605-datesort"></script>
     <script src="/static/js/date-range-picker.js?v=20260606-drp"></script>
     <script src="/static/js/dashboard-interactions.js?v=20260707-ui"></script>
-    <script src="/static/js/insight-panel.js?v=20260605-insights"></script>
     <script>
       window.AppChartStyle?.applyDefaults?.();
 
@@ -995,11 +992,6 @@
           'hero_volume_note',
           imported ? 'Grafana token imports · not billing actuals' : 'No token CSV in scope'
         );
-
-        window.AppInsightPanel?.render?.('reportInsightPanel', report?.insights || [], {
-          title: 'Insights',
-          limit: 3,
-        });
       }
 
       function toYmd(d) {

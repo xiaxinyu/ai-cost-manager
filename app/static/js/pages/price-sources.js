@@ -9,13 +9,9 @@
   const editApi = document.getElementById("editApi");
   const editNotes = document.getElementById("editNotes");
   const editSave = document.getElementById("editSave");
-  const refGuide = document.getElementById("priceSourceReference");
   const pageRoot = document.querySelector(".priceSourcesPage.dashPage");
   const tableHost = document.querySelector("[data-table-host]");
   const priceSourcesTable = document.getElementById("priceSourcesTable");
-  const psKpiTotalEl = document.getElementById("psKpiTotal");
-  const psKpiRefEl = document.getElementById("psKpiRef");
-  const psKpiApiEl = document.getElementById("psKpiApi");
   const psCatalogBadgeEl = document.getElementById("psCatalogBadge");
   const psRowSelectionHintEl = document.getElementById("psRowSelectionHint");
 
@@ -63,10 +59,11 @@
     const total = rows.length;
     const refCount = rows.filter((r) => r.reference_url).length;
     const apiCount = rows.filter((r) => r.api_url).length;
-    if (psKpiTotalEl) psKpiTotalEl.textContent = String(total);
-    if (psKpiRefEl) psKpiRefEl.textContent = String(refCount);
-    if (psKpiApiEl) psKpiApiEl.textContent = String(apiCount);
-    if (psCatalogBadgeEl) psCatalogBadgeEl.textContent = total ? `${total} sources` : "—";
+    if (psCatalogBadgeEl) {
+      psCatalogBadgeEl.textContent = total
+        ? `${total} sources · ${refCount} ref · ${apiCount} API`
+        : "—";
+    }
   }
 
   function updateSourceRowSelectionHint(tr) {
@@ -115,28 +112,6 @@
     });
   }
 
-  function renderReferenceGuide(rows) {
-    if (!refGuide) return;
-    if (!rows.length) {
-      refGuide.innerHTML = `<p class="muted" style="margin:0 0 10px;line-height:1.45">No catalog rows yet. After first database init, reload this page.</p>
-        <div class="psCatItem"><div class="psCatItemTitle">Fallback links</div>
-        <div class="psCatLinkLine"><a href="https://azure.microsoft.com/en-us/pricing/details/azure-openai/" target="_blank" rel="noopener">Azure OpenAI — public pricing page</a></div>
-        <div class="psCatLinkLine"><a href="https://prices.azure.com/api/retail/prices" target="_blank" rel="noopener">Microsoft unit price API (root)</a></div></div>`;
-      return;
-    }
-    const bits = rows.map((s) => {
-      const ref = s.reference_url
-        ? `<div class="psCatLinkLine"><a href="${esc(s.reference_url)}" target="_blank" rel="noopener">Reference page</a></div>`
-        : "";
-      const api = s.api_url
-        ? `<div class="psCatLinkLine"><a href="${esc(s.api_url)}" target="_blank" rel="noopener">API root</a></div>`
-        : "";
-      const note = s.notes ? `<div class="psCatNote muted">${esc(s.notes)}</div>` : "";
-      return `<div class="psCatItem"><div class="psCatItemTitle">${esc(s.title || s.source_key || "")}</div>${ref}${api}${note}</div>`;
-    });
-    refGuide.innerHTML = bits.join("");
-  }
-
   function setPageBusy(loading, { btn = refreshBtn, btnLabel = "Reload", btnLoading = "Loading…" } = {}) {
     window.AppDashboardUi?.setPageLoading?.({
       loading,
@@ -156,7 +131,6 @@
       const rows = data.sources || [];
       catalogRows = rows;
       updateSourceKpis(rows);
-      renderReferenceGuide(rows);
       if (clearSourceRowSelect) clearSourceRowSelect();
       updateSourceRowSelectionHint(null);
       tbody.innerHTML = "";

@@ -6,8 +6,8 @@
     <title>Price sources - Models Cost Management</title>
     <link rel="stylesheet" href="/static/css/app-shell.css" />
     <link rel="stylesheet" href="/static/css/page-common.css" />
-    <link rel="stylesheet" href="/static/css/pricing-surface.css" />
-    <link rel="stylesheet" href="/static/css/pages/price-sources.css" />
+    <link rel="stylesheet" href="/static/css/pages/price-sources.css?v=20260708-compact" />
+    <link rel="stylesheet" href="/static/css/pricing-surface.css?v=20260708-compact" />
     <link rel="stylesheet" href="/static/css/layout-pro.css" />
     <link rel="stylesheet" href="/static/css/dashboard-shared.css?v=20260707-ui" />
   </head>
@@ -18,60 +18,17 @@
     <div class="appLayout">
       <main class="contentArea">
         <div class="container priceSourcesPage dashPage">
-          <header class="pageHeader">
+          <header class="pageHeader pageHeader--compact">
             <div class="breadcrumb">Home / Pricing / Sources</div>
             <h1 class="pageTitle">Price sources</h1>
-            <p class="pageDesc">
-              Reference pages and API roots for retail sync, CSV import, and Market pricing on
-              <a href="/prices">Model prices</a>. Rows are keyed by <code>source_key</code> and seeded on first database init.
-            </p>
+            <p class="pageDesc muted">Reference and API URLs for retail sync and CSV import · rows keyed by <code>source_key</code>.</p>
           </header>
 
-          <div class="pricingKpiGrid" aria-label="Source summary">
-            <article class="card pricingKpi" data-dash-jump="#ps-catalog">
-              <div class="stat">
-                <div class="label">Catalog entries</div>
-                <div class="value" id="psKpiTotal">—</div>
-                <div class="sub muted">Editable sources</div>
-              </div>
-            </article>
-            <article class="card pricingKpi" data-dash-jump="#ps-reference">
-              <div class="stat">
-                <div class="label">Reference URLs</div>
-                <div class="value value--md" id="psKpiRef">—</div>
-                <div class="sub muted">Marketing / docs links</div>
-              </div>
-            </article>
-            <article class="card pricingKpi" data-dash-jump="#ps-catalog">
-              <div class="stat">
-                <div class="label">API roots</div>
-                <div class="value value--md" id="psKpiApi">—</div>
-                <div class="sub muted">REST endpoints</div>
-              </div>
-            </article>
-          </div>
-
-          <nav class="dashSectionNav card" aria-label="Price source sections">
-            <span class="dashSectionNavLabel muted">Jump to</span>
-            <a class="dashSectionNavLink" href="#ps-reference">Reference</a>
-            <a class="dashSectionNavLink" href="#ps-catalog">Catalog</a>
-          </nav>
-
-          <section id="ps-reference" class="card psRefCard dashScrollSection" aria-label="Reference links">
-            <header class="detailTableHead">
-              <div class="detailTableIdentity">
-                <h2 class="detailTableTitle">Reference &amp; API</h2>
-                <p class="detailTableDesc muted">Quick links mirror the catalog table — use Edit to change URLs and notes.</p>
-              </div>
-            </header>
-            <div id="priceSourceReference" class="psCatalogGuide"></div>
-          </section>
-
           <section id="ps-catalog" class="card pricingCatalogSection dashScrollSection" aria-label="Source catalog">
-            <header class="detailTableHead">
+            <header class="detailTableHead detailTableHead--tight">
               <div class="detailTableIdentity">
-                <h2 class="detailTableTitle">Source catalog</h2>
-                <p class="detailTableDesc muted">Click a row to inspect · Edit to update reference and API URLs</p>
+                <h2 class="detailTableTitle">Sources</h2>
+                <p class="detailTableDesc muted">Click a row to inspect · Edit updates reference and API URLs</p>
               </div>
               <div class="detailTableActions">
                 <button id="refreshBtn" type="button" class="btnSecondary btnSmall">Reload</button>
@@ -132,6 +89,6 @@
     <script src="/static/js/http.js"></script>
     <script src="/static/js/dashboard-ui.js"></script>
     <script src="/static/js/dashboard-interactions.js?v=20260707-ui"></script>
-    <script src="/static/js/pages/price-sources.js"></script>
+    <script src="/static/js/pages/price-sources.js?v=20260708-compact"></script>
   </body>
 </html>
