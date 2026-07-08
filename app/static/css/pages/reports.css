@@ -955,16 +955,31 @@
 }
 
 .reportSectionHead {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: flex-start;
   gap: 12px;
   margin-bottom: 14px;
 }
 
+.reportSectionHead > .reportStep {
+  grid-row: 1;
+}
+
 .reportSectionHead > div,
 .reportSectionHead > .reportExecutiveHead {
-  flex: 1;
+  grid-row: 1;
   min-width: 0;
+}
+
+.reportSectionMeta {
+  grid-row: 1;
+  margin-left: 0;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  align-self: center;
+  text-align: right;
 }
 
 .reportStep {
@@ -994,6 +1009,48 @@
   font-size: 13px;
   line-height: 1.45;
   max-width: 72ch;
+}
+
+.reportSectionMeta {
+  grid-row: 1;
+  margin-left: 0;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  align-self: center;
+  text-align: right;
+}
+
+.reportFinBlock {
+  scroll-margin-top: 72px;
+}
+
+.reportFinFlowNote {
+  margin: 0 0 12px;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.reportFinPrimaryKpi {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.reportFinBenchmarkKpi,
+.reportFinVolumeKpi {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed rgba(173, 196, 228, 0.14);
+}
+
+.heroMetricValue--scope {
+  font-size: clamp(13px, 1.4vw, 15px);
+  line-height: 1.35;
+}
+
+.heroMetricValue--text {
+  font-size: clamp(14px, 1.4vw, 16px);
+  font-weight: 650;
 }
 
 .reportSectionShell {
@@ -1225,7 +1282,13 @@
   }
 
   .reportKpis,
-  .heroMetricGrid {
+  .heroMetricGrid,
+  .reportFinPrimaryKpi {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .reportFinBenchmarkKpi,
+  .reportFinVolumeKpi {
     grid-template-columns: 1fr 1fr;
   }
 

@@ -228,6 +228,10 @@ def test_reports_page_layout_without_token_forecast(tmp_path):
     assert "projectSummariesTable" in page.text
     assert "report-daily-by-project" not in page.text
     assert "report-glance" in page.text
+    assert "hero_billed_days" in page.text
+    assert "reportBenchmarkRow" in page.text
+    assert "reportVolumeRow" in page.text
+    assert "reportFinPrimaryKpi" in page.text
     assert "report-raw-data" in page.text
     assert "filterCard" in page.text
     assert "date-range-picker.js" in page.text

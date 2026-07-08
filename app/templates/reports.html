@@ -6,7 +6,7 @@
     <title>Reports - Models Cost Management</title>
     <link rel="stylesheet" href="/static/css/app-shell.css" />
     <link rel="stylesheet" href="/static/css/page-common.css" />
-    <link rel="stylesheet" href="/static/css/pages/reports.css?v=20260606-drp" />
+    <link rel="stylesheet" href="/static/css/pages/reports.css?v=20260708-finlayout" />
     <link rel="stylesheet" href="/static/css/layout-pro.css" />
     <link rel="stylesheet" href="/static/css/dashboard-shared.css?v=20260707-ui" />
     <link rel="stylesheet" href="/static/css/date-range-picker.css?v=20260606-drp" />
@@ -22,7 +22,7 @@
           <header class="pageHeader reportPageHeader">
             <div class="breadcrumb">Home / Reports</div>
             <h1 class="pageTitle">Reports</h1>
-            <p class="pageDesc">Spend, models, projects, and tokens for your selected scope — charts first, detail on demand.</p>
+            <p class="pageDesc">Consolidated billing and token volume for your selected scope — summary first, detail on demand.</p>
           </header>
 
           <section class="card reportFilters filterCard" aria-label="Filters">
@@ -73,53 +73,82 @@
           <div id="reportStatusBar" class="dataStatusBar" hidden aria-live="polite" aria-label="Load summary"></div>
 
           <nav class="dashSectionNav card" aria-label="Report sections">
-            <span class="dashSectionNavLabel muted">Jump to</span>
+            <span class="dashSectionNavLabel muted">Statement</span>
             <a class="dashSectionNavLink" href="#report-glance">Summary</a>
-            <a class="dashSectionNavLink" href="#report-spend-trends">Spend trends</a>
+            <a class="dashSectionNavLink" href="#report-spend-trends">Trends</a>
+            <a class="dashSectionNavLink" href="#report-by-project">By project</a>
             <a class="dashSectionNavLink" href="#report-by-model">By model</a>
-            <a class="dashSectionNavLink" href="#report-by-project">All projects</a>
             <a class="dashSectionNavLink" href="#report-tokens">Tokens</a>
-            <a class="dashSectionNavLink" href="#report-raw-data">Detail tables</a>
+            <a class="dashSectionNavLink" href="#report-raw-data">Detail</a>
           </nav>
 
-          <section id="report-glance" class="card reportAtAGlance" aria-label="At a glance">
+          <section id="report-glance" class="card reportAtAGlance reportFinBlock" aria-label="Period summary">
             <div class="reportSectionHead">
               <span class="reportStep">1</span>
               <div>
                 <h2 class="reportSectionTitle">Summary</h2>
                 <p class="reportSectionLead muted" id="reportInsightLine">Key totals for the selected scope.</p>
               </div>
+              <span class="reportSectionMeta muted" id="reportCurrencyMeta"></span>
             </div>
-            <div class="heroMetricGrid">
-              <article class="heroMetric heroMetricPrimary dashJumpTarget" data-dash-jump="#report-spend-trends" title="Jump to spend trends">
-                <span class="heroMetricLabel">Total spend</span>
+            <p class="reportFinFlowNote muted">Actual billing in scope · benchmark row compares meter billing to Market list price · volume row shows imported tokens.</p>
+
+            <div class="heroMetricGrid reportFinPrimaryKpi" aria-label="Billing totals">
+              <article class="heroMetric heroMetricPrimary">
+                <span class="heroMetricLabel"><span class="costPill costPill--actual">Actual</span> Total spend</span>
                 <span class="heroMetricValue" id="hero_total_spend">—</span>
                 <span class="heroMetricSub" id="hero_total_sub">—</span>
               </article>
-              <article class="heroMetric dashJumpTarget" data-dash-jump="#report-spend-trends" title="Jump to spend trends">
+              <article class="heroMetric">
                 <span class="heroMetricLabel">Avg / day</span>
                 <span class="heroMetricValue" id="hero_avg_day">—</span>
                 <span class="heroMetricSub" id="hero_avg_day_sub">—</span>
               </article>
-              <article class="heroMetric dashJumpTarget" data-dash-jump="#report-tokens" title="Jump to token usage">
-                <span class="heroMetricLabel">Input tokens</span>
-                <span class="heroMetricValue" id="hero_input_tokens">—</span>
-                <span class="heroMetricSub" id="hero_input_sub">—</span>
+              <article class="heroMetric">
+                <span class="heroMetricLabel">Billed days</span>
+                <span class="heroMetricValue" id="hero_billed_days">—</span>
+                <span class="heroMetricSub">Days with non-zero spend</span>
               </article>
-              <article class="heroMetric dashJumpTarget" data-dash-jump="#report-tokens" title="Jump to token usage">
-                <span class="heroMetricLabel">Output tokens</span>
-                <span class="heroMetricValue" id="hero_output_tokens">—</span>
-                <span class="heroMetricSub" id="hero_output_sub">—</span>
+              <article class="heroMetric">
+                <span class="heroMetricLabel">Period</span>
+                <span class="heroMetricValue heroMetricValue--scope" id="hero_period">—</span>
+                <span class="heroMetricSub" id="hero_period_sub">Data range in scope</span>
               </article>
-              <article class="heroMetric" id="heroMeterCard" hidden data-dash-jump="#report-by-model">
+            </div>
+
+            <div class="heroMetricGrid reportFinBenchmarkKpi" id="reportBenchmarkRow" hidden aria-label="Market benchmark">
+              <article class="heroMetric" id="heroMeterCard">
                 <span class="heroMetricLabel"><span class="costPill costPill--actual">Actual</span> Meter</span>
                 <span class="heroMetricValue" id="hero_meter_cost">—</span>
                 <span class="heroMetricSub" id="hero_meter_sub">inp + out (meter matched)</span>
               </article>
-              <article class="heroMetric" id="heroCatalogCard" hidden data-dash-jump="#report-by-model">
-                <span class="heroMetricLabel"><span class="costPill costPill--actual">Actual</span> − <span class="costPill costPill--market">Market</span></span>
+              <article class="heroMetric" id="heroCatalogCard">
+                <span class="heroMetricLabel">Variance</span>
                 <span class="heroMetricValue" id="hero_catalog_delta">—</span>
-                <span class="heroMetricSub" id="hero_catalog_sub">Actual vs Market</span>
+                <span class="heroMetricSub" id="hero_catalog_sub">Actual − Market</span>
+              </article>
+              <article class="heroMetric">
+                <span class="heroMetricLabel">Benchmark</span>
+                <span class="heroMetricValue heroMetricValue--text">List price</span>
+                <span class="heroMetricSub">From Model Prices · not an invoice</span>
+              </article>
+            </div>
+
+            <div class="heroMetricGrid reportFinVolumeKpi" id="reportVolumeRow" hidden aria-label="Imported token volume">
+              <article class="heroMetric">
+                <span class="heroMetricLabel">Input tokens</span>
+                <span class="heroMetricValue" id="hero_input_tokens">—</span>
+                <span class="heroMetricSub" id="hero_input_sub">—</span>
+              </article>
+              <article class="heroMetric">
+                <span class="heroMetricLabel">Output tokens</span>
+                <span class="heroMetricValue" id="hero_output_tokens">—</span>
+                <span class="heroMetricSub" id="hero_output_sub">—</span>
+              </article>
+              <article class="heroMetric">
+                <span class="heroMetricLabel">Volume</span>
+                <span class="heroMetricValue heroMetricValue--text">Imported CSV</span>
+                <span class="heroMetricSub" id="hero_volume_note">Grafana token files in scope</span>
               </article>
             </div>
             <div id="reportQualityStrip" class="qualityStrip" hidden aria-label="Data coverage"></div>
@@ -158,7 +187,7 @@
             <div class="reportSectionHead">
               <span class="reportStep">2</span>
               <div>
-                <h2 class="reportSectionTitle">Spend trends</h2>
+                <h2 class="reportSectionTitle">Trends</h2>
                 <p class="reportSectionLead muted" id="costTrendInsight">Daily and monthly <span class="costPill costPill--actual">Actual</span> billing for the selected scope.</p>
               </div>
             </div>
@@ -180,9 +209,70 @@
             </div>
           </section>
 
-          <section id="report-by-model" class="reportExecutive reportSectionShell" hidden aria-label="By model">
+          <section id="report-by-project" class="card reportPanel reportSectionShell">
             <div class="reportSectionHead">
               <span class="reportStep">3</span>
+              <div>
+                <h2 class="reportSectionTitle">By project</h2>
+                <p class="reportSectionLead muted" id="projectSummariesInsight">Daily average billing per project in the selected scope.</p>
+              </div>
+              <span class="reportSectionMeta muted" id="projectSummariesMeta"></span>
+            </div>
+            <div class="rowsToolbar">
+              <div>
+                <h3 class="panelTitle">Daily average billing</h3>
+                <p class="tableNote panelDesc">Avg / day = total ÷ billed days with non-zero spend.</p>
+              </div>
+              <button id="exportProjectSummariesBtn" class="btnSmall" type="button">Export CSV</button>
+            </div>
+            <div class="tableScroll reportTableScroll">
+              <table id="projectSummariesTable" class="dataTable dashTable reportProjectSummaryTable">
+                <thead>
+                  <tr>
+                    <th scope="col">Project</th>
+                    <th class="num colCostActual" scope="col"><span class="costPill costPill--actual">Actual</span> Total</th>
+                    <th class="num" scope="col">Billed days</th>
+                    <th class="num colCostActual" scope="col">Avg / day</th>
+                  </tr>
+                </thead>
+                <tbody id="projectSummariesTbody">
+                  <tr><td colspan="4" class="muted emptyRow">Load a report to see project averages.</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="rowsToolbar reportSubPanelToolbar">
+              <div>
+                <h3 class="panelTitle">Token &amp; share</h3>
+                <p class="tableNote panelDesc" id="projectBreakdownInsight">Imported token volume and spend share per project.</p>
+              </div>
+              <button id="exportProjectBreakdownBtn" class="btnSmall" type="button">Export CSV</button>
+            </div>
+            <div class="tableScroll reportTableScroll">
+              <table id="projectBreakdownTable" class="dataTable dashTable reportProjectTable">
+                <colgroup>
+                  <col class="reportColProject" />
+                  <col class="reportColModels" />
+                  <col class="reportColShare" />
+                  <col class="reportColTokens" />
+                  <col class="reportColTokens" />
+                </colgroup>
+                <thead>
+                  <tr>
+                    <th class="sortable" data-label="Project" data-sort-key="project_name" scope="col">Project</th>
+                    <th data-label="Models" scope="col">Models</th>
+                    <th class="num" scope="col">Share</th>
+                    <th class="num sortable" data-label="Input tokens" data-sort-key="input_tokens" scope="col">Input tokens</th>
+                    <th class="num sortable" data-label="Output tokens" data-sort-key="output_tokens" scope="col">Output tokens</th>
+                  </tr>
+                </thead>
+                <tbody id="projectBreakdownTbody"></tbody>
+              </table>
+            </div>
+          </section>
+
+          <section id="report-by-model" class="reportExecutive reportSectionShell" hidden aria-label="By model">
+            <div class="reportSectionHead">
+              <span class="reportStep">4</span>
               <div class="reportExecutiveHead">
                 <h2 class="reportSectionTitle">By model</h2>
                 <p class="reportSectionLead muted"><span class="costPill costPill--actual">Actual</span> meter billing vs <span class="costPill costPill--market">Market</span> list price.</p>
@@ -253,73 +343,12 @@
             </div>
           </section>
 
-          <section id="report-by-project" class="card reportPanel reportSectionShell">
-            <div class="reportSectionHead">
-              <span class="reportStep">4</span>
-              <div>
-                <h2 class="reportSectionTitle">All projects</h2>
-                <p class="reportSectionLead muted" id="projectSummariesInsight">Daily average billing per project in the selected scope.</p>
-              </div>
-              <span class="reportSectionMeta muted" id="projectSummariesMeta"></span>
-            </div>
-            <div class="rowsToolbar">
-              <div>
-                <h3 class="panelTitle">Daily average billing</h3>
-                <p class="tableNote panelDesc">Avg / day = total ÷ billed days with non-zero spend.</p>
-              </div>
-              <button id="exportProjectSummariesBtn" class="btnSmall" type="button">Export CSV</button>
-            </div>
-            <div class="tableScroll reportTableScroll">
-              <table id="projectSummariesTable" class="dataTable dashTable reportProjectSummaryTable">
-                <thead>
-                  <tr>
-                    <th scope="col">Project</th>
-                    <th class="num colCostActual" scope="col"><span class="costPill costPill--actual">Actual</span> Total</th>
-                    <th class="num" scope="col">Billed days</th>
-                    <th class="num colCostActual" scope="col">Avg / day</th>
-                  </tr>
-                </thead>
-                <tbody id="projectSummariesTbody">
-                  <tr><td colspan="4" class="muted emptyRow">Load a report to see project averages.</td></tr>
-                </tbody>
-              </table>
-            </div>
-            <div class="rowsToolbar reportSubPanelToolbar">
-              <div>
-                <h3 class="panelTitle">Token &amp; share</h3>
-                <p class="tableNote panelDesc" id="projectBreakdownInsight">Imported token volume and spend share per project.</p>
-              </div>
-              <button id="exportProjectBreakdownBtn" class="btnSmall" type="button">Export CSV</button>
-            </div>
-            <div class="tableScroll reportTableScroll">
-              <table id="projectBreakdownTable" class="dataTable dashTable reportProjectTable">
-                <colgroup>
-                  <col class="reportColProject" />
-                  <col class="reportColModels" />
-                  <col class="reportColShare" />
-                  <col class="reportColTokens" />
-                  <col class="reportColTokens" />
-                </colgroup>
-                <thead>
-                  <tr>
-                    <th class="sortable" data-label="Project" data-sort-key="project_name" scope="col">Project</th>
-                    <th data-label="Models" scope="col">Models</th>
-                    <th class="num" scope="col">Share</th>
-                    <th class="num sortable" data-label="Input tokens" data-sort-key="input_tokens" scope="col">Input tokens</th>
-                    <th class="num sortable" data-label="Output tokens" data-sort-key="output_tokens" scope="col">Output tokens</th>
-                  </tr>
-                </thead>
-                <tbody id="projectBreakdownTbody"></tbody>
-              </table>
-            </div>
-          </section>
-
           <section id="report-tokens" class="reportSection reportSectionShell" aria-label="Token usage">
             <div class="reportSectionHead">
               <span class="reportStep">5</span>
               <div>
                 <h2 class="reportSectionTitle">Token usage</h2>
-                <p class="reportSectionLead muted" id="tokenSectionInsight">Imported token CSV totals by day.</p>
+                <p class="reportSectionLead muted" id="tokenSectionInsight">Imported token CSV totals by day — separate from billing actuals.</p>
               </div>
             </div>
             <div class="chartGrid chartGrid2">
@@ -895,32 +924,38 @@
         const cm = report?.catalog_market;
         const summary = cm?.summary || {};
         const imported = hasImportedTokens(report);
+        const q = report?.scope_quality || {};
 
         const set = (id, text) => {
           const el = document.getElementById(id);
           if (el) el.textContent = text ?? '—';
         };
 
+        const currencyMeta = document.getElementById('reportCurrencyMeta');
+        if (currencyMeta) {
+          currencyMeta.textContent = report?.currency ? `${report.currency}` : '';
+        }
+
         set('hero_total_spend', fmtCost(d.total_actual));
         set('hero_total_sub', `${d.count_days ?? 0} billing days in scope`);
         set('hero_avg_day', fmtCost(d.avg_actual));
         set('hero_avg_day_sub', `median ${fmtCost(d.median_actual)}`);
+        set('hero_billed_days', d.count_days > 0 ? String(d.count_days) : '—');
 
-        const inTok = imported ? t.input_tokens_total : null;
-        const outTok = imported ? t.output_tokens_total : null;
-        set('hero_input_tokens', inTok == null ? '—' : fmtInt(inTok));
-        set('hero_output_tokens', outTok == null ? '—' : fmtInt(outTok));
-        const ratio =
-          inTok > 0 && outTok != null ? `out/in ${(Number(outTok) / Number(inTok)).toFixed(3)}` : '—';
-        set(
-          'hero_input_sub',
-          imported ? `${t.projects_with_imported_tokens ?? 0} projects (imported CSV)` : 'No token CSV in scope'
-        );
-        set('hero_output_sub', imported ? ratio : 'Import token files under bills/<project>/token/');
+        const costStart = q.cost_start_date || report?.daily_points?.[0]?.date;
+        const costEnd = q.cost_end_date || report?.daily_points?.slice(-1)?.[0]?.date;
+        const periodText =
+          costStart || costEnd ? `${costStart || '…'} ~ ${costEnd || '…'}` : '—';
+        set('hero_period', periodText);
+        set('hero_period_sub', report?.currency ? `${report.currency} · in-scope dates` : 'Data range in scope');
 
+        const benchmarkRow = document.getElementById('reportBenchmarkRow');
         const meterCard = document.getElementById('heroMeterCard');
         const catalogCard = document.getElementById('heroCatalogCard');
-        if (cm?.available && summary.total_meter_cost_usd != null) {
+        const catalogAvailable = cm?.available === true;
+        if (benchmarkRow) benchmarkRow.hidden = !catalogAvailable;
+
+        if (catalogAvailable && summary.total_meter_cost_usd != null) {
           if (meterCard) meterCard.hidden = false;
           set('hero_meter_cost', fmtCost(summary.total_meter_cost_usd));
           const sub = document.getElementById('hero_meter_sub');
@@ -931,7 +966,7 @@
           meterCard.hidden = true;
         }
 
-        if (cm?.available && summary.variance_pct != null) {
+        if (catalogAvailable && summary.variance_pct != null) {
           if (catalogCard) catalogCard.hidden = false;
           set('hero_catalog_delta', fmtPct(summary.variance_pct));
           const sub = document.getElementById('hero_catalog_sub');
@@ -941,6 +976,25 @@
         } else if (catalogCard) {
           catalogCard.hidden = true;
         }
+
+        const volumeRow = document.getElementById('reportVolumeRow');
+        if (volumeRow) volumeRow.hidden = !imported;
+
+        const inTok = imported ? t.input_tokens_total : null;
+        const outTok = imported ? t.output_tokens_total : null;
+        set('hero_input_tokens', inTok == null ? '—' : fmtInt(inTok));
+        set('hero_output_tokens', outTok == null ? '—' : fmtInt(outTok));
+        const ratio =
+          inTok > 0 && outTok != null ? `out/in ${(Number(outTok) / Number(inTok)).toFixed(3)}` : '—';
+        set(
+          'hero_input_sub',
+          imported ? `${t.projects_with_imported_tokens ?? 0} projects with token CSV` : '—'
+        );
+        set('hero_output_sub', imported ? ratio : '—');
+        set(
+          'hero_volume_note',
+          imported ? 'Grafana token imports · not billing actuals' : 'No token CSV in scope'
+        );
 
         window.AppInsightPanel?.render?.('reportInsightPanel', report?.insights || [], {
           title: 'Insights',
@@ -1187,11 +1241,8 @@
           if (tokenOnly) tr.classList.add('tokenOnlyRow');
           tr.classList.add('dashRowSelectable');
           const projectName = escapeHtml(r.project_name || '');
-          const costHref = r.project_name
-            ? `/?project=${encodeURIComponent(r.project_name)}`
-            : null;
           tr.innerHTML = `
-            <td class="tdText">${projectName}${costHref ? ` <a class="drillLink" href="${costHref}" title="Open in Cost">Cost →</a>` : ''}</td>
+            <td class="tdText">${projectName}</td>
             <td class="tdModelName" title="${escapeHtml(modelName)}">${modelHtml}${tokenOnly ? '<span class="rowBadge">token-only</span>' : ''}</td>
             <td class="num shareCol">${renderShareBar(share)}</td>
             <td class="num">${inTok == null ? '—' : fmtInt(inTok)}</td>
@@ -1237,9 +1288,8 @@
           const tr = document.createElement('tr');
           tr.classList.add('dashRowSelectable');
           const name = String(row.project_name || '');
-          const costHref = name ? `/?project=${encodeURIComponent(name)}` : null;
           tr.innerHTML = `
-            <td class="tdText">${escapeHtml(name)}${costHref ? ` <a class="drillLink" href="${costHref}" title="Open in Cost">Cost →</a>` : ''}</td>
+            <td class="tdText">${escapeHtml(name)}</td>
             <td class="num mono tdCostActual">${fmtCostCell(row.total_cost_usd)}</td>
             <td class="num">${fmt(row.billed_days)}</td>
             <td class="num mono tdCostActual">${fmtCostCell(row.avg_daily_cost_usd)}</td>
@@ -1285,10 +1335,10 @@
               selectedDailyChartIndex = null;
               return;
             }
-            const name = tr.querySelector('.tdText')?.textContent?.replace(/\s*Cost →.*$/, '').trim();
+            const name = tr.querySelector('.tdText')?.textContent?.trim();
             const hint = document.getElementById('projectBreakdownInsight');
             if (hint && name) {
-              hint.textContent = `Selected: ${name} — open Cost for project detail.`;
+              hint.textContent = `Selected: ${name} — token volume and spend share in scope.`;
             }
           },
         });

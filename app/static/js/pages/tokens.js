@@ -25,6 +25,12 @@
     sourceBadgeText: document.getElementById("tokenSourceBadgeText"),
     dataStatusBar: document.getElementById("dataStatusBar"),
     tokenSummaryLead: document.getElementById("tokenSummaryLead"),
+    tokenTrendsLead: document.getElementById("tokenTrendsLead"),
+    tokenSourceMeta: document.getElementById("tokenSourceMeta"),
+    avgDailyTokens: document.getElementById("avgDailyTokens"),
+    activeDaysCount: document.getElementById("activeDaysCount"),
+    tokenPeriodRange: document.getElementById("tokenPeriodRange"),
+    tokenPeriodFootnote: document.getElementById("tokenPeriodFootnote"),
     metricsFlowLead: document.getElementById("metricsFlowLead"),
     labelInput: document.getElementById("labelInputTokens"),
     labelOutput: document.getElementById("labelOutputTokens"),
@@ -149,12 +155,21 @@
           ? ` · ${range.start} → ${range.end}`
           : "";
       if (subproject) {
-        els.metricsFlowLead.textContent = `Grafana panel order · subproject “${subproject}”${rangeText}`;
+        els.metricsFlowLead.textContent = `Grafana performance panels · subproject “${subproject}”${rangeText}`;
       } else if (hasSubprojectsScope()) {
-        els.metricsFlowLead.textContent = `Grafana panel order · all subprojects combined${rangeText}`;
+        els.metricsFlowLead.textContent = `Grafana performance panels · all subprojects combined${rangeText}`;
       } else {
-        els.metricsFlowLead.textContent = `Grafana panel order · project scope${rangeText}`;
+        els.metricsFlowLead.textContent = `Grafana performance panels · project scope${rangeText}`;
       }
+    }
+    if (els.tokenTrendsLead) {
+      const rangeText =
+        range?.start && range?.end && range.start !== "—"
+          ? ` · ${range.start} → ${range.end}`
+          : "";
+      els.tokenTrendsLead.textContent = subproject
+        ? `Daily token volume for “${subproject}”${rangeText}.`
+        : `Daily input and output volume${rangeText}.`;
     }
   }
 
@@ -1082,6 +1097,46 @@
     el.textContent = `Max: ${fmtInt(stats.max)} · Mean: ${fmtInt(stats.mean)} · Min: ${fmtInt(stats.min)}`;
   }
 
+  function countActiveTokenDays(points) {
+    if (!Array.isArray(points)) return 0;
+    return points.filter((p) => {
+      const t = Number(p?.estimated_total_tokens);
+      const i = Number(p?.estimated_input_tokens);
+      const o = Number(p?.estimated_output_tokens);
+      return (
+        (Number.isFinite(t) && t > 0) ||
+        (Number.isFinite(i) && i > 0) ||
+        (Number.isFinite(o) && o > 0)
+      );
+    }).length;
+  }
+
+  function updateSummaryPeriodKpis(stats, series, points) {
+    const activeDays =
+      series?.import_meta?.day_count ??
+      stats?.actual_days ??
+      countActiveTokenDays(points);
+    const total = Number(stats?.estimated_total_tokens ?? 0);
+    if (els.activeDaysCount) {
+      els.activeDaysCount.textContent = activeDays > 0 ? String(activeDays) : "—";
+    }
+    if (els.avgDailyTokens) {
+      els.avgDailyTokens.textContent =
+        activeDays > 0 && Number.isFinite(total) ? fmtInt(total / activeDays) : "—";
+    }
+    if (els.tokenPeriodRange) {
+      const min = stats?.min_usage_date ?? series?.import_meta?.min_date;
+      const max = stats?.max_usage_date ?? series?.import_meta?.max_date;
+      els.tokenPeriodRange.textContent =
+        min || max ? `${min ?? "—"} ~ ${max ?? "—"}` : "—";
+    }
+    if (els.tokenPeriodFootnote) {
+      els.tokenPeriodFootnote.textContent = stats?.currency
+        ? `${stats.currency} · in-scope dates`
+        : "Data range in scope";
+    }
+  }
+
   function applySourceUi(source, series, stats, scope = {}) {
     lastSource = source || "estimated";
     const imported = lastSource === "imported";
@@ -1111,12 +1166,22 @@
       total: imported ? "Total tokens" : "Total tokens (from billing)",
     };
 
+    if (els.tokenSourceMeta) {
+      els.tokenSourceMeta.textContent = imported ? "Imported CSV" : "From billing";
+    }
+
     if (els.tokenSummaryLead) {
-      els.tokenSummaryLead.textContent = subproject
-        ? `Subproject “${subproject}” · imported Grafana CSVs`
-        : hasSubprojectsScope()
-          ? "All subprojects combined · imported Grafana CSVs"
-          : "Imported Grafana CSVs for this project";
+      const rangeText =
+        stats?.min_usage_date || stats?.max_usage_date
+          ? ` · ${stats.min_usage_date || "…"} – ${stats.max_usage_date || "…"}`
+          : "";
+      if (subproject) {
+        els.tokenSummaryLead.textContent = `Period totals for subproject “${subproject}”${rangeText}.`;
+      } else if (hasSubprojectsScope()) {
+        els.tokenSummaryLead.textContent = `Project-level token totals${rangeText}. Use the subproject filter to drill down.`;
+      } else {
+        els.tokenSummaryLead.textContent = `Period token totals${rangeText}.`;
+      }
     }
 
     if (els.tokenModel) {
@@ -1133,7 +1198,7 @@
     if (els.tokenMetaExtra) {
       if (imported && series.import_meta) {
         const days = series.import_meta.day_count ?? "-";
-        els.tokenMetaExtra.textContent = `${days} day(s) with token data in range`;
+        els.tokenMetaExtra.textContent = `${days} day(s) with token rows in range`;
       } else {
         els.tokenMetaExtra.textContent = "";
       }
@@ -1540,9 +1605,10 @@
         return;
       }
       applySourceUi(source, series, stats, { project, subproject });
+      const points = series.points || [];
+      updateSummaryPeriodKpis(stats, series, points);
       updateDataStatusBar(project, stats, series, subproject);
 
-      const points = series.points || [];
       const totals = sumTokenPoints(points);
       const hasScopedTokenData = totals.total > 0 || (series.import_meta?.day_count || 0) > 0;
       if (subproject && !hasScopedTokenData) {

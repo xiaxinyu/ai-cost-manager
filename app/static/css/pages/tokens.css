@@ -1696,6 +1696,96 @@
   max-width: 62ch;
 }
 
+.tokenFinBlock {
+  scroll-margin-top: 72px;
+}
+
+.tokenFinFlowNote {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.tokenSectionHead {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+}
+
+.tokenSectionMeta {
+  font-size: 12px;
+  font-weight: 600;
+  text-align: right;
+  align-self: center;
+  white-space: nowrap;
+}
+
+.tokenMonitorKpi {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.tokenFinPrimaryKpi {
+  margin-top: 2px;
+}
+
+.tokenFinSecondaryKpi {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-top: 2px;
+  padding-top: 10px;
+  border-top: 1px dashed rgba(173, 196, 228, 0.14);
+}
+
+.stat--hero {
+  border-color: rgba(94, 234, 212, 0.32);
+  background: linear-gradient(
+    145deg,
+    rgba(94, 234, 212, 0.08) 0%,
+    rgba(255, 255, 255, 0.04) 55%
+  );
+}
+
+.stat--hero .value {
+  font-size: clamp(24px, 2.4vw, 32px);
+  font-weight: 700;
+}
+
+.stat .value--md {
+  font-size: clamp(18px, 1.8vw, 22px);
+}
+
+.stat .value--scope {
+  font-size: clamp(13px, 1.4vw, 15px);
+  line-height: 1.35;
+}
+
+.stat .value--text {
+  font-size: clamp(14px, 1.4vw, 16px);
+  font-weight: 650;
+}
+
+.tokenBreakdownNav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+
+.tokenBreakdownNavLink {
+  color: #9fb2c7;
+  text-decoration: none;
+  font-weight: 650;
+}
+
+.tokenBreakdownNavLink:hover {
+  color: #5eead4;
+}
+
+.tokenBreakdownNavSep {
+  opacity: 0.45;
+}
+
 .tokenKpiBoard {
   display: grid;
   grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
@@ -1863,12 +1953,36 @@
 }
 
 @media (max-width: 1100px) {
+  .tokenMonitorKpi {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .tokenFinSecondaryKpi {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .tokenKpiBoard {
     grid-template-columns: 1fr;
   }
 
   .tokenKpiGroupCards {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .tokenMonitorKpi,
+  .tokenFinSecondaryKpi {
+    grid-template-columns: 1fr;
+  }
+
+  .tokenSectionHead {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .tokenSectionMeta {
+    grid-column: 1 / -1;
+    text-align: left;
   }
 }
 

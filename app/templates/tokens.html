@@ -6,7 +6,7 @@
     <title>Tokens - Models Cost Management</title>
     <link rel="stylesheet" href="/static/css/app-shell.css" />
     <link rel="stylesheet" href="/static/css/page-common.css" />
-    <link rel="stylesheet" href="/static/css/pages/tokens.css?v=20260707-layout" />
+    <link rel="stylesheet" href="/static/css/pages/tokens.css?v=20260708-finlayout" />
     <link rel="stylesheet" href="/static/css/layout-pro.css" />
     <link rel="stylesheet" href="/static/css/dashboard-shared.css?v=20260707-ui" />
     <link rel="stylesheet" href="/static/css/date-range-picker.css?v=20260606-drp" />
@@ -35,7 +35,7 @@
 
           <section class="card filterCard" aria-label="Filters">
             <div class="filterCardHead">
-              <h2 class="filterCardTitle">Scope</h2>
+              <h2 class="filterCardTitle">Reporting scope</h2>
               <p class="filterCardHint muted">Project, subproject, and date range · Load to refresh</p>
             </div>
             <div id="toolbarGrid" class="toolbarGrid toolbarGrid--noSubproject filterBar controls">
@@ -87,75 +87,145 @@
 
           <div id="tokenWorkspace" hidden>
             <nav class="dashSectionNav card" aria-label="Token sections">
-              <span class="dashSectionNavLabel muted">Jump to</span>
+              <span class="dashSectionNavLabel muted">Statement</span>
               <a class="dashSectionNavLink" href="#token-summary">Summary</a>
-              <a class="dashSectionNavLink" href="#metric-model-requests">Model requests</a>
-              <a class="dashSectionNavLink" href="#metric-cache-match-rate">Cache match</a>
-              <a class="dashSectionNavLink" href="#metric-avg-latency">Latency</a>
-              <a class="dashSectionNavLink" href="#metric-input-tokens">Input</a>
-              <a class="dashSectionNavLink" href="#metric-output-tokens">Output</a>
-              <a class="dashSectionNavLink" href="#flowUsage">Usage</a>
-              <a class="dashSectionNavLink" href="#unitPriceSection">Unit price</a>
+              <a class="dashSectionNavLink" href="#token-trends">Trends</a>
+              <a class="dashSectionNavLink" href="#token-performance">Performance</a>
+              <a class="dashSectionNavLink" href="#token-allocation">Allocation</a>
             </nav>
 
-            <section id="token-summary" class="tokenZone tokenZone--summary" aria-label="Summary">
-              <div class="tokenZoneHead">
+            <section id="token-summary" class="tokenZone tokenFinBlock card" aria-label="Period summary">
+              <div class="tokenZoneHead tokenSectionHead">
                 <span class="tokenStep" aria-hidden="true">1</span>
                 <div class="tokenZoneHeadMain">
                   <h2 class="tokenZoneTitle">Summary</h2>
-                  <p class="tokenZoneLead muted" id="tokenSummaryLead">Token volume and coverage for the selected scope.</p>
+                  <p class="tokenZoneLead muted" id="tokenSummaryLead">Token volume for the selected project and date range.</p>
                 </div>
+                <span class="tokenSectionMeta muted" id="tokenSourceMeta"></span>
               </div>
-            <div class="tokenKpiBoard">
-              <div class="tokenKpiGroup tokenKpiGroup--volume">
-                <p class="tokenKpiGroupLabel">Volume</p>
-                <div class="tokenKpiGroupCards">
-              <article class="card stat statInput">
-                <div class="statHead">
-                  <span class="statIcon" aria-hidden="true">IN</span>
-                  <span class="label" id="labelInputTokens">Input tokens</span>
-                </div>
-                <div class="value" id="estimatedInputTokens">-</div>
-                <div class="sub" id="inputStats">Max · Mean · Min</div>
-              </article>
-              <article class="card stat statOutput">
-                <div class="statHead">
-                  <span class="statIcon" aria-hidden="true">OUT</span>
-                  <span class="label" id="labelOutputTokens">Output tokens</span>
-                </div>
-                <div class="value" id="estimatedOutputTokens">-</div>
-                <div class="sub" id="outputStats">Max · Mean · Min</div>
-              </article>
-              <article class="card stat statTotal">
-                <div class="statHead">
-                  <span class="statIcon" aria-hidden="true">Σ</span>
-                  <span class="label" id="labelTotalTokens">Total tokens</span>
-                </div>
-                <div class="value" id="estimatedTotalTokens">-</div>
-                <div class="sub" id="totalStats">Max · Mean · Min</div>
-              </article>
-                </div>
+              <p class="tokenFinFlowNote muted">Imported CSV volume in scope · trends and allocation sections follow below.</p>
+
+              <div class="tokenMonitorKpi tokenFinPrimaryKpi" aria-label="Period totals">
+                <article class="card stat statTotal stat--hero">
+                  <div class="statHead">
+                    <span class="statIcon" aria-hidden="true">Σ</span>
+                    <span class="label" id="labelTotalTokens">Total tokens</span>
+                  </div>
+                  <div class="value" id="estimatedTotalTokens">-</div>
+                  <div class="sub" id="totalStats">Max · Mean · Min</div>
+                </article>
+                <article class="card stat statInput">
+                  <div class="statHead">
+                    <span class="statIcon" aria-hidden="true">IN</span>
+                    <span class="label" id="labelInputTokens">Input tokens</span>
+                  </div>
+                  <div class="value" id="estimatedInputTokens">-</div>
+                  <div class="sub" id="inputStats">Max · Mean · Min</div>
+                </article>
+                <article class="card stat statOutput">
+                  <div class="statHead">
+                    <span class="statIcon" aria-hidden="true">OUT</span>
+                    <span class="label" id="labelOutputTokens">Output tokens</span>
+                  </div>
+                  <div class="value" id="estimatedOutputTokens">-</div>
+                  <div class="sub" id="outputStats">Max · Mean · Min</div>
+                </article>
+                <article class="card stat statMeta">
+                  <div class="statHead">
+                    <span class="statIcon" aria-hidden="true">÷</span>
+                    <span class="label">Avg / day</span>
+                  </div>
+                  <div class="value value--md" id="avgDailyTokens">-</div>
+                  <div class="sub">Total ÷ active days</div>
+                </article>
               </div>
-              <div class="tokenKpiGroup tokenKpiGroup--coverage">
-                <p class="tokenKpiGroupLabel">Coverage</p>
-              <article class="card stat statMeta statMetaWide">
-                <div class="statHead">
-                  <span class="statIcon" aria-hidden="true">◎</span>
-                  <span class="label">Primary model &amp; region</span>
-                </div>
-                <div class="value modelValue" id="tokenModel">-</div>
-                <div class="sub" id="tokenRegion">-</div>
-                <div class="sub muted" id="tokenMetaExtra"></div>
-              </article>
+
+              <div class="tokenMonitorKpi tokenFinSecondaryKpi" aria-label="Coverage">
+                <article class="card stat statMeta">
+                  <div class="statHead">
+                    <span class="statIcon" aria-hidden="true">#</span>
+                    <span class="label">Active days</span>
+                  </div>
+                  <div class="value value--md" id="activeDaysCount">-</div>
+                  <div class="sub">Days with token data</div>
+                </article>
+                <article class="card stat statMeta">
+                  <div class="statHead">
+                    <span class="statIcon" aria-hidden="true">↔</span>
+                    <span class="label">Period</span>
+                  </div>
+                  <div class="value value--md value--scope" id="tokenPeriodRange">-</div>
+                  <div class="sub" id="tokenPeriodFootnote">Data range in scope</div>
+                </article>
+                <article class="card stat statMeta statMetaWide">
+                  <div class="statHead">
+                    <span class="statIcon" aria-hidden="true">◎</span>
+                    <span class="label">Source &amp; models</span>
+                  </div>
+                  <div class="value modelValue value--text" id="tokenModel">-</div>
+                  <div class="sub" id="tokenRegion">-</div>
+                  <div class="sub muted" id="tokenMetaExtra"></div>
+                </article>
               </div>
-            </div>
             </section>
 
-            <section id="token-metrics" class="tokenMetricsFlow" aria-label="Grafana metrics">
-              <header class="tokenMetricsFlowHead">
-                <h2 class="tokenZoneTitle">Metrics</h2>
-                <p class="tokenZoneLead muted" id="metricsFlowLead">Same order as Grafana panels · scoped to selected project and subproject</p>
-              </header>
+            <section id="token-trends" class="tokenZone tokenFinBlock card" aria-label="Volume trends">
+              <div class="tokenZoneHead tokenSectionHead">
+                <span class="tokenStep" aria-hidden="true">2</span>
+                <div class="tokenZoneHeadMain">
+                  <h2 class="tokenZoneTitle">Trends</h2>
+                  <p class="tokenZoneLead muted" id="tokenTrendsLead">Daily input and output token volume over the reporting period.</p>
+                </div>
+              </div>
+
+              <article id="metric-input-tokens" class="metricPanel card chartPanel" data-metric-key="input_tokens">
+                <header class="metricPanelHead">
+                  <div>
+                    <h3 class="metricPanelTitle">Input tokens</h3>
+                    <p class="metricPanelDesc muted">Daily input volume · <code>token/</code> CSV</p>
+                  </div>
+                  <span class="metricPanelScope muted" data-metric-scope></span>
+                </header>
+                <div class="metricPanelBody">
+                  <div class="chartCanvasHost" data-chart-host>
+                    <canvas id="tokenInputChart"></canvas>
+                  </div>
+                  <p class="metricPanelEmpty muted" data-metric-empty hidden>No input token data for this scope.</p>
+                </div>
+              </article>
+
+              <article id="metric-output-tokens" class="metricPanel card chartPanel" data-metric-key="output_tokens">
+                <header class="metricPanelHead">
+                  <div>
+                    <h3 class="metricPanelTitle">Output tokens</h3>
+                    <p class="metricPanelDesc muted">Daily output volume · separate scale from input</p>
+                  </div>
+                  <span class="metricPanelScope muted" data-metric-scope></span>
+                </header>
+                <div class="metricPanelBody">
+                  <div class="chartCanvasHost" data-chart-host>
+                    <canvas id="tokenOutputChart"></canvas>
+                  </div>
+                  <p class="metricPanelEmpty muted" data-metric-empty hidden>No output token data for this scope.</p>
+                  <details class="metricPanelDetails">
+                    <summary class="muted">Output / input ratio</summary>
+                    <p class="muted ratioSummaryInline" id="ratioSummary">Valid days: -</p>
+                    <div class="chartCanvasHost chartCanvasHostShort" data-chart-host>
+                      <canvas id="tokenRatioChart"></canvas>
+                    </div>
+                  </details>
+                </div>
+              </article>
+            </section>
+
+            <section id="token-performance" class="tokenZone tokenFinBlock card" aria-label="Performance metrics">
+              <div class="tokenZoneHead tokenSectionHead">
+                <span class="tokenStep" aria-hidden="true">3</span>
+                <div class="tokenZoneHeadMain">
+                  <h2 class="tokenZoneTitle">Performance</h2>
+                  <p class="tokenZoneLead muted" id="metricsFlowLead">Grafana performance panels · requests, cache, and latency.</p>
+                </div>
+              </div>
 
               <article id="metric-model-requests" class="metricPanel card chartPanel" data-metric-key="model_requests">
                 <header class="metricPanelHead">
@@ -208,89 +278,61 @@
                 </div>
               </article>
 
-              <article id="metric-input-tokens" class="metricPanel card chartPanel" data-metric-key="input_tokens">
-                <header class="metricPanelHead">
-                  <span class="metricPanelStep" aria-hidden="true">4</span>
-                  <div>
-                    <h3 class="metricPanelTitle">Input Tokens</h3>
-                    <p class="metricPanelDesc muted">Daily input token volume · <code>token/</code> CSV</p>
-                  </div>
-                  <span class="metricPanelScope muted" data-metric-scope></span>
-                </header>
-                <div class="metricPanelBody">
-                  <div class="chartCanvasHost" data-chart-host>
-                    <canvas id="tokenInputChart"></canvas>
-                  </div>
-                  <p class="metricPanelEmpty muted" data-metric-empty hidden>No input token data for this scope.</p>
-                </div>
-              </article>
-
-              <article id="metric-output-tokens" class="metricPanel card chartPanel" data-metric-key="output_tokens">
-                <header class="metricPanelHead">
-                  <span class="metricPanelStep" aria-hidden="true">5</span>
-                  <div>
-                    <h3 class="metricPanelTitle">Output Tokens</h3>
-                    <p class="metricPanelDesc muted">Daily output token volume · separate Y-axis scale from input</p>
-                  </div>
-                  <span class="metricPanelScope muted" data-metric-scope></span>
-                </header>
-                <div class="metricPanelBody">
-                  <div class="chartCanvasHost" data-chart-host>
-                    <canvas id="tokenOutputChart"></canvas>
-                  </div>
-                  <p class="metricPanelEmpty muted" data-metric-empty hidden>No output token data for this scope.</p>
-                  <details class="metricPanelDetails">
-                    <summary class="muted">Output / input ratio</summary>
-                    <p class="muted ratioSummaryInline" id="ratioSummary">Valid days: -</p>
-                    <div class="chartCanvasHost chartCanvasHostShort" data-chart-host>
-                      <canvas id="tokenRatioChart"></canvas>
+              <div id="perfRawSection" class="detailTableBlock" aria-labelledby="perfRawTitle">
+                <header class="detailTableHead flowBlockHead">
+                  <div class="detailTableIdentity flowBlockIdentity">
+                    <div>
+                      <h3 id="perfRawTitle" class="detailTableTitle flowBlockTitle">Performance raw points</h3>
+                      <p class="detailTableDesc flowBlockDesc muted">Newest first · hover chart to highlight row</p>
                     </div>
-                  </details>
-                </div>
-              </article>
-            </section>
-
-            <section id="perfRawSection" class="flowBlock tokenZone detailTableBlock" aria-labelledby="perfRawTitle">
-              <header class="detailTableHead flowBlockHead">
-                <div class="detailTableIdentity flowBlockIdentity">
-                  <div>
-                    <h2 id="perfRawTitle" class="detailTableTitle flowBlockTitle">Performance raw points</h2>
-                    <p class="detailTableDesc flowBlockDesc muted">Newest first · hover chart to highlight row</p>
                   </div>
-                </div>
-                <span id="perfRowBadge" class="tableRowBadge muted" hidden></span>
-              </header>
-              <div class="detailTableBody card dashTablePanel perfTablePanel">
-                <div class="tableScroll dataTableWrap dashTableShell perfTableShell" data-table-host>
-                  <table class="dataTable dashTable" id="perfRowsTable">
-                    <thead>
-                      <tr>
-                        <th class="is-sorted" aria-sort="descending" style="width: 168px;" data-sortable data-sort-type="date" scope="col"><span class="thLabel">Time</span></th>
-                        <th style="width: 148px;" data-sortable data-sort-type="text" scope="col"><span class="thLabel">Metric</span></th>
-                        <th scope="col"><span class="thLabel">Models</span></th>
-                      </tr>
-                    </thead>
-                    <tbody id="perfRowsTbody">
-                      <tr class="dashTableEmptyRow"><td colspan="3" class="muted">Load data to view performance metrics.</td></tr>
-                    </tbody>
-                    <tfoot id="perfRowsTfoot" hidden>
-                      <tr class="perfTableTotalRow">
-                        <th scope="row">Total</th>
-                        <td id="perfFootMetricCount" class="num">—</td>
-                        <td id="perfFootRowNote" class="muted">—</td>
-                      </tr>
-                    </tfoot>
-                  </table>
+                  <span id="perfRowBadge" class="tableRowBadge muted" hidden></span>
+                </header>
+                <div class="detailTableBody card dashTablePanel perfTablePanel">
+                  <div class="tableScroll dataTableWrap dashTableShell perfTableShell" data-table-host>
+                    <table class="dataTable dashTable" id="perfRowsTable">
+                      <thead>
+                        <tr>
+                          <th class="is-sorted" aria-sort="descending" style="width: 168px;" data-sortable data-sort-type="date" scope="col"><span class="thLabel">Time</span></th>
+                          <th style="width: 148px;" data-sortable data-sort-type="text" scope="col"><span class="thLabel">Metric</span></th>
+                          <th scope="col"><span class="thLabel">Models</span></th>
+                        </tr>
+                      </thead>
+                      <tbody id="perfRowsTbody">
+                        <tr class="dashTableEmptyRow"><td colspan="3" class="muted">Load data to view performance metrics.</td></tr>
+                      </tbody>
+                      <tfoot id="perfRowsTfoot" hidden>
+                        <tr class="perfTableTotalRow">
+                          <th scope="row">Total</th>
+                          <td id="perfFootMetricCount" class="num">—</td>
+                          <td id="perfFootRowNote" class="muted">—</td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
                 </div>
               </div>
             </section>
 
-            <div class="tokenAnalysisFlow" aria-label="Analysis flow">
-            <section id="flowUsage" class="flowBlock tokenZone detailTableBlock modelBreakdownPanel" hidden aria-labelledby="flowUsageTitle">
+            <section id="token-allocation" class="tokenZone tokenFinBlock card" aria-label="Token allocation">
+              <div class="tokenZoneHead tokenSectionHead">
+                <span class="tokenStep" aria-hidden="true">4</span>
+                <div class="tokenZoneHeadMain">
+                  <h2 class="tokenZoneTitle">Allocation</h2>
+                  <p class="tokenZoneLead muted">Where volume lands — by model and implied unit price.</p>
+                </div>
+              </div>
+              <nav class="tokenBreakdownNav muted" aria-label="Allocation views">
+                <a class="tokenBreakdownNavLink" href="#flowUsage">By model</a>
+                <span class="tokenBreakdownNavSep" aria-hidden="true">·</span>
+                <a class="tokenBreakdownNavLink" href="#unitPriceSection">Unit price</a>
+              </nav>
+
+            <section id="flowUsage" class="flowBlock detailTableBlock" hidden aria-labelledby="flowUsageTitle">
               <header class="detailTableHead flowBlockHead">
                 <div class="detailTableIdentity flowBlockIdentity">
                   <div>
-                    <h2 id="flowUsageTitle" class="detailTableTitle flowBlockTitle">Usage by model</h2>
+                    <h3 id="flowUsageTitle" class="detailTableTitle flowBlockTitle">By model</h3>
                     <p class="detailTableDesc flowBlockDesc muted">Input/output token share from imported CSV (6h buckets rolled up to calendar days).</p>
                   </div>
                 </div>
@@ -327,10 +369,10 @@
               </div>
             </section>
 
-            <section id="unitPriceSection" class="flowBlock tokenZone flowBlockUnitPrice" hidden aria-labelledby="flowUnitTitle">
+            <section id="unitPriceSection" class="flowBlock flowBlockUnitPrice" hidden aria-labelledby="flowUnitTitle">
               <header class="tokenZoneHead flowBlockHead flowBlockHeadStack">
                 <div class="tokenZoneHeadMain">
-                  <h2 id="flowUnitTitle" class="tokenZoneTitle flowBlockTitle">Unit price</h2>
+                  <h3 id="flowUnitTitle" class="tokenZoneTitle flowBlockTitle">Unit price</h3>
                   <p class="tokenZoneLead flowBlockDesc muted panelDesc" id="unitPriceNote">Solid line = price from billing. Dashed line = list price from Model Prices.</p>
                 </div>
               </header>
@@ -338,7 +380,7 @@
               <div id="catalogRefLine" class="unitPriceSummary" hidden role="region" aria-label="Unit price summary">
                 <header class="unitPriceSummaryHead">
                   <div class="unitPriceSummaryIdentity">
-                    <h3 class="unitPriceSummaryTitle">Latest unit prices</h3>
+                    <h4 class="unitPriceSummaryTitle">Latest unit prices</h4>
                     <p class="unitPriceSummaryDesc muted">
                       List price from Model Prices compared with price from your billing (per 1M tokens, latest day).
                     </p>
@@ -380,7 +422,7 @@
               </div>
               </div>
             </section>
-            </div>
+            </section>
           </div>
         </div>
       </main>
@@ -398,6 +440,6 @@
     <script src="/static/js/dashboard-interactions.js?v=20260707-ui"></script>
     <script src="/static/js/date-range-picker.js?v=20260606-drp"></script>
     <script src="/static/js/insight-panel.js?v=20260605-insights"></script>
-    <script src="/static/js/pages/tokens.js?v=20260707-grafana-order"></script>
+    <script src="/static/js/pages/tokens.js?v=20260708-points-fix"></script>
   </body>
 </html>
