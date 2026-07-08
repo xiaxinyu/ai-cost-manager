@@ -66,6 +66,15 @@ def test_all_financial_report_stats(tmp_path):
     by_name = {r["project_name"]: r for r in pb}
     assert by_name["projA"]["actual_cost_usd_total"] == 4.0
     assert by_name["projB"]["actual_cost_usd_total"] == 2.0
+    assert "meter_cost_usd" in by_name["projA"]
+    assert "platform_cost_usd" in by_name["projA"]
+    # Billing-only projects: no meter match → platform attributed to full total
+    assert by_name["projA"]["meter_cost_usd"] is None
+    assert by_name["projA"]["platform_cost_usd"] == 4.0
+    assert by_name["projB"]["platform_cost_usd"] == 2.0
+    meter = by_name["projA"].get("meter_cost_usd") or 0.0
+    platform = by_name["projA"].get("platform_cost_usd") or 0.0
+    assert meter + platform <= by_name["projA"]["actual_cost_usd_total"] + 0.01
     assert by_name["projA"]["avg_daily_cost_usd"] == 2.0
     assert by_name["projB"]["avg_daily_cost_usd"] == 2.0
 
@@ -76,6 +85,7 @@ def test_all_financial_report_stats(tmp_path):
     summaries = {s["project_name"]: s for s in pdc["summaries"]}
     assert summaries["projA"]["avg_daily_cost_usd"] == 2.0
     assert summaries["projA"]["billed_days"] == 2
+    assert "meter_share_pct" in summaries["projA"]
     points_by_key = {(p["project_name"], p["date"]): p["cost_usd"] for p in pdc["points"]}
     assert points_by_key[("projA", "2026-01-01")] == 1.0
     assert points_by_key[("projA", "2026-01-02")] == 3.0
@@ -228,6 +238,8 @@ def test_reports_page_layout_without_token_forecast(tmp_path):
     assert "projectSummariesTable" in page.text
     assert "report-daily-by-project" not in page.text
     assert "report-glance" in page.text
+    assert "reportOpexCompositionRow" in page.text
+    assert "hero_opex_meter" in page.text
     assert "hero_billed_days" in page.text
     assert "reportBenchmarkRow" in page.text
     assert "reportVolumeRow" in page.text

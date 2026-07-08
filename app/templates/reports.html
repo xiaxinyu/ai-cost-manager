@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="/static/css/page-common.css" />
     <link rel="stylesheet" href="/static/css/pages/reports.css?v=20260708-finlayout" />
     <link rel="stylesheet" href="/static/css/layout-pro.css" />
-    <link rel="stylesheet" href="/static/css/dashboard-shared.css?v=20260707-ui" />
+    <link rel="stylesheet" href="/static/css/dashboard-shared.css?v=20260708-unified" />
     <link rel="stylesheet" href="/static/css/date-range-picker.css?v=20260606-drp" />
   </head>
   <body>
@@ -18,10 +18,10 @@
     <div class="appLayout">
       <main class="contentArea">
         <div class="container reportPage dashPage">
-          <header class="pageHeader reportPageHeader">
+          <header class="pageHeader reportPageHeader dashPageHeader">
             <div class="breadcrumb">Home / Reports</div>
             <h1 class="pageTitle">Reports</h1>
-            <p class="pageDesc">Consolidated billing and token volume for your selected scope — summary first, detail on demand.</p>
+            <p class="pageDesc">Consolidated OpEx billing and token consumption for your selected scope — summary first, detail on demand.</p>
           </header>
 
           <section class="card reportFilters filterCard" aria-label="Filters">
@@ -73,28 +73,28 @@
 
           <nav class="dashSectionNav card" aria-label="Report sections">
             <span class="dashSectionNavLabel muted">Statement</span>
-            <a class="dashSectionNavLink" href="#report-glance">Summary</a>
-            <a class="dashSectionNavLink" href="#report-spend-trends">Trends</a>
+            <a class="dashSectionNavLink" href="#report-glance">OpEx Summary</a>
+            <a class="dashSectionNavLink" href="#report-spend-trends">Run Rate</a>
             <a class="dashSectionNavLink" href="#report-by-project">By project</a>
             <a class="dashSectionNavLink" href="#report-by-model">By model</a>
-            <a class="dashSectionNavLink" href="#report-tokens">Tokens</a>
+            <a class="dashSectionNavLink" href="#report-tokens">Consumption</a>
             <a class="dashSectionNavLink" href="#report-raw-data">Detail</a>
           </nav>
 
-          <section id="report-glance" class="card reportAtAGlance reportFinBlock" aria-label="Period summary">
+          <section id="report-glance" class="card reportAtAGlance reportFinBlock" aria-label="OpEx summary">
             <div class="reportSectionHead">
               <span class="reportStep">1</span>
               <div>
-                <h2 class="reportSectionTitle">Summary</h2>
-                <p class="reportSectionLead muted" id="reportInsightLine">Key totals for the selected scope.</p>
+                <h2 class="reportSectionTitle">OpEx Summary</h2>
+                <p class="reportSectionLead muted" id="reportInsightLine">Actual billing totals for the selected scope.</p>
               </div>
               <span class="reportSectionMeta muted" id="reportCurrencyMeta"></span>
             </div>
-            <p class="reportFinFlowNote muted">Actual billing in scope · benchmark row compares meter billing to Market list price · volume row shows imported tokens.</p>
+            <p class="reportFinFlowNote muted">OpEx actual billing · composition splits meter vs platform · CapEx tariff row is reference only · consumption drivers are token volume, not CapEx.</p>
 
-            <div class="heroMetricGrid reportFinPrimaryKpi" aria-label="Billing totals">
+            <div class="heroMetricGrid reportFinPrimaryKpi" aria-label="OpEx totals">
               <article class="heroMetric heroMetricPrimary">
-                <span class="heroMetricLabel"><span class="costPill costPill--actual">Actual</span> Total spend</span>
+                <span class="heroMetricLabel"><span class="costPill costPill--actual">OpEx</span> Total</span>
                 <span class="heroMetricValue" id="hero_total_spend">—</span>
                 <span class="heroMetricSub" id="hero_total_sub">—</span>
               </article>
@@ -115,25 +115,43 @@
               </article>
             </div>
 
-            <div class="heroMetricGrid reportFinBenchmarkKpi" id="reportBenchmarkRow" hidden aria-label="Market benchmark">
-              <article class="heroMetric" id="heroMeterCard">
-                <span class="heroMetricLabel"><span class="costPill costPill--actual">Actual</span> Meter</span>
-                <span class="heroMetricValue" id="hero_meter_cost">—</span>
-                <span class="heroMetricSub" id="hero_meter_sub">inp + out (meter matched)</span>
+            <div class="heroMetricGrid reportFinOpexCompositionKpi" id="reportOpexCompositionRow" hidden aria-label="OpEx composition">
+              <article class="heroMetric">
+                <span class="heroMetricLabel"><span class="costPill costPill--actual">OpEx</span> · Meter</span>
+                <span class="heroMetricValue" id="hero_opex_meter">—</span>
+                <span class="heroMetricSub" id="hero_opex_meter_sub">inp + out (meter matched)</span>
+              </article>
+              <article class="heroMetric">
+                <span class="heroMetricLabel"><span class="costPill costPill--platform">CapEx</span> · Platform</span>
+                <span class="heroMetricValue" id="hero_opex_platform">—</span>
+                <span class="heroMetricSub" id="hero_opex_platform_sub">Non-token billing (billing_other)</span>
+              </article>
+              <article class="heroMetric">
+                <span class="heroMetricLabel">Meter share</span>
+                <span class="heroMetricValue" id="hero_meter_share">—</span>
+                <span class="heroMetricSub">Meter ÷ OpEx total</span>
+              </article>
+            </div>
+
+            <div class="heroMetricGrid reportFinBenchmarkKpi" id="reportBenchmarkRow" hidden aria-label="CapEx tariff reference">
+              <article class="heroMetric" id="heroCatalogTotalCard">
+                <span class="heroMetricLabel"><span class="costPill costPill--market">CapEx</span> · Tariff</span>
+                <span class="heroMetricValue" id="hero_catalog_total">—</span>
+                <span class="heroMetricSub" id="hero_catalog_total_sub">Tokens × list USD/1M</span>
               </article>
               <article class="heroMetric" id="heroCatalogCard">
                 <span class="heroMetricLabel">Variance</span>
                 <span class="heroMetricValue" id="hero_catalog_delta">—</span>
-                <span class="heroMetricSub" id="hero_catalog_sub">Actual − Market</span>
+                <span class="heroMetricSub" id="hero_catalog_sub">OpEx − Tariff</span>
               </article>
               <article class="heroMetric">
-                <span class="heroMetricLabel">Benchmark</span>
+                <span class="heroMetricLabel">Rate card</span>
                 <span class="heroMetricValue heroMetricValue--text">List price</span>
-                <span class="heroMetricSub">From Model Prices · not an invoice</span>
+                <span class="heroMetricSub">From Model Prices · not capital assets</span>
               </article>
             </div>
 
-            <div class="heroMetricGrid reportFinVolumeKpi" id="reportVolumeRow" hidden aria-label="Imported token volume">
+            <div class="heroMetricGrid reportFinVolumeKpi" id="reportVolumeRow" hidden aria-label="Consumption drivers">
               <article class="heroMetric">
                 <span class="heroMetricLabel">Input tokens</span>
                 <span class="heroMetricValue" id="hero_input_tokens">—</span>
@@ -145,9 +163,9 @@
                 <span class="heroMetricSub" id="hero_output_sub">—</span>
               </article>
               <article class="heroMetric">
-                <span class="heroMetricLabel">Volume</span>
-                <span class="heroMetricValue heroMetricValue--text">Imported CSV</span>
-                <span class="heroMetricSub" id="hero_volume_note">Grafana token files in scope</span>
+                <span class="heroMetricLabel">Consumption</span>
+                <span class="heroMetricValue heroMetricValue--text">OpEx drivers</span>
+                <span class="heroMetricSub" id="hero_volume_note">Imported CSV volume · not CapEx $</span>
               </article>
             </div>
             <div id="reportQualityStrip" class="qualityStrip" hidden aria-label="Data coverage"></div>
@@ -181,26 +199,26 @@
             </details>
           </section>
 
-          <section id="report-spend-trends" class="reportSectionShell reportSection" aria-label="Spend trends">
+          <section id="report-spend-trends" class="reportSectionShell reportSection" aria-label="Run rate">
             <div class="reportSectionHead">
               <span class="reportStep">2</span>
               <div>
-                <h2 class="reportSectionTitle">Trends</h2>
-                <p class="reportSectionLead muted" id="costTrendInsight">Daily and monthly <span class="costPill costPill--actual">Actual</span> billing for the selected scope.</p>
+                <h2 class="reportSectionTitle">Run Rate</h2>
+                <p class="reportSectionLead muted" id="costTrendInsight">Daily and monthly <span class="costPill costPill--actual">OpEx</span> billing for the selected scope.</p>
               </div>
             </div>
             <div class="chartGrid chartGrid2">
               <article class="card chartCard">
                 <h3 class="chartCardTitle">Daily cost</h3>
-                <div class="costTypeLegend" aria-label="Cost type"><span class="costPill costPill--actual">Actual</span></div>
-                <p class="chartCardHint muted">Meter billing per day.</p>
+                <div class="costTypeLegend" aria-label="Cost type"><span class="costPill costPill--actual">OpEx</span><span class="costLegendSep" aria-hidden="true"></span><span class="costPill costPill--actual">Meter</span><span class="costLegendSep" aria-hidden="true"></span><span class="costPill costPill--platform">Platform</span></div>
+                <p class="chartCardHint muted">OpEx daily actual · stacked meter/platform when available.</p>
                 <div class="chartCanvasHost chartPlot"><canvas id="dailyChart"></canvas></div>
                 <footer class="chartCardFoot muted" id="dailyChartFoot">—</footer>
               </article>
               <article class="card chartCard">
                 <h3 class="chartCardTitle">Monthly cost</h3>
-                <div class="costTypeLegend" aria-label="Cost type"><span class="costPill costPill--actual">Actual</span></div>
-                <p class="chartCardHint muted">Calendar month billing totals.</p>
+                <div class="costTypeLegend" aria-label="Cost type"><span class="costPill costPill--actual">OpEx</span></div>
+                <p class="chartCardHint muted">Calendar month OpEx totals.</p>
                 <div class="chartCanvasHost chartPlot"><canvas id="monthlyChart"></canvas></div>
                 <footer class="chartCardFoot muted" id="monthlyChartFoot">—</footer>
               </article>
@@ -212,7 +230,7 @@
               <span class="reportStep">3</span>
               <div>
                 <h2 class="reportSectionTitle">By project</h2>
-                <p class="reportSectionLead muted" id="projectSummariesInsight">Daily average billing per project in the selected scope.</p>
+                <p class="reportSectionLead muted" id="projectSummariesInsight">OpEx billing per project — meter vs platform split when meter data exists.</p>
               </div>
               <span class="reportSectionMeta muted" id="projectSummariesMeta"></span>
             </div>
@@ -228,13 +246,15 @@
                 <thead>
                   <tr>
                     <th scope="col">Project</th>
-                    <th class="num colCostActual" scope="col"><span class="costPill costPill--actual">Actual</span> Total</th>
+                    <th class="num colCostActual" scope="col"><span class="costPill costPill--actual">OpEx</span> Total</th>
+                    <th class="num colCostActual" scope="col"><span class="costPill costPill--actual">OpEx</span> · Meter</th>
+                    <th class="num colCostPlatform" scope="col"><span class="costPill costPill--platform">CapEx</span> · Platform</th>
                     <th class="num" scope="col">Billed days</th>
                     <th class="num colCostActual" scope="col">Avg / day</th>
                   </tr>
                 </thead>
                 <tbody id="projectSummariesTbody">
-                  <tr><td colspan="4" class="muted emptyRow">Load a report to see project averages.</td></tr>
+                  <tr><td colspan="6" class="muted emptyRow">Load a report to see project averages.</td></tr>
                 </tbody>
               </table>
             </div>
@@ -273,21 +293,21 @@
               <span class="reportStep">4</span>
               <div class="reportExecutiveHead">
                 <h2 class="reportSectionTitle">By model</h2>
-                <p class="reportSectionLead muted"><span class="costPill costPill--actual">Actual</span> meter billing vs <span class="costPill costPill--market">Market</span> list price.</p>
+                <p class="reportSectionLead muted"><span class="costPill costPill--actual">OpEx</span> meter billing vs <span class="costPill costPill--market">CapEx · Tariff</span> list price.</p>
                 <span id="reportExecutiveHint" class="executiveHint muted"></span>
               </div>
             </div>
             <div id="reportMeterTotals" class="meterTotalGrid" hidden>
               <article class="meterTotalCard">
-                <div class="meterTotalLabel">Input cost (meter)</div>
+                <div class="meterTotalLabel">OpEx · Meter input</div>
                 <div class="meterTotalValue" id="reportInputCostTotal">—</div>
               </article>
               <article class="meterTotalCard">
-                <div class="meterTotalLabel">Output cost (meter)</div>
+                <div class="meterTotalLabel">OpEx · Meter output</div>
                 <div class="meterTotalValue" id="reportOutputCostTotal">—</div>
               </article>
               <article class="meterTotalCard meterTotalCardEmphasis">
-                <div class="meterTotalLabel">Meter total (in + out)</div>
+                <div class="meterTotalLabel">OpEx · Meter total</div>
                 <div class="meterTotalValue" id="reportMeterCostTotal">—</div>
               </article>
             </div>
@@ -295,7 +315,7 @@
               <div class="rowsToolbar">
                 <div>
                   <h3 class="panelTitle">Cost by model</h3>
-                  <p class="tableNote panelDesc"><span class="costPill costPill--actual">Actual</span> inp/opt billing · <span class="costPill costPill--market">Market</span> catalog total.</p>
+                  <p class="tableNote panelDesc"><span class="costPill costPill--actual">OpEx</span> inp/opt billing · <span class="costPill costPill--market">Tariff</span> catalog total.</p>
                 </div>
               </div>
               <div class="tableScroll reportTableScroll reportModelTableScroll">
@@ -303,8 +323,8 @@
                   <thead>
                     <tr class="costColGroupRow">
                       <th colspan="1" scope="colgroup" class="colGroupMeta"></th>
-                      <th colspan="3" scope="colgroup" class="colGroupActual"><span class="costPill costPill--actual">Actual</span></th>
-                      <th colspan="1" scope="colgroup" class="colGroupMarket"><span class="costPill costPill--market">Market</span></th>
+                      <th colspan="3" scope="colgroup" class="colGroupActual"><span class="costPill costPill--actual">OpEx · Meter</span></th>
+                      <th colspan="1" scope="colgroup" class="colGroupMarket"><span class="costPill costPill--market">CapEx · Tariff</span></th>
                       <th colspan="2" scope="colgroup" class="colGroupMeta"></th>
                     </tr>
                     <tr>
@@ -345,8 +365,8 @@
             <div class="reportSectionHead">
               <span class="reportStep">5</span>
               <div>
-                <h2 class="reportSectionTitle">Token usage</h2>
-                <p class="reportSectionLead muted" id="tokenSectionInsight">Imported token CSV totals by day — separate from billing actuals.</p>
+                <h2 class="reportSectionTitle">Consumption</h2>
+                <p class="reportSectionLead muted" id="tokenSectionInsight">OpEx consumption drivers — imported token CSV totals by day (not CapEx $).</p>
               </div>
             </div>
             <div class="chartGrid chartGrid2">
@@ -467,7 +487,7 @@
     <script src="/static/js/forecasting.js?v=20260605-ratio"></script>
     <script src="/static/js/chart-plugins.js"></script>
     <script src="/static/js/chart-style.js?v=20260605-dates"></script>
-    <script src="/static/js/cost-semantics.js?v=20260605-cost"></script>
+    <script src="/static/js/cost-semantics.js?v=20260708-capex-opex"></script>
     <script src="/static/js/dashboard-ui.js?v=20260605-datesort"></script>
     <script src="/static/js/date-range-picker.js?v=20260606-drp"></script>
     <script src="/static/js/dashboard-interactions.js?v=20260707-ui"></script>
@@ -947,31 +967,42 @@
         set('hero_period_sub', report?.currency ? `${report.currency} · in-scope dates` : 'Data range in scope');
 
         const benchmarkRow = document.getElementById('reportBenchmarkRow');
-        const meterCard = document.getElementById('heroMeterCard');
-        const catalogCard = document.getElementById('heroCatalogCard');
+        const opexCompositionRow = document.getElementById('reportOpexCompositionRow');
         const catalogAvailable = cm?.available === true;
         if (benchmarkRow) benchmarkRow.hidden = !catalogAvailable;
 
-        if (catalogAvailable && summary.total_meter_cost_usd != null) {
-          if (meterCard) meterCard.hidden = false;
-          set('hero_meter_cost', fmtCost(summary.total_meter_cost_usd));
-          const sub = document.getElementById('hero_meter_sub');
+        const meter = summary.total_meter_cost_usd;
+        const platform = summary.billing_other_usd;
+        const totalOpex = Number(d.total_actual ?? 0);
+        const hasMeter = meter != null && Number(meter) > 0;
+        const hasPlatform = platform != null && Number(platform) > 0;
+        if (opexCompositionRow) opexCompositionRow.hidden = !hasMeter && !hasPlatform;
+        if (hasMeter) {
+          set('hero_opex_meter', fmtCost(meter));
+          const sub = document.getElementById('hero_opex_meter_sub');
           if (sub) {
             sub.textContent = `in ${fmtCost(summary.total_input_cost_usd)} · out ${fmtCost(summary.total_output_cost_usd)}`;
           }
-        } else if (meterCard) {
-          meterCard.hidden = true;
+        }
+        if (hasPlatform) set('hero_opex_platform', fmtCost(platform));
+        if (hasMeter && totalOpex > 0) {
+          set('hero_meter_share', `${((Number(meter) / totalOpex) * 100).toFixed(1)}%`);
+        } else {
+          set('hero_meter_share', '—');
+        }
+
+        if (catalogAvailable && summary.total_catalog_cost_usd != null) {
+          set('hero_catalog_total', fmtCost(summary.total_catalog_cost_usd));
+          const sub = document.getElementById('hero_catalog_total_sub');
+          if (sub) sub.textContent = 'Tokens × list USD/1M · reference only';
         }
 
         if (catalogAvailable && summary.variance_pct != null) {
-          if (catalogCard) catalogCard.hidden = false;
           set('hero_catalog_delta', fmtPct(summary.variance_pct));
           const sub = document.getElementById('hero_catalog_sub');
           if (sub) {
-            sub.textContent = `${fmtCost(summary.variance_usd)} vs Market ${fmtCost(summary.total_catalog_cost_usd)}`;
+            sub.textContent = `${fmtCost(summary.variance_usd)} vs Tariff ${fmtCost(summary.total_catalog_cost_usd)}`;
           }
-        } else if (catalogCard) {
-          catalogCard.hidden = true;
         }
 
         const volumeRow = document.getElementById('reportVolumeRow');
@@ -990,7 +1021,7 @@
         set('hero_output_sub', imported ? ratio : '—');
         set(
           'hero_volume_note',
-          imported ? 'Grafana token imports · not billing actuals' : 'No token CSV in scope'
+          imported ? 'OpEx consumption drivers · not CapEx $' : 'No token CSV in scope'
         );
       }
 
@@ -1251,8 +1282,10 @@
         const insightEl = document.getElementById('projectSummariesInsight');
         if (!tbody) return;
 
+        const breakdown = Array.isArray(report?.project_breakdown) ? report.project_breakdown : [];
         const payload = report?.project_daily_cost || {};
         const summaries = Array.isArray(payload.summaries) ? payload.summaries : [];
+        const byName = new Map(breakdown.map((r) => [String(r.project_name), r]));
         const currency = payload.currency || report.currency || 'USD';
         const q = report.scope_quality || {};
         const start = q.cost_start_date || document.getElementById('startDate')?.value;
@@ -1266,13 +1299,13 @@
         }
         if (insightEl) {
           insightEl.textContent = summaries.length
-            ? `Average daily billing per project (${rangeLabel}).`
+            ? `OpEx billing per project with meter/platform split (${rangeLabel}).`
             : `No billing in ${rangeLabel}.`;
         }
 
         tbody.innerHTML = '';
         if (!summaries.length) {
-          tbody.innerHTML = '<tr><td colspan="4" class="muted emptyRow">No billing in selected scope.</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="6" class="muted emptyRow">No billing in selected scope.</td></tr>';
           return;
         }
 
@@ -1280,9 +1313,12 @@
           const tr = document.createElement('tr');
           tr.classList.add('dashRowSelectable');
           const name = String(row.project_name || '');
+          const split = byName.get(name) || {};
           tr.innerHTML = `
             <td class="tdText">${escapeHtml(name)}</td>
             <td class="num mono tdCostActual">${fmtCostCell(row.total_cost_usd)}</td>
+            <td class="num mono tdCostActual">${fmtCostCell(split.meter_cost_usd)}</td>
+            <td class="num mono tdCostPlatform">${fmtCostCell(split.platform_cost_usd)}</td>
             <td class="num">${fmt(row.billed_days)}</td>
             <td class="num mono tdCostActual">${fmtCostCell(row.avg_daily_cost_usd)}</td>
           `;
@@ -1293,14 +1329,27 @@
       function exportProjectSummariesCsv() {
         const payload = lastReport?.project_daily_cost || {};
         const summaries = Array.isArray(payload.summaries) ? payload.summaries : [];
-        const header = ['project_name', 'total_cost_usd', 'billed_days', 'avg_daily_cost_usd', 'currency'];
+        const breakdown = lastReport?.project_breakdown || [];
+        const byName = new Map(breakdown.map((r) => [String(r.project_name), r]));
+        const header = [
+          'project_name',
+          'opex_total_usd',
+          'opex_meter_usd',
+          'capex_platform_usd',
+          'billed_days',
+          'avg_daily_cost_usd',
+          'currency',
+        ];
         const lines = [header.join(',')];
         const currency = payload.currency || lastReport?.currency || '';
         for (const row of summaries) {
+          const split = byName.get(String(row.project_name)) || {};
           lines.push(
             [
               csvEscapeCell(row.project_name),
               csvEscapeCell(row.total_cost_usd),
+              csvEscapeCell(split.meter_cost_usd),
+              csvEscapeCell(split.platform_cost_usd),
               csvEscapeCell(row.billed_days),
               csvEscapeCell(row.avg_daily_cost_usd),
               csvEscapeCell(currency),
@@ -1547,8 +1596,8 @@
         const tokenInsight = document.getElementById('tokenSectionInsight');
         if (tokenInsight) {
           tokenInsight.textContent = showTokens
-            ? 'Actual input/output token totals from imported Grafana CSVs.'
-            : 'No imported token CSVs in this scope — cost charts above still show billing actuals.';
+            ? 'OpEx consumption drivers — imported token CSV totals by day (not CapEx $).'
+            : 'No imported token CSVs in this scope — run rate charts above still show OpEx billing.';
         }
         if (!showTokens) {
           for (const ch of [dailyTokenChart, dailyTokenRatioChart, monthlyTokenChart]) {
@@ -1559,9 +1608,37 @@
           monthlyTokenChart = null;
         }
 
-        // Daily
+        // Daily — OpEx with optional meter/platform stack
         const dailyLabels = daily.map(p => p.date);
         const dailyActual = daily.map(p => p.cost_usd);
+        const catalog = report?.catalog_market || {};
+        const dailyByModel = catalog.daily_by_model || [];
+        const meterByDate = new Map();
+        for (const row of dailyByModel) {
+          const d = safeDateStr(row?.date);
+          if (!d) continue;
+          let m = 0;
+          if (row.input_cost_usd != null || row.output_cost_usd != null) {
+            m = Number(row.input_cost_usd || 0) + Number(row.output_cost_usd || 0);
+          } else if (row.actual_cost_usd != null) {
+            m = Number(row.actual_cost_usd);
+          }
+          if (m > 0) meterByDate.set(d, (meterByDate.get(d) || 0) + m);
+        }
+        const dailyMeter = dailyLabels.map((d) => {
+          const v = meterByDate.get(d);
+          return v == null ? null : window.AppMoney?.roundCost(v);
+        });
+        const dailyPlatform = dailyLabels.map((d, i) => {
+          const actual = dailyActual[i];
+          const meter = dailyMeter[i];
+          if (actual == null) return null;
+          if (meter == null) return actual;
+          const plat = Number(actual) - Number(meter);
+          return plat > 0 ? window.AppMoney?.roundCost(plat) : null;
+        });
+        const hasMeterSplit = dailyMeter.some((v) => v != null && Number(v) > 0);
+
         const dailyCtx = document.getElementById('dailyChart').getContext('2d');
         if (dailyChart) dailyChart.destroy();
 
@@ -1569,13 +1646,29 @@
         dailyGradient.addColorStop(0, 'rgba(94,234,212,0.28)');
         dailyGradient.addColorStop(1, 'rgba(94,234,212,0.00)');
 
-        dailyChart = new Chart(dailyCtx, {
-          type: 'line',
-          data: {
-            labels: dailyLabels,
-            datasets: [
+        const costDs = window.AppCostSemantics?.chartDataset;
+        const dailyDatasets = hasMeterSplit
+          ? [
+              costDs?.('opex', { data: dailyMeter, fill: true, pointRadius: 2 }) ?? {
+                label: 'Meter',
+                data: dailyMeter,
+                borderColor: C.actual || '#5eead4',
+                backgroundColor: 'rgba(94,234,212,0.35)',
+                fill: true,
+                stack: 'opex',
+              },
+              costDs?.('platform', { data: dailyPlatform, fill: true, pointRadius: 2 }) ?? {
+                label: 'Platform',
+                data: dailyPlatform,
+                borderColor: '#fbbf24',
+                backgroundColor: 'rgba(251,191,36,0.35)',
+                fill: true,
+                stack: 'opex',
+              },
+            ]
+          : [
               {
-                label: L.costActual || 'Actual',
+                label: L.costActual || 'OpEx',
                 data: dailyActual,
                 borderColor: C.actual || C.cost || '#5eead4',
                 backgroundColor: dailyGradient,
@@ -1585,11 +1678,18 @@
                 pointHoverRadius: 4,
                 borderWidth: 2.2,
                 spanGaps: true,
-              }
-            ]
+              },
+            ];
+
+        dailyChart = new Chart(dailyCtx, {
+          type: hasMeterSplit ? 'bar' : 'line',
+          data: {
+            labels: dailyLabels,
+            datasets: dailyDatasets,
           },
           options: {
             ...reportChartOpts(dailyLabels.length),
+            scales: hasMeterSplit ? { x: { stacked: true }, y: { stacked: true } } : undefined,
             onClick: (_evt, elements) => {
               if (!elements?.length) {
                 selectedDailyChartIndex = null;

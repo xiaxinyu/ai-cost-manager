@@ -4821,12 +4821,26 @@ def get_financial_project_daily_cost(
         total = round_cost(_safe_float(r["total_cost_usd"])) or 0.0
         billed_days = int(r["billed_days"])
         avg_daily = round_cost(total / billed_days) if billed_days > 0 else None
+        meter_share_pct = None
+        pn = str(r["project_name"])
+        if total > 0 and chosen_currency is not None:
+            ts = get_catalog_market_cost_timeseries(
+                conn,
+                pn,
+                start_date=start_date,
+                end_date=end_date,
+                currency=chosen_currency,
+            )
+            meter_raw = (ts.get("summary") or {}).get("total_meter_cost_usd")
+            if meter_raw is not None and total > 0:
+                meter_share_pct = round((float(meter_raw) / total) * 100.0, 1)
         summaries.append(
             {
-                "project_name": str(r["project_name"]),
+                "project_name": pn,
                 "total_cost_usd": total,
                 "billed_days": billed_days,
                 "avg_daily_cost_usd": avg_daily,
+                "meter_share_pct": meter_share_pct,
             }
         )
 
@@ -4923,10 +4937,31 @@ def get_financial_project_breakdown(
             continue
         actual_days = int(cost_row.get("actual_days") or 0)
         avg_daily = round_cost(total / actual_days) if actual_days > 0 and total > 0 else None
+        meter_cost: float | None = None
+        platform_cost: float | None = None
+        if total > 0 and chosen_currency is not None:
+            ts = get_catalog_market_cost_timeseries(
+                conn,
+                pn,
+                start_date=start_date,
+                end_date=end_date,
+                currency=chosen_currency,
+            )
+            cm_summary = ts.get("summary") or {}
+            meter_raw = cm_summary.get("total_meter_cost_usd")
+            platform_raw = cm_summary.get("billing_other_usd")
+            if meter_raw is not None:
+                meter_cost = float(meter_raw)
+            if platform_raw is not None:
+                platform_cost = float(platform_raw)
+            elif meter_cost is None and total > 0:
+                platform_cost = round_cost(total)
         out.append(
             {
                 "project_name": pn,
                 "actual_cost_usd_total": total,
+                "meter_cost_usd": meter_cost,
+                "platform_cost_usd": platform_cost,
                 "actual_days": actual_days,
                 "avg_daily_cost_usd": avg_daily,
                 "currency": chosen_currency,

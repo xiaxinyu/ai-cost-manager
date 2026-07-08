@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="/static/css/page-common.css" />
     <link rel="stylesheet" href="/static/css/pages/tokens.css?v=20260708-finlayout" />
     <link rel="stylesheet" href="/static/css/layout-pro.css" />
-    <link rel="stylesheet" href="/static/css/dashboard-shared.css?v=20260707-ui" />
+    <link rel="stylesheet" href="/static/css/dashboard-shared.css?v=20260708-unified" />
     <link rel="stylesheet" href="/static/css/date-range-picker.css?v=20260606-drp" />
   </head>
   <body>
@@ -19,12 +19,12 @@
       <main class="contentArea">
         <div class="container tokenPage dashPage">
 
-          <header class="pageHeader tokenPageHeader">
+          <header class="pageHeader tokenPageHeader dashPageHeader">
             <div class="breadcrumb">Home / Tokens</div>
             <div class="tokenTitleRow">
               <div>
                 <h1 class="pageTitle">Tokens</h1>
-                <p class="pageDesc">Volume, performance, and unit price from Grafana CSV imports.</p>
+                <p class="pageDesc">OpEx consumption drivers, performance, and unit economics vs CapEx tariff list prices.</p>
               </div>
               <div id="tokenSourceBadge" class="sourceBadge sourceEstimated" hidden>
                 <span class="sourceDot" aria-hidden="true"></span>
@@ -88,22 +88,22 @@
           <div id="tokenWorkspace" hidden>
             <nav class="dashSectionNav card" aria-label="Token sections">
               <span class="dashSectionNavLabel muted">Statement</span>
-              <a class="dashSectionNavLink" href="#token-summary">Summary</a>
-              <a class="dashSectionNavLink" href="#token-trends">Trends</a>
+              <a class="dashSectionNavLink" href="#token-summary">Consumption Summary</a>
+              <a class="dashSectionNavLink" href="#token-trends">Run Rate</a>
               <a class="dashSectionNavLink" href="#token-performance">Performance</a>
-              <a class="dashSectionNavLink" href="#token-allocation">Allocation</a>
+              <a class="dashSectionNavLink" href="#token-allocation">Unit Economics</a>
             </nav>
 
-            <section id="token-summary" class="tokenZone tokenFinBlock card" aria-label="Period summary">
+            <section id="token-summary" class="tokenZone tokenFinBlock card" aria-label="Consumption summary">
               <div class="tokenZoneHead tokenSectionHead">
                 <span class="tokenStep" aria-hidden="true">1</span>
                 <div class="tokenZoneHeadMain">
-                  <h2 class="tokenZoneTitle">Summary</h2>
-                  <p class="tokenZoneLead muted" id="tokenSummaryLead">Token volume for the selected project and date range.</p>
+                  <h2 class="tokenZoneTitle">Consumption Summary</h2>
+                  <p class="tokenZoneLead muted" id="tokenSummaryLead">OpEx consumption drivers — token volume for the selected project and date range.</p>
                 </div>
                 <span class="tokenSectionMeta muted" id="tokenSourceMeta"></span>
               </div>
-              <p class="tokenFinFlowNote muted">Imported CSV volume in scope · trends and allocation sections follow below.</p>
+              <p class="tokenFinFlowNote muted">Imported CSV volume in scope · not OpEx $ billing · drives run rate and unit economics below.</p>
 
               <div class="tokenMonitorKpi tokenFinPrimaryKpi" aria-label="Period totals">
                 <article class="card stat statTotal stat--hero">
@@ -169,12 +169,12 @@
               </div>
             </section>
 
-            <section id="token-trends" class="tokenZone tokenFinBlock card" aria-label="Volume trends">
+            <section id="token-trends" class="tokenZone tokenFinBlock card" aria-label="Run rate">
               <div class="tokenZoneHead tokenSectionHead">
                 <span class="tokenStep" aria-hidden="true">2</span>
                 <div class="tokenZoneHeadMain">
-                  <h2 class="tokenZoneTitle">Trends</h2>
-                  <p class="tokenZoneLead muted" id="tokenTrendsLead">Daily input and output token volume over the reporting period.</p>
+                  <h2 class="tokenZoneTitle">Run Rate</h2>
+                  <p class="tokenZoneLead muted" id="tokenTrendsLead">Daily input and output consumption over the reporting period.</p>
                 </div>
               </div>
 
@@ -314,15 +314,15 @@
               </div>
             </section>
 
-            <section id="token-allocation" class="tokenZone tokenFinBlock card" aria-label="Token allocation">
+            <section id="token-allocation" class="tokenZone tokenFinBlock card" aria-label="Unit economics">
               <div class="tokenZoneHead tokenSectionHead">
                 <span class="tokenStep" aria-hidden="true">4</span>
                 <div class="tokenZoneHeadMain">
-                  <h2 class="tokenZoneTitle">Allocation</h2>
-                  <p class="tokenZoneLead muted">Where volume lands — by model and implied unit price.</p>
+                  <h2 class="tokenZoneTitle">Unit Economics</h2>
+                  <p class="tokenZoneLead muted">OpEx implied $/1M vs CapEx tariff list $/1M — by model and billing unit price.</p>
                 </div>
               </div>
-              <nav class="tokenBreakdownNav muted" aria-label="Allocation views">
+              <nav class="tokenBreakdownNav muted" aria-label="Unit economics views">
                 <a class="tokenBreakdownNavLink" href="#flowUsage">By model</a>
                 <span class="tokenBreakdownNavSep" aria-hidden="true">·</span>
                 <a class="tokenBreakdownNavLink" href="#unitPriceSection">Unit price</a>

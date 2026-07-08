@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="/static/css/page-common.css" />
     <link rel="stylesheet" href="/static/css/pages/import.css" />
     <link rel="stylesheet" href="/static/css/layout-pro.css" />
-    <link rel="stylesheet" href="/static/css/dashboard-shared.css?v=20260708-import-type" />
+    <link rel="stylesheet" href="/static/css/dashboard-shared.css?v=20260708-unified" />
   </head>
   <body>
     {% set active_page = 'import' %}
@@ -17,23 +17,25 @@
     <div class="appLayout">
       <main class="contentArea">
         <div class="container importPage dashPage">
-          <header class="pageHeader">
+          <header class="pageHeader dashPageHeader">
             <div class="breadcrumb">Home / Import</div>
             <h1 class="pageTitle">Import data</h1>
-            <p class="pageDesc">Billing CSVs under <code>bills/&lt;project&gt;/</code> · token CSVs under <code>bills/&lt;project&gt;/token/</code></p>
+            <p class="pageDesc">Data lineage hub — ingest billing, token, and tariff CSVs into SQLite.</p>
+            <p class="pageDesc muted importLineageNote">Billing files → <span class="costPill costPill--actual">OpEx Actual</span> · token/metric files → <span class="costPill costPill--actual">OpEx drivers</span> · price sync → <span class="costPill costPill--market">CapEx Tariff</span></p>
           </header>
 
           <nav class="dashSectionNav card" aria-label="Import sections">
-            <span class="dashSectionNavLabel muted">Jump to</span>
+            <span class="dashSectionNavLabel muted">Statement</span>
             <a class="dashSectionNavLink" href="#import-missing">Missing files</a>
             <a class="dashSectionNavLink" href="#import-ingested">Imported</a>
           </nav>
 
-          <section id="import-missing" class="card importSection dashScrollSection" aria-label="Missing files">
-            <div class="importSectionHead">
+          <section id="import-missing" class="card importSection dashFinBlock" aria-label="Missing files">
+            <div class="importSectionHead dashSectionHead">
+              <span class="dashStep" aria-hidden="true">1</span>
               <div>
                 <h2 class="importSectionTitle">Missing files</h2>
-                <p class="importSectionLead muted">Select files on disk that are not yet in the database, then import.</p>
+                <p class="importSectionLead muted">Files on disk not yet in the database — select and import.</p>
               </div>
               <div class="importToolbar">
                 <button id="refreshBtn" class="btnSecondary" type="button">Refresh</button>
@@ -66,8 +68,9 @@
             </div>
           </section>
 
-          <section id="import-ingested" class="card importSection dashScrollSection" aria-label="Imported files">
-            <div class="importSectionHead">
+          <section id="import-ingested" class="card importSection dashFinBlock" aria-label="Imported files">
+            <div class="importSectionHead dashSectionHead">
+              <span class="dashStep" aria-hidden="true">2</span>
               <div>
                 <h2 class="importSectionTitle">Imported files</h2>
                 <p class="importSectionLead muted">Already in SQLite — verify checksums against disk when needed.</p>

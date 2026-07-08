@@ -140,7 +140,7 @@ def test_login_to_token_workspace_e2e_smoke(tmp_path):
         ("/", "Cost"),
         ("/tokens", "Tokens"),
         ("/reports", "Reports"),
-        ("/prices", "Model prices"),
+        ("/prices", "CapEx · Tariff schedule"),
         ("/import", "Import data"),
     ):
         page = client.get(path)

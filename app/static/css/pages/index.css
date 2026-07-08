@@ -428,13 +428,8 @@
   max-width: 100%;
 }
 
-/* —— Page chrome —— */
+/* —— Page chrome (inherits unified dashPageHeader band) —— */
 .costPageHeader {
-  margin: 0;
-  padding: 2px 2px 0;
-  border: none;
-  background: transparent;
-  box-shadow: none;
   min-height: 0;
 }
 
@@ -443,18 +438,17 @@
 }
 
 .costPageHeader .pageTitle {
-  font-size: clamp(18px, 2.2vw, 22px);
+  font-size: clamp(20px, 2.4vw, 24px);
   font-weight: 800;
-  margin: 2px 0 0;
+  margin: 4px 0 0;
 }
 
 .costPageHeader .pageDesc {
   display: block;
-  margin: 4px 0 0;
+  margin: 6px 0 0;
   max-width: 62ch;
-  line-height: 1.4;
-  font-size: 11.5px;
-  color: var(--text-muted);
+  line-height: 1.5;
+  font-size: 13px;
 }
 
 .costPageHeader .pageDesc a {
@@ -737,8 +731,17 @@
 .costFinBenchmarkKpi {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   margin-top: 2px;
+}
+
+.costFinOpexCompositionKpi {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-top: 2px;
   padding-top: 10px;
   border-top: 1px dashed rgba(173, 196, 228, 0.14);
+}
+
+.monitorKpi--platform {
+  border-color: rgba(251, 191, 36, 0.32);
 }
 
 .monitorKpi--hero {

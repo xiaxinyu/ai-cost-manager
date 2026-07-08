@@ -401,6 +401,10 @@
   --cost-market-rgb: 192, 132, 252;
   --cost-market-bg: rgba(192, 132, 252, 0.1);
   --cost-market-border: rgba(192, 132, 252, 0.38);
+  --cost-platform: #fbbf24;
+  --cost-platform-rgb: 251, 191, 36;
+  --cost-platform-bg: rgba(251, 191, 36, 0.1);
+  --cost-platform-border: rgba(251, 191, 36, 0.38);
 }
 
 .costTypeLegend {
@@ -476,6 +480,17 @@
   box-shadow: none;
 }
 
+.costPill--platform {
+  color: #fde68a;
+  border: 1px solid var(--cost-platform-border);
+  background: var(--cost-platform-bg);
+}
+
+.costPill--platform::before {
+  background: var(--cost-platform);
+  box-shadow: 0 0 0 2px rgba(var(--cost-platform-rgb), 0.2);
+}
+
 .dashboardDesc .costPill,
 .modelTableHint .costPill,
 .reportSectionLead .costPill,
@@ -501,7 +516,8 @@
 }
 
 .dashTable thead th.colCostActual,
-.dashTable thead th.colCostMarket {
+.dashTable thead th.colCostMarket,
+.dashTable thead th.colCostPlatform {
   border-top: 2px solid transparent;
 }
 
@@ -513,6 +529,11 @@
 .dashTable thead th.colCostMarket {
   border-top-color: var(--cost-market);
   background: linear-gradient(180deg, rgba(var(--cost-market-rgb), 0.12), rgba(14, 20, 28, 0.96) 55%);
+}
+
+.dashTable thead th.colCostPlatform {
+  border-top-color: var(--cost-platform);
+  background: linear-gradient(180deg, rgba(var(--cost-platform-rgb), 0.12), rgba(14, 20, 28, 0.96) 55%);
 }
 
 .dashTable thead tr.costColGroupRow th {
@@ -578,6 +599,12 @@
 .dashTable th.tdCostMarket {
   background: rgba(var(--cost-market-rgb), 0.05);
   box-shadow: inset 3px 0 0 rgba(var(--cost-market-rgb), 0.5);
+}
+
+.dashTable td.tdCostPlatform,
+.dashTable th.tdCostPlatform {
+  background: rgba(var(--cost-platform-rgb), 0.05);
+  box-shadow: inset 3px 0 0 rgba(var(--cost-platform-rgb), 0.5);
 }
 
 .dashTable tbody tr:hover td.tdCostActual {
@@ -1245,5 +1272,288 @@
   justify-content: flex-end;
   gap: 10px;
   flex-wrap: wrap;
+}
+
+/* =============================================================================
+   Manager unified shell — consistent layout, hierarchy, and finance palette
+   ============================================================================= */
+
+.dashPage {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dash-gap, 14px);
+  padding-bottom: 8px;
+}
+
+.dashPage .pageHeader,
+.dashPageHeader {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: var(--lp-card-radius, 8px);
+  background: linear-gradient(
+    128deg,
+    rgba(var(--cost-actual-rgb), 0.07) 0%,
+    rgba(var(--cost-market-rgb), 0.05) 42%,
+    rgba(255, 255, 255, 0.025) 100%
+  );
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.14);
+}
+
+.costPageHeader,
+.tokenPageHeader,
+.reportPageHeader,
+.pageHeader--compact {
+  background: linear-gradient(
+    128deg,
+    rgba(var(--cost-actual-rgb), 0.07) 0%,
+    rgba(var(--cost-market-rgb), 0.05) 42%,
+    rgba(255, 255, 255, 0.025) 100%
+  ) !important;
+  border: 1px solid rgba(148, 163, 184, 0.16) !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.14);
+  padding: 12px 14px !important;
+  border-radius: var(--lp-card-radius, 8px) !important;
+}
+
+.dashPageTitleRow,
+.costTitleRow,
+.tokenTitleRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+.dashPagePills,
+.costPageHeader .pageDesc .costPill {
+  margin-top: 2px;
+}
+
+.dashPagePills {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.dashPageHeaderAside,
+.costSourceNote {
+  font-size: 11px;
+  line-height: 1.45;
+  text-align: right;
+  align-self: flex-start;
+  max-width: 28ch;
+}
+
+.importLineageNote {
+  margin-top: 8px !important;
+  font-size: 12px !important;
+  line-height: 1.5;
+}
+
+/* Unified section heads (Cost, Reports, Tokens, Import, Pricing) */
+.dashSectionHead,
+.costSectionHead,
+.reportSectionHead,
+.tokenSectionHead,
+.importSectionHead {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 8px 12px;
+  align-items: start;
+  padding-bottom: 10px;
+  margin-bottom: 10px;
+  border-bottom: 1px solid rgba(173, 196, 228, 0.12);
+}
+
+.dashSectionHead .importToolbar,
+.importSectionHead .importToolbar {
+  grid-column: 1 / -1;
+  justify-content: flex-end;
+  margin-top: 4px;
+  padding-top: 0;
+  border: none;
+}
+
+@media (min-width: 720px) {
+  .importSectionHead {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+
+  .importSectionHead .importToolbar {
+    grid-column: 3;
+    grid-row: 1;
+    align-self: center;
+    margin-top: 0;
+  }
+}
+
+.dashStep,
+.costStep,
+.reportStep,
+.tokenStep {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 800;
+  color: #b8fff0;
+  background: rgba(var(--cost-actual-rgb), 0.12);
+  border: 1px solid rgba(var(--cost-actual-rgb), 0.32);
+  flex-shrink: 0;
+}
+
+.dashSectionTitle,
+.costSectionTitle,
+.reportSectionTitle,
+.tokenZoneTitle,
+.importSectionTitle,
+.filterCardTitle {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #e2e8f0;
+  line-height: 1.25;
+}
+
+.costSectionTitle,
+.reportSectionTitle,
+.tokenZoneTitle,
+.importSectionTitle,
+.detailTableTitle {
+  font-size: 15px;
+  font-weight: 780;
+  letter-spacing: 0.01em;
+  text-transform: none;
+  color: #f1f5f9;
+}
+
+.dashSectionLead,
+.costSectionLead,
+.reportSectionLead,
+.tokenZoneLead,
+.importSectionLead,
+.filterCardHint {
+  margin: 4px 0 0;
+  font-size: 12px;
+  line-height: 1.45;
+  max-width: 62ch;
+  color: var(--text-subtle, #9fb2c7);
+}
+
+.dashSectionMeta,
+.costSectionMeta,
+.reportSectionMeta,
+.tokenSectionMeta {
+  font-size: 12px;
+  font-weight: 600;
+  text-align: right;
+  align-self: center;
+  white-space: nowrap;
+  color: #94a8c0;
+}
+
+.dashFinFlowNote,
+.costFinFlowNote,
+.reportFinFlowNote,
+.tokenFinFlowNote {
+  margin: 0 0 4px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: #94a8c0;
+  background: rgba(8, 12, 18, 0.35);
+  border: 1px solid rgba(148, 163, 184, 0.1);
+}
+
+/* Finance blocks — shared card surface */
+.dashFinBlock,
+.costFinBlock,
+.reportFinBlock,
+.tokenFinBlock,
+.importSection.card,
+.pricingCatalogSection.card {
+  padding: 14px 16px;
+  scroll-margin-top: 72px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.028));
+  border-color: rgba(148, 163, 184, 0.18);
+}
+
+.dashFinBlock:hover,
+.costFinBlock:hover,
+.reportFinBlock:hover,
+.tokenFinBlock:hover,
+.importPage .importSection.card:hover {
+  border-color: rgba(148, 163, 184, 0.28);
+}
+
+/* Import stat cards align with monitor KPI chips */
+.importPage .importStatCard {
+  border-color: rgba(var(--cost-actual-rgb), 0.18);
+  background: rgba(var(--cost-actual-rgb), 0.04);
+}
+
+.importPage .importStatCard .value {
+  color: #f0fdfa;
+}
+
+/* Nav grouping in app shell */
+.navLinks .navSep {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 2px;
+  color: rgba(148, 163, 184, 0.35);
+  font-size: 14px;
+  user-select: none;
+  pointer-events: none;
+}
+
+.navLinks .navGroupLabel {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(148, 163, 184, 0.45);
+  padding: 0 4px 0 8px;
+}
+
+.detailTableHead.dashSectionHead {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  padding-bottom: 10px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid rgba(173, 196, 228, 0.12);
+}
+
+.detailTableHead.dashSectionHead .detailTableActions {
+  align-self: center;
+}
+
+.filterCardHead.dashSectionHead {
+  margin-bottom: 12px;
+}
+
+.filterCardHead.dashSectionHead .pricingToolbarActions {
+  grid-column: 3;
+  grid-row: 1;
+  align-self: center;
+}
+
+@media (max-width: 720px) {
+  .filterCardHead.dashSectionHead .pricingToolbarActions {
+    grid-column: 1 / -1;
+    grid-row: auto;
+    justify-content: flex-start;
+  }
 }
 

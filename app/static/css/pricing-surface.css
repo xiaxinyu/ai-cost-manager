@@ -20,10 +20,10 @@
   margin-bottom: 0;
 }
 
-.pageHeader--compact .pageDesc {
+.pageHeader--compact.dashPageHeader .pageDesc {
   margin-bottom: 0;
-  max-width: 52ch;
-  font-size: 12px;
+  max-width: 56ch;
+  font-size: 13px;
 }
 
 .dataStatusBar--compact {
