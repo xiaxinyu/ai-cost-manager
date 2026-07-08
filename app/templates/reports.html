@@ -486,7 +486,7 @@
     <script src="/static/js/forecasting.js?v=20260708-forecast"></script>
     <script src="/static/js/chart-plugins.js"></script>
     <script src="/static/js/chart-style.js?v=20260605-dates"></script>
-    <script src="/static/js/cost-semantics.js?v=20260708-billing-key"></script>
+    <script src="/static/js/cost-semantics.js?v=20260708-by-model-key"></script>
     <script src="/static/js/dashboard-ui.js?v=20260605-datesort"></script>
     <script src="/static/js/date-range-picker.js?v=20260606-drp"></script>
     <script src="/static/js/dashboard-interactions.js?v=20260707-ui"></script>
@@ -1657,7 +1657,7 @@
                   fill: true,
                   stack: 'opex',
                 };
-                ds.label = 'Meter (inp+out)';
+                ds.label = 'By model · Meter';
                 return ds;
               })(),
               (() => {
@@ -1669,7 +1669,7 @@
                   fill: true,
                   stack: 'opex',
                 };
-                ds.label = 'Platform (other)';
+                ds.label = 'Others · Platform';
                 return ds;
               })(),
             ]
@@ -1693,6 +1693,7 @@
           reportLegendEl.innerHTML = window.AppCostSemantics.billingKey({
             stacked: hasMeterSplit,
             hasTariff: false,
+            allocationHref: '#report-by-model',
           });
         }
 

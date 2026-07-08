@@ -46,4 +46,5 @@ def test_cost_semantics_billing_key():
     semantics = Path(__file__).resolve().parents[1] / "app" / "static" / "js" / "cost-semantics.js"
     text = semantics.read_text(encoding="utf-8")
     assert "billingKey" in text
-    assert "CostUSD" in text
+    assert "By model" in text
+    assert "Others ·" in text

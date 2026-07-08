@@ -122,14 +122,14 @@
                 <div class="stat">
                   <div class="label"><span class="costPill costPill--actual">OpEx</span> · Meter</div>
                   <div class="value value--md" id="costMeterTotal">—</div>
-                  <div class="sub tokenStats kpiFootnote" id="costMeterNote">inp + out (meter matched)</div>
+                  <div class="sub tokenStats kpiFootnote" id="costMeterNote">By model · Meter column</div>
                 </div>
               </article>
               <article class="card monitorKpi monitorKpi--platform">
                 <div class="stat">
                   <div class="label"><span class="costPill costPill--platform">OpEx</span> · Platform</div>
                   <div class="value value--md" id="costPlatformTotal">—</div>
-                  <div class="sub tokenStats kpiFootnote" id="costPlatformNote">Non-token billing (billing_other)</div>
+                  <div class="sub tokenStats kpiFootnote" id="costPlatformNote">By model · Others · … rows</div>
                 </div>
               </article>
               <article class="card monitorKpi monitorKpi--rate">
@@ -227,8 +227,9 @@
                   <div class="detailTableIdentity">
                     <h3 class="detailTableTitle">By model</h3>
                     <p class="detailTableDesc muted modelTableHint">
-                      OpEx meter vs reference tariff. <span class="costPill costPill--platform">OpEx · Platform</span> = non-token billing.
-                      List prices from <a href="/prices">Model Prices</a>.
+                      Invoice breakdown — model rows show token meter (Input / Output / Meter); <span class="costPill costPill--platform">OpEx · Platform</span> rows are <b>Others · …</b> (Defender, Bing, Foundry unmatched, …).
+                      Tariff column = list USD/1M from <a href="/prices">Model Prices</a> (reference only).
+                      Daily spend chart stacks use the same Meter / Platform / Tariff split.
                     </p>
                   </div>
                   <div class="detailTableActions">
@@ -489,7 +490,7 @@
     <script src="/static/js/http.js"></script>
     <script src="/static/js/chart-plugins.js"></script>
     <script src="/static/js/chart-style.js?v=20260605-dates"></script>
-    <script src="/static/js/cost-semantics.js?v=20260708-billing-key"></script>
+    <script src="/static/js/cost-semantics.js?v=20260708-by-model-key"></script>
     <script src="/static/js/dashboard-ui.js?v=20260707-detail"></script>
     <script src="/static/js/dashboard-interactions.js?v=20260707-ui"></script>
     <script src="/static/js/billing-detail-table.js?v=20260707-detail"></script>
@@ -694,7 +695,11 @@
       function updateSpendChartLegend({ stacked = false, hasTariff = false } = {}) {
         const sem = window.AppCostSemantics;
         if (costSpendLegendKeyEl && sem?.billingKey) {
-          costSpendLegendKeyEl.innerHTML = sem.billingKey({ stacked, hasTariff });
+          costSpendLegendKeyEl.innerHTML = sem.billingKey({
+            stacked,
+            hasTariff,
+            allocationHref: '#cost-by-model',
+          });
         }
         if (costSpendLegendPillsEl && sem?.legend) {
           const kinds = stacked
@@ -941,8 +946,11 @@
           const out = summary.total_output_cost_usd;
           costMeterNoteEl.textContent =
             inp != null || out != null
-              ? `in ${fmt2(inp)} · out ${fmt2(out)}`
-              : 'inp + out (meter matched)';
+              ? `By model · in ${fmt2(inp)} · out ${fmt2(out)}`
+              : 'By model · Meter column (model rows)';
+        }
+        if (costPlatformNoteEl && hasPlatform) {
+          costPlatformNoteEl.textContent = 'By model · Others · … rows';
         }
         if (costMeterSharePctEl) {
           if (hasMeter && total > 0) {
@@ -1334,7 +1342,7 @@
 
         const tdCatalog = document.createElement('td');
         tdCatalog.className = 'catalogSourceCell muted';
-        tdCatalog.textContent = 'Non-token meter billing';
+        tdCatalog.innerHTML = '<span class="costPill costPill--platform">OpEx · Platform</span> · non-token service';
         tr.appendChild(tdCatalog);
 
         _appendModelNumCell(tr, null, { costKind: 'actual' });
@@ -1743,16 +1751,16 @@
                 fill: true,
                 stack: 'opex',
               };
-            meterDs.label = 'Meter (inp+out)';
+            meterDs.label = 'By model · Meter';
             const platDs =
               costDs?.('platform', { data: platformData, fill: true, pointRadius: ptR }) ?? {
-                label: 'Platform (other)',
+                label: 'Others · Platform',
                 data: platformData,
                 borderColor: '#fbbf24',
                 fill: true,
                 stack: 'opex',
               };
-            platDs.label = 'Platform (other)';
+            platDs.label = 'Others · Platform';
             datasets.push(meterDs, platDs);
           } else {
             const opexDs =
@@ -1772,7 +1780,7 @@
               borderColor: C.market || '#c084fc',
               borderDash: [6, 4],
             };
-          tariffDs.label = 'Tariff reference';
+          tariffDs.label = 'By model · Tariff ref';
           datasets.push(tariffDs);
         } else {
           const gradient = ctx.createLinearGradient(0, 0, 0, 280);

@@ -1755,3 +1755,26 @@
   min-width: 0;
 }
 
+.costBillingKeyText a {
+  color: var(--accent-teal, #5eead4);
+  text-decoration: none;
+}
+
+.costBillingKeyText a:hover {
+  text-decoration: underline;
+}
+
+.costBillingKeyFoot {
+  margin: 6px 0 0;
+  font-size: 11px;
+}
+
+.costBillingKeyFoot a {
+  color: var(--accent-teal, #5eead4);
+  text-decoration: none;
+}
+
+.costBillingKeyFoot a:hover {
+  text-decoration: underline;
+}
+

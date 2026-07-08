@@ -20,7 +20,7 @@
     label: "OpEx · Meter",
     shortLabel: "Meter",
     subtitle: "Token meter (inp/out)",
-    hint: "Matched billing meter rows — token input/output (MeterCategory inp + opt)",
+    hint: "By model table — Meter column (model rows: Input + Output USD)",
     pillClass: "costPill--actual",
     colClass: "colCostActual",
     tdClass: "tdCostActual",
@@ -32,7 +32,7 @@
     label: "OpEx · Platform",
     shortLabel: "Platform",
     subtitle: "Non-token services",
-    hint: "CostUSD minus meter — deployment, PTU/hosting, and other non-token lines",
+    hint: "By model table — Others · … rows (non-token services; chart Platform stack)",
     pillClass: "costPill--platform",
     colClass: "colCostPlatform",
     tdClass: "tdCostPlatform",
@@ -44,7 +44,7 @@
     label: "Reference · Tariff",
     shortLabel: "Tariff",
     subtitle: "List price benchmark",
-    hint: "Reference only — catalog list price (tokens × USD/1M); not invoice spend",
+    hint: "By model table — Tariff column (list USD/1M; not invoice)",
     pillClass: "costPill--market",
     colClass: "colCostMarket",
     tdClass: "tdCostMarket",
@@ -87,28 +87,31 @@
     return `<div class="costTypeLegend" aria-label="Cost type">${parts.join('<span class="costLegendSep" aria-hidden="true"></span>')}</div>`;
   }
 
-  /** Plain-language billing key for Daily spend charts (maps pills → CSV / derivation). */
-  function billingKey({ stacked = false, hasTariff = false } = {}) {
+  /** Plain-language billing key — aligned with Allocation → By model table columns/rows. */
+  function billingKey({ stacked = false, hasTariff = false, allocationHref = null } = {}) {
     const rows = [];
     if (stacked) {
       rows.push({
         kind: "meter",
-        text: "Token meter (inp + out) — billing rows matched to model/token usage (MeterCategory inp/opt)",
+        text:
+          "By model — model rows (e.g. gpt-5.1) · <b>Meter</b> column = Input + Output USD from matched token meter lines (MeterCategory inp/opt)",
       });
       rows.push({
         kind: "platform",
-        text: "Platform & other — remainder of daily CostUSD (deployment, hosting, non-token services)",
+        text:
+          "By model — <b>Others · …</b> rows (Defender, Bing, Foundry unmatched, …) · same total as chart <b>Platform</b> stack = non-token CostUSD",
       });
     } else {
       rows.push({
         kind: "opex",
-        text: "Daily CostUSD — invoice actual from Azure billing CSV (UsageDate total)",
+        text: "Daily <b>CostUSD</b> from billing CSV — equals <b>All billing</b> footer in By model",
       });
     }
     if (hasTariff) {
       rows.push({
         kind: "tariff",
-        text: "Tariff reference — imported tokens × list USD/1M (benchmark only, not billed)",
+        text:
+          "By model — <b>Tariff</b> column · tokens × list USD/1M from <a href=\"/prices\">Model Prices</a> (benchmark only, not invoice)",
       });
     }
     if (!rows.length) return "";
@@ -121,7 +124,11 @@
           })}<span class="costBillingKeyText">${r.text}</span></div>`
       )
       .join("");
-    return `<div class="costBillingKey" aria-label="Billing legend">${items}</div>`;
+    const link =
+      allocationHref != null && String(allocationHref).trim()
+        ? `<p class="costBillingKeyFoot muted"><a href="${String(allocationHref).trim()}">Allocation → By model</a> — same Meter / Others / Tariff breakdown</p>`
+        : "";
+    return `<div class="costBillingKey" aria-label="Billing legend">${items}${link}</div>`;
   }
 
   function thClass(kind) {

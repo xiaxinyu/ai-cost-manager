@@ -19,7 +19,6 @@ Billing legend for Cost / Reports is driven by `AppCostSemantics.billingKey()` i
 
 | Pill | Billing meaning |
 |------|-----------------|
-| **CostUSD** | Daily invoice actual from billing CSV (`UsageDate` total) |
-| **Meter (inp+out)** | Token meter rows matched from billing (`MeterCategory` inp/opt) |
-| **Platform (other)** | Remainder of CostUSD — deployment, hosting, non-token lines |
-| **Tariff reference** | Imported tokens × list USD/1M — benchmark only, not billed |
+| **Meter** | By model — **gpt-5.x** model rows, **Meter** column (Input + Output USD) |
+| **Others · Platform** | By model — **Others · …** rows (Defender, Bing, Foundry unmatched) |
+| **Tariff ref** | By model — **Tariff** column (Model Prices list USD/1M; not billed) |
