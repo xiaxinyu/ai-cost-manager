@@ -524,8 +524,9 @@
       });
       frag.appendChild(card);
     }
+    const cardCount = frag.childNodes.length;
     els.subprojectTokenCards.replaceChildren(frag);
-    els.subprojectTokenStrip.hidden = frag.childNodes.length === 0;
+    els.subprojectTokenStrip.hidden = cardCount === 0;
   }
 
   function fmtInt(v) {
