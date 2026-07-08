@@ -1697,6 +1697,82 @@
 .reportPageRoot .reportFinOpexCompositionKpi,
 .reportPageRoot .reportFinVolumeKpi {
   padding-top: 8px;
+  border-top: none;
+}
+
+.reportStatementLayer {
+  scroll-margin-top: 72px;
+  padding-top: 12px;
+  margin-top: 4px;
+  border-top: 1px solid rgba(173, 196, 228, 0.11);
+}
+
+.reportStatementLayer--opex {
+  border-top-style: dashed;
+}
+
+.reportStatementLayer--refarch {
+  border-top-color: rgba(var(--cost-market-rgb), 0.18);
+  background: linear-gradient(180deg, rgba(var(--cost-market-rgb), 0.04), transparent 48%);
+  margin-left: -4px;
+  margin-right: -4px;
+  padding-left: 4px;
+  padding-right: 4px;
+  border-radius: 8px;
+}
+
+.reportStatementLayer--volume {
+  border-top-color: rgba(var(--cost-actual-rgb), 0.14);
+}
+
+.reportStatementLayerTag {
+  margin: 0 0 8px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--report-text-muted);
+}
+
+.reportStatementLayerHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px 14px;
+  margin-bottom: 8px;
+}
+
+.reportStatementLayerTitle {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 760;
+  color: var(--report-text-primary);
+}
+
+.reportStatementLayerLead {
+  margin: 3px 0 0;
+  font-size: 11.5px;
+  line-height: 1.4;
+  max-width: 52ch;
+}
+
+.reportStatementLayerBadge {
+  flex-shrink: 0;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgba(var(--cost-market-rgb), 0.95);
+  border: 1px solid rgba(var(--cost-market-rgb), 0.28);
+  background: rgba(var(--cost-market-rgb), 0.08);
+}
+
+.reportPageRoot .reportFinBenchmarkKpi,
+.reportPageRoot .reportFinOpexCompositionKpi,
+.reportPageRoot .reportFinVolumeKpi {
+  padding-top: 8px;
   border-top: 1px dashed rgba(173, 196, 228, 0.13);
 }
 

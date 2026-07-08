@@ -6,7 +6,7 @@
     <title>Reports - Models Cost Management</title>
     <link rel="stylesheet" href="/static/css/app-shell.css" />
     <link rel="stylesheet" href="/static/css/page-common.css" />
-    <link rel="stylesheet" href="/static/css/pages/reports.css?v=20260708-report-polish" />
+    <link rel="stylesheet" href="/static/css/pages/reports.css?v=20260708-ref-arch" />
     <link rel="stylesheet" href="/static/css/layout-pro.css" />
     <link rel="stylesheet" href="/static/css/dashboard-shared.css?v=20260708-dash-polish" />
     <link rel="stylesheet" href="/static/css/date-range-picker.css?v=20260606-drp" />
@@ -26,7 +26,7 @@
                 <p class="pageDesc">Consolidated OpEx statement — billing totals, run rate, and consumption for the selected scope.</p>
                 <div class="reportLegendRow muted" aria-label="Report semantics">
                   <span class="costPill costPill--actual">OpEx</span>
-                  <span class="costPill costPill--market">Reference</span>
+                  <span class="costPill costPill--market">Ref. Arch.</span>
                   <span class="costPill costPill--actual">Volume</span>
                 </div>
               </div>
@@ -99,6 +99,7 @@
               <span class="reportSectionMeta reportCurrencyBadge" id="reportCurrencyMeta"></span>
             </div>
 
+            <p class="reportStatementLayerTag muted">Actual billing</p>
             <div class="heroMetricGrid reportFinPrimaryKpi" aria-label="OpEx totals">
               <article class="heroMetric heroMetricPrimary">
                 <span class="heroMetricLabel"><span class="costPill costPill--actual">OpEx</span> Total</span>
@@ -122,7 +123,9 @@
               </article>
             </div>
 
-            <div class="heroMetricGrid reportFinOpexCompositionKpi" id="reportOpexCompositionRow" hidden aria-label="OpEx composition">
+            <div class="reportStatementLayer reportStatementLayer--opex" id="reportOpexCompositionLayer" hidden>
+              <p class="reportStatementLayerTag muted">Actual billing · composition</p>
+            <div class="heroMetricGrid reportFinOpexCompositionKpi" id="reportOpexCompositionRow" aria-label="OpEx composition">
               <article class="heroMetric">
                 <span class="heroMetricLabel"><span class="costPill costPill--actual">OpEx</span> · Meter</span>
                 <span class="heroMetricValue" id="hero_opex_meter">—</span>
@@ -139,26 +142,43 @@
                 <span class="heroMetricSub">Meter ÷ OpEx total</span>
               </article>
             </div>
-
-            <div class="heroMetricGrid reportFinBenchmarkKpi" id="reportBenchmarkRow" hidden aria-label="Tariff reference">
-              <article class="heroMetric" id="heroCatalogTotalCard">
-                <span class="heroMetricLabel"><span class="costPill costPill--market">Reference</span> · Tariff</span>
-                <span class="heroMetricValue" id="hero_catalog_total">—</span>
-                <span class="heroMetricSub" id="hero_catalog_total_sub">Tokens × list USD/1M</span>
-              </article>
-              <article class="heroMetric" id="heroCatalogCard">
-                <span class="heroMetricLabel">Variance</span>
-                <span class="heroMetricValue" id="hero_catalog_delta">—</span>
-                <span class="heroMetricSub" id="hero_catalog_sub">OpEx − Tariff</span>
-              </article>
-              <article class="heroMetric">
-                <span class="heroMetricLabel">Rate card</span>
-                <span class="heroMetricValue heroMetricValue--text">List price</span>
-                <span class="heroMetricSub">From Model Prices · not capital assets</span>
-              </article>
             </div>
 
-            <div class="heroMetricGrid reportFinVolumeKpi" id="reportVolumeRow" hidden aria-label="Consumption drivers">
+            <div class="reportStatementLayer reportStatementLayer--refarch" id="reportRefArchLayer" hidden>
+              <header class="reportStatementLayerHead">
+                <div>
+                  <h3 class="reportStatementLayerTitle">Reference architecture</h3>
+                  <p class="reportStatementLayerLead muted">List-price tariff benchmark — not invoice spend.</p>
+                </div>
+                <span class="reportStatementLayerBadge">Not invoice</span>
+              </header>
+            <div class="heroMetricGrid reportFinBenchmarkKpi" id="reportBenchmarkRow" aria-label="Reference architecture">
+              <article class="heroMetric" id="heroCatalogTotalCard">
+                <span class="heroMetricLabel"><span class="costPill costPill--market">Ref. Arch.</span> · Tariff</span>
+                <span class="heroMetricValue" id="hero_catalog_total">—</span>
+                <span class="heroMetricSub" id="hero_catalog_total_sub">Tokens × list USD/1M · benchmark only</span>
+              </article>
+              <article class="heroMetric" id="heroCatalogCard">
+                <span class="heroMetricLabel">Tariff variance</span>
+                <span class="heroMetricValue" id="hero_catalog_delta">—</span>
+                <span class="heroMetricSub" id="hero_catalog_sub">OpEx − Ref. Arch · Tariff</span>
+              </article>
+              <article class="heroMetric">
+                <span class="heroMetricLabel">Tariff schedule</span>
+                <span class="heroMetricValue heroMetricValue--text">List price</span>
+                <span class="heroMetricSub">From <a href="/prices">Tariff schedule</a> · configuration</span>
+              </article>
+            </div>
+            </div>
+
+            <div class="reportStatementLayer reportStatementLayer--volume" id="reportVolumeLayer" hidden>
+              <header class="reportStatementLayerHead">
+                <div>
+                  <h3 class="reportStatementLayerTitle">Consumption drivers</h3>
+                  <p class="reportStatementLayerLead muted">Imported token CSV volume — no implied invoice amount.</p>
+                </div>
+              </header>
+            <div class="heroMetricGrid reportFinVolumeKpi" id="reportVolumeRow" aria-label="Consumption drivers">
               <article class="heroMetric">
                 <span class="heroMetricLabel">Input tokens</span>
                 <span class="heroMetricValue" id="hero_input_tokens">—</span>
@@ -170,10 +190,11 @@
                 <span class="heroMetricSub" id="hero_output_sub">—</span>
               </article>
               <article class="heroMetric">
-                <span class="heroMetricLabel">Consumption</span>
-                <span class="heroMetricValue heroMetricValue--text">OpEx drivers</span>
+                <span class="heroMetricLabel">Total volume</span>
+                <span class="heroMetricValue heroMetricValue--text">Token CSV</span>
                 <span class="heroMetricSub" id="hero_volume_note">Imported CSV volume · consumption drivers</span>
               </article>
+            </div>
             </div>
             <div id="reportQualityStrip" class="qualityStrip" hidden aria-label="Data coverage"></div>
             <details class="reportKpiDetails">
@@ -303,7 +324,7 @@
               <span class="reportStep">4</span>
               <div class="reportExecutiveHead">
                 <h2 class="reportSectionTitle">By model</h2>
-                <p class="reportSectionLead muted"><span class="costPill costPill--actual">OpEx</span> meter billing vs <span class="costPill costPill--market">Reference · Tariff</span> list price.</p>
+                <p class="reportSectionLead muted"><span class="costPill costPill--actual">OpEx</span> meter billing vs <span class="costPill costPill--market">Ref. Arch · Tariff</span> benchmark.</p>
                 <span id="reportExecutiveHint" class="executiveHint muted"></span>
               </div>
             </div>
@@ -325,7 +346,7 @@
               <div class="rowsToolbar">
                 <div>
                   <h3 class="panelTitle">Cost by model</h3>
-                  <p class="tableNote panelDesc"><span class="costPill costPill--actual">OpEx</span> inp/opt billing · <span class="costPill costPill--market">Tariff</span> catalog total.</p>
+                  <p class="tableNote panelDesc"><span class="costPill costPill--actual">OpEx</span> inp/opt billing · <span class="costPill costPill--market">Ref. Arch · Tariff</span> benchmark.</p>
                 </div>
               </div>
               <div class="tableScroll reportTableScroll reportModelTableScroll">
@@ -334,15 +355,15 @@
                     <tr class="costColGroupRow">
                       <th colspan="1" scope="colgroup" class="colGroupMeta"></th>
                       <th colspan="3" scope="colgroup" class="colGroupActual"><span class="costPill costPill--actual">OpEx · Meter</span></th>
-                      <th colspan="1" scope="colgroup" class="colGroupMarket"><span class="costPill costPill--market">Reference · Tariff</span></th>
+                      <th colspan="1" scope="colgroup" class="colGroupMarket"><span class="costPill costPill--market">Ref. Arch · Tariff</span></th>
                       <th colspan="2" scope="colgroup" class="colGroupMeta"></th>
                     </tr>
                     <tr>
                       <th scope="col">Model</th>
-                      <th class="num colCostActual" scope="col"><span class="costPill costPill--actual">Actual</span><span class="thLabel">Input</span></th>
-                      <th class="num colCostActual" scope="col"><span class="costPill costPill--actual">Actual</span><span class="thLabel">Output</span></th>
-                      <th class="num colCostActual" scope="col"><span class="costPill costPill--actual">Actual</span><span class="thLabel">Total</span></th>
-                      <th class="num colCostMarket" scope="col"><span class="costPill costPill--market">Market</span><span class="thLabel">Total</span></th>
+                      <th class="num colCostActual" scope="col"><span class="costPill costPill--actual">OpEx</span><span class="thLabel">Input</span></th>
+                      <th class="num colCostActual" scope="col"><span class="costPill costPill--actual">OpEx</span><span class="thLabel">Output</span></th>
+                      <th class="num colCostActual" scope="col"><span class="costPill costPill--actual">OpEx</span><span class="thLabel">Total</span></th>
+                      <th class="num colCostMarket" scope="col"><span class="costPill costPill--market">Ref. Arch.</span><span class="thLabel">Total</span></th>
                       <th class="num" scope="col">Δ</th>
                       <th class="num" scope="col">Days</th>
                     </tr>
@@ -356,12 +377,12 @@
               <article class="card chartCard reportTrendCard reportExecChartCard">
                 <header class="reportChartHead reportChartHead--compact">
                   <h3 class="chartCardTitle">Daily comparison</h3>
-                  <p class="chartCardHint muted">OpEx billing vs Tariff reference</p>
+                  <p class="chartCardHint muted">OpEx billing vs Ref. Arch · Tariff benchmark</p>
                 </header>
                 <div class="chartCanvasHost chartPlot reportChartHost reportExecChartHost"><canvas id="reportMarketChart"></canvas></div>
                 <footer class="reportExecChartFoot muted" aria-label="Series key">
                   <span class="reportExecChartKey"><span class="reportExecChartSwatch reportExecChartSwatch--actual"></span>OpEx</span>
-                  <span class="reportExecChartKey"><span class="reportExecChartSwatch reportExecChartSwatch--market"></span>Tariff</span>
+                  <span class="reportExecChartKey"><span class="reportExecChartSwatch reportExecChartSwatch--market"></span>Ref. Arch · Tariff</span>
                 </footer>
               </article>
               <article class="card chartCard reportTrendCard reportExecChartCard">
@@ -572,7 +593,7 @@
     <script src="/static/js/forecasting.js?v=20260708-forecast"></script>
     <script src="/static/js/chart-plugins.js"></script>
     <script src="/static/js/chart-style.js?v=20260605-dates"></script>
-    <script src="/static/js/cost-semantics.js?v=20260708-by-model-key"></script>
+    <script src="/static/js/cost-semantics.js?v=20260708-ref-arch"></script>
     <script src="/static/js/dashboard-ui.js?v=20260605-datesort"></script>
     <script src="/static/js/date-range-picker.js?v=20260606-drp"></script>
     <script src="/static/js/dashboard-interactions.js?v=20260707-ui"></script>
@@ -859,7 +880,7 @@
         if (hint) {
           const unpriced = catalog.unpriced_models || [];
           let hintText = unpriced.length
-            ? `${models.length} models · ${projCount} projects · ${unpriced.length} without Market price`
+            ? `${models.length} models · ${projCount} projects · ${unpriced.length} without Ref. Arch · Tariff`
             : `${models.length} models · ${projCount} projects with token imports`;
           const tokenOnly = _modelsTokenOnlyNoBilling(daily);
           if (tokenOnly.length) {
@@ -1105,9 +1126,12 @@
         set('hero_period_sub', report?.currency ? `${report.currency} · in-scope dates` : 'Data range in scope');
 
         const benchmarkRow = document.getElementById('reportBenchmarkRow');
+        const refArchLayer = document.getElementById('reportRefArchLayer');
         const opexCompositionRow = document.getElementById('reportOpexCompositionRow');
+        const opexCompositionLayer = document.getElementById('reportOpexCompositionLayer');
         const catalogAvailable = cm?.available === true;
         if (benchmarkRow) benchmarkRow.hidden = !catalogAvailable;
+        if (refArchLayer) refArchLayer.hidden = !catalogAvailable;
 
         const meter = summary.total_meter_cost_usd;
         const platform = summary.billing_other_usd;
@@ -1115,6 +1139,7 @@
         const hasMeter = meter != null && Number(meter) > 0;
         const hasPlatform = platform != null && Number(platform) > 0;
         if (opexCompositionRow) opexCompositionRow.hidden = !hasMeter && !hasPlatform;
+        if (opexCompositionLayer) opexCompositionLayer.hidden = !hasMeter && !hasPlatform;
         if (hasMeter) {
           set('hero_opex_meter', fmtCost(meter));
           const sub = document.getElementById('hero_opex_meter_sub');
@@ -1132,19 +1157,21 @@
         if (catalogAvailable && summary.total_catalog_cost_usd != null) {
           set('hero_catalog_total', fmtCost(summary.total_catalog_cost_usd));
           const sub = document.getElementById('hero_catalog_total_sub');
-          if (sub) sub.textContent = 'Tokens × list USD/1M · reference only';
+          if (sub) sub.textContent = 'Tokens × list USD/1M · benchmark only';
         }
 
         if (catalogAvailable && summary.variance_pct != null) {
           set('hero_catalog_delta', fmtPct(summary.variance_pct));
           const sub = document.getElementById('hero_catalog_sub');
           if (sub) {
-            sub.textContent = `${fmtCost(summary.variance_usd)} vs Tariff ${fmtCost(summary.total_catalog_cost_usd)}`;
+            sub.textContent = `${fmtCost(summary.variance_usd)} vs Ref. Arch · Tariff ${fmtCost(summary.total_catalog_cost_usd)}`;
           }
         }
 
         const volumeRow = document.getElementById('reportVolumeRow');
+        const volumeLayer = document.getElementById('reportVolumeLayer');
         if (volumeRow) volumeRow.hidden = !imported;
+        if (volumeLayer) volumeLayer.hidden = !imported;
 
         const inTok = imported ? t.input_tokens_total : null;
         const outTok = imported ? t.output_tokens_total : null;

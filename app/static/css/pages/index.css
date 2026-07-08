@@ -495,6 +495,42 @@
   margin-top: 6px;
 }
 
+.costStatementLayer {
+  scroll-margin-top: 76px;
+}
+
+.costStatementLayer--opex {
+  padding-top: 4px;
+}
+
+.costStatementLayer--refarch {
+  padding-top: calc(var(--cost-gutter) + 4px);
+  border-top: 1px solid rgba(173, 196, 228, 0.12);
+  margin-top: 4px;
+}
+
+.costStatementLayerTag {
+  margin: 0 0 6px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--cost-text-muted, #7d92ab);
+}
+
+.costStatementLayerBadge {
+  flex-shrink: 0;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgba(var(--cost-market-rgb), 0.95);
+  border: 1px solid rgba(var(--cost-market-rgb), 0.28);
+  background: rgba(var(--cost-market-rgb), 0.08);
+}
+
 .costRunRateSubzone {
   min-width: 0;
 }

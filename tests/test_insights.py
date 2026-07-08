@@ -27,7 +27,7 @@ def test_market_variance_below_market():
     cards = compute_cost_insights(project="p1", points=[], catalog_market=catalog)
     market = next(c for c in cards if c.id == "market_variance")
     assert market.severity == "info"
-    assert "Below Market" in market.title
+    assert "Below Ref. Arch · Tariff" in market.title
     assert market.metrics["variance_pct"] == -12.5
 
 
@@ -44,7 +44,7 @@ def test_market_variance_above_market_watch():
     cards = compute_cost_insights(project="p1", points=[], catalog_market=catalog)
     market = next(c for c in cards if c.id == "market_variance")
     assert market.severity == "watch"
-    assert "Above Market" in market.title
+    assert "Above Ref. Arch · Tariff" in market.title
 
 
 def test_billing_other_insight():

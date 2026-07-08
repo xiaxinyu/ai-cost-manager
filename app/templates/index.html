@@ -6,7 +6,7 @@
     <title>Cost - Models Cost Management</title>
     <link rel="stylesheet" href="/static/css/app-shell.css" />
     <link rel="stylesheet" href="/static/css/page-common.css" />
-    <link rel="stylesheet" href="/static/css/pages/index.css?v=20260708-dash-polish" />
+    <link rel="stylesheet" href="/static/css/pages/index.css?v=20260708-ref-arch" />
     <link rel="stylesheet" href="/static/css/layout-pro.css" />
     <link rel="stylesheet" href="/static/css/dashboard-shared.css?v=20260708-dash-polish" />
     <link rel="stylesheet" href="/static/css/date-range-picker.css?v=20260606-drp" />
@@ -28,7 +28,7 @@
                 </p>
                 <div class="costLegendRow muted" aria-label="Cost semantics">
                   <span class="costPill costPill--actual">OpEx</span>
-                  <span class="costPill costPill--market">Reference</span>
+                  <span class="costPill costPill--market">Ref. Arch.</span>
                   <span class="costPill costPill--platform">Platform</span>
                 </div>
               </div>
@@ -72,7 +72,7 @@
             <span class="dashSectionNavLabel muted">Statement</span>
             <a class="dashSectionNavLink" href="#cost-summary">Overview</a>
             <a class="dashSectionNavLink" href="#cost-trends">Run Rate</a>
-            <a class="dashSectionNavLink" href="#cost-tariff-reference">Tariff</a>
+            <a class="dashSectionNavLink" href="#cost-tariff-reference">Ref. Arch.</a>
             <a class="dashSectionNavLink" href="#costBreakdownSection">Allocation</a>
           </nav>
 
@@ -119,7 +119,8 @@
                   </article>
                 </div>
 
-                <div class="costMonitorKpi costFinOpexCompositionKpi" id="costOpexCompositionRow" hidden aria-label="OpEx composition">
+                <div class="costMonitorKpi costFinOpexCompositionKpi costStatementLayer costStatementLayer--opex" id="costOpexCompositionRow" hidden aria-label="OpEx composition">
+                  <p class="costStatementLayerTag muted">Actual billing · composition</p>
                   <article class="monitorKpi monitorKpi--actual">
                     <div class="stat">
                       <div class="label"><span class="costPill costPill--actual">OpEx</span> · Meter</div>
@@ -143,29 +144,34 @@
                   </article>
                 </div>
 
-                <div id="cost-tariff-reference" class="costStatementSubzone costTariffSubzone" hidden aria-label="Tariff reference">
-                  <h3 class="costSubzoneTitle">Tariff reference</h3>
-                  <p class="costSubzoneLead muted">List-price benchmark — reference only, not invoice spend.</p>
-                  <div class="costMonitorKpi costFinBenchmarkKpi" id="costBenchmarkRow" aria-label="Tariff benchmark">
+                <div id="cost-tariff-reference" class="costStatementSubzone costTariffSubzone costStatementLayer costStatementLayer--refarch" hidden aria-label="Reference architecture">
+                  <div class="costSubzoneHead">
+                    <div>
+                      <h3 class="costSubzoneTitle">Reference architecture</h3>
+                      <p class="costSubzoneLead muted">List-price tariff benchmark — not invoice spend.</p>
+                    </div>
+                    <span class="costStatementLayerBadge">Not invoice</span>
+                  </div>
+                  <div class="costMonitorKpi costFinBenchmarkKpi" id="costBenchmarkRow" aria-label="Reference architecture benchmark">
                     <article class="monitorKpi monitorKpi--market" id="catalogMarketCard" data-dash-jump="#cost-by-model" title="Jump to model allocation">
                       <div class="stat">
-                        <div class="label"><span class="costPill costPill--market">Reference</span> · Tariff</div>
+                        <div class="label"><span class="costPill costPill--market">Ref. Arch.</span> · Tariff</div>
                         <div class="value" id="catalogMarketTotal">-</div>
-                        <div class="sub tokenStats kpiFootnote" id="catalogMarketNote">Tokens × list USD/1M</div>
+                        <div class="sub tokenStats kpiFootnote" id="catalogMarketNote">Tokens × list USD/1M · benchmark only</div>
                       </div>
                     </article>
                     <article class="monitorKpi monitorKpi--delta monitorKpi--neutral" id="catalogVarianceCard">
                       <div class="stat">
-                        <div class="label">Variance</div>
+                        <div class="label">Tariff variance</div>
                         <div class="value value--md" id="catalogVariancePct">-</div>
-                        <div class="sub tokenStats kpiFootnote" id="catalogVarianceNote">OpEx − Tariff</div>
+                        <div class="sub tokenStats kpiFootnote" id="catalogVarianceNote">OpEx − Ref. Arch · Tariff</div>
                       </div>
                     </article>
                     <article class="monitorKpi monitorKpi--neutral monitorKpi--meta">
                       <div class="stat">
-                        <div class="label">Rate card</div>
+                        <div class="label">Tariff schedule</div>
                         <div class="value value--md value--text">List price</div>
-                        <div class="sub tokenStats kpiFootnote">From <a href="/prices">Model Prices</a> · not capital assets</div>
+                        <div class="sub tokenStats kpiFootnote">From <a href="/prices">Tariff schedule</a> · configuration</div>
                       </div>
                     </article>
                   </div>
@@ -216,7 +222,7 @@
                     <h3 class="detailTableTitle">By model</h3>
                     <p class="detailTableDesc muted modelTableHint">
                       Model rows = token meter (Input / Output / Meter); <span class="costPill costPill--platform">OpEx · Platform</span> = <b>Others · …</b>.
-                      Tariff column = list USD/1M from <a href="/prices">Model Prices</a> (reference).
+                      <span class="costPill costPill--market">Ref. Arch · Tariff</span> = list USD/1M from <a href="/prices">Tariff schedule</a> (benchmark, not invoice).
                     </p>
                   </div>
                   <div class="detailTableActions">
@@ -231,7 +237,7 @@
                       <tr>
                         <th scope="col" class="sortable" data-sort-key="model_name">Model</th>
                         <th scope="col" class="colCostMarket colCostMarketMeta">
-                          <span class="costPill costPill--market">Tariff</span>
+                          <span class="costPill costPill--market">Ref. Arch.</span>
                           <span class="thLabel">List rate</span><span class="thUnit">USD/1M</span>
                         </th>
                         <th class="num sortable colCostActual" scope="col" data-sort-key="input_cost_usd">
@@ -244,7 +250,7 @@
                           <span class="thLabel">Meter</span><span class="thUnit">USD</span>
                         </th>
                         <th class="num sortable colCostMarket" scope="col" data-sort-key="catalog_cost_usd">
-                          <span class="thLabel">Tariff</span><span class="thUnit">USD</span>
+                          <span class="thLabel">Ref. Arch · Tariff</span><span class="thUnit">USD</span>
                         </th>
                         <th class="num sortable" scope="col" data-sort-key="variance_pct">
                           <span class="thLabel">Δ</span><span class="thUnit">%</span>
@@ -329,8 +335,8 @@
                           <th class="num" scope="col">Output</th>
                           <th class="num colCostActual" scope="col"><span class="thLabel">Input</span><span class="thUnit">USD</span></th>
                           <th class="num colCostActual" scope="col"><span class="thLabel">Output</span><span class="thUnit">USD</span></th>
-                          <th class="num colCostActual" scope="col"><span class="thLabel">Actual</span><span class="thUnit">USD</span></th>
-                          <th class="num colCostMarket" scope="col"><span class="thLabel">Market</span><span class="thUnit">USD</span></th>
+                          <th class="num colCostActual" scope="col"><span class="thLabel">OpEx</span><span class="thUnit">USD</span></th>
+                          <th class="num colCostMarket" scope="col"><span class="thLabel">Ref. Arch · Tariff</span><span class="thUnit">USD</span></th>
                           <th class="num" scope="col"><span class="thLabel">Δ</span><span class="thUnit">%</span></th>
                           <th scope="col">Billing</th>
                           <th class="num colCostActual" scope="col"><span class="thLabel">$/1M in</span></th>
@@ -476,7 +482,7 @@
     <script src="/static/js/http.js"></script>
     <script src="/static/js/chart-plugins.js"></script>
     <script src="/static/js/chart-style.js?v=20260605-dates"></script>
-    <script src="/static/js/cost-semantics.js?v=20260708-daily-line"></script>
+    <script src="/static/js/cost-semantics.js?v=20260708-ref-arch"></script>
     <script src="/static/js/dashboard-ui.js?v=20260707-detail"></script>
     <script src="/static/js/dashboard-interactions.js?v=20260707-ui"></script>
     <script src="/static/js/billing-detail-table.js?v=20260707-detail"></script>
@@ -948,7 +954,7 @@
           if (catalogMarketNoteEl) {
             const reason = catalogPayload?.reason === 'no_token_volume'
               ? 'Import token CSVs or configure a model on Tokens.'
-              : 'No Market data for this scope.';
+              : 'No Ref. Arch · Tariff data for this scope.';
             catalogMarketNoteEl.textContent = reason;
           }
           if (catalogVariancePctEl) catalogVariancePctEl.textContent = '—';
@@ -977,10 +983,10 @@
         const totalCat = summary.total_catalog_cost_usd;
         if (catalogMarketTotalEl) catalogMarketTotalEl.textContent = fmt2(totalCat);
         const src = catalogPayload.token_data_source === 'imported' ? 'Imported tokens' : 'Estimated tokens';
-        let note = `${src} × Market USD/1M`;
+        let note = `${src} × list USD/1M`;
         const unpriced = catalogPayload.unpriced_models || [];
         if (unpriced.length) {
-          note += ` · ${unpriced.length} model(s) without Market price`;
+          note += ` · ${unpriced.length} model(s) without Ref. Arch · Tariff`;
         }
         if (catalogMarketNoteEl) catalogMarketNoteEl.textContent = note;
 
@@ -1003,8 +1009,8 @@
         if (catalogVarianceNoteEl) {
           catalogVarianceNoteEl.textContent =
             vUsd === null || vUsd === undefined
-              ? 'OpEx − Tariff'
-              : `Δ ${fmt2(vUsd)} (OpEx − Tariff)`;
+              ? 'OpEx − Ref. Arch · Tariff'
+              : `Δ ${fmt2(vUsd)} (OpEx − Ref. Arch · Tariff)`;
         }
 
         renderModelCostSection(catalogPayload);
@@ -1128,7 +1134,7 @@
           const unpriced = catalogPayload.unpriced_models || [];
           const other = catalogPayload?.summary?.billing_other_usd;
           let hint = unpriced.length
-            ? `${n} model(s) · ${unpriced.length} without Market match`
+            ? `${n} model(s) · ${unpriced.length} without Ref. Arch · Tariff`
             : `${n} model(s) in scope`;
           if (other != null && Number(other) > 0) {
             hint += ` · ${fmt2(other)} other billing (Defender, network, etc.)`;
@@ -1174,7 +1180,7 @@
           : '';
         const fuzzy =
           src.match_kind && src.match_kind !== 'exact'
-            ? '<span class="catalogRateFuzzy" title="Fuzzy Market match">~</span>'
+            ? '<span class="catalogRateFuzzy" title="Fuzzy tariff schedule match">~</span>'
             : '';
         return `<div class="catalogRate" title="${fullRate}"><span class="catalogRateDir">${dir}</span><span class="catalogRateName">${name}</span><span class="catalogRateVal mono">${rate}</span>${tier}${fuzzy}</div>`;
       }
@@ -1183,7 +1189,7 @@
         const inp = row.catalog_price_input;
         const out = row.catalog_price_output;
         if (!inp && !out) {
-          return '<span class="catalogRateEmpty muted">No Market match</span>';
+          return '<span class="catalogRateEmpty muted">No tariff schedule match</span>';
         }
         return `<div class="catalogRates">${fmtCatalogPriceLine(inp, 'In')}${fmtCatalogPriceLine(out, 'Out')}</div>`;
       }

@@ -41,10 +41,17 @@
   const tariff = {
     color: "#c084fc",
     rgb: "192,132,252",
-    label: "Reference · Tariff",
-    shortLabel: "Tariff",
-    subtitle: "List price benchmark",
-    hint: "By model table — Tariff column (list USD/1M; not invoice)",
+    label: "Ref. Arch · Tariff",
+    shortLabel: "Ref. Arch · Tariff",
+    layerLabel: "Ref. Arch.",
+    sectionTitle: "Reference architecture",
+    sectionLead: "List-price tariff benchmark — not invoice spend.",
+    varianceLabel: "Tariff variance",
+    varianceHint: "OpEx − Ref. Arch · Tariff",
+    rateCardLabel: "Tariff schedule",
+    rateCardValue: "List price",
+    subtitle: "List-price benchmark",
+    hint: "Tariff column — list USD/1M from Model Prices (not invoice)",
     pillClass: "costPill--market",
     colClass: "colCostMarket",
     tdClass: "tdCostMarket",
@@ -52,7 +59,7 @@
 
   /** Backward-compatible aliases for chart/table code still using actual/market. */
   const actual = { ...opex, label: "OpEx", shortLabel: "OpEx" };
-  const market = { ...tariff, label: "Reference · Tariff", shortLabel: "Tariff" };
+  const market = { ...tariff };
 
   const KIND_MAP = {
     opex,
@@ -68,10 +75,12 @@
     return KIND_MAP[k] || opex;
   }
 
-  function pill(kind, { dashed = false, short = false } = {}) {
+  function pill(kind, { dashed = false, variant = "full" } = {}) {
     const k = meta(kind);
     const cls = `${k.pillClass}${dashed && k === tariff ? " costPill--dashed" : ""}`;
-    const text = short ? k.shortLabel : k.label;
+    let text = k.label;
+    if (variant === "layer") text = k.layerLabel || k.shortLabel;
+    else if (variant === "short") text = k.shortLabel;
     return `<span class="costPill ${cls}" title="${k.hint}">${text}</span>`;
   }
 
@@ -109,7 +118,7 @@
     if (hasTariff) {
       rows.push({
         kind: "tariff",
-        text: "<b>Tariff</b> column · list USD/1M benchmark (<a href=\"/prices\">Model Prices</a>)",
+        text: "<b>Ref. Arch · Tariff</b> column · list USD/1M (<a href=\"/prices\">Tariff schedule</a>)",
       });
     }
     if (!rows.length) return "";
@@ -118,7 +127,7 @@
         (r) =>
           `<div class="costBillingKeyRow">${pill(r.kind, {
             dashed: r.kind === "tariff",
-            short: r.kind === "meter",
+            variant: r.kind === "meter" ? "short" : r.kind === "tariff" ? "layer" : "full",
           })}<span class="costBillingKeyText">${r.text}</span></div>`
       )
       .join("");

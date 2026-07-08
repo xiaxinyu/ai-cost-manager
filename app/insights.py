@@ -105,22 +105,22 @@ def _market_variance_insight(catalog: dict[str, Any] | None) -> InsightCard | No
         return None
     if v_pct is not None and v_pct < -5:
         severity = "info"
-        title = "Below Market list"
+        title = "Below Ref. Arch · Tariff"
         summary = (
-            f"Actual {_fmt_cost(actual)} is {_fmt_pct(v_pct)} vs Market {_fmt_cost(market)} "
+            f"OpEx {_fmt_cost(actual)} is {_fmt_pct(v_pct)} vs Ref. Arch · Tariff {_fmt_cost(market)} "
             f"({_fmt_cost(v_usd)} gap)."
         )
     elif v_pct is not None and v_pct > 5:
         severity = "watch"
-        title = "Above Market list"
+        title = "Above Ref. Arch · Tariff"
         summary = (
-            f"Actual {_fmt_cost(actual)} exceeds Market {_fmt_cost(market)} by {_fmt_pct(v_pct)} "
+            f"OpEx {_fmt_cost(actual)} exceeds Ref. Arch · Tariff {_fmt_cost(market)} by {_fmt_pct(v_pct)} "
             f"({_fmt_cost(v_usd)})."
         )
     else:
         severity = "info"
-        title = "Aligned with Market"
-        summary = f"Actual {_fmt_cost(actual)} vs Market {_fmt_cost(market)} ({_fmt_pct(v_pct)})."
+        title = "Aligned with Ref. Arch · Tariff"
+        summary = f"OpEx {_fmt_cost(actual)} vs Ref. Arch · Tariff {_fmt_cost(market)} ({_fmt_pct(v_pct)})."
     return InsightCard(
         id="market_variance",
         category="market",
@@ -149,10 +149,10 @@ def _unpriced_models_insight(catalog: dict[str, Any] | None) -> InsightCard | No
         id="unpriced_models",
         category="market",
         severity="watch" if n >= 2 else "info",
-        title="Models without Market price",
-        summary=f"{n} model(s) lack catalog USD/1M — Market totals exclude them ({sample}{more}).",
+        title="Models without Ref. Arch · Tariff",
+        summary=f"{n} model(s) lack catalog USD/1M — Ref. Arch · Tariff totals exclude them ({sample}{more}).",
         metrics={"count": n, "models": unpriced[:8]},
-        recommendation="Add or sync prices on Model Prices for complete Market comparison.",
+        recommendation="Add or sync prices on Tariff schedule for complete Ref. Arch · Tariff comparison.",
     )
 
 
@@ -172,7 +172,7 @@ def _meter_coverage_insight(cost_meta: dict[str, Any] | None) -> InsightCard | N
         category="quality",
         severity=severity,
         title="Meter match coverage",
-        summary=f"{matched}/{total} model-days ({pct:.0f}%) have meter-matched Actual cost.",
+        summary=f"{matched}/{total} model-days ({pct:.0f}%) have meter-matched OpEx cost.",
         metrics={"matched": matched, "total": total, "pct": round(pct, 1)},
         recommendation=None if pct >= 80 else "Review billing meters or model names on unmatched rows.",
     )
@@ -379,11 +379,11 @@ def _missing_token_csv_insight(
         severity="watch",
         title="No imported token CSV",
         summary=(
-            f"Billing exists{proj} but token CSV is missing — Market and $/1M insights need "
+            f"Billing exists{proj} but token CSV is missing — Ref. Arch · Tariff and $/1M insights need "
             "bills/<project>/token/ imports."
         ),
         metrics={"token_data_source": token_data_source},
-        recommendation="Import token CSV via Import page to unlock token and Market analysis.",
+        recommendation="Import token CSV via Import page to unlock token and Ref. Arch · Tariff analysis.",
     )
 
 
@@ -425,8 +425,8 @@ def _unit_price_drift_insight(daily_by_model: list[dict[str, Any]]) -> InsightCa
         id="unit_price_drift",
         category="market",
         severity="info",
-        title="Unit price vs Market",
-        summary=f"Latest {name}: {' · '.join(bits)} vs Market USD/1M.",
+        title="Unit price vs Ref. Arch · Tariff",
+        summary=f"Latest {name}: {' · '.join(bits)} vs Ref. Arch · Tariff USD/1M.",
         metrics={"model": name, "in_pct": pin, "out_pct": pout, "models_compared": len(drifts)},
     )
 
