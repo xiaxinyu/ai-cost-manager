@@ -6,7 +6,7 @@
     <title>Cost - Models Cost Management</title>
     <link rel="stylesheet" href="/static/css/app-shell.css" />
     <link rel="stylesheet" href="/static/css/page-common.css" />
-    <link rel="stylesheet" href="/static/css/pages/index.css?v=20260708-finlayout" />
+    <link rel="stylesheet" href="/static/css/pages/index.css?v=20260708-model-bars" />
     <link rel="stylesheet" href="/static/css/layout-pro.css" />
     <link rel="stylesheet" href="/static/css/dashboard-shared.css?v=20260708-opex-unified" />
     <link rel="stylesheet" href="/static/css/date-range-picker.css?v=20260606-drp" />
@@ -277,26 +277,26 @@
               <div class="costModelCharts costMonitorGrid" id="costModelChartsRow" aria-label="Model spend trends" hidden>
                 <article class="card monitorCard" id="inputModelChartCard" hidden>
                   <header class="monitorCardHead">
-                    <div>
+                    <div class="monitorCardHeadMain">
                       <h3 class="monitorCardTitle">Input by model</h3>
-                      <p class="monitorCardDesc muted">Meter input (inp) per day.</p>
+                      <p class="monitorCardDesc muted">By model table · <b>Input</b> USD column — stacked inp meter per day (same style as Daily spend).</p>
                     </div>
-                    <span class="costPill costPill--actual">Actual</span>
+                    <span class="costPill costPill--actual">Meter</span>
                   </header>
-                  <div class="chartCanvasHost monitorChartHost" data-chart-host>
+                  <div class="chartCanvasHost monitorChartHost monitorChartHost--stacked" data-chart-host>
                     <canvas id="timeseriesChartInputByModel" role="img" aria-label="Input cost by model"></canvas>
                   </div>
                   <footer class="monitorCardFoot muted" id="inputModelChartFootnote" hidden></footer>
                 </article>
                 <article class="card monitorCard" id="outputModelChartCard" hidden>
                   <header class="monitorCardHead">
-                    <div>
+                    <div class="monitorCardHeadMain">
                       <h3 class="monitorCardTitle">Output by model</h3>
-                      <p class="monitorCardDesc muted">Meter output (opt) per day.</p>
+                      <p class="monitorCardDesc muted">By model table · <b>Output</b> USD column — stacked opt meter per day (same style as Daily spend).</p>
                     </div>
-                    <span class="costPill costPill--actual">Actual</span>
+                    <span class="costPill costPill--actual">Meter</span>
                   </header>
-                  <div class="chartCanvasHost monitorChartHost" data-chart-host>
+                  <div class="chartCanvasHost monitorChartHost monitorChartHost--stacked" data-chart-host>
                     <canvas id="timeseriesChartOutputByModel" role="img" aria-label="Output cost by model"></canvas>
                   </div>
                   <footer class="monitorCardFoot muted" id="outputModelChartFootnote" hidden></footer>
@@ -655,23 +655,25 @@
         return CHART_OPTS?.pointRadiusForCount?.(labelCount, { sparse: 2, dense: 0 }) ?? 2;
       }
 
-      function _updateModelDirChartFootnotes(dailyByModel, valueKey, footnoteEl, modelCount) {
+      function _updateModelDirChartFootnotes(dailyByModel, valueKey, footnoteEl, modelCount, totalUsd) {
         if (!footnoteEl) return;
         const billedDays = _billedDatesForDir(dailyByModel, valueKey).length;
+        const dirLabel = valueKey === 'output_cost_usd' ? 'Output' : 'Input';
         const parts = [];
+        if (Number.isFinite(totalUsd) && totalUsd > 0) {
+          parts.push(`Total ${dirLabel} USD: <strong>${fmt2(totalUsd)}</strong>`);
+        }
         if (modelCount > 0) {
           parts.push(
             modelCount === 1
-              ? '1 model with meter billing in this chart.'
-              : `${modelCount} models with meter billing in this chart.`
+              ? '1 model · stacked bars'
+              : `${modelCount} models · stacked bars`
           );
         }
-        if (billedDays > 0 && billedDays < MODEL_CHART_SMOOTH_MIN_DAYS) {
-          parts.push(
-            `${billedDays} billed day(s) — straight segments, visible points (no curve smoothing).`
-          );
+        if (billedDays > 0) {
+          parts.push(`${billedDays} billed day(s)`);
         }
-        footnoteEl.textContent = parts.join(' ');
+        footnoteEl.innerHTML = parts.join(' · ');
         footnoteEl.hidden = !footnoteEl.textContent;
       }
 
@@ -1588,8 +1590,8 @@
       function _buildModelDirCostChart(dailyByModel, valueKey) {
         const models = _modelsWithDirCost(dailyByModel, valueKey);
         const labels = _billedDatesForDir(dailyByModel, valueKey);
-        const tension = _chartLineTension(labels.length);
-        const datasets = models.map((model, idx) => {
+        const stackId = valueKey === 'output_cost_usd' ? 'output' : 'input';
+        const barDatasets = models.map((model, idx) => {
           const col = MODEL_CHART_COLORS[idx % MODEL_CHART_COLORS.length];
           const byDate = new Map(
             (dailyByModel || [])
@@ -1600,43 +1602,59 @@
             const v = byDate.get(d);
             return v === null || v === undefined ? null : window.AppMoney?.roundCost(v);
           });
+          const bg = col.fill.replace(/0\.1[24]/, '0.55');
           return {
             label: model,
             data,
+            backgroundColor: bg,
             borderColor: col.border,
-            backgroundColor: col.fill,
-            fill: false,
-            tension,
-            pointRadius: 2,
-            pointHoverRadius: 4,
-            borderWidth: 2,
-            spanGaps: false,
+            borderWidth: 1,
+            borderRadius: 4,
+            maxBarThickness: 32,
+            stack: stackId,
             unitType: 'currency',
           };
         });
-        return { labels, datasets, models };
+        return { labels, datasets: barDatasets, models, stackId };
+      }
+
+      function _dirCostChartTotal(datasets) {
+        let sum = 0;
+        for (const ds of datasets || []) {
+          for (const v of ds.data || []) {
+            if (v != null && Number.isFinite(Number(v))) sum += Number(v);
+          }
+        }
+        return sum;
       }
 
       function _renderDirCostChart(canvasId, existingChart, dailyByModel, valueKey, emptyMsg, footnoteEl) {
-        const { labels, datasets, models } = _buildModelDirCostChart(dailyByModel, valueKey);
+        const { labels, datasets, models, stackId } = _buildModelDirCostChart(dailyByModel, valueKey);
         if (existingChart) existingChart.destroy();
         const ctx = document.getElementById(canvasId)?.getContext('2d');
         if (!ctx) return null;
-        const ptR = _modelChartPointRadius(labels.length);
-        const styled = datasets.map((ds) => ({ ...ds, pointRadius: ptR, pointHoverRadius: 5 }));
-        _updateModelDirChartFootnotes(dailyByModel, valueKey, footnoteEl, models.length);
+        const lineOpts = buildCostLineOptions({
+          labelCount: labels.length,
+          showLegend: models.length > 0,
+          legendVariant: 'compact',
+          tooltipCallbacks: {
+            title: (items) => (items?.[0] ? String(labels[items[0].dataIndex] ?? '') : ''),
+            label: tooltipLabelForValue,
+          },
+        });
+        const total = _dirCostChartTotal(datasets);
+        _updateModelDirChartFootnotes(dailyByModel, valueKey, footnoteEl, models.length, total);
         return new Chart(ctx, {
-          type: 'line',
-          data: { labels, datasets: styled },
-          options: buildCostLineOptions({
-            labelCount: labels.length,
-            showLegend: models.length > 0,
-            legendVariant: 'compact',
-            tooltipCallbacks: {
-              title: (items) => (items?.[0] ? String(labels[items[0].dataIndex] ?? '') : ''),
-              label: tooltipLabelForValue,
+          type: 'bar',
+          data: { labels, datasets },
+          options: {
+            ...lineOpts,
+            scales: {
+              ...lineOpts.scales,
+              x: { ...lineOpts.scales?.x, stacked: true },
+              y: { ...lineOpts.scales?.y, stacked: true, beginAtZero: true },
             },
-          }),
+          },
           plugins: [emptyStatePlugin(emptyMsg), ...chartPluginsExtra()],
         });
       }
