@@ -505,6 +505,10 @@ def create_app(
         start_date: Optional[str] = Query(default=None, description="YYYY-MM-DD"),
         end_date: Optional[str] = Query(default=None, description="YYYY-MM-DD"),
         currency: Optional[str] = Query(default=None, description="Currency code"),
+        subproject: Optional[str] = Query(
+            default=None,
+            description="Optional subproject (Azure resource account name)",
+        ),
         _: str = Depends(_auth_dep),
     ) -> JSONResponse:
         start_date, end_date = _normalize_date_range(
@@ -513,6 +517,7 @@ def create_app(
             start_name="start_date",
             end_name="end_date",
         )
+        subproject_name = subproject.strip() if subproject else None
         conn = get_connection(db_path)
         try:
             payload = get_model_implied_usd_per_1m_analysis(
@@ -521,6 +526,7 @@ def create_app(
                 start_date=start_date,
                 end_date=end_date,
                 currency=currency,
+                subproject_name=subproject_name,
             )
             return JSONResponse(payload)
         finally:

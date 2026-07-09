@@ -1365,6 +1365,7 @@ def get_imported_token_daily_by_model(
         start_date=start_date,
         end_date=end_date,
         currency=currency,
+        subproject_name=subproject_name,
     )
     cost_by_key: dict[tuple[str, str], dict[str, object]] = {}
     for r in cost_rows:
@@ -1440,6 +1441,7 @@ def sum_transaction_cost_usd_for_model_day(
     token_model: str,
     token_direction: str,
     currency: str | None = None,
+    subproject_name: str | None = None,
 ) -> float:
     """
     Sum ``transactions.cost_usd`` for one calendar day, token model column, and direction.
@@ -1461,6 +1463,7 @@ def sum_transaction_cost_usd_for_model_day(
     if currency_filter:
         where.append("currency = ?")
         params.append(currency_filter)
+    _append_billing_subproject_filter(where, params, subproject_name)
     where_sql = " AND ".join(where)
     rows = conn.execute(
         f"""
@@ -1509,6 +1512,7 @@ def _meter_split_cost_for_model_day(
     usage_date: str,
     token_model: str,
     currency: str | None = None,
+    subproject_name: str | None = None,
 ) -> dict[str, object]:
     """
     Bill input/output USD for one model day from transaction ``Meter`` rows only.
@@ -1522,6 +1526,7 @@ def _meter_split_cost_for_model_day(
         token_model=token_model,
         token_direction="input",
         currency=currency,
+        subproject_name=subproject_name,
     )
     bill_out = sum_transaction_cost_usd_for_model_day(
         conn,
@@ -1530,6 +1535,7 @@ def _meter_split_cost_for_model_day(
         token_model=token_model,
         token_direction="output",
         currency=currency,
+        subproject_name=subproject_name,
     )
     meter_total = bill_in + bill_out
     if meter_total <= 0:
@@ -1559,6 +1565,7 @@ def get_imported_token_daily_cost_by_model(
     start_date: str | None = None,
     end_date: str | None = None,
     currency: str | None = None,
+    subproject_name: str | None = None,
 ) -> list[dict[str, object]]:
     """
     Per calendar day + model: split daily cost into input/output buckets.
@@ -1570,6 +1577,7 @@ def get_imported_token_daily_cost_by_model(
     """
     where = ["project_name = ?"]
     params: list[object] = [project_name]
+    _append_subproject_filter(where, params, subproject_name)
     if start_date:
         where.append("usage_date >= ?")
         params.append(start_date)
@@ -1638,6 +1646,7 @@ def get_imported_token_daily_cost_by_model(
                 usage_date=d,
                 token_model=model_name,
                 currency=chosen_currency,
+                subproject_name=subproject_name,
             )
             allocation_method = str(split["allocation_method"])
             in_cost = split.get("input_cost_usd")
@@ -1859,6 +1868,59 @@ def _float_stats(vals: list[float], *, money: bool = False) -> dict[str, float |
         "mean": r(_mean(vals)),
         "median": r(_median(vals)),
         "count": len(vals),
+    }
+
+
+def _period_effective_usd_per_1m_stats(
+    daily_rows: list[dict[str, object]],
+) -> dict[str, float | int | None]:
+    """
+    Period-weighted effective USD/1M: sum(meter cost) ÷ sum(tokens) per direction.
+
+    Unlike averaging daily implied rates, this matches finance-style unit economics
+    over the selected window.
+    """
+    input_cost = 0.0
+    output_cost = 0.0
+    input_tokens = 0.0
+    output_tokens = 0.0
+    matched_days = 0
+    for row in daily_rows:
+        method = str(row.get("allocation_method") or "")
+        if method not in {"meter_matched", "meter_matched_partial"}:
+            continue
+        in_tok = float(row.get("input_tokens") or 0.0)
+        out_tok = float(row.get("output_tokens") or 0.0)
+        in_raw = row.get("input_cost_usd")
+        out_raw = row.get("output_cost_usd")
+        if in_raw is not None and in_tok > 0:
+            input_cost += float(in_raw)
+            input_tokens += in_tok
+        if out_raw is not None and out_tok > 0:
+            output_cost += float(out_raw)
+            output_tokens += out_tok
+        if in_raw is not None or out_raw is not None:
+            matched_days += 1
+
+    usd_in: float | None = None
+    usd_out: float | None = None
+    usd_blend: float | None = None
+    if input_tokens > 0 and input_cost > 0:
+        usd_in = round_cost((input_cost / input_tokens) * TOKENS_PER_MILLION)
+    if output_tokens > 0 and output_cost > 0:
+        usd_out = round_cost((output_cost / output_tokens) * TOKENS_PER_MILLION)
+    total_tokens = input_tokens + output_tokens
+    total_cost = input_cost + output_cost
+    if total_tokens > 0 and total_cost > 0:
+        usd_blend = round_cost((total_cost / total_tokens) * TOKENS_PER_MILLION)
+
+    return {
+        "usd_per_1m_input": usd_in,
+        "usd_per_1m_output": usd_out,
+        "usd_per_1m_blended": usd_blend,
+        "input_tokens": int(input_tokens) if input_tokens > 0 else 0,
+        "output_tokens": int(output_tokens) if output_tokens > 0 else 0,
+        "matched_days": matched_days,
     }
 
 
@@ -2639,6 +2701,7 @@ def get_model_implied_usd_per_1m_analysis(
     start_date: str | None = None,
     end_date: str | None = None,
     currency: str | None = None,
+    subproject_name: str | None = None,
 ) -> dict[str, object]:
     """
     Implied USD per 1M tokens per model per day.
@@ -2658,6 +2721,7 @@ def get_model_implied_usd_per_1m_analysis(
 
     where = ["project_name = ?"]
     params: list[object] = [project_name]
+    _append_subproject_filter(where, params, subproject_name)
     if start_date:
         where.append("usage_date >= ?")
         params.append(start_date)
@@ -2757,6 +2821,7 @@ def get_model_implied_usd_per_1m_analysis(
                 usage_date=usage_date,
                 token_model=model_name,
                 currency=chosen_currency,
+                subproject_name=subproject_name,
             )
             alloc_method = str(split["allocation_method"])
             if alloc_method == "no_meter_match":
@@ -2785,6 +2850,8 @@ def get_model_implied_usd_per_1m_analysis(
                 {
                     "date": usage_date,
                     "cost_usd_allocated": round_cost(allocated_cost),
+                    "input_cost_usd": round_cost(bill_in) if bill_in > 0 else None,
+                    "output_cost_usd": round_cost(bill_out) if bill_out > 0 else None,
                     "input_tokens": in_tok,
                     "output_tokens": out_tok,
                     "total_tokens": model_total,
@@ -2803,13 +2870,18 @@ def get_model_implied_usd_per_1m_analysis(
     for model_name in sorted(models_seen):
         daily = model_daily.get(model_name, [])
         catalog = _catalog_usd_per_1m_for_model_name(conn, model_name)
+        period_effective = _period_effective_usd_per_1m_stats(daily)
         models_out.append(
             {
                 "model_name": model_name,
                 "catalog_usd_per_1m_input": catalog["input"],
                 "catalog_usd_per_1m_output": catalog["output"],
+                "period_effective_usd_per_1m_input": period_effective["usd_per_1m_input"],
+                "period_effective_usd_per_1m_output": period_effective["usd_per_1m_output"],
+                "period_effective_usd_per_1m_blended": period_effective["usd_per_1m_blended"],
                 "daily": daily,
                 "stats": {
+                    "period_effective": period_effective,
                     "input": _float_stats(
                         [float(d["usd_per_1m_input"]) for d in daily if d["usd_per_1m_input"] is not None],
                         money=True,

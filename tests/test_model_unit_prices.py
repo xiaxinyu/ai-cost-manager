@@ -103,6 +103,12 @@ def test_model_implied_usd_per_1m_daily_stats(tmp_path):
     st_codex = by_name["gpt-5.3-codex"]["stats"]["blended"]
     assert st_codex["count"] == 2
 
+    period = by_name["gpt-5.3-codex"]["stats"]["period_effective"]
+    assert period["usd_per_1m_input"] == round_cost(28.0 / 3_000_000 * 1_000_000)
+    assert period["usd_per_1m_output"] == round_cost(6.0 / 300_000 * 1_000_000)
+    assert by_name["gpt-5.4"]["period_effective_usd_per_1m_input"] == round_cost(5.0)
+    assert by_name["gpt-5.4"]["period_effective_usd_per_1m_output"] == round_cost(20.0)
+
 
 def test_project_daily_implied_usd_per_1m_timeseries(tmp_path):
     bills_dir = tmp_path / "bills"

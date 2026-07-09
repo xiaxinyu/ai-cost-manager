@@ -233,6 +233,81 @@ def test_variant_model_labels_still_bridge_and_daily_rows(tmp_path):
         conn.close()
 
 
+def _write_foundry_cost_with_resources(
+    path,
+    rows: list[tuple[str, str, float, str]],
+) -> None:
+    lines = [
+        '"UsageDate","ResourceId","ResourceType","ResourceLocation","ResourceGroupName",'
+        '"ServiceName","ServiceTier","Meter","CostUSD","Cost","Currency"'
+    ]
+    for usage_date, meter, cost, slug in rows:
+        rid = (
+            f"/subscriptions/x/resourcegroups/rg/providers/"
+            f"microsoft.cognitiveservices/accounts/{slug}"
+        )
+        lines.append(
+            f'"{usage_date}","{rid}","microsoft.cognitiveservices/accounts","US East 2",'
+            f'"rg","Foundry Models","Azure OpenAI GPT5","{meter}","{cost}","{cost}","USD"'
+        )
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+def test_subproject_meter_cost_scoped_to_resource(tmp_path):
+    bills_dir = tmp_path / "bills"
+    project_dir = bills_dir / "projSub"
+    token_sp1 = project_dir / "token" / "sp-one"
+    token_sp2 = project_dir / "token" / "sp-two"
+    token_sp1.mkdir(parents=True)
+    token_sp2.mkdir(parents=True)
+
+    _write_foundry_cost_with_resources(
+        project_dir / "cost.csv",
+        [
+            ("2026-05-12", "5.3 codex inp Gl 1M Tokens", 10.0, "sp-one"),
+            ("2026-05-12", "5.3 codex opt Gl 1M Tokens", 4.0, "sp-one"),
+            ("2026-05-12", "5.3 codex inp Gl 1M Tokens", 2.0, "sp-two"),
+            ("2026-05-12", "5.3 codex opt Gl 1M Tokens", 1.0, "sp-two"),
+        ],
+    )
+    for token_dir, amount in ((token_sp1, "2 Mil"), (token_sp2, "1 Mil")):
+        (token_dir / "input-tokens.csv").write_text(
+            '"Time","gpt-5.3-codex"\n'
+            f"2026-05-12 10:00:00,{amount}\n",
+            encoding="utf-8",
+        )
+        (token_dir / "output-tokens.csv").write_text(
+            '"Time","gpt-5.3-codex"\n'
+            "2026-05-12 10:00:00,100 K\n",
+            encoding="utf-8",
+        )
+
+    db_path = tmp_path / "cost_mgmt.sqlite3"
+    ingest_all(bills_dir=bills_dir, db_path=db_path, reimport_changed=False)
+    ingest_token_all(bills_dir=bills_dir, db_path=db_path, reimport_changed=False)
+
+    conn = get_connection(db_path)
+    try:
+        sp1 = get_imported_token_daily_by_model(
+            conn, "projSub", currency="USD", subproject_name="sp-one"
+        )
+        row = next(r for r in sp1 if r["date"] == "2026-05-12")
+        assert row["allocation_method"] == "meter_matched"
+        assert abs(float(row["input_cost_usd"]) - 10.0) < 1e-6
+        assert abs(float(row["output_cost_usd"]) - 4.0) < 1e-6
+        assert abs(float(row["usd_per_1m_input"]) - 5.0) < 1e-6
+        assert abs(float(row["usd_per_1m_output"]) - 40.0) < 1e-6
+
+        payload = get_model_implied_usd_per_1m_analysis(
+            conn, "projSub", currency="USD", subproject_name="sp-two"
+        )
+        codex = next(m for m in payload["models"] if m["model_name"] == "gpt-5.3-codex")
+        assert codex["period_effective_usd_per_1m_input"] == 2.0
+        assert codex["period_effective_usd_per_1m_output"] == 10.0
+    finally:
+        conn.close()
+
+
 def test_daily_cost_mapping_for_explicit_53_codex_and_54_inp_opt(tmp_path):
     bills_dir = tmp_path / "bills"
     project_dir = bills_dir / "projMap"

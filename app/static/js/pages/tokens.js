@@ -439,6 +439,51 @@
     );
   }
 
+  function periodEffectiveUsdPer1m(rows) {
+    let inputCost = 0;
+    let outputCost = 0;
+    let inputTokens = 0;
+    let outputTokens = 0;
+    for (const row of rows || []) {
+      if (!isMeterAllocated(row.allocation_method)) continue;
+      const inTok = Number(row.input_tokens) || 0;
+      const outTok = Number(row.output_tokens) || 0;
+      const inCost = row.input_cost_usd;
+      const outCost = row.output_cost_usd;
+      if (inCost != null && inTok > 0) {
+        inputCost += Number(inCost);
+        inputTokens += inTok;
+      }
+      if (outCost != null && outTok > 0) {
+        outputCost += Number(outCost);
+        outputTokens += outTok;
+      }
+    }
+    const round = (x) => window.AppMoney?.roundCost?.(x) ?? Math.round(x * 100) / 100;
+    return {
+      input:
+        inputTokens > 0 && inputCost > 0
+          ? round((inputCost / inputTokens) * 1_000_000)
+          : null,
+      output:
+        outputTokens > 0 && outputCost > 0
+          ? round((outputCost / outputTokens) * 1_000_000)
+          : null,
+    };
+  }
+
+  function periodEffectiveFromModel(model, dailyRows) {
+    const fromApi = model?.period_effective_usd_per_1m_input != null || model?.period_effective_usd_per_1m_output != null;
+    if (fromApi) {
+      return {
+        input: model.period_effective_usd_per_1m_input ?? null,
+        output: model.period_effective_usd_per_1m_output ?? null,
+      };
+    }
+    const modelRows = (dailyRows || []).filter((r) => r.model_name === model.model_name);
+    return periodEffectiveUsdPer1m(modelRows);
+  }
+
   function appendUnitPriceCell(tr, text, { className = "" } = {}) {
     const td = document.createElement("td");
     td.className = ["num", className].filter(Boolean).join(" ");
@@ -447,7 +492,7 @@
     return td;
   }
 
-  function renderCatalogRefLine(catalogPayload, currency) {
+  function renderCatalogRefLine(catalogPayload, currency, dailyRows, periodLabel) {
     if (!els.catalogRefLine || !els.unitPriceSummaryTbody) return;
     const models = (catalogPayload?.models || []).filter(
       (m) => m.catalog_usd_per_1m_input != null || m.catalog_usd_per_1m_output != null
@@ -461,12 +506,10 @@
     }
 
     const ccy = currency || catalogPayload.currency || "USD";
-    let latestDate = "";
     const frag = document.createDocumentFragment();
 
     for (const m of models) {
-      const last = latestMeterDailyRow(m.daily);
-      if (last?.date && String(last.date) > latestDate) latestDate = String(last.date);
+      const periodEff = periodEffectiveFromModel(m, dailyRows);
 
       const tr = document.createElement("tr");
       tr.className = "unitPriceSummaryRow";
@@ -486,12 +529,12 @@
       });
 
       const actualIn =
-        last?.usd_per_1m_input != null && Number.isFinite(Number(last.usd_per_1m_input))
-          ? fmtUsdPer1m(last.usd_per_1m_input, ccy)
+        periodEff.input != null && Number.isFinite(Number(periodEff.input))
+          ? fmtUsdPer1m(periodEff.input, ccy)
           : "—";
       const actualOut =
-        last?.usd_per_1m_output != null && Number.isFinite(Number(last.usd_per_1m_output))
-          ? fmtUsdPer1m(last.usd_per_1m_output, ccy)
+        periodEff.output != null && Number.isFinite(Number(periodEff.output))
+          ? fmtUsdPer1m(periodEff.output, ccy)
           : "—";
       appendUnitPriceCell(tr, actualIn, { className: "unitPriceBilling" });
       appendUnitPriceCell(tr, actualOut, { className: "unitPriceBilling" });
@@ -501,9 +544,9 @@
 
     els.unitPriceSummaryTbody.replaceChildren(frag);
     if (els.unitPriceSummaryDate) {
-      if (latestDate) {
+      if (periodLabel) {
         els.unitPriceSummaryDate.hidden = false;
-        els.unitPriceSummaryDate.textContent = `As of ${latestDate}`;
+        els.unitPriceSummaryDate.textContent = periodLabel;
       } else {
         els.unitPriceSummaryDate.hidden = true;
       }
@@ -610,6 +653,11 @@
       }
       byModel.get(name).daily.push({
         date: row.date,
+        input_tokens: row.input_tokens,
+        output_tokens: row.output_tokens,
+        input_cost_usd: row.input_cost_usd,
+        output_cost_usd: row.output_cost_usd,
+        allocation_method: row.allocation_method,
         usd_per_1m_input: row.usd_per_1m_input,
         usd_per_1m_output: row.usd_per_1m_output,
       });
@@ -617,9 +665,13 @@
     const models = [...byModel.values()].map((m) => {
       const inVals = m.daily.map((d) => d.usd_per_1m_input);
       const outVals = m.daily.map((d) => d.usd_per_1m_output);
+      const periodEffective = periodEffectiveUsdPer1m(m.daily);
       return {
         ...m,
+        period_effective_usd_per_1m_input: periodEffective.input,
+        period_effective_usd_per_1m_output: periodEffective.output,
         stats: {
+          period_effective: periodEffective,
           input: moneyStats(inVals),
           output: moneyStats(outVals),
           blended: moneyStats(
@@ -711,6 +763,10 @@
           ...m,
           catalog_usd_per_1m_input: cat.catalog_usd_per_1m_input ?? m.catalog_usd_per_1m_input,
           catalog_usd_per_1m_output: cat.catalog_usd_per_1m_output ?? m.catalog_usd_per_1m_output,
+          period_effective_usd_per_1m_input:
+            cat.period_effective_usd_per_1m_input ?? m.period_effective_usd_per_1m_input,
+          period_effective_usd_per_1m_output:
+            cat.period_effective_usd_per_1m_output ?? m.period_effective_usd_per_1m_output,
         };
       }),
     };
@@ -1312,6 +1368,7 @@
       if (tokenRangeStart) pricingParams.set("start_date", tokenRangeStart);
       if (tokenRangeEnd) pricingParams.set("end_date", tokenRangeEnd);
       if (stats.currency) pricingParams.set("currency", stats.currency);
+      if (subproject) pricingParams.set("subproject", subproject);
 
       const dailyForPricing = series.daily_by_model || [];
       const mpFromTable = modelUnitPricesFromDaily(dailyForPricing);
@@ -1324,8 +1381,12 @@
         console.warn("Catalog list prices unavailable", e);
       }
       const mp = mergeCatalogPrices(mpFromTable, mpCatalog);
+      const periodLabel =
+        range.start !== "—" && range.end !== "—"
+          ? `Period weighted · ${range.start} ~ ${range.end}`
+          : "Period weighted";
       try {
-        renderCatalogRefLine(mp, stats.currency);
+        renderCatalogRefLine(mp, stats.currency, dailyForPricing, periodLabel);
       } catch (e) {
         console.error("Unit price summary failed", e);
       }
