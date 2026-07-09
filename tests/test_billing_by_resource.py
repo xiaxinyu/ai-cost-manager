@@ -99,6 +99,44 @@ def test_billing_by_resource_subproject_filter(tmp_path):
     assert sub_payload["rows"][0]["resource_name"] == "proj-mdm-coding-1-resource"
 
 
+def test_billing_by_resource_resource_totals_multi_service(tmp_path):
+    """Same Azure resource with multiple services: totals round once at resource level."""
+    db_path = tmp_path / "cost.sqlite3"
+    conn = get_connection(str(db_path))
+    init_db(conn)
+    rid = (
+        "/subscriptions/x/resourcegroups/rg-a/providers/"
+        "microsoft.cognitiveservices/accounts/proj-mdm-coding-4-resource"
+    )
+    try:
+        conn.execute("INSERT INTO projects(name) VALUES ('projR')")
+        conn.executemany(
+            """
+            INSERT INTO transactions(
+                project_name, usage_date, resource_id, resource_type,
+                resource_location, resource_group_name, service_name, meter,
+                cost_usd, cost, currency, raw_json, source_file, source_row_index
+            ) VALUES (?, '2026-06-01', ?, ?, ?, 'rg-a', ?, 'm', ?, ?, 'USD', '{}', 'f.csv', ?)
+            """,
+            [
+                ("projR", rid, "microsoft.cognitiveservices/accounts", "US East 2", "Foundry Models", 29.725633, 29.725633, 1),
+                ("projR", rid, "microsoft.cognitiveservices/accounts", "global", "MS Bing Services", 0.02, 0.02, 2),
+            ],
+        )
+        conn.commit()
+        payload = get_project_billing_by_resource(
+            conn, "projR", start_date="2026-06-01", end_date="2026-06-01", currency="USD"
+        )
+    finally:
+        conn.close()
+
+    assert payload["row_count"] == 2
+    assert len(payload["resource_totals"]) == 1
+    assert payload["resource_totals"][0]["resource_name"] == "proj-mdm-coding-4-resource"
+    assert payload["resource_totals"][0]["cost_usd"] == round_cost(29.745633)
+    assert payload["resource_totals"][0]["cost_usd"] == 29.75
+
+
 def test_daily_cost_by_resource_series(tmp_path):
     db_path = tmp_path / "cost.sqlite3"
     conn = get_connection(str(db_path))

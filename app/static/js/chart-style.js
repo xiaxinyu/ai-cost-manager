@@ -124,7 +124,7 @@
         font: { size: 11, weight: '500' },
         maxTicksLimit: maxTicks,
         padding: 8,
-        callback: (value) => window.AppMoney?.fmtCost(value, currency) ?? String(value),
+        callback: (value) => window.AppMoney?.fmtCostAxis(value) ?? String(value),
       },
       beginAtZero: true,
       grid: { color: theme.grid, drawTicks: false },

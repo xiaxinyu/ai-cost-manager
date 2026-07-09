@@ -2026,28 +2026,52 @@
           subprojectCostCardsEl.replaceChildren();
           return;
         }
-        const rows = Array.isArray(payload?.rows) ? payload.rows : [];
-        const byResource = new Map();
-        for (const row of rows) {
-          const name = String(row.resource_name || '').trim();
-          if (!name) continue;
-          byResource.set(name, (byResource.get(name) || 0) + Number(row.cost_usd || 0));
+        const resourceTotals = Array.isArray(payload?.resource_totals) ? payload.resource_totals : [];
+        let segments = [];
+        if (resourceTotals.length > 1) {
+          segments = resourceTotals
+            .map((row) => ({
+              name: String(row.resource_name || '').trim(),
+              cost: Number(row.cost_usd || 0),
+              share: row.share_pct,
+            }))
+            .filter((row) => row.name);
+        } else {
+          const rows = Array.isArray(payload?.rows) ? payload.rows : [];
+          const byResource = new Map();
+          for (const row of rows) {
+            const name = String(row.resource_name || '').trim();
+            if (!name) continue;
+            const add = Number(row.cost_usd || 0);
+            byResource.set(name, (byResource.get(name) || 0) + add);
+          }
+          segments = Array.from(byResource.entries()).map(([name, cost]) => ({
+            name,
+            cost: window.AppMoney?.roundCost(cost) ?? cost,
+            share: null,
+          }));
         }
-        if (byResource.size <= 1) {
+        if (segments.length <= 1) {
           subprojectCostStripEl.hidden = true;
           subprojectCostCardsEl.replaceChildren();
           return;
         }
-        const total = Array.from(byResource.values()).reduce((sum, v) => sum + v, 0);
-        const sorted = Array.from(byResource.entries()).sort((a, b) => b[1] - a[1]);
+        const total = segments.reduce((sum, row) => sum + Number(row.cost || 0), 0);
+        const sorted = [...segments].sort((a, b) => Number(b.cost) - Number(a.cost));
         const frag = document.createDocumentFragment();
-        for (const [name, cost] of sorted) {
+        for (const row of sorted) {
+          const { name, cost } = row;
           const card = document.createElement('article');
           card.className = 'card costSubprojectCard costSubprojectCard--clickable';
           card.setAttribute('role', 'button');
           card.setAttribute('tabindex', '0');
           card.setAttribute('title', `Filter to ${name}`);
-          const share = total > 0 ? Math.round((cost / total) * 1000) / 10 : null;
+          const share =
+            row.share != null && Number.isFinite(Number(row.share))
+              ? Number(row.share)
+              : total > 0
+                ? Math.round((cost / total) * 1000) / 10
+                : null;
           card.innerHTML = `
             <div class="stat">
               <div class="label costSubprojectCardLabel">${name}</div>

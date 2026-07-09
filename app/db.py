@@ -2117,9 +2117,11 @@ def get_project_billing_by_resource(
             "to_date": end_date,
             "total_cost_usd": None,
             "rows": [],
+            "resource_totals": [],
         }
 
     agg: dict[tuple[str, str], dict[str, object]] = {}
+    by_resource: dict[str, dict[str, object]] = {}
     total = 0.0
     for r in raw_rows:
         rid = str(r["resource_id"] or "").strip()
@@ -2145,6 +2147,23 @@ def get_project_billing_by_resource(
         assert isinstance(days, set)
         days.add(str(r["usage_date"]))
 
+        rt = by_resource.setdefault(
+            rid,
+            {
+                "resource_id": rid or None,
+                "resource_name": resource_short_name(rid or None),
+                "resource_type": r["resource_type"],
+                "resource_location": r["resource_location"],
+                "resource_group_name": r["resource_group_name"],
+                "cost_usd": 0.0,
+                "days": set(),
+            },
+        )
+        rt["cost_usd"] = float(rt["cost_usd"]) + cost
+        rt_days = rt["days"]
+        assert isinstance(rt_days, set)
+        rt_days.add(str(r["usage_date"]))
+
     out_rows: list[dict[str, object]] = []
     for st in agg.values():
         cost_raw = float(st["cost_usd"])
@@ -2168,6 +2187,26 @@ def get_project_billing_by_resource(
 
     out_rows.sort(key=lambda row: float(row["cost_usd"] or 0.0), reverse=True)
 
+    resource_totals: list[dict[str, object]] = []
+    for rt in by_resource.values():
+        cost_raw = float(rt["cost_usd"])
+        share = round(cost_raw / total * 100.0, 1) if total > 0 else None
+        rt_days = rt["days"]
+        assert isinstance(rt_days, set)
+        resource_totals.append(
+            {
+                "resource_id": rt["resource_id"],
+                "resource_name": rt["resource_name"],
+                "resource_type": rt["resource_type"],
+                "resource_location": rt["resource_location"],
+                "resource_group_name": rt["resource_group_name"],
+                "cost_usd": round_cost(cost_raw),
+                "share_pct": share,
+                "days_with_cost": len(rt_days),
+            }
+        )
+    resource_totals.sort(key=lambda row: float(row["cost_usd"] or 0.0), reverse=True)
+
     return {
         "available": True,
         "project": project_name,
@@ -2178,6 +2217,7 @@ def get_project_billing_by_resource(
         "total_cost_usd": round_cost(total),
         "row_count": len(out_rows),
         "rows": out_rows,
+        "resource_totals": resource_totals,
     }
 
 
