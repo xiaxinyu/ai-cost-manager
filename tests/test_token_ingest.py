@@ -3,15 +3,60 @@ from __future__ import annotations
 import sqlite3
 from pathlib import Path
 
+from app.db import (
+    get_imported_token_totals,
+    get_imported_token_totals_by_subproject,
+    get_connection,
+    init_db,
+    project_has_imported_tokens,
+)
 from app.token_ingest import (
     compare_token_csv_natural_keys,
     discover_token_csv_files,
     ingest_token_all,
+    ingest_token_selected,
     infer_token_direction,
+    iter_token_csv_points,
     list_missing_token_files,
     parse_token_quantity,
+    verify_ingested_token_files,
 )
-from app.db import get_imported_token_totals, get_connection, init_db, project_has_imported_tokens
+
+_REPO_ROOT = Path(__file__).resolve().parents[1]
+_MDM_PROJECT = "RG-HK-S56-MDM-Coding"
+_MDM_TOKEN_DIR = _REPO_ROOT / "bills" / _MDM_PROJECT / "token"
+_MDM_WINDOW = ("2026-06-29", "2026-07-05")
+# Golden totals for _MDM_WINDOW — derived from bills/RG-HK-S56-MDM-Coding Grafana CSVs.
+_MDM_SUBPROJECT_TOTALS: dict[str, tuple[float, float]] = {
+    "proj-mdm-coding-1-resource": (23_315_500.0, 258_022.0),
+    "proj-mdm-coding-2-resource": (8_702_200.0, 66_720.0),
+    "proj-mdm-coding-3-resource": (71_006_000.0, 418_400.0),
+    "proj-mdm-coding-4-resource": (112_520_000.0, 420_800.0),
+    "proj-mdm-coding-5-resource": (47_628_000.0, 261_520.0),
+    "proj-mdm-coding-6-resource": (210_110_000.0, 1_158_000.0),
+}
+_MDM_PROJECT_TOTALS = (473_281_700.0, 2_583_462.0)
+_MDM_POINT_COUNT = 434
+_MDM_FILE_COUNT = 12
+
+
+def _mdm_fixture_available() -> bool:
+    if not _MDM_TOKEN_DIR.is_dir():
+        return False
+    discovered = [
+        rel
+        for pn, _, rel, _ in discover_token_csv_files(_REPO_ROOT / "bills")
+        if pn == _MDM_PROJECT
+    ]
+    return len(discovered) == _MDM_FILE_COUNT
+
+
+def _mdm_token_file_rels() -> list[str]:
+    return [
+        rel
+        for pn, _, rel, _ in discover_token_csv_files(_REPO_ROOT / "bills")
+        if pn == _MDM_PROJECT
+    ]
 
 
 def test_parse_token_quantity():
@@ -150,6 +195,81 @@ def test_token_natural_key_upsert_newer_file_wins(tmp_path):
         assert str(row["source_file"]).endswith("input-tokens-2026-5-16.csv")
     finally:
         conn.close()
+
+
+def test_rg_mdm_coding_token_ingest_stats_and_dedup(tmp_path):
+    """
+    Regression fixture: bills/RG-HK-S56-MDM-Coding (6 subprojects × IN/OUT).
+
+    Validates import parsing, natural-key storage, and SUM(token_count) stats.
+    """
+    if not _mdm_fixture_available():
+        return
+
+    bills_dir = _REPO_ROOT / "bills"
+    db_path = tmp_path / "cost_mgmt.sqlite3"
+    file_rels = _mdm_token_file_rels()
+
+    expected_points = 0
+    for pn, csv_path, rel, sub in discover_token_csv_files(bills_dir):
+        if pn != _MDM_PROJECT:
+            continue
+        _, points, _ = iter_token_csv_points(
+            csv_path, project_name=pn, file_path_rel=rel, subproject_name=sub
+        )
+        expected_points += len(points)
+    assert expected_points == _MDM_POINT_COUNT
+
+    r1 = ingest_token_selected(
+        bills_dir=bills_dir,
+        db_path=db_path,
+        file_path_rels=file_rels,
+        reimport_changed=False,
+    )
+    assert r1.files_ingested == _MDM_FILE_COUNT
+    assert r1.verification_passed is True
+
+    verify = verify_ingested_token_files(bills_dir, db_path, file_path_rels=file_rels)
+    assert verify.fail_count == 0
+
+    conn = get_connection(db_path)
+    try:
+        init_db(conn)
+        assert project_has_imported_tokens(conn, _MDM_PROJECT)
+        db_points = conn.execute(
+            "SELECT COUNT(*) FROM token_usage_points WHERE project_name = ?",
+            (_MDM_PROJECT,),
+        ).fetchone()[0]
+        assert db_points == _MDM_POINT_COUNT
+
+        start, end = _MDM_WINDOW
+        by_sub = {
+            r["subproject_name"]: r
+            for r in get_imported_token_totals_by_subproject(
+                conn, _MDM_PROJECT, start_date=start, end_date=end
+            )
+        }
+        assert set(by_sub) == set(_MDM_SUBPROJECT_TOTALS)
+        for sub, (exp_in, exp_out) in _MDM_SUBPROJECT_TOTALS.items():
+            assert float(by_sub[sub]["input_tokens"]) == exp_in
+            assert float(by_sub[sub]["output_tokens"]) == exp_out
+
+        proj_in, proj_out = get_imported_token_totals(
+            conn, _MDM_PROJECT, start_date=start, end_date=end
+        )
+        assert proj_in == _MDM_PROJECT_TOTALS[0]
+        assert proj_out == _MDM_PROJECT_TOTALS[1]
+    finally:
+        conn.close()
+
+    r2 = ingest_token_selected(
+        bills_dir=bills_dir,
+        db_path=db_path,
+        file_path_rels=file_rels,
+        reimport_changed=False,
+    )
+    assert r2.files_skipped == _MDM_FILE_COUNT
+    assert r2.files_ingested == 0
 
 
 def test_rg_techlab_input_csv_no_exact_time_overlap():
