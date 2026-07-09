@@ -3461,6 +3461,141 @@ def _merge_catalog_daily_rows(
     return out
 
 
+def _unit_rate_delta_pct(
+    catalog: float | None,
+    effective: float | None,
+) -> float | None:
+    if catalog is None or effective is None or catalog == 0:
+        return None
+    return round((effective - catalog) / catalog * 100.0, 1)
+
+
+def _daily_rows_by_model(
+    daily_by_model: list[dict[str, object]],
+) -> dict[str, list[dict[str, object]]]:
+    by_model: dict[str, list[dict[str, object]]] = {}
+    for row in daily_by_model:
+        m = str(row["model_name"])
+        by_model.setdefault(m, []).append(row)
+    return by_model
+
+
+def _model_unit_rate_row(
+    model_name: str,
+    *,
+    catalog_in: object | None,
+    catalog_out: object | None,
+    daily_rows: list[dict[str, object]],
+    actual_cost_usd: float | None = None,
+) -> dict[str, object] | None:
+    period_effective = _period_effective_usd_per_1m_stats(daily_rows)
+    eff_in = period_effective["usd_per_1m_input"]
+    eff_out = period_effective["usd_per_1m_output"]
+    if (
+        catalog_in is None
+        and catalog_out is None
+        and eff_in is None
+        and eff_out is None
+    ):
+        return None
+    cin = float(catalog_in) if catalog_in is not None else None
+    cout = float(catalog_out) if catalog_out is not None else None
+    ein = float(eff_in) if eff_in is not None else None
+    eout = float(eff_out) if eff_out is not None else None
+    return {
+        "model_name": model_name,
+        "catalog_usd_per_1m_input": catalog_in,
+        "catalog_usd_per_1m_output": catalog_out,
+        "effective_usd_per_1m_input": eff_in,
+        "effective_usd_per_1m_output": eff_out,
+        "input_delta_pct": _unit_rate_delta_pct(cin, ein),
+        "output_delta_pct": _unit_rate_delta_pct(cout, eout),
+        "matched_days": period_effective["matched_days"],
+        "actual_cost_usd": round_cost(actual_cost_usd) if actual_cost_usd else None,
+    }
+
+
+def _build_scoped_model_unit_rates(
+    daily_by_model: list[dict[str, object]],
+    model_summary: list[dict[str, object]],
+) -> list[dict[str, object]]:
+    by_model = _daily_rows_by_model(daily_by_model)
+    rows_out: list[dict[str, object]] = []
+    for ms in model_summary:
+        m = str(ms["model_name"])
+        row = _model_unit_rate_row(
+            m,
+            catalog_in=ms.get("catalog_usd_per_1m_input"),
+            catalog_out=ms.get("catalog_usd_per_1m_output"),
+            daily_rows=by_model.get(m, []),
+            actual_cost_usd=float(ms.get("actual_cost_usd") or 0.0) or None,
+        )
+        if row is not None:
+            rows_out.append(row)
+    rows_out.sort(
+        key=lambda r: float(r.get("actual_cost_usd") or 0.0),
+        reverse=True,
+    )
+    return rows_out
+
+
+def _build_project_unit_rates(
+    conn: sqlite3.Connection,
+    project_names: list[str],
+    *,
+    start_date: str | None = None,
+    end_date: str | None = None,
+    currency: str | None = None,
+) -> list[dict[str, object]]:
+    projects_out: list[dict[str, object]] = []
+    for pn in project_names:
+        analysis = get_model_implied_usd_per_1m_analysis(
+            conn,
+            pn,
+            start_date=start_date,
+            end_date=end_date,
+            currency=currency,
+        )
+        if not analysis.get("available"):
+            continue
+        models_out: list[dict[str, object]] = []
+        for m in analysis.get("models") or []:
+            catalog_in = m.get("catalog_usd_per_1m_input")
+            catalog_out = m.get("catalog_usd_per_1m_output")
+            eff_in = m.get("period_effective_usd_per_1m_input")
+            eff_out = m.get("period_effective_usd_per_1m_output")
+            if (
+                catalog_in is None
+                and catalog_out is None
+                and eff_in is None
+                and eff_out is None
+            ):
+                continue
+            cin = float(catalog_in) if catalog_in is not None else None
+            cout = float(catalog_out) if catalog_out is not None else None
+            ein = float(eff_in) if eff_in is not None else None
+            eout = float(eff_out) if eff_out is not None else None
+            models_out.append(
+                {
+                    "model_name": m["model_name"],
+                    "catalog_usd_per_1m_input": catalog_in,
+                    "catalog_usd_per_1m_output": catalog_out,
+                    "effective_usd_per_1m_input": eff_in,
+                    "effective_usd_per_1m_output": eff_out,
+                    "input_delta_pct": _unit_rate_delta_pct(cin, ein),
+                    "output_delta_pct": _unit_rate_delta_pct(cout, eout),
+                    "matched_days": (
+                        m.get("stats", {})
+                        .get("period_effective", {})
+                        .get("matched_days")
+                    ),
+                }
+            )
+        if models_out:
+            projects_out.append({"project_name": pn, "models": models_out})
+    return projects_out
+
+
 def _model_summary_from_daily_by_model(
     daily_by_model: list[dict[str, object]],
 ) -> list[dict[str, object]]:
@@ -3580,6 +3715,8 @@ def get_all_catalog_market_breakdown(
             "points": [],
             "daily_by_model": [],
             "model_summary": [],
+            "model_unit_rates": [],
+            "project_unit_rates": [],
             "summary": {},
             "unpriced_models": sorted(unpriced_models),
         }
@@ -3673,6 +3810,14 @@ def get_all_catalog_market_breakdown(
         "points": points,
         "daily_by_model": daily_by_model,
         "model_summary": model_summary,
+        "model_unit_rates": _build_scoped_model_unit_rates(daily_by_model, model_summary),
+        "project_unit_rates": _build_project_unit_rates(
+            conn,
+            projects_with_data,
+            start_date=start_date,
+            end_date=end_date,
+            currency=chosen_currency,
+        ),
         "summary": {
             "total_catalog_cost_usd": round_cost(total_catalog) if days_with_catalog else None,
             "total_actual_cost_usd": round_cost(total_actual) if total_actual else None,

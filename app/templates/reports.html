@@ -6,7 +6,7 @@
     <title>Reports - Models Cost Management</title>
     <link rel="stylesheet" href="/static/css/app-shell.css" />
     <link rel="stylesheet" href="/static/css/page-common.css" />
-    <link rel="stylesheet" href="/static/css/pages/reports.css?v=20260709-fin-four-table" />
+    <link rel="stylesheet" href="/static/css/pages/reports.css?v=20260709-collapse" />
     <link rel="stylesheet" href="/static/css/layout-pro.css" />
     <link rel="stylesheet" href="/static/css/dashboard-shared.css?v=20260708-dash-polish" />
     <link rel="stylesheet" href="/static/css/date-range-picker.css?v=20260606-drp" />
@@ -80,12 +80,12 @@
           <div id="reportStatusBar" class="dataStatusBar dataStatusBar--compact" hidden aria-live="polite" aria-label="Load summary"></div>
 
           <nav class="dashSectionNav card reportNav reportNavSticky" aria-label="Report sections">
-            <span class="dashSectionNavLabel muted">Tables</span>
+            <span class="dashSectionNavLabel muted">Jump</span>
             <a class="dashSectionNavLink" href="#report-glance">1 · Income</a>
             <a class="dashSectionNavLink" href="#report-cash-flow">2 · Cash flow</a>
             <a class="dashSectionNavLink" href="#report-by-project">3 · Allocation</a>
-            <a class="dashSectionNavLink" href="#report-by-model">By model</a>
-            <a class="dashSectionNavLink" href="#report-tokens">Consumption</a>
+            <a class="dashSectionNavLink" href="#report-by-model">4 · By model</a>
+            <a class="dashSectionNavLink reportNavLinkSecondary" href="#report-tokens">Consumption</a>
           </nav>
 
           <section id="report-glance" class="card reportAtAGlance reportFinBlock reportStatement" aria-label="Income statement">
@@ -98,104 +98,122 @@
               <span class="reportSectionMeta reportCurrencyBadge" id="reportCurrencyMeta"></span>
             </div>
 
-            <div class="reportStatementMeta" id="reportStatementMeta" aria-label="Statement header">
-              <span class="reportStatementMetaItem"><span class="reportStatementMetaKey muted">Scope</span><strong id="stmtMetaScope">—</strong></span>
-              <span class="reportStatementMetaItem"><span class="reportStatementMetaKey muted">Currency</span><strong id="stmtMetaCurrency">—</strong></span>
-              <span class="reportStatementMetaItem"><span class="reportStatementMetaKey muted">Period</span><strong id="stmtMetaPeriod">—</strong></span>
-              <span class="reportStatementMetaItem"><span class="reportStatementMetaKey muted">Prepared</span><strong id="stmtMetaPrepared">—</strong></span>
-            </div>
-
-            <p class="reportStatementLayerTag muted">Actual billing</p>
-            <div class="heroMetricGrid reportFinPrimaryKpi" aria-label="OpEx totals">
-              <article class="heroMetric heroMetricPrimary">
-                <span class="heroMetricLabel"><span class="costPill costPill--actual">OpEx</span> Total</span>
-                <span class="heroMetricValue" id="hero_total_spend">—</span>
-                <span class="heroMetricSub" id="hero_total_sub">—</span>
-              </article>
-              <article class="heroMetric">
-                <span class="heroMetricLabel">Avg / day</span>
-                <span class="heroMetricValue" id="hero_avg_day">—</span>
-                <span class="heroMetricSub" id="hero_avg_day_sub">—</span>
-              </article>
-              <article class="heroMetric">
-                <span class="heroMetricLabel">Billed days</span>
-                <span class="heroMetricValue" id="hero_billed_days">—</span>
-                <span class="heroMetricSub">Days with non-zero spend</span>
-              </article>
-              <article class="heroMetric">
-                <span class="heroMetricLabel">Period</span>
-                <span class="heroMetricValue heroMetricValue--scope" id="hero_period">—</span>
-                <span class="heroMetricSub" id="hero_period_sub">Data range in scope</span>
-              </article>
-            </div>
-
-            <div class="reportIncomeLinesWrap" id="reportIncomeLinesWrap">
-              <table class="dataTable dashTable reportIncomeTable" aria-label="Income statement line items">
-                <tbody>
-                  <tr id="incomeLineMeterRow" hidden>
-                    <th scope="row"><span class="costPill costPill--actual">OpEx</span> · Meter</th>
-                    <td class="num mono tdCostActual" id="incomeLineMeter">—</td>
-                  </tr>
-                  <tr id="incomeLinePlatformRow" hidden>
-                    <th scope="row"><span class="costPill costPill--platform">OpEx</span> · Platform</th>
-                    <td class="num mono tdCostPlatform" id="incomeLinePlatform">—</td>
-                  </tr>
-                  <tr class="reportIncomeTotalRow">
-                    <th scope="row"><span class="costPill costPill--actual">OpEx</span> Total</th>
-                    <td class="num mono tdCostActual" id="incomeLineTotal">—</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-
-            <div class="reportStatementLayer reportStatementLayer--opex" id="reportOpexCompositionLayer" hidden>
-              <p class="reportStatementLayerTag muted">Actual billing · composition</p>
-            <div class="heroMetricGrid reportFinOpexCompositionKpi" id="reportOpexCompositionRow" aria-label="OpEx composition">
-              <article class="heroMetric">
-                <span class="heroMetricLabel"><span class="costPill costPill--actual">OpEx</span> · Meter</span>
-                <span class="heroMetricValue" id="hero_opex_meter">—</span>
-                <span class="heroMetricSub" id="hero_opex_meter_sub">inp + out (meter matched)</span>
-              </article>
-              <article class="heroMetric">
-                <span class="heroMetricLabel"><span class="costPill costPill--platform">OpEx</span> · Platform</span>
-                <span class="heroMetricValue" id="hero_opex_platform">—</span>
-                <span class="heroMetricSub" id="hero_opex_platform_sub">Non-token billing (billing_other)</span>
-              </article>
-              <article class="heroMetric">
-                <span class="heroMetricLabel">Meter share</span>
-                <span class="heroMetricValue" id="hero_meter_share">—</span>
-                <span class="heroMetricSub">Meter ÷ OpEx total</span>
-              </article>
-            </div>
-            </div>
-
-            <div class="reportStatementLayer reportStatementLayer--refarch" id="reportRefArchLayer" hidden>
-              <header class="reportStatementLayerHead">
-                <div>
-                  <h3 class="reportStatementLayerTitle">Reference architecture</h3>
-                  <p class="reportStatementLayerLead muted">List-price tariff benchmark — not invoice spend.</p>
+            <div class="reportStatementCompare" id="reportStatementCompare">
+              <div class="reportStatementBridge" id="reportStatementBridge" hidden aria-label="OpEx vs tariff reconciliation">
+                <div class="reportStatementBridgeIntro">
+                  <span class="reportStatementBridgeEyebrow">Period reconciliation</span>
+                  <p class="reportStatementBridgeLead muted">Invoice actual compared to list-price tariff benchmark</p>
                 </div>
-                <span class="reportStatementLayerBadge">Not invoice</span>
-              </header>
-            <div class="heroMetricGrid reportFinBenchmarkKpi" id="reportBenchmarkRow" aria-label="Reference architecture">
-              <article class="heroMetric" id="heroCatalogTotalCard">
-                <span class="heroMetricLabel"><span class="costPill costPill--market">Ref. Arch.</span> · Tariff</span>
-                <span class="heroMetricValue" id="hero_catalog_total">—</span>
-                <span class="heroMetricSub" id="hero_catalog_total_sub">Tokens × list USD/1M · benchmark only</span>
-              </article>
-              <article class="heroMetric" id="heroCatalogCard">
-                <span class="heroMetricLabel">Tariff variance</span>
-                <span class="heroMetricValue" id="hero_catalog_delta">—</span>
-                <span class="heroMetricSub" id="hero_catalog_sub">OpEx − Ref. Arch · Tariff</span>
-              </article>
-              <article class="heroMetric">
-                <span class="heroMetricLabel">Tariff schedule</span>
-                <span class="heroMetricValue heroMetricValue--text">List price</span>
-                <span class="heroMetricSub">From <a href="/prices">Tariff schedule</a> · configuration</span>
-              </article>
-            </div>
+                <div class="reportStatementBridgeFlow">
+                  <div class="reportStatementBridgeNode reportStatementBridgeNode--actual">
+                    <span class="reportStatementBridgeKey">OpEx actual</span>
+                    <strong class="reportStatementBridgeVal" id="bridgeOpex">—</strong>
+                  </div>
+                  <div class="reportStatementBridgeMid" id="bridgeVarianceWrap">
+                    <span class="reportStatementBridgeKey">Variance</span>
+                    <strong class="reportStatementBridgeVal reportStatementBridgeVal--variance" id="bridgeVariancePct">—</strong>
+                    <span class="reportStatementBridgeSub muted" id="bridgeVarianceUsd">—</span>
+                  </div>
+                  <div class="reportStatementBridgeNode reportStatementBridgeNode--market">
+                    <span class="reportStatementBridgeKey">Ref. Arch. tariff</span>
+                    <strong class="reportStatementBridgeVal" id="bridgeTariff">—</strong>
+                    <span class="reportStatementBadgeInline">Not invoice</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="reportStatementDualGrid" id="reportStatementDualGrid">
+                <div class="reportStatementBlock">
+                  <p class="reportStatementLayerTag muted"><span class="reportStatementStep">1</span> Invoice actual</p>
+                  <div class="reportIncomeStatement" id="reportIncomePanel">
+                    <div class="reportIncomeSummary reportIncomeSummary--hero" aria-label="OpEx summary">
+                      <div class="reportIncomeSummaryHero reportIncomeSummaryHero--actual">
+                        <span class="reportIncomeSummaryLabel"><span class="costPill costPill--actual">OpEx</span> Total</span>
+                        <span class="reportIncomeSummaryValue" id="hero_total_spend">—</span>
+                        <span class="reportIncomeSummaryMeta muted" id="hero_summary_meta">—</span>
+                      </div>
+                    </div>
+                    <div class="reportIncomeBody">
+                      <table class="reportIncomeTable" aria-label="Invoice actual line items">
+                        <thead>
+                          <tr>
+                            <th scope="col">Line item</th>
+                            <th class="num" scope="col"><span class="thLabel">Amount</span><span class="thUnit" id="incomeLineCurrencyUnit">USD</span></th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr id="incomeLineMeterRow" hidden>
+                            <th scope="row"><span class="costPill costPill--actual">OpEx</span> · Meter</th>
+                            <td class="num mono tdCostActual" id="incomeLineMeter">—</td>
+                          </tr>
+                          <tr id="incomeLineMeterDetailRow" class="reportIncomeDetailRow" hidden>
+                            <td colspan="2" class="reportIncomeDetailCell muted" id="incomeLineMeterDetail">—</td>
+                          </tr>
+                          <tr id="incomeLinePlatformRow" hidden>
+                            <th scope="row"><span class="costPill costPill--platform">OpEx</span> · Platform</th>
+                            <td class="num mono tdCostPlatform" id="incomeLinePlatform">—</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                    <div class="reportIncomeFooter reportIncomeFooter--actual">
+                      <span class="reportIncomeFooterLabel"><span class="costPill costPill--actual">OpEx</span> Total</span>
+                      <span class="reportIncomeFooterVal mono" id="incomeLineTotal">—</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="reportStatementBlock" id="reportRefArchBlock" hidden>
+                  <p class="reportStatementLayerTag muted"><span class="reportStatementStep">2</span> List-price benchmark</p>
+                  <div class="reportIncomeStatement reportIncomeStatement--refarch" id="reportRefArchPanel">
+                    <div class="reportIncomeSummary reportIncomeSummary--hero" aria-label="Tariff summary">
+                      <div class="reportIncomeSummaryHero reportIncomeSummaryHero--market">
+                        <span class="reportIncomeSummaryLabel">Tariff variance</span>
+                        <span class="reportIncomeSummaryValue" id="refArchSummaryVariance">—</span>
+                        <span class="reportIncomeSummaryMeta muted" id="refArch_summary_meta">—</span>
+                      </div>
+                    </div>
+                    <div class="reportIncomeBody">
+                      <table class="reportIncomeTable" aria-label="Reference architecture line items">
+                        <thead>
+                          <tr>
+                            <th scope="col">Line item</th>
+                            <th class="num" scope="col"><span class="thLabel">Amount</span><span class="thUnit">USD</span></th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr>
+                            <th scope="row"><span class="costPill costPill--market">Ref. Arch.</span> · Tariff</th>
+                            <td class="num mono tdCostMarket" id="refArchLineTariff">—</td>
+                          </tr>
+                          <tr class="reportIncomeDetailRow">
+                            <td colspan="2" class="reportIncomeDetailCell muted" id="refArchLineTariffDetail">Benchmark only · not invoice spend</td>
+                          </tr>
+                          <tr id="refArchVarianceRow" hidden>
+                            <th scope="row" class="reportIncomeAnnotLabel">OpEx − Tariff</th>
+                            <td class="num mono reportIncomeAnnotVal" id="refArchLineVariance">—</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                    <div class="reportIncomeFooter reportIncomeFooter--market">
+                      <span class="reportIncomeFooterLabel"><span class="costPill costPill--market">Ref. Arch.</span> Total</span>
+                      <span class="reportIncomeFooterVal mono" id="refArchLineTotal">—</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
 
+            <details class="reportCollapseDetails reportIncomeSupplement" id="reportIncomeSupplement">
+              <summary>Supporting detail <span id="reportIncomeSupplementHint" class="reportCollapseHint muted"></span></summary>
+              <div class="reportCollapseBody">
+                <div class="reportStatementMeta" id="reportStatementMeta" aria-label="Statement header">
+                  <span class="reportStatementMetaItem"><span class="reportStatementMetaKey muted">Scope</span><strong id="stmtMetaScope">—</strong></span>
+                  <span class="reportStatementMetaItem"><span class="reportStatementMetaKey muted">Currency</span><strong id="stmtMetaCurrency">—</strong></span>
+                  <span class="reportStatementMetaItem"><span class="reportStatementMetaKey muted">Period</span><strong id="stmtMetaPeriod">—</strong></span>
+                  <span class="reportStatementMetaItem"><span class="reportStatementMetaKey muted">Prepared</span><strong id="stmtMetaPrepared">—</strong></span>
+                </div>
             <div class="reportStatementLayer reportStatementLayer--volume" id="reportVolumeLayer" hidden>
               <header class="reportStatementLayerHead">
                 <div>
@@ -223,9 +241,7 @@
             </div>
             <div id="reportQualityStrip" class="qualityStrip" hidden aria-label="Data coverage"></div>
             <p class="reportStatementFootnotes muted" id="reportStatementFootnotes">① OpEx from billing CSV CostUSD · ② Ref. Arch · Tariff from Model Prices (not invoice) · ③ Token volume from imported CSV (no implied spend)</p>
-            <details class="reportKpiDetails">
-              <summary>More stats (daily / monthly)</summary>
-              <div class="gridStats reportKpis reportKpisCompact">
+            <div class="gridStats reportKpis reportKpisCompact">
                 <article class="card kpiCard">
                   <h3 class="kpiTitle">Cost · Daily</h3>
                   <div class="statRow"><div class="statKey">Days</div><div class="statVal" id="d_count">-</div></div>
@@ -250,6 +266,7 @@
                   <div class="statRow"><div class="statKey" id="rptKeyTokenRegion">Path</div><div class="statVal" id="d_token_region">-</div></div>
                 </article>
               </div>
+              </div>
             </details>
           </section>
 
@@ -273,6 +290,9 @@
               <footer class="chartCardFoot muted" id="dailyChartFoot">—</footer>
             </article>
 
+            <details class="reportCollapseDetails reportCashFlowLedgerDetails" id="reportCashFlowLedgerDetails">
+              <summary>General ledger — daily <span id="reportDailyLedgerHint" class="reportCollapseHint muted"></span></summary>
+              <div class="reportCollapseBody">
             <article class="reportLedgerCard reportCashFlowLedger">
               <header class="reportLedgerHead">
                 <div class="reportLedgerHeadMain">
@@ -316,6 +336,8 @@
                 </nav>
               </footer>
             </article>
+              </div>
+            </details>
 
             <details class="reportCashFlowMonthlyDetails">
               <summary>Monthly schedule &amp; chart</summary>
@@ -409,6 +431,9 @@
                 </tbody>
               </table>
             </div>
+            <details class="reportCollapseDetails reportAllocTokenDetails" id="reportAllocTokenDetails">
+              <summary>Token volume &amp; share <span id="reportAllocTokenHint" class="reportCollapseHint muted"></span></summary>
+              <div class="reportCollapseBody">
             <div class="rowsToolbar reportSubPanelToolbar">
               <div>
                 <h3 class="panelTitle">Token &amp; share</h3>
@@ -437,6 +462,8 @@
                 <tbody id="projectBreakdownTbody"></tbody>
               </table>
             </div>
+              </div>
+            </details>
           </section>
 
           <section id="report-by-model" class="reportExecutive reportSectionShell" hidden aria-label="By model">
@@ -448,20 +475,63 @@
                 <span id="reportExecutiveHint" class="executiveHint muted"></span>
               </div>
             </div>
-            <div id="reportMeterTotals" class="meterTotalGrid" hidden>
-              <article class="meterTotalCard">
-                <div class="meterTotalLabel">OpEx · Meter input</div>
-                <div class="meterTotalValue" id="reportInputCostTotal">—</div>
-              </article>
-              <article class="meterTotalCard">
-                <div class="meterTotalLabel">OpEx · Meter output</div>
-                <div class="meterTotalValue" id="reportOutputCostTotal">—</div>
-              </article>
-              <article class="meterTotalCard meterTotalCardEmphasis">
-                <div class="meterTotalLabel">OpEx · Meter total</div>
-                <div class="meterTotalValue" id="reportMeterCostTotal">—</div>
-              </article>
-            </div>
+            <article class="card reportPanel reportUnitRatesPanel" id="reportUnitRatesPanel" hidden aria-label="Unit rate comparison">
+              <div class="reportUnitRatesHead">
+                <div>
+                  <h3 class="panelTitle">Unit rate comparison</h3>
+                  <p class="tableNote panelDesc">Ref. Arch · Tariff vs period-weighted <span class="costPill costPill--actual">OpEx</span> effective rate (USD/1M tokens)</p>
+                </div>
+                <div class="reportUnitRatesBadges">
+                  <span id="reportUnitRatesScope" class="tableRowBadge muted" hidden></span>
+                  <span id="reportUnitRatesPeriod" class="tableRowBadge muted" hidden></span>
+                </div>
+              </div>
+              <div class="reportUnitRatesViewBar" id="reportUnitRatesViewBar" hidden>
+                <button type="button" class="reportUnitRatesViewBtn is-active" data-view="scoped">All in scope</button>
+                <button type="button" class="reportUnitRatesViewBtn" data-view="project" id="reportUnitRatesByProjectBtn">By project</button>
+              </div>
+              <div id="reportUnitRatesScoped" class="unitPriceSummary">
+                <div class="tableScroll unitPriceSummaryScroll">
+                  <table class="unitPriceSummaryTable" id="reportUnitRatesScopedTable">
+                    <thead>
+                      <tr>
+                        <th scope="col" rowspan="2">Model</th>
+                        <th class="num unitPriceGroupHead unitPriceGroupHead--tariff" scope="colgroup" colspan="2">
+                          <span class="costPill costPill--market">Ref. Arch.</span> · Tariff
+                        </th>
+                        <th class="num unitPriceGroupHead unitPriceGroupHead--effective" scope="colgroup" colspan="2">
+                          <span class="costPill costPill--actual">OpEx</span> Effective
+                        </th>
+                      </tr>
+                      <tr>
+                        <th class="num" scope="col">Input</th>
+                        <th class="num" scope="col">Output</th>
+                        <th class="num" scope="col">Input</th>
+                        <th class="num" scope="col">Output</th>
+                      </tr>
+                    </thead>
+                    <tbody id="reportUnitRatesScopedTbody"></tbody>
+                  </table>
+                </div>
+              </div>
+              <div id="reportUnitRatesByProject" class="reportUnitRatesByProject" hidden>
+                <div class="tableScroll reportUnitRatesProjectScroll">
+                  <table class="dataTable reportUnitRatesProjectTable" id="reportUnitRatesProjectTable">
+                    <thead>
+                      <tr>
+                        <th scope="col">Project</th>
+                        <th scope="col">Model</th>
+                        <th class="num" scope="col"><span class="costPill costPill--market">Ref. Arch.</span> Input</th>
+                        <th class="num" scope="col"><span class="costPill costPill--market">Ref. Arch.</span> Output</th>
+                        <th class="num" scope="col"><span class="costPill costPill--actual">OpEx</span> Input</th>
+                        <th class="num" scope="col"><span class="costPill costPill--actual">OpEx</span> Output</th>
+                      </tr>
+                    </thead>
+                    <tbody id="reportUnitRatesProjectTbody"></tbody>
+                  </table>
+                </div>
+              </div>
+            </article>
             <article class="card reportPanel reportModelPanel">
               <div class="rowsToolbar">
                 <div>
@@ -493,6 +563,23 @@
                 </table>
               </div>
             </article>
+            <details class="reportCollapseDetails reportModelExtrasDetails" id="reportModelExtrasDetails">
+              <summary>Model trends &amp; meter breakdown <span id="reportModelExtrasHint" class="reportCollapseHint muted"></span></summary>
+              <div class="reportCollapseBody">
+            <div id="reportMeterTotals" class="meterTotalGrid" hidden>
+              <article class="meterTotalCard">
+                <div class="meterTotalLabel">OpEx · Meter input</div>
+                <div class="meterTotalValue" id="reportInputCostTotal">—</div>
+              </article>
+              <article class="meterTotalCard">
+                <div class="meterTotalLabel">OpEx · Meter output</div>
+                <div class="meterTotalValue" id="reportOutputCostTotal">—</div>
+              </article>
+              <article class="meterTotalCard meterTotalCardEmphasis">
+                <div class="meterTotalLabel">OpEx · Meter total</div>
+                <div class="meterTotalValue" id="reportMeterCostTotal">—</div>
+              </article>
+            </div>
             <div class="chartGrid chartGrid3 reportExecutiveCharts">
               <article class="card chartCard reportTrendCard reportExecChartCard">
                 <header class="reportChartHead reportChartHead--compact">
@@ -522,6 +609,8 @@
                 <div class="chartCanvasHost chartPlot reportChartHost reportExecChartHost"><canvas id="reportOutputByModelChart"></canvas></div>
               </article>
             </div>
+              </div>
+            </details>
           </section>
 
           <section id="report-tokens" class="reportSection reportSectionShell reportConsumeSection" aria-label="Token usage">
@@ -562,6 +651,9 @@
                 <span class="reportConsumeMetaFoot muted" id="reportConsumePeriod">—</span>
               </div>
 
+              <details class="reportCollapseDetails reportConsumeChartsDetails" id="reportConsumeChartsDetails">
+                <summary>Daily volume charts <span id="reportConsumeChartsHint" class="reportCollapseHint muted"></span></summary>
+                <div class="reportCollapseBody">
               <div class="reportConsumeRunRate" aria-label="Run rate">
                 <header class="reportConsumeRunRateHead">
                   <h3 class="reportConsumeRunRateTitle">Run rate</h3>
@@ -596,6 +688,8 @@
                   </article>
                 </div>
               </div>
+                </div>
+              </details>
             </div>
           </section>
 
@@ -611,6 +705,7 @@
     <script src="/static/js/chart-plugins.js"></script>
     <script src="/static/js/chart-style.js?v=20260605-dates"></script>
     <script src="/static/js/cost-semantics.js?v=20260708-ref-arch"></script>
+    <script src="/static/js/unit-price-table.js?v=20260709-unit-rates"></script>
     <script src="/static/js/dashboard-ui.js?v=20260605-datesort"></script>
     <script src="/static/js/date-range-picker.js?v=20260606-drp"></script>
     <script src="/static/js/dashboard-interactions.js?v=20260707-ui"></script>
@@ -870,6 +965,89 @@
         });
       }
 
+      function _reportScopeLabel(report) {
+        const projects = Array.isArray(report?.projects) ? report.projects : [];
+        if (projects.length === 0) return 'All projects';
+        if (projects.length === 1) return projects[0];
+        return `${projects.length} projects`;
+      }
+
+      function _reportUnitRatePeriodLabel(report) {
+        const q = report?.scope_quality || {};
+        const start = q.token_start_date || q.cost_start_date;
+        const end = q.token_end_date || q.cost_end_date;
+        if (!start && !end) return null;
+        return `Period weighted · ${start || '…'} ~ ${end || '…'}`;
+      }
+
+      let reportUnitRatesView = 'scoped';
+
+      function _setReportUnitRatesView(view) {
+        reportUnitRatesView = view;
+        const scoped = document.getElementById('reportUnitRatesScoped');
+        const byProject = document.getElementById('reportUnitRatesByProject');
+        const buttons = document.querySelectorAll('.reportUnitRatesViewBtn');
+        for (const btn of buttons) {
+          btn.classList.toggle('is-active', btn.dataset.view === view);
+        }
+        if (scoped) scoped.hidden = view !== 'scoped';
+        if (byProject) byProject.hidden = view !== 'project';
+      }
+
+      function renderReportRateComparison(report) {
+        const panel = document.getElementById('reportUnitRatesPanel');
+        const catalog = report?.catalog_market || {};
+        const unitRates = catalog.model_unit_rates || [];
+        const projectRates = catalog.project_unit_rates || [];
+        const show = catalog.available === true && unitRates.length > 0;
+
+        if (!panel) return;
+        panel.hidden = !show;
+        if (!show) {
+          const scopedTbody = document.getElementById('reportUnitRatesScopedTbody');
+          const projectTbody = document.getElementById('reportUnitRatesProjectTbody');
+          if (scopedTbody) scopedTbody.replaceChildren();
+          if (projectTbody) projectTbody.replaceChildren();
+          return;
+        }
+
+        const scopeBadge = document.getElementById('reportUnitRatesScope');
+        const periodBadge = document.getElementById('reportUnitRatesPeriod');
+        const viewBar = document.getElementById('reportUnitRatesViewBar');
+        const scopeLabel = _reportScopeLabel(report);
+        const periodLabel = _reportUnitRatePeriodLabel(report);
+
+        if (scopeBadge) {
+          scopeBadge.hidden = false;
+          scopeBadge.textContent = scopeLabel;
+        }
+        if (periodBadge) {
+          if (periodLabel) {
+            periodBadge.hidden = false;
+            periodBadge.textContent = periodLabel;
+          } else {
+            periodBadge.hidden = true;
+          }
+        }
+
+        const showProjectTab = projectRates.length > 1;
+        if (viewBar) viewBar.hidden = !showProjectTab;
+        if (!showProjectTab && reportUnitRatesView === 'project') {
+          reportUnitRatesView = 'scoped';
+        }
+        _setReportUnitRatesView(reportUnitRatesView);
+
+        window.AppUnitPriceTable?.renderScopedRows?.(unitRates, {
+          currency: catalog.currency || report.currency,
+          dailyRows: catalog.daily_by_model || [],
+          tbody: document.getElementById('reportUnitRatesScopedTbody'),
+        });
+        window.AppUnitPriceTable?.renderProjectRows?.(projectRates, {
+          currency: catalog.currency || report.currency,
+          tbody: document.getElementById('reportUnitRatesProjectTbody'),
+        });
+      }
+
       function renderExecutiveOverview(report) {
         const section = document.getElementById('report-by-model');
         const hint = document.getElementById('reportExecutiveHint');
@@ -882,6 +1060,9 @@
           _destroyExecutiveCharts();
           if (meterTotals) meterTotals.hidden = true;
           if (hint) hint.textContent = '';
+          const extras = document.getElementById('reportModelExtrasDetails');
+          if (extras) extras.hidden = true;
+          renderReportRateComparison(report);
           const tbody = document.getElementById('reportModelCostTbody');
           const tfoot = document.getElementById('reportModelCostTfoot');
           if (tbody) tbody.innerHTML = '';
@@ -914,6 +1095,12 @@
         setMeter('reportInputCostTotal', summary.total_input_cost_usd);
         setMeter('reportOutputCostTotal', summary.total_output_cost_usd);
         setMeter('reportMeterCostTotal', summary.total_meter_cost_usd);
+
+        const extras = document.getElementById('reportModelExtrasDetails');
+        if (extras) extras.hidden = false;
+        setCollapseHint('reportModelExtrasHint', `${models.length} models`);
+
+        renderReportRateComparison(report);
 
         const tbody = document.getElementById('reportModelCostTbody');
         const tfoot = document.getElementById('reportModelCostTfoot');
@@ -1161,19 +1348,122 @@
         const summary = report?.catalog_market?.summary || {};
         const meter = summary.total_meter_cost_usd;
         const platform = summary.billing_other_usd;
+        const totalOpex = Number(d.total_actual ?? 0);
         const hasMeter = meter != null && Number(meter) > 0;
         const hasPlatform = platform != null && Number(platform) > 0;
+        const hasComposition = hasMeter || hasPlatform;
+
+        const panel = document.getElementById('reportIncomePanel');
+        if (panel) panel.hidden = !hasComposition && !(totalOpex > 0);
+
         const meterRow = document.getElementById('incomeLineMeterRow');
+        const meterDetailRow = document.getElementById('incomeLineMeterDetailRow');
         const platformRow = document.getElementById('incomeLinePlatformRow');
         if (meterRow) meterRow.hidden = !hasMeter;
+        if (meterDetailRow) meterDetailRow.hidden = !hasMeter;
         if (platformRow) platformRow.hidden = !hasPlatform;
+
         const set = (id, text) => {
           const el = document.getElementById(id);
           if (el) el.textContent = text ?? '—';
         };
-        if (hasMeter) set('incomeLineMeter', fmtCost(meter));
+
+        const ccy = report?.currency || 'USD';
+        set('incomeLineCurrencyUnit', ccy);
+
+        if (hasMeter) {
+          set('incomeLineMeter', fmtCost(meter));
+          const inCost = summary.total_input_cost_usd;
+          const outCost = summary.total_output_cost_usd;
+          const sharePct =
+            totalOpex > 0 ? ((Number(meter) / totalOpex) * 100).toFixed(1) : null;
+          let detail = 'Meter matched billing';
+          if (inCost != null || outCost != null) {
+            detail = `Meter matched · in ${fmtCost(inCost)} · out ${fmtCost(outCost)}`;
+          }
+          if (sharePct != null) detail += ` · ${sharePct}% of OpEx`;
+          set('incomeLineMeterDetail', detail);
+        }
         if (hasPlatform) set('incomeLinePlatform', fmtCost(platform));
         set('incomeLineTotal', fmtCost(d.total_actual));
+
+        const metaParts = [];
+        if (d.avg_actual != null) metaParts.push(`avg ${fmtCost(d.avg_actual)}/day`);
+        if (d.count_days > 0) metaParts.push(`${d.count_days} billed days`);
+        if (d.median_actual != null) metaParts.push(`median ${fmtCost(d.median_actual)}`);
+        set('hero_summary_meta', metaParts.length ? metaParts.join(' · ') : '—');
+      }
+
+      function renderStatementBridge(report) {
+        const bridge = document.getElementById('reportStatementBridge');
+        const cm = report?.catalog_market;
+        const summary = cm?.summary || {};
+        const catalogAvailable = cm?.available === true;
+        const opex = Number(report?.daily?.total_actual ?? 0);
+        const tariff = summary.total_catalog_cost_usd;
+        const showBridge = catalogAvailable && opex > 0 && tariff != null;
+        if (bridge) bridge.hidden = !showBridge;
+        if (!showBridge) return;
+
+        const set = (id, text) => {
+          const el = document.getElementById(id);
+          if (el) el.textContent = text ?? '—';
+        };
+        set('bridgeOpex', fmtCost(opex));
+        set('bridgeTariff', fmtCost(tariff));
+        if (summary.variance_pct != null) {
+          set('bridgeVariancePct', fmtPct(summary.variance_pct));
+          set('bridgeVarianceUsd', fmtCost(summary.variance_usd));
+        }
+      }
+
+      function renderRefArchStatement(report) {
+        const cm = report?.catalog_market;
+        const summary = cm?.summary || {};
+        const catalogAvailable = cm?.available === true;
+        const block = document.getElementById('reportRefArchBlock');
+        if (block) block.hidden = !catalogAvailable;
+
+        const set = (id, text) => {
+          const el = document.getElementById(id);
+          if (el) el.textContent = text ?? '—';
+        };
+        if (!catalogAvailable) return;
+
+        const tariff = summary.total_catalog_cost_usd;
+        if (tariff != null) {
+          const tariffText = fmtCost(tariff);
+          set('refArchLineTariff', tariffText);
+          set('refArchLineTotal', tariffText);
+        }
+
+        if (summary.variance_pct != null) {
+          set('refArchSummaryVariance', fmtPct(summary.variance_pct));
+          const varianceRow = document.getElementById('refArchVarianceRow');
+          if (varianceRow) varianceRow.hidden = false;
+          set('refArchLineVariance', fmtCost(summary.variance_usd));
+        } else {
+          const varianceRow = document.getElementById('refArchVarianceRow');
+          if (varianceRow) varianceRow.hidden = true;
+        }
+
+        const metaParts = [];
+        if (tariff != null) metaParts.push(`tariff ${fmtCost(tariff)}`);
+        if (summary.variance_usd != null) metaParts.push(`${fmtCost(summary.variance_usd)} vs actual`);
+        metaParts.push('from <a href="/prices">Tariff schedule</a>');
+        const metaEl = document.getElementById('refArch_summary_meta');
+        if (metaEl) {
+          metaEl.innerHTML = metaParts.join(' · ');
+        }
+
+        const opexTotal = Number(report?.daily?.total_actual ?? 0);
+        const detail = document.getElementById('refArchLineTariffDetail');
+        if (detail) {
+          detail.textContent =
+            opexTotal > 0 && tariff != null
+              ? `List price × token volume · not invoice spend`
+              : 'Benchmark only · not invoice spend';
+        }
       }
 
       function renderCashFlowTieOut(report) {
@@ -1209,63 +1499,11 @@
         }
 
         set('hero_total_spend', fmtCost(d.total_actual));
-        set('hero_total_sub', `${d.count_days ?? 0} billing days in scope`);
-        set('hero_avg_day', fmtCost(d.avg_actual));
-        set('hero_avg_day_sub', `median ${fmtCost(d.median_actual)}`);
-        set('hero_billed_days', d.count_days > 0 ? String(d.count_days) : '—');
-
-        const costStart = q.cost_start_date || report?.daily_points?.[0]?.date;
-        const costEnd = q.cost_end_date || report?.daily_points?.slice(-1)?.[0]?.date;
-        const periodText =
-          costStart || costEnd ? `${costStart || '…'} ~ ${costEnd || '…'}` : '—';
-        set('hero_period', periodText);
-        set('hero_period_sub', report?.currency ? `${report.currency} · in-scope dates` : 'Data range in scope');
 
         renderStatementMeta(report);
+        renderStatementBridge(report);
         renderIncomeLines(report);
-
-        const benchmarkRow = document.getElementById('reportBenchmarkRow');
-        const refArchLayer = document.getElementById('reportRefArchLayer');
-        const opexCompositionRow = document.getElementById('reportOpexCompositionRow');
-        const opexCompositionLayer = document.getElementById('reportOpexCompositionLayer');
-        const catalogAvailable = cm?.available === true;
-        if (benchmarkRow) benchmarkRow.hidden = !catalogAvailable;
-        if (refArchLayer) refArchLayer.hidden = !catalogAvailable;
-
-        const meter = summary.total_meter_cost_usd;
-        const platform = summary.billing_other_usd;
-        const totalOpex = Number(d.total_actual ?? 0);
-        const hasMeter = meter != null && Number(meter) > 0;
-        const hasPlatform = platform != null && Number(platform) > 0;
-        if (opexCompositionRow) opexCompositionRow.hidden = !hasMeter && !hasPlatform;
-        if (opexCompositionLayer) opexCompositionLayer.hidden = !hasMeter && !hasPlatform;
-        if (hasMeter) {
-          set('hero_opex_meter', fmtCost(meter));
-          const sub = document.getElementById('hero_opex_meter_sub');
-          if (sub) {
-            sub.textContent = `in ${fmtCost(summary.total_input_cost_usd)} · out ${fmtCost(summary.total_output_cost_usd)}`;
-          }
-        }
-        if (hasPlatform) set('hero_opex_platform', fmtCost(platform));
-        if (hasMeter && totalOpex > 0) {
-          set('hero_meter_share', `${((Number(meter) / totalOpex) * 100).toFixed(1)}%`);
-        } else {
-          set('hero_meter_share', '—');
-        }
-
-        if (catalogAvailable && summary.total_catalog_cost_usd != null) {
-          set('hero_catalog_total', fmtCost(summary.total_catalog_cost_usd));
-          const sub = document.getElementById('hero_catalog_total_sub');
-          if (sub) sub.textContent = 'Tokens × list USD/1M · benchmark only';
-        }
-
-        if (catalogAvailable && summary.variance_pct != null) {
-          set('hero_catalog_delta', fmtPct(summary.variance_pct));
-          const sub = document.getElementById('hero_catalog_sub');
-          if (sub) {
-            sub.textContent = `${fmtCost(summary.variance_usd)} vs Ref. Arch · Tariff ${fmtCost(summary.total_catalog_cost_usd)}`;
-          }
-        }
+        renderRefArchStatement(report);
 
         const volumeRow = document.getElementById('reportVolumeRow');
         const volumeLayer = document.getElementById('reportVolumeLayer');
@@ -1287,6 +1525,11 @@
           'hero_volume_note',
           imported ? 'OpEx consumption drivers · token volume in scope' : 'No token CSV in scope'
         );
+
+        const supParts = [];
+        if (d.count_days != null) supParts.push(`${d.count_days} cost days`);
+        if (imported) supParts.push(`${t.projects_with_imported_tokens ?? 0} token projects`);
+        setCollapseHint('reportIncomeSupplementHint', supParts.join(' · '));
       }
 
       function toYmd(d) {
@@ -1305,6 +1548,36 @@
         if (!s) return '';
         const t = String(s).trim();
         return t.length > 0 ? t : '';
+      }
+
+      function setCollapseHint(id, text) {
+        const el = document.getElementById(id);
+        if (el) el.textContent = text ? `· ${text}` : '';
+      }
+
+      function resizeReportCharts() {
+        for (const ch of [
+          dailyChart,
+          monthlyChart,
+          reportMarketChart,
+          reportInputByModelChart,
+          reportOutputByModelChart,
+          reportTokenInputChart,
+          reportTokenOutputChart,
+          dailyTokenRatioChart,
+        ]) {
+          ch?.resize?.();
+        }
+      }
+
+      function wireReportCollapseDetails() {
+        document.querySelectorAll('.reportCollapseDetails').forEach((el) => {
+          if (el.dataset.collapseWired === '1') return;
+          el.dataset.collapseWired = '1';
+          el.addEventListener('toggle', () => {
+            if (el.open) requestAnimationFrame(resizeReportCharts);
+          });
+        });
       }
 
       const CHART_OPTS = window.AppChartStyle;
@@ -1447,6 +1720,7 @@
         set('reportConsumeAvgDaily', avgDaily == null ? '—' : fmtInt(avgDaily));
         set('reportConsumeOutIn', outIn ?? '—');
         set('reportConsumePeriod', period !== '—' ? `Period · ${period}` : 'No token days in scope');
+        setCollapseHint('reportConsumeChartsHint', activeDays > 0 ? `${activeDays} active days` : '');
       }
 
       function validateDateRange() {
@@ -1534,6 +1808,7 @@
         renderCharts(report);
         renderTables(report);
         updateReportStatusBar(report);
+        wireReportCollapseDetails();
         window.AppDashboardInteractions?.refreshDashPage?.();
       }
 
@@ -1773,6 +2048,10 @@
       function renderProjectBreakdown(report) {
         projectBreakdownRows = report.project_breakdown || [];
         renderProjectBreakdownTable();
+        setCollapseHint(
+          'reportAllocTokenHint',
+          projectBreakdownRows.length ? `${projectBreakdownRows.length} projects` : ''
+        );
         const table = document.getElementById('projectBreakdownTable');
         if (clearProjectRowSelect) clearProjectRowSelect();
         clearProjectRowSelect = window.AppDashboardInteractions?.bindSelectableRows?.(table, {
@@ -2002,8 +2281,8 @@
         const tokenInsight = document.getElementById('tokenSectionInsight');
         if (tokenInsight) {
           tokenInsight.textContent = showTokens
-            ? 'Volume summary, daily run rate, and output/input ratio for imported token CSVs.'
-            : 'No imported token CSVs in this scope — run rate charts above still show OpEx billing.';
+            ? 'Volume summary in the meta bar — expand charts for daily run rate and out/in ratio.'
+            : 'No imported token CSVs in this scope.';
         }
         if (!showTokens) {
           for (const ch of [reportTokenInputChart, reportTokenOutputChart, dailyTokenRatioChart]) {
@@ -2495,6 +2774,7 @@
         const dailyPrevBtn = document.getElementById('dailyPrevBtn');
         const dailyNextBtn = document.getElementById('dailyNextBtn');
         const dailyPageInfo = document.getElementById('dailyPageInfo');
+        setCollapseHint('reportDailyLedgerHint', daily.length ? `${daily.length} days` : '');
         dailyPage = renderPagedTable({
           points: daily,
           page: dailyPage,
@@ -2598,11 +2878,21 @@
 
         const report = await fetchReport();
         applyReportPayload(report);
+        wireReportCollapseDetails();
       }
 
       const exportTokenRatioBtn = document.getElementById('exportTokenRatioBtn');
       if (exportTokenRatioBtn) {
         exportTokenRatioBtn.addEventListener('click', () => exportTokenRatioCsv());
+      }
+
+      const reportUnitRatesViewBar = document.getElementById('reportUnitRatesViewBar');
+      if (reportUnitRatesViewBar) {
+        reportUnitRatesViewBar.addEventListener('click', (e) => {
+          const btn = e.target.closest('.reportUnitRatesViewBtn');
+          if (!btn?.dataset.view) return;
+          _setReportUnitRatesView(btn.dataset.view);
+        });
       }
 
       document.getElementById('loadBtn').addEventListener('click', () => {

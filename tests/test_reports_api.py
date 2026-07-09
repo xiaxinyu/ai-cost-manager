@@ -219,6 +219,63 @@ def test_all_financial_report_includes_token_only_projects_and_verifies(tmp_path
     assert ver_payload["failed_count"] == 0
 
 
+def _write_foundry_cost(path, rows: list[tuple[str, str, float]]) -> None:
+    lines = [
+        '"UsageDate","ResourceId","ResourceType","ResourceLocation","ResourceGroupName",'
+        '"ServiceName","ServiceTier","Meter","CostUSD","Cost","Currency"'
+    ]
+    rid = "/subscriptions/x/resourcegroups/rg/providers/microsoft.cognitiveservices/accounts/a"
+    for usage_date, meter, cost in rows:
+        lines.append(
+            f'"{usage_date}","{rid}","microsoft.cognitiveservices/accounts","US East 2",'
+            f'"rg","Foundry Models","Azure OpenAI GPT5","{meter}","{cost}","{cost}","USD"'
+        )
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+def test_all_financial_report_exposes_unit_rate_comparison(tmp_path):
+    bills_dir = tmp_path / "bills"
+    project_dir = bills_dir / "projBridge"
+    token_dir = project_dir / "token"
+    token_dir.mkdir(parents=True)
+    _write_foundry_cost(
+        project_dir / "cost.csv",
+        [
+            ("2026-05-12", "5.3 codex inp Gl 1M Tokens", 10.0),
+            ("2026-05-12", "5.3 codex opt Gl 1M Tokens", 4.0),
+        ],
+    )
+    (token_dir / "input-tokens.csv").write_text(
+        '"Time","gpt-5.3-codex"\n2026-05-12 10:00:00,2 Mil\n',
+        encoding="utf-8",
+    )
+    (token_dir / "output-tokens.csv").write_text(
+        '"Time","gpt-5.3-codex"\n2026-05-12 10:00:00,200 K\n',
+        encoding="utf-8",
+    )
+
+    db_path = tmp_path / "cost_mgmt.sqlite3"
+    ingest_all(bills_dir=bills_dir, db_path=db_path, reimport_changed=False)
+    ingest_token_all(bills_dir=bills_dir, db_path=db_path, reimport_changed=False)
+
+    app = create_app(db_path=str(db_path), bills_dir=str(bills_dir), auto_ingest=False)
+    client = TestClient(app)
+    _create_admin(str(db_path))
+    client.post("/auth/login", data={"username": "admin", "password": "admin12345"})
+
+    res = client.get("/api/reports/all-financial?currency=USD&project_names=projBridge")
+    assert res.status_code == 200
+    catalog = res.json()["catalog_market"]
+    assert catalog["available"] is True
+    assert len(catalog["model_unit_rates"]) >= 1
+    assert len(catalog["project_unit_rates"]) == 1
+    row = next(
+        r for r in catalog["model_unit_rates"] if "codex" in str(r["model_name"]).lower()
+    )
+    assert row["effective_usd_per_1m_input"] == 5.0
+    assert row["effective_usd_per_1m_output"] == 20.0
+
+
 def test_reports_page_layout_without_token_forecast(tmp_path):
     bills_dir = tmp_path / "bills"
     bills_dir.mkdir(parents=True)
@@ -240,15 +297,16 @@ def test_reports_page_layout_without_token_forecast(tmp_path):
     assert "projectSummariesTable" in page.text
     assert "report-daily-by-project" not in page.text
     assert "report-glance" in page.text
-    assert "reportOpexCompositionRow" in page.text
-    assert "hero_opex_meter" in page.text
-    assert "hero_billed_days" in page.text
-    assert "reportBenchmarkRow" in page.text
+    assert "reportStatementBridge" in page.text
+    assert "reportStatementCompare" in page.text
+    assert "reportOpexCompositionRow" not in page.text
+    assert "incomeLineShare" not in page.text
+    assert "hero_summary_meta" in page.text
+    assert "reportRefArchPanel" in page.text
+    assert "reportBenchmarkRow" not in page.text
     assert "reportVolumeRow" in page.text
-    assert "reportFinPrimaryKpi" in page.text
-    assert "report-cash-flow" in page.text
-    assert "reportStatementMeta" in page.text
-    assert "reportIncomeTable" in page.text
+    assert "reportIncomeStatement" in page.text
+    assert "reportIncomeSummary" in page.text
     assert "reportCashFlowTieOut" in page.text
     assert "report-raw-data" not in page.text
     assert "filterCard" in page.text
@@ -257,6 +315,13 @@ def test_reports_page_layout_without_token_forecast(tmp_path):
     assert "reportStatusBar" in page.text
     assert "reportToolbarGrid" in page.text
     assert "heroMetricGrid" in page.text
+    assert "reportUnitRatesPanel" in page.text
+    assert "unit-price-table.js" in page.text
+    assert "reportUnitRatesScopedTable" in page.text
+    assert "reportIncomeSupplement" in page.text
+    assert "reportCollapseDetails" in page.text
+    assert "reportCashFlowLedgerDetails" in page.text
+    assert "reportModelExtrasDetails" in page.text
 
 
 def test_all_financial_report_rejects_invalid_date_range(tmp_path):

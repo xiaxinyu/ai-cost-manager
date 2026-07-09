@@ -8,6 +8,7 @@ from fastapi.testclient import TestClient
 from app.auth import create_user
 from app.money import round_cost
 from app.db import (
+    get_all_catalog_market_breakdown,
     get_catalog_market_cost_timeseries,
     get_connection,
     get_model_implied_usd_per_1m_analysis,
@@ -556,6 +557,52 @@ def test_catalog_market_cost_timeseries(tmp_path):
     assert "total_input_cost_usd" in body["summary"]
     assert "total_output_cost_usd" in body["summary"]
     assert "total_meter_cost_usd" in body["summary"]
+
+
+def test_get_all_catalog_market_unit_rates(tmp_path):
+    bills_dir = tmp_path / "bills"
+    project_dir = bills_dir / "projBridge"
+    token_dir = project_dir / "token"
+    token_dir.mkdir(parents=True)
+    _write_foundry_cost(
+        project_dir / "cost.csv",
+        [
+            ("2026-05-12", "5.3 codex inp Gl 1M Tokens", 10.0),
+            ("2026-05-12", "5.3 codex opt Gl 1M Tokens", 4.0),
+        ],
+    )
+    (token_dir / "input-tokens.csv").write_text(
+        '"Time","gpt-5.3-codex"\n2026-05-12 10:00:00,2 Mil\n',
+        encoding="utf-8",
+    )
+    (token_dir / "output-tokens.csv").write_text(
+        '"Time","gpt-5.3-codex"\n2026-05-12 10:00:00,200 K\n',
+        encoding="utf-8",
+    )
+
+    db_path = tmp_path / "cost_mgmt.sqlite3"
+    ingest_all(bills_dir=bills_dir, db_path=db_path, reimport_changed=False)
+    ingest_token_all(bills_dir=bills_dir, db_path=db_path, reimport_changed=False)
+
+    conn = get_connection(db_path)
+    try:
+        payload = get_all_catalog_market_breakdown(conn, currency="USD")
+    finally:
+        conn.close()
+
+    assert payload["available"] is True
+    assert len(payload["model_unit_rates"]) >= 1
+    assert len(payload["project_unit_rates"]) == 1
+    row = next(
+        r for r in payload["model_unit_rates"] if "codex" in str(r["model_name"]).lower()
+    )
+    assert row["effective_usd_per_1m_input"] == 5.0
+    assert row["effective_usd_per_1m_output"] == 20.0
+    assert row["matched_days"] >= 1
+
+    proj = payload["project_unit_rates"][0]
+    assert proj["project_name"] == "projBridge"
+    assert len(proj["models"]) >= 1
 
 
 def test_imported_daily_by_model_money_fields_two_decimals(tmp_path):

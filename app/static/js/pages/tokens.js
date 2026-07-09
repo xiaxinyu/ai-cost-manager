@@ -316,7 +316,9 @@
   };
 
   function isMeterAllocated(method) {
-    return method === "meter_matched" || method === "meter_matched_partial";
+    return window.AppUnitPriceTable?.isMeterAllocated?.(method) ?? (
+      method === "meter_matched" || method === "meter_matched_partial"
+    );
   }
 
   let lastBillingCurrency = "USD";
@@ -406,7 +408,9 @@
   }
 
   function fmtUsdPer1m(n, currency) {
-    return window.AppMoney?.fmtCostPer1m(n, currency || lastBillingCurrency) ?? "—";
+    return window.AppUnitPriceTable?.fmtUsdPer1m?.(n, currency || lastBillingCurrency)
+      ?? window.AppMoney?.fmtCostPer1m(n, currency || lastBillingCurrency)
+      ?? "—";
   }
 
   function fmtUsd(n, currency) {
@@ -440,53 +444,60 @@
   }
 
   function periodEffectiveUsdPer1m(rows) {
-    let inputCost = 0;
-    let outputCost = 0;
-    let inputTokens = 0;
-    let outputTokens = 0;
-    for (const row of rows || []) {
-      if (!isMeterAllocated(row.allocation_method)) continue;
-      const inTok = Number(row.input_tokens) || 0;
-      const outTok = Number(row.output_tokens) || 0;
-      const inCost = row.input_cost_usd;
-      const outCost = row.output_cost_usd;
-      if (inCost != null && inTok > 0) {
-        inputCost += Number(inCost);
-        inputTokens += inTok;
+    return window.AppUnitPriceTable?.periodEffectiveUsdPer1m?.(rows) ?? (() => {
+      let inputCost = 0;
+      let outputCost = 0;
+      let inputTokens = 0;
+      let outputTokens = 0;
+      for (const row of rows || []) {
+        if (!isMeterAllocated(row.allocation_method)) continue;
+        const inTok = Number(row.input_tokens) || 0;
+        const outTok = Number(row.output_tokens) || 0;
+        const inCost = row.input_cost_usd;
+        const outCost = row.output_cost_usd;
+        if (inCost != null && inTok > 0) {
+          inputCost += Number(inCost);
+          inputTokens += inTok;
+        }
+        if (outCost != null && outTok > 0) {
+          outputCost += Number(outCost);
+          outputTokens += outTok;
+        }
       }
-      if (outCost != null && outTok > 0) {
-        outputCost += Number(outCost);
-        outputTokens += outTok;
-      }
-    }
-    const round = (x) => window.AppMoney?.roundCost?.(x) ?? Math.round(x * 100) / 100;
-    return {
-      input:
-        inputTokens > 0 && inputCost > 0
-          ? round((inputCost / inputTokens) * 1_000_000)
-          : null,
-      output:
-        outputTokens > 0 && outputCost > 0
-          ? round((outputCost / outputTokens) * 1_000_000)
-          : null,
-    };
+      const round = (x) => window.AppMoney?.roundCost?.(x) ?? Math.round(x * 100) / 100;
+      return {
+        input:
+          inputTokens > 0 && inputCost > 0
+            ? round((inputCost / inputTokens) * 1_000_000)
+            : null,
+        output:
+          outputTokens > 0 && outputCost > 0
+            ? round((outputCost / outputTokens) * 1_000_000)
+            : null,
+      };
+    })();
   }
 
   function periodEffectiveFromModel(model, dailyRows) {
-    const fromApi = model?.period_effective_usd_per_1m_input != null || model?.period_effective_usd_per_1m_output != null;
-    if (fromApi) {
-      return {
-        input: model.period_effective_usd_per_1m_input ?? null,
-        output: model.period_effective_usd_per_1m_output ?? null,
-      };
-    }
-    const modelRows = (dailyRows || []).filter((r) => r.model_name === model.model_name);
-    return periodEffectiveUsdPer1m(modelRows);
+    return window.AppUnitPriceTable?.periodEffectiveFromModel?.(model, dailyRows) ?? (() => {
+      const fromApi = model?.period_effective_usd_per_1m_input != null || model?.period_effective_usd_per_1m_output != null;
+      if (fromApi) {
+        return {
+          input: model.period_effective_usd_per_1m_input ?? null,
+          output: model.period_effective_usd_per_1m_output ?? null,
+        };
+      }
+      const modelRows = (dailyRows || []).filter((r) => r.model_name === model.model_name);
+      return periodEffectiveUsdPer1m(modelRows);
+    })();
   }
 
-  function appendUnitPriceCell(tr, text, { className = "" } = {}) {
+  function appendUnitPriceCell(tr, text, opts) {
+    if (window.AppUnitPriceTable?.appendUnitPriceCell) {
+      return window.AppUnitPriceTable.appendUnitPriceCell(tr, text, opts);
+    }
     const td = document.createElement("td");
-    td.className = ["num", className].filter(Boolean).join(" ");
+    td.className = ["num", opts?.className || ""].filter(Boolean).join(" ");
     td.textContent = text ?? "—";
     tr.appendChild(td);
     return td;
@@ -497,52 +508,18 @@
     const models = (catalogPayload?.models || []).filter(
       (m) => m.catalog_usd_per_1m_input != null || m.catalog_usd_per_1m_output != null
     );
-    if (!models.length) {
+    const rendered = window.AppUnitPriceTable?.renderScopedRows?.(models, {
+      currency: currency || catalogPayload?.currency,
+      dailyRows,
+      tbody: els.unitPriceSummaryTbody,
+    });
+    if (!rendered) {
       els.catalogRefLine.hidden = true;
       els.unitPriceSummaryTbody.innerHTML = "";
       if (els.unitPriceSummaryDate) els.unitPriceSummaryDate.hidden = true;
       syncUnitPriceSection();
       return;
     }
-
-    const ccy = currency || catalogPayload.currency || "USD";
-    const frag = document.createDocumentFragment();
-
-    for (const m of models) {
-      const periodEff = periodEffectiveFromModel(m, dailyRows);
-
-      const tr = document.createElement("tr");
-      tr.className = "unitPriceSummaryRow";
-
-      const tdModel = document.createElement("td");
-      tdModel.className = "unitPriceModelCell";
-      const code = document.createElement("code");
-      code.textContent = m.model_name || "model";
-      tdModel.appendChild(code);
-      tr.appendChild(tdModel);
-
-      appendUnitPriceCell(tr, fmtUsdPer1m(m.catalog_usd_per_1m_input, ccy), {
-        className: "unitPriceList",
-      });
-      appendUnitPriceCell(tr, fmtUsdPer1m(m.catalog_usd_per_1m_output, ccy), {
-        className: "unitPriceList",
-      });
-
-      const actualIn =
-        periodEff.input != null && Number.isFinite(Number(periodEff.input))
-          ? fmtUsdPer1m(periodEff.input, ccy)
-          : "—";
-      const actualOut =
-        periodEff.output != null && Number.isFinite(Number(periodEff.output))
-          ? fmtUsdPer1m(periodEff.output, ccy)
-          : "—";
-      appendUnitPriceCell(tr, actualIn, { className: "unitPriceBilling" });
-      appendUnitPriceCell(tr, actualOut, { className: "unitPriceBilling" });
-
-      frag.appendChild(tr);
-    }
-
-    els.unitPriceSummaryTbody.replaceChildren(frag);
     if (els.unitPriceSummaryDate) {
       if (periodLabel) {
         els.unitPriceSummaryDate.hidden = false;
