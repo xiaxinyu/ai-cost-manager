@@ -6,7 +6,7 @@
     <title>Reports - Models Cost Management</title>
     <link rel="stylesheet" href="/static/css/app-shell.css" />
     <link rel="stylesheet" href="/static/css/page-common.css" />
-    <link rel="stylesheet" href="/static/css/pages/reports.css?v=20260708-ref-arch" />
+    <link rel="stylesheet" href="/static/css/pages/reports.css?v=20260709-fin-four-table" />
     <link rel="stylesheet" href="/static/css/layout-pro.css" />
     <link rel="stylesheet" href="/static/css/dashboard-shared.css?v=20260708-dash-polish" />
     <link rel="stylesheet" href="/static/css/date-range-picker.css?v=20260606-drp" />
@@ -23,7 +23,7 @@
             <div class="reportTitleRow">
               <div>
                 <h1 class="pageTitle">Reports</h1>
-                <p class="pageDesc">Consolidated OpEx statement — billing totals, run rate, and consumption for the selected scope.</p>
+                <p class="pageDesc">Four-table OpEx report — income statement, cash flow, allocation, and supporting detail for the selected scope.</p>
                 <div class="reportLegendRow muted" aria-label="Report semantics">
                   <span class="costPill costPill--actual">OpEx</span>
                   <span class="costPill costPill--market">Ref. Arch.</span>
@@ -80,23 +80,29 @@
           <div id="reportStatusBar" class="dataStatusBar dataStatusBar--compact" hidden aria-live="polite" aria-label="Load summary"></div>
 
           <nav class="dashSectionNav card reportNav reportNavSticky" aria-label="Report sections">
-            <span class="dashSectionNavLabel muted">Statement</span>
-            <a class="dashSectionNavLink" href="#report-glance">Overview</a>
-            <a class="dashSectionNavLink" href="#report-spend-trends">Run Rate</a>
-            <a class="dashSectionNavLink" href="#report-by-project">By project</a>
+            <span class="dashSectionNavLabel muted">Tables</span>
+            <a class="dashSectionNavLink" href="#report-glance">1 · Income</a>
+            <a class="dashSectionNavLink" href="#report-cash-flow">2 · Cash flow</a>
+            <a class="dashSectionNavLink" href="#report-by-project">3 · Allocation</a>
             <a class="dashSectionNavLink" href="#report-by-model">By model</a>
             <a class="dashSectionNavLink" href="#report-tokens">Consumption</a>
-            <a class="dashSectionNavLink" href="#report-raw-data">Ledger</a>
           </nav>
 
-          <section id="report-glance" class="card reportAtAGlance reportFinBlock reportStatement" aria-label="OpEx summary">
+          <section id="report-glance" class="card reportAtAGlance reportFinBlock reportStatement" aria-label="Income statement">
             <div class="reportSectionHead">
               <span class="reportStep" aria-hidden="true">1</span>
               <div>
-                <h2 class="reportSectionTitle">OpEx Statement</h2>
-                <p class="reportSectionLead muted" id="reportInsightLine">Actual billing totals for the selected scope.</p>
+                <h2 class="reportSectionTitle">Income Statement</h2>
+                <p class="reportSectionLead muted" id="reportInsightLine">Period OpEx — invoice actuals and benchmark notes.</p>
               </div>
               <span class="reportSectionMeta reportCurrencyBadge" id="reportCurrencyMeta"></span>
+            </div>
+
+            <div class="reportStatementMeta" id="reportStatementMeta" aria-label="Statement header">
+              <span class="reportStatementMetaItem"><span class="reportStatementMetaKey muted">Scope</span><strong id="stmtMetaScope">—</strong></span>
+              <span class="reportStatementMetaItem"><span class="reportStatementMetaKey muted">Currency</span><strong id="stmtMetaCurrency">—</strong></span>
+              <span class="reportStatementMetaItem"><span class="reportStatementMetaKey muted">Period</span><strong id="stmtMetaPeriod">—</strong></span>
+              <span class="reportStatementMetaItem"><span class="reportStatementMetaKey muted">Prepared</span><strong id="stmtMetaPrepared">—</strong></span>
             </div>
 
             <p class="reportStatementLayerTag muted">Actual billing</p>
@@ -121,6 +127,25 @@
                 <span class="heroMetricValue heroMetricValue--scope" id="hero_period">—</span>
                 <span class="heroMetricSub" id="hero_period_sub">Data range in scope</span>
               </article>
+            </div>
+
+            <div class="reportIncomeLinesWrap" id="reportIncomeLinesWrap">
+              <table class="dataTable dashTable reportIncomeTable" aria-label="Income statement line items">
+                <tbody>
+                  <tr id="incomeLineMeterRow" hidden>
+                    <th scope="row"><span class="costPill costPill--actual">OpEx</span> · Meter</th>
+                    <td class="num mono tdCostActual" id="incomeLineMeter">—</td>
+                  </tr>
+                  <tr id="incomeLinePlatformRow" hidden>
+                    <th scope="row"><span class="costPill costPill--platform">OpEx</span> · Platform</th>
+                    <td class="num mono tdCostPlatform" id="incomeLinePlatform">—</td>
+                  </tr>
+                  <tr class="reportIncomeTotalRow">
+                    <th scope="row"><span class="costPill costPill--actual">OpEx</span> Total</th>
+                    <td class="num mono tdCostActual" id="incomeLineTotal">—</td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
 
             <div class="reportStatementLayer reportStatementLayer--opex" id="reportOpexCompositionLayer" hidden>
@@ -197,6 +222,7 @@
             </div>
             </div>
             <div id="reportQualityStrip" class="qualityStrip" hidden aria-label="Data coverage"></div>
+            <p class="reportStatementFootnotes muted" id="reportStatementFootnotes">① OpEx from billing CSV CostUSD · ② Ref. Arch · Tariff from Model Prices (not invoice) · ③ Token volume from imported CSV (no implied spend)</p>
             <details class="reportKpiDetails">
               <summary>More stats (daily / monthly)</summary>
               <div class="gridStats reportKpis reportKpisCompact">
@@ -227,41 +253,135 @@
             </details>
           </section>
 
-          <section id="report-spend-trends" class="reportSectionShell reportSection" aria-label="Run rate">
+          <section id="report-cash-flow" class="reportSectionShell reportSection card reportCashFlowSection" aria-label="Cash flow schedule">
             <div class="reportSectionHead">
               <span class="reportStep">2</span>
               <div>
-                <h2 class="reportSectionTitle">Run Rate</h2>
-                <p class="reportSectionLead muted" id="costTrendInsight">Daily and monthly <span class="costPill costPill--actual">OpEx</span> billing for the selected scope.</p>
+                <h2 class="reportSectionTitle">Cash Flow Schedule</h2>
+                <p class="reportSectionLead muted" id="costTrendInsight">Operating cash outflow from invoice actuals — daily rhythm and general ledger.</p>
               </div>
             </div>
-            <div class="chartGrid chartGrid2 reportTrendGrid">
-              <article class="card chartCard reportTrendCard" id="reportDailyChartCard">
-                <header class="reportChartHead">
-                  <h3 class="chartCardTitle">Daily cost</h3>
-                  <p class="chartCardHint muted" id="reportDailyChartHint">Daily OpEx total for the selected scope.</p>
-                </header>
-                <div id="reportDailySegmentLegend" class="costSpendLegendRow" hidden aria-label="Daily cost segments"></div>
-                <div class="chartCanvasHost chartPlot reportChartHost"><canvas id="dailyChart"></canvas></div>
-                <footer class="chartCardFoot muted" id="dailyChartFoot">—</footer>
-              </article>
-              <article class="card chartCard reportTrendCard">
-                <header class="reportChartHead">
-                  <h3 class="chartCardTitle">Monthly cost</h3>
-                  <p class="chartCardHint muted">Calendar month CostUSD totals.</p>
-                </header>
-                <div class="chartCanvasHost chartPlot reportChartHost"><canvas id="monthlyChart"></canvas></div>
-                <footer class="chartCardFoot muted" id="monthlyChartFoot">—</footer>
-              </article>
-            </div>
+            <p class="reportTieOutBar" id="reportCashFlowTieOut" role="status">Load a report to verify daily outflows tie to OpEx Total.</p>
+
+            <article class="card chartCard reportTrendCard reportCashFlowChart" id="reportDailyChartCard">
+              <header class="reportChartHead">
+                <h3 class="chartCardTitle">Daily cash outflow</h3>
+                <p class="chartCardHint muted" id="reportDailyChartHint">Invoice CostUSD by day · not forecast.</p>
+              </header>
+              <div id="reportDailySegmentLegend" class="costSpendLegendRow" hidden aria-label="Daily cost segments"></div>
+              <div class="chartCanvasHost chartPlot reportChartHost"><canvas id="dailyChart"></canvas></div>
+              <footer class="chartCardFoot muted" id="dailyChartFoot">—</footer>
+            </article>
+
+            <article class="reportLedgerCard reportCashFlowLedger">
+              <header class="reportLedgerHead">
+                <div class="reportLedgerHeadMain">
+                  <h3 class="reportLedgerTitle">General ledger — daily</h3>
+                  <p class="reportLedgerHint muted" id="tableAnalysisNote">Newest first · vs period average</p>
+                </div>
+                <span class="reportLedgerScope costPill costPill--actual">OpEx · USD</span>
+              </header>
+              <div class="reportLedgerInsightBar" id="reportLedgerInsightBar" hidden aria-label="Ledger highlights"></div>
+              <div class="reportLedgerTableWrap dashTableShell">
+                <table class="dataTable dashTable reportBillingTable reportLedgerTable">
+                  <colgroup>
+                    <col class="reportColPeriod" />
+                    <col class="reportColMoney" />
+                    <col class="reportColDelta" />
+                  </colgroup>
+                  <thead>
+                    <tr>
+                      <th scope="col">Date</th>
+                      <th class="num colCostActual" scope="col"><span class="thLabel">Outflow</span><span class="thUnit">USD</span></th>
+                      <th class="num" scope="col"><span class="thLabel">vs avg</span><span class="thUnit">%</span></th>
+                    </tr>
+                  </thead>
+                  <tbody id="dailyTbody"></tbody>
+                </table>
+              </div>
+              <footer class="reportLedgerFoot">
+                <nav class="reportLedgerPager" aria-label="Daily ledger pagination">
+                  <span id="dailyPageInfo" class="reportLedgerPageInfo">—</span>
+                  <div class="reportLedgerPagerControls">
+                    <label class="reportLedgerPagerLabel muted" for="dailyPageSizeSelect">Rows</label>
+                    <select id="dailyPageSizeSelect" class="reportLedgerSelect" aria-label="Daily page size">
+                      <option value="25" selected>25</option>
+                      <option value="50">50</option>
+                      <option value="100">100</option>
+                      <option value="200">200</option>
+                    </select>
+                    <button id="dailyPrevBtn" class="btnSmall reportLedgerBtn" type="button" aria-label="Previous page">Prev</button>
+                    <button id="dailyNextBtn" class="btnSmall reportLedgerBtn" type="button" aria-label="Next page">Next</button>
+                  </div>
+                </nav>
+              </footer>
+            </article>
+
+            <details class="reportCashFlowMonthlyDetails">
+              <summary>Monthly schedule &amp; chart</summary>
+              <div class="reportCashFlowMonthlyBody">
+                <article class="card chartCard reportTrendCard">
+                  <header class="reportChartHead">
+                    <h3 class="chartCardTitle">Monthly cash outflow</h3>
+                    <p class="chartCardHint muted">Calendar month CostUSD totals.</p>
+                  </header>
+                  <div class="chartCanvasHost chartPlot reportChartHost"><canvas id="monthlyChart"></canvas></div>
+                  <footer class="chartCardFoot muted" id="monthlyChartFoot">—</footer>
+                </article>
+                <article class="reportLedgerCard">
+                  <header class="reportLedgerHead">
+                    <div class="reportLedgerHeadMain">
+                      <h3 class="reportLedgerTitle">General ledger — monthly</h3>
+                      <p class="reportLedgerHint muted">Share of period total · month-over-month</p>
+                    </div>
+                    <span class="reportLedgerScope costPill costPill--actual">OpEx · USD</span>
+                  </header>
+                  <div class="reportLedgerTableWrap dashTableShell">
+                    <table class="dataTable dashTable reportBillingTable reportLedgerTable">
+                      <colgroup>
+                        <col class="reportColPeriod" />
+                        <col class="reportColMoney" />
+                        <col class="reportColPct" />
+                        <col class="reportColDelta" />
+                      </colgroup>
+                      <thead>
+                        <tr>
+                          <th scope="col">Month</th>
+                          <th class="num colCostActual" scope="col"><span class="thLabel">Outflow</span><span class="thUnit">USD</span></th>
+                          <th class="num" scope="col"><span class="thLabel">Share</span><span class="thUnit">%</span></th>
+                          <th class="num" scope="col"><span class="thLabel">Δ vs prior</span><span class="thUnit">mo</span></th>
+                        </tr>
+                      </thead>
+                      <tbody id="monthlyTbody"></tbody>
+                    </table>
+                  </div>
+                  <footer class="reportLedgerFoot">
+                    <nav class="reportLedgerPager" aria-label="Monthly ledger pagination">
+                      <span id="monthlyPageInfo" class="reportLedgerPageInfo">—</span>
+                      <div class="reportLedgerPagerControls">
+                        <label class="reportLedgerPagerLabel muted" for="monthlyPageSizeSelect">Rows</label>
+                        <select id="monthlyPageSizeSelect" class="reportLedgerSelect" aria-label="Monthly page size">
+                          <option value="25" selected>25</option>
+                          <option value="50">50</option>
+                          <option value="100">100</option>
+                          <option value="200">200</option>
+                        </select>
+                        <button id="monthlyPrevBtn" class="btnSmall reportLedgerBtn" type="button" aria-label="Previous page">Prev</button>
+                        <button id="monthlyNextBtn" class="btnSmall reportLedgerBtn" type="button" aria-label="Next page">Next</button>
+                      </div>
+                    </nav>
+                  </footer>
+                </article>
+              </div>
+            </details>
           </section>
 
           <section id="report-by-project" class="card reportPanel reportSectionShell">
             <div class="reportSectionHead">
               <span class="reportStep">3</span>
               <div>
-                <h2 class="reportSectionTitle">By project</h2>
-                <p class="reportSectionLead muted" id="projectSummariesInsight">OpEx billing per project — meter vs platform split when meter data exists.</p>
+                <h2 class="reportSectionTitle">Allocation</h2>
+                <p class="reportSectionLead muted" id="projectSummariesInsight">OpEx distribution by project — meter vs platform when available.</p>
               </div>
               <span class="reportSectionMeta muted" id="projectSummariesMeta"></span>
             </div>
@@ -476,107 +596,6 @@
                   </article>
                 </div>
               </div>
-            </div>
-          </section>
-
-          <section id="report-raw-data" class="reportSectionShell reportDetailSection card" aria-label="Detail ledger">
-            <div class="reportSectionHead">
-              <span class="reportStep">6</span>
-              <div>
-                <h2 class="reportSectionTitle">Detail ledger</h2>
-                <p class="reportSectionLead muted" id="tableAnalysisNote">Newest first · Daily rows compare to period average · Monthly share &amp; month-over-month.</p>
-                <div class="reportLedgerInsightBar" id="reportLedgerInsightBar" hidden aria-label="Ledger highlights"></div>
-              </div>
-            </div>
-
-            <div class="reportLedgerGrid">
-              <article class="reportLedgerCard">
-                <header class="reportLedgerHead">
-                  <div class="reportLedgerHeadMain">
-                    <h3 class="reportLedgerTitle">Daily actual</h3>
-                    <p class="reportLedgerHint muted">OpEx by calendar day · vs period average</p>
-                  </div>
-                  <span class="reportLedgerScope costPill costPill--actual">OpEx · USD</span>
-                </header>
-                <div class="reportLedgerTableWrap dashTableShell">
-                  <table class="dataTable dashTable reportBillingTable reportLedgerTable">
-                    <colgroup>
-                      <col class="reportColPeriod" />
-                      <col class="reportColMoney" />
-                      <col class="reportColDelta" />
-                    </colgroup>
-                    <thead>
-                      <tr>
-                        <th scope="col">Date</th>
-                        <th class="num colCostActual" scope="col"><span class="thLabel">Amount</span><span class="thUnit">USD</span></th>
-                        <th class="num" scope="col"><span class="thLabel">vs avg</span><span class="thUnit">%</span></th>
-                      </tr>
-                    </thead>
-                    <tbody id="dailyTbody"></tbody>
-                  </table>
-                </div>
-                <footer class="reportLedgerFoot">
-                  <nav class="reportLedgerPager" aria-label="Daily ledger pagination">
-                    <span id="dailyPageInfo" class="reportLedgerPageInfo">—</span>
-                    <div class="reportLedgerPagerControls">
-                      <label class="reportLedgerPagerLabel muted" for="dailyPageSizeSelect">Rows</label>
-                      <select id="dailyPageSizeSelect" class="reportLedgerSelect" aria-label="Daily page size">
-                        <option value="25" selected>25</option>
-                        <option value="50">50</option>
-                        <option value="100">100</option>
-                        <option value="200">200</option>
-                      </select>
-                      <button id="dailyPrevBtn" class="btnSmall reportLedgerBtn" type="button" aria-label="Previous page">Prev</button>
-                      <button id="dailyNextBtn" class="btnSmall reportLedgerBtn" type="button" aria-label="Next page">Next</button>
-                    </div>
-                  </nav>
-                </footer>
-              </article>
-
-              <article class="reportLedgerCard">
-                <header class="reportLedgerHead">
-                  <div class="reportLedgerHeadMain">
-                    <h3 class="reportLedgerTitle">Monthly cost</h3>
-                    <p class="reportLedgerHint muted">OpEx by calendar month</p>
-                  </div>
-                  <span class="reportLedgerScope costPill costPill--actual">OpEx · USD</span>
-                </header>
-                <div class="reportLedgerTableWrap dashTableShell">
-                  <table class="dataTable dashTable reportBillingTable reportLedgerTable">
-                    <colgroup>
-                      <col class="reportColPeriod" />
-                      <col class="reportColMoney" />
-                      <col class="reportColPct" />
-                      <col class="reportColDelta" />
-                    </colgroup>
-                    <thead>
-                      <tr>
-                        <th scope="col">Month</th>
-                        <th class="num colCostActual" scope="col"><span class="thLabel">Amount</span><span class="thUnit">USD</span></th>
-                        <th class="num" scope="col"><span class="thLabel">Share</span><span class="thUnit">%</span></th>
-                        <th class="num" scope="col"><span class="thLabel">Δ vs prior</span><span class="thUnit">mo</span></th>
-                      </tr>
-                    </thead>
-                    <tbody id="monthlyTbody"></tbody>
-                  </table>
-                </div>
-                <footer class="reportLedgerFoot">
-                  <nav class="reportLedgerPager" aria-label="Monthly ledger pagination">
-                    <span id="monthlyPageInfo" class="reportLedgerPageInfo">—</span>
-                    <div class="reportLedgerPagerControls">
-                      <label class="reportLedgerPagerLabel muted" for="monthlyPageSizeSelect">Rows</label>
-                      <select id="monthlyPageSizeSelect" class="reportLedgerSelect" aria-label="Monthly page size">
-                        <option value="25" selected>25</option>
-                        <option value="50">50</option>
-                        <option value="100">100</option>
-                        <option value="200">200</option>
-                      </select>
-                      <button id="monthlyPrevBtn" class="btnSmall reportLedgerBtn" type="button" aria-label="Previous page">Prev</button>
-                      <button id="monthlyNextBtn" class="btnSmall reportLedgerBtn" type="button" aria-label="Next page">Next</button>
-                    </div>
-                  </nav>
-                </footer>
-              </article>
             </div>
           </section>
 
@@ -1108,6 +1127,69 @@
         return `<div class="shareBarCell"><div class="shareBarTrack"><div class="shareBarFill" style="width:${w}%"></div></div><span class="shareBarPct">${Number(pct).toFixed(1)}%</span></div>`;
       }
 
+      function renderStatementMeta(report) {
+        const q = report?.scope_quality || {};
+        const projects = Array.isArray(report?.projects) ? report.projects : [];
+        const scopeLabel =
+          projects.length === 0
+            ? 'All projects'
+            : projects.length === 1
+              ? projects[0]
+              : `${projects.length} projects`;
+        const costStart = q.cost_start_date || report?.daily_points?.[0]?.date;
+        const costEnd = q.cost_end_date || report?.daily_points?.slice(-1)?.[0]?.date;
+        const periodText =
+          costStart || costEnd ? `${costStart || '…'} ~ ${costEnd || '…'}` : '—';
+        const set = (id, text) => {
+          const el = document.getElementById(id);
+          if (el) el.textContent = text ?? '—';
+        };
+        set('stmtMetaScope', scopeLabel);
+        set('stmtMetaCurrency', report?.currency || '—');
+        set('stmtMetaPeriod', periodText);
+        set('stmtMetaPrepared', new Date().toLocaleString(undefined, {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+        }));
+      }
+
+      function renderIncomeLines(report) {
+        const d = report?.daily || {};
+        const summary = report?.catalog_market?.summary || {};
+        const meter = summary.total_meter_cost_usd;
+        const platform = summary.billing_other_usd;
+        const hasMeter = meter != null && Number(meter) > 0;
+        const hasPlatform = platform != null && Number(platform) > 0;
+        const meterRow = document.getElementById('incomeLineMeterRow');
+        const platformRow = document.getElementById('incomeLinePlatformRow');
+        if (meterRow) meterRow.hidden = !hasMeter;
+        if (platformRow) platformRow.hidden = !hasPlatform;
+        const set = (id, text) => {
+          const el = document.getElementById(id);
+          if (el) el.textContent = text ?? '—';
+        };
+        if (hasMeter) set('incomeLineMeter', fmtCost(meter));
+        if (hasPlatform) set('incomeLinePlatform', fmtCost(platform));
+        set('incomeLineTotal', fmtCost(d.total_actual));
+      }
+
+      function renderCashFlowTieOut(report) {
+        const el = document.getElementById('reportCashFlowTieOut');
+        if (!el) return;
+        const dailySum = (report?.daily_points || []).reduce(
+          (s, p) => s + Number(p?.cost_usd ?? 0),
+          0
+        );
+        const total = Number(report?.daily?.total_actual ?? 0);
+        const ok = Number.isFinite(dailySum) && Number.isFinite(total) && Math.abs(dailySum - total) < 0.02;
+        el.textContent = `Sum of daily outflows ${fmtCost(dailySum)} · OpEx Total ${fmtCost(total)}${ok ? ' · tied' : ' · check scope'}`;
+        el.classList.toggle('reportTieOutBar--ok', ok);
+        el.classList.toggle('reportTieOutBar--warn', !ok && total > 0);
+      }
+
       function renderAtAGlance(report) {
         const d = report?.daily || {};
         const t = report?.token_actual || {};
@@ -1138,6 +1220,9 @@
           costStart || costEnd ? `${costStart || '…'} ~ ${costEnd || '…'}` : '—';
         set('hero_period', periodText);
         set('hero_period_sub', report?.currency ? `${report.currency} · in-scope dates` : 'Data range in scope');
+
+        renderStatementMeta(report);
+        renderIncomeLines(report);
 
         const benchmarkRow = document.getElementById('reportBenchmarkRow');
         const refArchLayer = document.getElementById('reportRefArchLayer');
@@ -1950,8 +2035,8 @@
         const costTrendInsightEl = document.getElementById('costTrendInsight');
         if (costTrendInsightEl) {
           costTrendInsightEl.innerHTML = useSegmentSplit
-            ? `Daily line chart shows <strong>Total</strong> plus top ${segmentMode === 'project' ? 'project' : 'resource'} segments; monthly remains calendar-month totals.`
-            : 'Daily and monthly <span class="costPill costPill--actual">OpEx</span> billing for the selected scope.';
+            ? `Operating cash outflow — daily <strong>Total</strong> plus top ${segmentMode === 'project' ? 'project' : 'resource'} segments; monthly in collapsed schedule.`
+            : 'Operating cash outflow from invoice actuals — daily rhythm and general ledger.';
         }
 
         const dailyCtx = document.getElementById('dailyChart').getContext('2d');
@@ -2368,7 +2453,7 @@
           ? monthly.reduce((b, r) => (r.cost_usd > (b?.cost_usd ?? -1) ? r : b), null)
           : null;
         if (note) {
-          note.textContent = 'Newest first · Daily vs period average · Monthly share & month-over-month';
+          note.textContent = 'Newest first · vs period average';
         }
         if (insightBar) {
           insightBar.replaceChildren();
@@ -2438,6 +2523,8 @@
           label: 'months',
           peakDate: monthlyPeak?.date ?? null,
         });
+
+        renderCashFlowTieOut(report);
       }
 
       function renderStats(report) {

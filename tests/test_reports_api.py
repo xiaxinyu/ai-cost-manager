@@ -234,7 +234,8 @@ def test_reports_page_layout_without_token_forecast(tmp_path):
     assert "Token Forecast (7d)" not in page.text
     assert "costForecastChart" not in page.text
     assert "OpEx forecast (7d)" not in page.text
-    assert "chartGrid2" in page.text
+    assert "reportCashFlowChart" in page.text
+    assert "reportDailyChartCard" in page.text
     assert "report-tokens" in page.text
     assert "projectSummariesTable" in page.text
     assert "report-daily-by-project" not in page.text
@@ -245,7 +246,11 @@ def test_reports_page_layout_without_token_forecast(tmp_path):
     assert "reportBenchmarkRow" in page.text
     assert "reportVolumeRow" in page.text
     assert "reportFinPrimaryKpi" in page.text
-    assert "report-raw-data" in page.text
+    assert "report-cash-flow" in page.text
+    assert "reportStatementMeta" in page.text
+    assert "reportIncomeTable" in page.text
+    assert "reportCashFlowTieOut" in page.text
+    assert "report-raw-data" not in page.text
     assert "filterCard" in page.text
     assert "date-range-picker.js" in page.text
     assert "dateRangePicker" in page.text
