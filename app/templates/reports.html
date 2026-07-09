@@ -6,7 +6,7 @@
     <title>Reports - Models Cost Management</title>
     <link rel="stylesheet" href="/static/css/app-shell.css" />
     <link rel="stylesheet" href="/static/css/page-common.css" />
-    <link rel="stylesheet" href="/static/css/pages/reports.css?v=20260709-collapse" />
+    <link rel="stylesheet" href="/static/css/pages/reports.css?v=20260709-income-flat" />
     <link rel="stylesheet" href="/static/css/layout-pro.css" />
     <link rel="stylesheet" href="/static/css/dashboard-shared.css?v=20260708-dash-polish" />
     <link rel="stylesheet" href="/static/css/date-range-picker.css?v=20260606-drp" />
@@ -88,7 +88,7 @@
             <a class="dashSectionNavLink reportNavLinkSecondary" href="#report-tokens">Consumption</a>
           </nav>
 
-          <section id="report-glance" class="card reportAtAGlance reportFinBlock reportStatement" aria-label="Income statement">
+          <section id="report-glance" class="card reportSectionCard reportAtAGlance reportFinBlock reportStatement" aria-label="Income statement">
             <div class="reportSectionHead">
               <span class="reportStep" aria-hidden="true">1</span>
               <div>
@@ -99,40 +99,17 @@
             </div>
 
             <div class="reportStatementCompare" id="reportStatementCompare">
-              <div class="reportStatementBridge" id="reportStatementBridge" hidden aria-label="OpEx vs tariff reconciliation">
-                <div class="reportStatementBridgeIntro">
-                  <span class="reportStatementBridgeEyebrow">Period reconciliation</span>
-                  <p class="reportStatementBridgeLead muted">Invoice actual compared to list-price tariff benchmark</p>
-                </div>
-                <div class="reportStatementBridgeFlow">
-                  <div class="reportStatementBridgeNode reportStatementBridgeNode--actual">
-                    <span class="reportStatementBridgeKey">OpEx actual</span>
-                    <strong class="reportStatementBridgeVal" id="bridgeOpex">—</strong>
-                  </div>
-                  <div class="reportStatementBridgeMid" id="bridgeVarianceWrap">
-                    <span class="reportStatementBridgeKey">Variance</span>
-                    <strong class="reportStatementBridgeVal reportStatementBridgeVal--variance" id="bridgeVariancePct">—</strong>
-                    <span class="reportStatementBridgeSub muted" id="bridgeVarianceUsd">—</span>
-                  </div>
-                  <div class="reportStatementBridgeNode reportStatementBridgeNode--market">
-                    <span class="reportStatementBridgeKey">Ref. Arch. tariff</span>
-                    <strong class="reportStatementBridgeVal" id="bridgeTariff">—</strong>
-                    <span class="reportStatementBadgeInline">Not invoice</span>
-                  </div>
-                </div>
-              </div>
-
               <div class="reportStatementDualGrid" id="reportStatementDualGrid">
-                <div class="reportStatementBlock">
-                  <p class="reportStatementLayerTag muted"><span class="reportStatementStep">1</span> Invoice actual</p>
+                <div class="reportStatementBlock reportStatementBlock--actual">
                   <div class="reportIncomeStatement" id="reportIncomePanel">
-                    <div class="reportIncomeSummary reportIncomeSummary--hero" aria-label="OpEx summary">
-                      <div class="reportIncomeSummaryHero reportIncomeSummaryHero--actual">
-                        <span class="reportIncomeSummaryLabel"><span class="costPill costPill--actual">OpEx</span> Total</span>
-                        <span class="reportIncomeSummaryValue" id="hero_total_spend">—</span>
-                        <span class="reportIncomeSummaryMeta muted" id="hero_summary_meta">—</span>
+                    <header class="reportIncomeHead reportIncomeHead--actual">
+                      <p class="reportStatementLayerTag muted"><span class="reportStatementStep">1</span> Invoice actual</p>
+                      <div class="reportIncomeHeadKpi">
+                        <span class="reportIncomeHeadLabel"><span class="costPill costPill--actual">OpEx</span> Total</span>
+                        <strong class="reportIncomeHeadValue" id="hero_total_spend">—</strong>
                       </div>
-                    </div>
+                      <p class="reportIncomeHeadMeta muted" id="hero_summary_meta">—</p>
+                    </header>
                     <div class="reportIncomeBody">
                       <table class="reportIncomeTable" aria-label="Invoice actual line items">
                         <thead>
@@ -163,16 +140,25 @@
                   </div>
                 </div>
 
-                <div class="reportStatementBlock" id="reportRefArchBlock" hidden>
-                  <p class="reportStatementLayerTag muted"><span class="reportStatementStep">2</span> List-price benchmark</p>
+                <aside class="reportStatementConnector" id="reportStatementConnector" hidden aria-label="OpEx vs tariff variance">
+                  <span class="reportStatementConnectorArrow" aria-hidden="true">→</span>
+                  <div class="reportStatementConnectorChip">
+                    <span class="reportStatementConnectorKey">Variance</span>
+                    <strong class="reportStatementConnectorVal" id="bridgeVariancePct">—</strong>
+                    <span class="reportStatementConnectorSub muted" id="bridgeVarianceUsd">—</span>
+                  </div>
+                </aside>
+
+                <div class="reportStatementBlock reportStatementBlock--market" id="reportRefArchBlock" hidden>
                   <div class="reportIncomeStatement reportIncomeStatement--refarch" id="reportRefArchPanel">
-                    <div class="reportIncomeSummary reportIncomeSummary--hero" aria-label="Tariff summary">
-                      <div class="reportIncomeSummaryHero reportIncomeSummaryHero--market">
-                        <span class="reportIncomeSummaryLabel">Tariff variance</span>
-                        <span class="reportIncomeSummaryValue" id="refArchSummaryVariance">—</span>
-                        <span class="reportIncomeSummaryMeta muted" id="refArch_summary_meta">—</span>
+                    <header class="reportIncomeHead reportIncomeHead--market">
+                      <p class="reportStatementLayerTag muted"><span class="reportStatementStep">2</span> List-price benchmark</p>
+                      <div class="reportIncomeHeadKpi">
+                        <span class="reportIncomeHeadLabel"><span class="costPill costPill--market">Ref. Arch.</span> Tariff</span>
+                        <strong class="reportIncomeHeadValue reportIncomeHeadValue--market" id="refArchHeadValue">—</strong>
                       </div>
-                    </div>
+                      <p class="reportIncomeHeadMeta muted" id="refArch_summary_meta">—</p>
+                    </header>
                     <div class="reportIncomeBody">
                       <table class="reportIncomeTable" aria-label="Reference architecture line items">
                         <thead>
@@ -270,7 +256,7 @@
             </details>
           </section>
 
-          <section id="report-cash-flow" class="reportSectionShell reportSection card reportCashFlowSection" aria-label="Cash flow schedule">
+          <section id="report-cash-flow" class="reportSectionShell reportSection card reportSectionCard reportCashFlowSection" aria-label="Cash flow schedule">
             <div class="reportSectionHead">
               <span class="reportStep">2</span>
               <div>
@@ -398,7 +384,7 @@
             </details>
           </section>
 
-          <section id="report-by-project" class="card reportPanel reportSectionShell">
+          <section id="report-by-project" class="card reportSectionCard reportSectionShell" aria-label="Allocation">
             <div class="reportSectionHead">
               <span class="reportStep">3</span>
               <div>
@@ -466,7 +452,7 @@
             </details>
           </section>
 
-          <section id="report-by-model" class="reportExecutive reportSectionShell" hidden aria-label="By model">
+          <section id="report-by-model" class="card reportSectionCard reportExecutive reportSectionShell reportFinBlock" hidden aria-label="By model">
             <div class="reportSectionHead">
               <span class="reportStep">4</span>
               <div class="reportExecutiveHead">
@@ -613,7 +599,7 @@
             </details>
           </section>
 
-          <section id="report-tokens" class="reportSection reportSectionShell reportConsumeSection" aria-label="Token usage">
+          <section id="report-tokens" class="card reportSectionCard reportSection reportSectionShell reportConsumeSection reportFinBlock" aria-label="Token usage">
             <div class="reportSectionHead">
               <span class="reportStep">5</span>
               <div>
@@ -622,75 +608,65 @@
               </div>
             </div>
 
-            <div class="reportConsumeStatement card">
-              <div class="reportConsumeMetaBar" aria-label="Consumption summary">
-                <span class="reportConsumeMetaItem">
-                  <span class="reportConsumeMetaLabel">Input total</span>
-                  <strong class="reportConsumeMetaValue" id="reportConsumeInputTotal">—</strong>
-                </span>
-                <span class="reportConsumeMetaSep" aria-hidden="true"></span>
-                <span class="reportConsumeMetaItem">
-                  <span class="reportConsumeMetaLabel">Output total</span>
-                  <strong class="reportConsumeMetaValue" id="reportConsumeOutputTotal">—</strong>
-                </span>
-                <span class="reportConsumeMetaSep" aria-hidden="true"></span>
-                <span class="reportConsumeMetaItem">
-                  <span class="reportConsumeMetaLabel">Active days</span>
-                  <strong class="reportConsumeMetaValue" id="reportConsumeActiveDays">—</strong>
-                </span>
-                <span class="reportConsumeMetaSep" aria-hidden="true"></span>
-                <span class="reportConsumeMetaItem">
-                  <span class="reportConsumeMetaLabel">Avg / day</span>
-                  <strong class="reportConsumeMetaValue" id="reportConsumeAvgDaily">—</strong>
-                </span>
-                <span class="reportConsumeMetaSep" aria-hidden="true"></span>
-                <span class="reportConsumeMetaItem">
-                  <span class="reportConsumeMetaLabel">Out / in</span>
-                  <strong class="reportConsumeMetaValue" id="reportConsumeOutIn">—</strong>
-                </span>
-                <span class="reportConsumeMetaFoot muted" id="reportConsumePeriod">—</span>
-              </div>
-
-              <details class="reportCollapseDetails reportConsumeChartsDetails" id="reportConsumeChartsDetails">
-                <summary>Daily volume charts <span id="reportConsumeChartsHint" class="reportCollapseHint muted"></span></summary>
-                <div class="reportCollapseBody">
-              <div class="reportConsumeRunRate" aria-label="Run rate">
-                <header class="reportConsumeRunRateHead">
-                  <h3 class="reportConsumeRunRateTitle">Run rate</h3>
-                  <p class="reportConsumeRunRateLead muted" id="reportConsumeRunRateLead">Daily input and output token volume for the selected scope.</p>
-                </header>
-                <div class="reportConsumeGrid">
-                  <article class="card chartCard reportTrendCard reportConsumeChartCard" id="reportTokenInputCard">
-                    <header class="reportChartHead reportChartHead--compact">
-                      <h3 class="chartCardTitle">Input</h3>
-                      <p class="chartCardHint muted">Prompt tokens per day</p>
-                    </header>
-                    <div class="chartCanvasHost chartPlot reportChartHost reportChartHost--consume"><canvas id="reportTokenInputChart"></canvas></div>
-                    <footer class="chartCardFoot muted" id="reportTokenInputFoot">—</footer>
-                  </article>
-                  <article class="card chartCard reportTrendCard reportConsumeChartCard" id="reportTokenOutputCard">
-                    <header class="reportChartHead reportChartHead--compact">
-                      <h3 class="chartCardTitle">Output</h3>
-                      <p class="chartCardHint muted">Completion tokens per day</p>
-                    </header>
-                    <div class="chartCanvasHost chartPlot reportChartHost reportChartHost--consume"><canvas id="reportTokenOutputChart"></canvas></div>
-                    <footer class="chartCardFoot muted" id="reportTokenOutputFoot">—</footer>
-                    <details class="reportConsumeRatioDetails" id="reportConsumeRatioDetails">
-                      <summary class="reportConsumeRatioSummary">Output / input ratio</summary>
-                      <div class="reportConsumeRatioBody">
-                        <div class="reportConsumeRatioToolbar">
-                          <p class="ratioKpiLine muted" id="ratioKpiSummaryReport">Valid days: - · &gt;1: - · &lt;1: -</p>
-                          <button id="exportTokenRatioBtn" class="btnSmall" type="button">Export CSV</button>
-                        </div>
-                        <div class="chartCanvasHost chartPlot reportChartHost reportChartHost--ratio"><canvas id="dailyTokenRatioChart"></canvas></div>
-                      </div>
-                    </details>
-                  </article>
-                </div>
-              </div>
-                </div>
-              </details>
+            <div class="reportConsumeMetaBar" aria-label="Consumption summary">
+              <span class="reportConsumeMetaItem">
+                <span class="reportConsumeMetaLabel">Input total</span>
+                <strong class="reportConsumeMetaValue" id="reportConsumeInputTotal">—</strong>
+              </span>
+              <span class="reportConsumeMetaSep" aria-hidden="true"></span>
+              <span class="reportConsumeMetaItem">
+                <span class="reportConsumeMetaLabel">Output total</span>
+                <strong class="reportConsumeMetaValue" id="reportConsumeOutputTotal">—</strong>
+              </span>
+              <span class="reportConsumeMetaSep" aria-hidden="true"></span>
+              <span class="reportConsumeMetaItem">
+                <span class="reportConsumeMetaLabel">Active days</span>
+                <strong class="reportConsumeMetaValue" id="reportConsumeActiveDays">—</strong>
+              </span>
+              <span class="reportConsumeMetaSep" aria-hidden="true"></span>
+              <span class="reportConsumeMetaItem">
+                <span class="reportConsumeMetaLabel">Avg / day</span>
+                <strong class="reportConsumeMetaValue" id="reportConsumeAvgDaily">—</strong>
+              </span>
+              <span class="reportConsumeMetaSep" aria-hidden="true"></span>
+              <span class="reportConsumeMetaItem">
+                <span class="reportConsumeMetaLabel">Out / in</span>
+                <strong class="reportConsumeMetaValue" id="reportConsumeOutIn">—</strong>
+              </span>
+              <span class="reportConsumeMetaFoot muted" id="reportConsumePeriod">—</span>
             </div>
+
+            <details class="reportCollapseDetails reportConsumeChartsDetails" id="reportConsumeChartsDetails">
+              <summary>Daily volume charts <span id="reportConsumeChartsHint" class="reportCollapseHint muted"></span></summary>
+              <div class="reportConsumeGrid">
+                <div class="reportConsumeChartPane reportConsumeChartCard" id="reportTokenInputCard">
+                  <div class="reportConsumeChartLabel">
+                    <span class="reportConsumeChartName">Input</span>
+                    <span class="reportConsumeChartHint muted">prompt tokens / day</span>
+                  </div>
+                  <div class="chartCanvasHost chartPlot reportChartHost reportChartHost--consume"><canvas id="reportTokenInputChart"></canvas></div>
+                  <footer class="reportConsumeChartFoot muted" id="reportTokenInputFoot">—</footer>
+                </div>
+                <div class="reportConsumeChartPane reportConsumeChartCard" id="reportTokenOutputCard">
+                  <div class="reportConsumeChartLabel">
+                    <span class="reportConsumeChartName">Output</span>
+                    <span class="reportConsumeChartHint muted">completion tokens / day</span>
+                  </div>
+                  <div class="chartCanvasHost chartPlot reportChartHost reportChartHost--consume"><canvas id="reportTokenOutputChart"></canvas></div>
+                  <footer class="reportConsumeChartFoot muted" id="reportTokenOutputFoot">—</footer>
+                  <details class="reportConsumeRatioDetails" id="reportConsumeRatioDetails">
+                    <summary class="reportConsumeRatioSummary">Output / input ratio</summary>
+                    <div class="reportConsumeRatioBody">
+                      <div class="reportConsumeRatioToolbar">
+                        <p class="ratioKpiLine muted" id="ratioKpiSummaryReport">Valid days: - · &gt;1: - · &lt;1: -</p>
+                        <button id="exportTokenRatioBtn" class="btnSmall" type="button">Export CSV</button>
+                      </div>
+                      <div class="chartCanvasHost chartPlot reportChartHost reportChartHost--ratio"><canvas id="dailyTokenRatioChart"></canvas></div>
+                    </div>
+                  </details>
+                </div>
+              </div>
+            </details>
           </section>
 
         </div>
@@ -1395,26 +1371,24 @@
       }
 
       function renderStatementBridge(report) {
-        const bridge = document.getElementById('reportStatementBridge');
+        const connector = document.getElementById('reportStatementConnector');
+        const grid = document.getElementById('reportStatementDualGrid');
         const cm = report?.catalog_market;
         const summary = cm?.summary || {};
         const catalogAvailable = cm?.available === true;
         const opex = Number(report?.daily?.total_actual ?? 0);
         const tariff = summary.total_catalog_cost_usd;
-        const showBridge = catalogAvailable && opex > 0 && tariff != null;
-        if (bridge) bridge.hidden = !showBridge;
-        if (!showBridge) return;
+        const showConnector = catalogAvailable && opex > 0 && tariff != null && summary.variance_pct != null;
+        if (connector) connector.hidden = !showConnector;
+        if (grid) grid.classList.toggle('reportStatementDualGrid--solo', !catalogAvailable);
+        if (!showConnector) return;
 
         const set = (id, text) => {
           const el = document.getElementById(id);
           if (el) el.textContent = text ?? '—';
         };
-        set('bridgeOpex', fmtCost(opex));
-        set('bridgeTariff', fmtCost(tariff));
-        if (summary.variance_pct != null) {
-          set('bridgeVariancePct', fmtPct(summary.variance_pct));
-          set('bridgeVarianceUsd', fmtCost(summary.variance_usd));
-        }
+        set('bridgeVariancePct', fmtPct(summary.variance_pct));
+        set('bridgeVarianceUsd', fmtCost(summary.variance_usd));
       }
 
       function renderRefArchStatement(report) {
@@ -1435,10 +1409,10 @@
           const tariffText = fmtCost(tariff);
           set('refArchLineTariff', tariffText);
           set('refArchLineTotal', tariffText);
+          set('refArchHeadValue', tariffText);
         }
 
         if (summary.variance_pct != null) {
-          set('refArchSummaryVariance', fmtPct(summary.variance_pct));
           const varianceRow = document.getElementById('refArchVarianceRow');
           if (varianceRow) varianceRow.hidden = false;
           set('refArchLineVariance', fmtCost(summary.variance_usd));
@@ -1448,8 +1422,8 @@
         }
 
         const metaParts = [];
-        if (tariff != null) metaParts.push(`tariff ${fmtCost(tariff)}`);
-        if (summary.variance_usd != null) metaParts.push(`${fmtCost(summary.variance_usd)} vs actual`);
+        if (summary.variance_pct != null) metaParts.push(`${fmtPct(summary.variance_pct)} vs OpEx`);
+        metaParts.push('not invoice');
         metaParts.push('from <a href="/prices">Tariff schedule</a>');
         const metaEl = document.getElementById('refArch_summary_meta');
         if (metaEl) {
@@ -2567,14 +2541,7 @@
           { html: hasOutput }
         );
 
-        const runRateLead = document.getElementById('reportConsumeRunRateLead');
-        if (runRateLead) {
-          runRateLead.textContent = hasInput || hasOutput
-            ? 'Daily input and output token volume — expand Output card for out/in ratio trend.'
-            : 'No token volume in the selected date range.';
-        }
 
-        // Output / input ratio (collapsible)
         const ratioRows = window.AppForecasting?.dailyTokenRatio?.(dailyTokens || [], { inputKey: 'input_tokens', outputKey: 'output_tokens' }) || [];
         lastTokenRatioRows = ratioRows;
         const ratioLabels = ratioRows.map((r) => r.date);

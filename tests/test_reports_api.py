@@ -297,8 +297,9 @@ def test_reports_page_layout_without_token_forecast(tmp_path):
     assert "projectSummariesTable" in page.text
     assert "report-daily-by-project" not in page.text
     assert "report-glance" in page.text
-    assert "reportStatementBridge" in page.text
     assert "reportStatementCompare" in page.text
+    assert "reportStatementConnector" in page.text
+    assert "reportStatementBridge" not in page.text
     assert "reportOpexCompositionRow" not in page.text
     assert "incomeLineShare" not in page.text
     assert "hero_summary_meta" in page.text
@@ -306,7 +307,7 @@ def test_reports_page_layout_without_token_forecast(tmp_path):
     assert "reportBenchmarkRow" not in page.text
     assert "reportVolumeRow" in page.text
     assert "reportIncomeStatement" in page.text
-    assert "reportIncomeSummary" in page.text
+    assert "reportIncomeHead" in page.text
     assert "reportCashFlowTieOut" in page.text
     assert "report-raw-data" not in page.text
     assert "filterCard" in page.text
@@ -322,6 +323,9 @@ def test_reports_page_layout_without_token_forecast(tmp_path):
     assert "reportCollapseDetails" in page.text
     assert "reportCashFlowLedgerDetails" in page.text
     assert "reportModelExtrasDetails" in page.text
+    assert "reportSectionCard" in page.text
+    assert "reportConsumeChartPane" in page.text
+    assert "reportConsumeStatement" not in page.text
 
 
 def test_all_financial_report_rejects_invalid_date_range(tmp_path):
