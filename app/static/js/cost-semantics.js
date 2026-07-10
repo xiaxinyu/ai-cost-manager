@@ -41,17 +41,17 @@
   const tariff = {
     color: "#c084fc",
     rgb: "192,132,252",
-    label: "Ref. Arch · Tariff",
-    shortLabel: "Ref. Arch · Tariff",
-    layerLabel: "Ref. Arch.",
-    sectionTitle: "Reference architecture",
-    sectionLead: "List-price tariff benchmark — not invoice spend.",
-    varianceLabel: "Tariff variance",
-    varianceHint: "OpEx − Ref. Arch · Tariff",
-    rateCardLabel: "Tariff schedule",
-    rateCardValue: "List price",
-    subtitle: "List-price benchmark",
-    hint: "Tariff column — list USD/1M from Model Prices (not invoice)",
+    label: "Market",
+    shortLabel: "Market",
+    layerLabel: "Market",
+    sectionTitle: "Market benchmark",
+    sectionLead: "Published market rates — not invoice spend.",
+    varianceLabel: "Market variance",
+    varianceHint: "OpEx − market",
+    rateCardLabel: "Price catalog",
+    rateCardValue: "Market",
+    subtitle: "Catalog benchmark",
+    hint: "Market USD/1M from Model Prices (not invoice)",
     pillClass: "costPill--market",
     colClass: "colCostMarket",
     tdClass: "tdCostMarket",
@@ -118,7 +118,7 @@
     if (hasTariff) {
       rows.push({
         kind: "tariff",
-        text: "<b>Ref. Arch · Tariff</b> column · list USD/1M (<a href=\"/prices\">Tariff schedule</a>)",
+        text: "<b>Market</b> column · catalog USD/1M (<a href=\"/prices\">Price catalog</a>)",
       });
     }
     if (!rows.length) return "";

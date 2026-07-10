@@ -533,28 +533,45 @@
 .dashTable thead th.colCostActual,
 .dashTable thead th.colCostMarket,
 .dashTable thead th.colCostPlatform,
-.dashTable thead th.colVariance {
+.dashTable thead th.colVariance,
+.dashTable thead th.colVariance--billing,
+.dashTable thead th.colVariance--meter {
   border-top: 2px solid transparent;
 }
 
 .dashTable thead th.colCostActual {
   border-top-color: var(--cost-actual);
+  border-bottom: 2px solid rgba(var(--cost-actual-rgb), 0.22);
   background: linear-gradient(180deg, rgba(var(--cost-actual-rgb), 0.08), rgba(14, 20, 28, 0.96) 55%);
 }
 
 .dashTable thead th.colCostMarket {
   border-top-color: var(--cost-market);
+  border-bottom: 2px solid rgba(var(--cost-market-rgb), 0.22);
   background: linear-gradient(180deg, rgba(var(--cost-market-rgb), 0.08), rgba(14, 20, 28, 0.96) 55%);
 }
 
 .dashTable thead th.colCostPlatform {
   border-top-color: var(--cost-platform);
+  border-bottom: 2px solid rgba(var(--cost-platform-rgb), 0.22);
   background: linear-gradient(180deg, rgba(var(--cost-platform-rgb), 0.12), rgba(14, 20, 28, 0.96) 55%);
 }
 
 .dashTable thead th.colVariance {
   border-top-color: var(--cost-variance);
   background: linear-gradient(180deg, rgba(var(--cost-variance-rgb), 0.1), rgba(14, 20, 28, 0.96) 55%);
+}
+
+.dashTable thead th.colVariance--billing {
+  border-top-color: var(--cost-variance);
+  border-bottom: 2px solid rgba(var(--cost-variance-rgb), 0.28);
+  background: linear-gradient(180deg, rgba(var(--cost-variance-rgb), 0.12), rgba(14, 20, 28, 0.96) 55%);
+}
+
+.dashTable thead th.colVariance--meter {
+  border-top-color: var(--cost-actual);
+  border-bottom: 2px solid rgba(var(--cost-actual-rgb), 0.28);
+  background: linear-gradient(180deg, rgba(var(--cost-actual-rgb), 0.1), rgba(14, 20, 28, 0.96) 55%);
 }
 
 .dashTable thead tr.costColGroupRow th {
@@ -569,13 +586,29 @@
 
 .dashTable thead tr.costColGroupRow .colGroupActual {
   border-top: 2px solid var(--cost-actual);
+  border-bottom: 2px solid rgba(var(--cost-actual-rgb), 0.22);
   background: linear-gradient(180deg, rgba(var(--cost-actual-rgb), 0.14), rgba(14, 20, 28, 0.96) 70%);
   text-align: center;
 }
 
 .dashTable thead tr.costColGroupRow .colGroupMarket {
   border-top: 2px solid var(--cost-market);
+  border-bottom: 2px solid rgba(var(--cost-market-rgb), 0.22);
   background: linear-gradient(180deg, rgba(var(--cost-market-rgb), 0.14), rgba(14, 20, 28, 0.96) 70%);
+  text-align: center;
+}
+
+.dashTable thead tr.costColGroupRow .colGroupVariance--billing {
+  border-top: 2px solid var(--cost-variance);
+  border-bottom: 2px solid rgba(var(--cost-variance-rgb), 0.22);
+  background: linear-gradient(180deg, rgba(var(--cost-variance-rgb), 0.16), rgba(14, 20, 28, 0.96) 70%);
+  text-align: center;
+}
+
+.dashTable thead tr.costColGroupRow .colGroupVariance--meter {
+  border-top: 2px solid var(--cost-actual);
+  border-bottom: 2px solid rgba(var(--cost-actual-rgb), 0.22);
+  background: linear-gradient(180deg, rgba(var(--cost-actual-rgb), 0.14), rgba(14, 20, 28, 0.96) 70%);
   text-align: center;
 }
 
@@ -591,10 +624,12 @@
 
 .dashTable thead th.colCostActual .costPill,
 .dashTable thead th.colCostMarket .costPill,
-.dashTable thead tr.costColGroupRow .colGroupVariance .costPill {
+.dashTable thead tr.costColGroupRow .colGroupVariance .costPill,
+.dashTable thead tr.costColGroupRow .colGroupVariance--billing .costPill,
+.dashTable thead tr.costColGroupRow .colGroupVariance--meter .costPill {
   display: inline-flex;
   width: fit-content;
-  margin: 0 0 4px;
+  margin: 0 auto 4px;
 }
 
 .dashTable thead th.num.colCostActual .costPill,

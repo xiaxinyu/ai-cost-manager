@@ -20,21 +20,21 @@
         <div class="container pricePage dashPage">
           <header class="pageHeader pageHeader--compact dashPageHeader">
             <div class="breadcrumb">Home / Pricing</div>
-            <h1 class="pageTitle">Tariff schedule</h1>
-            <p class="pageDesc muted">Ref. Arch. tariff schedule for Cost and Tokens · sync or edit on <a href="/price-sources">Tariff source registry</a>.</p>
+            <h1 class="pageTitle">Price catalog</h1>
+            <p class="pageDesc muted">Catalog list prices for Cost and Tokens · sync or edit on <a href="/price-sources">Price source registry</a>.</p>
           </header>
 
           <nav class="dashSectionNav card" aria-label="Pricing sections">
             <span class="dashSectionNavLabel muted">Statement</span>
             <a class="dashSectionNavLink" href="#prices-filters">Scope</a>
-            <a class="dashSectionNavLink" href="#prices-catalog">Tariff rows</a>
+            <a class="dashSectionNavLink" href="#prices-catalog">Catalog rows</a>
           </nav>
 
-          <section id="prices-filters" class="card filterCard dashFinBlock dashScrollSection" aria-label="Tariff scope" data-filter-root>
+          <section id="prices-filters" class="card filterCard dashFinBlock dashScrollSection" aria-label="Catalog scope" data-filter-root>
             <div class="filterCardHead dashSectionHead">
               <span class="dashStep" aria-hidden="true">1</span>
               <div>
-                <h2 class="filterCardTitle">Tariff scope</h2>
+                <h2 class="filterCardTitle">Catalog scope</h2>
                 <p class="filterCardHint muted">Filter by vendor, platform, series · Query loads the tariff table below</p>
               </div>
               <div class="pricingToolbarActions">
@@ -72,15 +72,15 @@
               </div>
             </div>
             <div id="summary" class="toolbarSummary muted"></div>
-            <div id="pricesStatusBar" class="dataStatusBar dataStatusBar--compact" hidden aria-live="polite" aria-label="Tariff summary"></div>
+            <div id="pricesStatusBar" class="dataStatusBar dataStatusBar--compact" hidden aria-live="polite" aria-label="Catalog summary"></div>
           </section>
 
-          <section id="prices-catalog" class="card pricingCatalogSection dashFinBlock dashScrollSection" aria-label="Tariff rows">
+          <section id="prices-catalog" class="card pricingCatalogSection dashFinBlock dashScrollSection" aria-label="Catalog rows">
             <header class="detailTableHead detailTableHead--tight dashSectionHead">
               <span class="dashStep" aria-hidden="true">2</span>
               <div class="detailTableIdentity">
-                <h2 class="detailTableTitle">Tariff rows</h2>
-                <p class="detailTableDesc muted">Tariff list-price rows · click for JSON detail and source links</p>
+                <h2 class="detailTableTitle">Catalog rows</h2>
+                <p class="detailTableDesc muted">List-price rows from Model Prices · click for JSON detail and source links</p>
               </div>
               <div class="detailTableActions">
                 <span id="catalogBadge" class="tableRowBadge muted">—</span>

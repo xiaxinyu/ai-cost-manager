@@ -2334,17 +2334,30 @@
   background: rgba(var(--cost-variance-rgb), 0.04);
 }
 
-.reportProjectSummaryTable td.tdVariance--meter,
-.reportModelPanel td.tdVariance--meter,
-.reportModelPanel tfoot td.tdVariance--meter {
-  background: rgba(var(--cost-actual-rgb), 0.04);
-  box-shadow: inset 1px 0 0 rgba(var(--cost-actual-rgb), 0.14);
-}
-
 .reportProjectSummaryTable td.tdVariance--billing,
 .reportModelPanel td.tdVariance--billing,
 .reportModelPanel tfoot td.tdVariance--billing {
-  box-shadow: inset 1px 0 0 rgba(var(--cost-variance-rgb), 0.14);
+  background: rgba(var(--cost-variance-rgb), 0.05);
+  box-shadow: inset 1px 0 0 rgba(var(--cost-variance-rgb), 0.18);
+}
+
+.reportProjectSummaryTable td.tdVariance--meter,
+.reportModelPanel td.tdVariance--meter,
+.reportModelPanel tfoot td.tdVariance--meter {
+  background: rgba(var(--cost-actual-rgb), 0.05);
+  box-shadow: inset 1px 0 0 rgba(var(--cost-actual-rgb), 0.18);
+}
+
+.reportProjectSummaryTable tbody tr:nth-child(even) td.tdVariance--billing,
+.reportModelPanel tbody tr:nth-child(even) td.tdVariance--billing,
+.reportModelPanel tfoot td.tdVariance--billing {
+  background: rgba(var(--cost-variance-rgb), 0.07);
+}
+
+.reportProjectSummaryTable tbody tr:nth-child(even) td.tdVariance--meter,
+.reportModelPanel tbody tr:nth-child(even) td.tdVariance--meter,
+.reportModelPanel tfoot td.tdVariance--meter {
+  background: rgba(var(--cost-actual-rgb), 0.07);
 }
 
 .reportProjectSummaryTable thead th.colVariance .thLabel,

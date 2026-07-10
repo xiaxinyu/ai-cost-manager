@@ -14,8 +14,8 @@
 
   const labels = {
     costActual: 'Actual',
-    costMarket: 'Ref. Arch · Tariff',
-    catalogMarket: 'Ref. Arch · Tariff',
+    costMarket: 'Market',
+    catalogMarket: 'Market',
     costForecast: 'CostUSD (Forecast 7d)',
     tokenInput: 'Input tokens',
     tokenOutput: 'Output tokens',

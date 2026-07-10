@@ -6,9 +6,9 @@
     <title>Reports - Models Cost Management</title>
     <link rel="stylesheet" href="/static/css/app-shell.css" />
     <link rel="stylesheet" href="/static/css/page-common.css" />
-    <link rel="stylesheet" href="/static/css/pages/reports.css?v=20260710-dual-variance" />
+    <link rel="stylesheet" href="/static/css/pages/reports.css?v=20260710-variance-bands" />
     <link rel="stylesheet" href="/static/css/layout-pro.css" />
-    <link rel="stylesheet" href="/static/css/dashboard-shared.css?v=20260708-dash-polish" />
+    <link rel="stylesheet" href="/static/css/dashboard-shared.css?v=20260710-variance-bands" />
     <link rel="stylesheet" href="/static/css/date-range-picker.css?v=20260606-drp" />
   </head>
   <body>
@@ -26,7 +26,7 @@
                 <p class="pageDesc">Four-table OpEx report — income statement, cash flow, allocation, and supporting detail for the selected scope.</p>
                 <div class="reportLegendRow muted" aria-label="Report semantics">
                   <span class="costPill costPill--actual">OpEx</span>
-                  <span class="costPill costPill--market">Ref. Arch.</span>
+                  <span class="costPill costPill--market">Market</span>
                   <span class="costPill costPill--actual">Volume</span>
                 </div>
               </div>
@@ -140,7 +140,7 @@
                   </div>
                 </div>
 
-                <aside class="reportStatementConnector" id="reportStatementConnector" hidden aria-label="OpEx vs tariff variance">
+                <aside class="reportStatementConnector" id="reportStatementConnector" hidden aria-label="OpEx vs market variance">
                   <span class="reportStatementConnectorArrow" aria-hidden="true">→</span>
                   <div class="reportStatementConnectorChip">
                     <span class="reportStatementConnectorKey">Variance</span>
@@ -154,7 +154,7 @@
                     <header class="reportIncomeHead reportIncomeHead--market">
                       <p class="reportStatementLayerTag muted"><span class="reportStatementStep">2</span> List-price benchmark</p>
                       <div class="reportIncomeHeadKpi">
-                        <span class="reportIncomeHeadLabel"><span class="costPill costPill--market">Ref. Arch.</span> Tariff</span>
+                        <span class="reportIncomeHeadLabel"><span class="costPill costPill--market">Market</span></span>
                         <strong class="reportIncomeHeadValue reportIncomeHeadValue--market" id="refArchHeadValue">—</strong>
                       </div>
                       <p class="reportIncomeHeadMeta muted" id="refArch_summary_meta">—</p>
@@ -169,21 +169,21 @@
                         </thead>
                         <tbody>
                           <tr>
-                            <th scope="row"><span class="costPill costPill--market">Ref. Arch.</span> · Tariff</th>
+                            <th scope="row"><span class="costPill costPill--market">Market</span></th>
                             <td class="num mono tdCostMarket" id="refArchLineTariff">—</td>
                           </tr>
                           <tr class="reportIncomeDetailRow">
                             <td colspan="2" class="reportIncomeDetailCell muted" id="refArchLineTariffDetail">Benchmark only · not invoice spend</td>
                           </tr>
                           <tr id="refArchVarianceRow" hidden>
-                            <th scope="row" class="reportIncomeAnnotLabel">OpEx − Tariff</th>
+                            <th scope="row" class="reportIncomeAnnotLabel">OpEx − market</th>
                             <td class="num mono reportIncomeAnnotVal" id="refArchLineVariance">—</td>
                           </tr>
                         </tbody>
                       </table>
                     </div>
                     <div class="reportIncomeFooter reportIncomeFooter--market">
-                      <span class="reportIncomeFooterLabel"><span class="costPill costPill--market">Ref. Arch.</span> Total</span>
+                      <span class="reportIncomeFooterLabel"><span class="costPill costPill--market">Market</span> total</span>
                       <span class="reportIncomeFooterVal mono" id="refArchLineTotal">—</span>
                     </div>
                   </div>
@@ -226,7 +226,7 @@
             </div>
             </div>
             <div id="reportQualityStrip" class="qualityStrip" hidden aria-label="Data coverage"></div>
-            <p class="reportStatementFootnotes muted" id="reportStatementFootnotes">① OpEx from billing CSV CostUSD · ② Ref. Arch · Tariff from Model Prices (not invoice) · ③ Token volume from imported CSV (no implied spend)</p>
+            <p class="reportStatementFootnotes muted" id="reportStatementFootnotes">① OpEx from billing CSV CostUSD · ② Market from Model Prices (not invoice) · ③ Token volume from imported CSV (no implied spend)</p>
             <div class="gridStats reportKpis reportKpisCompact">
                 <article class="card kpiCard">
                   <h3 class="kpiTitle">Cost · Daily</h3>
@@ -396,17 +396,17 @@
             <div class="rowsToolbar reportPanelToolbarWithVariance">
               <div>
                 <h3 class="panelTitle">Daily average billing</h3>
-                <p class="tableNote panelDesc">Two variance views: <strong>OpEx total vs tariff</strong> (full invoice, matches Income Statement) and <strong>Meter vs tariff</strong> (token meter only, excludes platform).</p>
+                <p class="tableNote panelDesc">Two variance views: <strong>OpEx total vs market</strong> (full invoice, matches Income Statement) and <strong>Meter vs market</strong> (token meter only, excludes platform).</p>
               </div>
               <div class="reportPanelToolbarActions">
                 <div class="reportVarianceChipGroup" id="reportAllocVarianceChipGroup">
-                  <div class="reportVarianceChip" id="reportAllocBillingVarianceChip" hidden aria-label="OpEx total vs tariff">
-                    <span class="reportVarianceChipKey">OpEx vs tariff</span>
+                  <div class="reportVarianceChip" id="reportAllocBillingVarianceChip" hidden aria-label="OpEx total vs market">
+                    <span class="reportVarianceChipKey">OpEx vs market</span>
                     <strong class="reportVarianceChipPct" id="reportAllocBillingVariancePct">—</strong>
                     <span class="reportVarianceChipUsd muted" id="reportAllocBillingVarianceUsd">—</span>
                   </div>
-                  <div class="reportVarianceChip reportVarianceChip--meter" id="reportAllocMeterVarianceChip" hidden aria-label="Meter vs tariff">
-                    <span class="reportVarianceChipKey">Meter vs tariff</span>
+                  <div class="reportVarianceChip reportVarianceChip--meter" id="reportAllocMeterVarianceChip" hidden aria-label="Meter vs market">
+                    <span class="reportVarianceChipKey">Meter vs market</span>
                     <strong class="reportVarianceChipPct" id="reportAllocMeterVariancePct">—</strong>
                     <span class="reportVarianceChipUsd muted" id="reportAllocMeterVarianceUsd">—</span>
                   </div>
@@ -420,8 +420,9 @@
                   <tr class="costColGroupRow">
                     <th colspan="1" scope="colgroup" class="colGroupMeta"></th>
                     <th colspan="3" scope="colgroup" class="colGroupActual"><span class="costPill costPill--actual">OpEx</span></th>
-                    <th colspan="1" scope="colgroup" class="colGroupMarket"><span class="costPill costPill--market">Ref. Arch · Tariff</span></th>
-                    <th colspan="2" scope="colgroup" class="colGroupVariance"><span class="costPill costPill--variance">Variance</span></th>
+                    <th colspan="1" scope="colgroup" class="colGroupMarket"><span class="costPill costPill--market">Market</span></th>
+                    <th colspan="1" scope="colgroup" class="colGroupVariance colGroupVariance--billing"><span class="costPill costPill--variance">OpEx vs market</span></th>
+                    <th colspan="1" scope="colgroup" class="colGroupVariance colGroupVariance--meter"><span class="costPill costPill--actual">Meter vs market</span></th>
                     <th colspan="2" scope="colgroup" class="colGroupMeta"></th>
                   </tr>
                   <tr>
@@ -429,9 +430,9 @@
                     <th class="num colCostActual" scope="col">Total</th>
                     <th class="num colCostActual" scope="col">Meter</th>
                     <th class="num colCostPlatform" scope="col">Platform</th>
-                    <th class="num colCostMarket" scope="col">Tariff</th>
-                    <th class="num colVariance colVariance--billing" scope="col"><span class="thLabel">OpEx total</span><span class="thUnit">vs tariff</span></th>
-                    <th class="num colVariance colVariance--meter" scope="col"><span class="thLabel">Meter</span><span class="thUnit">vs tariff</span></th>
+                    <th class="num colCostMarket" scope="col">Market</th>
+                    <th class="num colVariance colVariance--billing" scope="col"><span class="thLabel">OpEx total</span><span class="thUnit">vs market</span></th>
+                    <th class="num colVariance colVariance--meter" scope="col"><span class="thLabel">Meter</span><span class="thUnit">vs market</span></th>
                     <th class="num" scope="col">Billed days</th>
                     <th class="num colCostActual" scope="col">Avg / day</th>
                   </tr>
@@ -481,7 +482,7 @@
               <span class="reportStep">4</span>
               <div class="reportExecutiveHead">
                 <h2 class="reportSectionTitle">By model</h2>
-                <p class="reportSectionLead muted"><span class="costPill costPill--actual">OpEx</span> meter billing vs <span class="costPill costPill--market">Ref. Arch · Tariff</span> benchmark.</p>
+                <p class="reportSectionLead muted"><span class="costPill costPill--actual">OpEx</span> meter billing vs <span class="costPill costPill--market">Market</span> benchmark.</p>
                 <span id="reportExecutiveHint" class="executiveHint muted"></span>
               </div>
             </div>
@@ -489,7 +490,7 @@
               <div class="reportUnitRatesHead">
                 <div>
                   <h3 class="panelTitle">Unit rate comparison</h3>
-                  <p class="tableNote panelDesc">Ref. Arch · Tariff vs period-weighted <span class="costPill costPill--actual">OpEx</span> effective rate (USD/1M tokens)</p>
+                  <p class="tableNote panelDesc">Market vs period-weighted <span class="costPill costPill--actual">OpEx</span> effective rate (USD/1M tokens)</p>
                 </div>
                 <div class="reportUnitRatesBadges">
                   <span id="reportUnitRatesScope" class="tableRowBadge muted" hidden></span>
@@ -507,7 +508,7 @@
                       <tr>
                         <th scope="col" rowspan="2">Model</th>
                         <th class="num unitPriceGroupHead unitPriceGroupHead--tariff" scope="colgroup" colspan="2">
-                          <span class="costPill costPill--market">Ref. Arch.</span> · Tariff
+                          <span class="costPill costPill--market">Market</span>
                         </th>
                         <th class="num unitPriceGroupHead unitPriceGroupHead--effective" scope="colgroup" colspan="2">
                           <span class="costPill costPill--actual">OpEx</span> Effective
@@ -531,8 +532,8 @@
                       <tr>
                         <th scope="col">Project</th>
                         <th scope="col">Model</th>
-                        <th class="num" scope="col"><span class="costPill costPill--market">Ref. Arch.</span> Input</th>
-                        <th class="num" scope="col"><span class="costPill costPill--market">Ref. Arch.</span> Output</th>
+                        <th class="num" scope="col"><span class="costPill costPill--market">Market</span> Input</th>
+                        <th class="num" scope="col"><span class="costPill costPill--market">Market</span> Output</th>
                         <th class="num" scope="col"><span class="costPill costPill--actual">OpEx</span> Input</th>
                         <th class="num" scope="col"><span class="costPill costPill--actual">OpEx</span> Output</th>
                       </tr>
@@ -546,16 +547,16 @@
               <div class="rowsToolbar reportPanelToolbarWithVariance">
                 <div>
                   <h3 class="panelTitle">Cost by model</h3>
-                  <p class="tableNote panelDesc">Per-model <strong>Meter vs tariff</strong>; scope summary shows both <strong>OpEx total</strong> and <strong>Meter</strong> variance.</p>
+                  <p class="tableNote panelDesc">Per-model <strong>Meter vs market</strong>; scope summary shows both <strong>OpEx total</strong> and <strong>Meter</strong> variance.</p>
                 </div>
                 <div class="reportVarianceChipGroup" id="reportModelVarianceChipGroup">
-                  <div class="reportVarianceChip" id="reportModelBillingVarianceChip" hidden aria-label="OpEx total vs tariff">
-                    <span class="reportVarianceChipKey">OpEx vs tariff</span>
+                  <div class="reportVarianceChip" id="reportModelBillingVarianceChip" hidden aria-label="OpEx total vs market">
+                    <span class="reportVarianceChipKey">OpEx vs market</span>
                     <strong class="reportVarianceChipPct" id="reportModelBillingVariancePct">—</strong>
                     <span class="reportVarianceChipUsd muted" id="reportModelBillingVarianceUsd">—</span>
                   </div>
-                  <div class="reportVarianceChip reportVarianceChip--meter" id="reportModelMeterVarianceChip" hidden aria-label="Meter vs tariff">
-                    <span class="reportVarianceChipKey">Meter vs tariff</span>
+                  <div class="reportVarianceChip reportVarianceChip--meter" id="reportModelMeterVarianceChip" hidden aria-label="Meter vs market">
+                    <span class="reportVarianceChipKey">Meter vs market</span>
                     <strong class="reportVarianceChipPct" id="reportModelMeterVariancePct">—</strong>
                     <span class="reportVarianceChipUsd muted" id="reportModelMeterVarianceUsd">—</span>
                   </div>
@@ -567,8 +568,9 @@
                     <tr class="costColGroupRow">
                       <th colspan="1" scope="colgroup" class="colGroupMeta"></th>
                       <th colspan="3" scope="colgroup" class="colGroupActual"><span class="costPill costPill--actual">OpEx · Meter</span></th>
-                      <th colspan="1" scope="colgroup" class="colGroupMarket"><span class="costPill costPill--market">Ref. Arch · Tariff</span></th>
-                      <th colspan="2" scope="colgroup" class="colGroupVariance"><span class="costPill costPill--variance">Variance</span></th>
+                      <th colspan="1" scope="colgroup" class="colGroupMarket"><span class="costPill costPill--market">Market</span></th>
+                      <th colspan="1" scope="colgroup" class="colGroupVariance colGroupVariance--billing"><span class="costPill costPill--variance">OpEx vs market</span></th>
+                      <th colspan="1" scope="colgroup" class="colGroupVariance colGroupVariance--meter"><span class="costPill costPill--actual">Meter vs market</span></th>
                       <th colspan="1" scope="colgroup" class="colGroupMeta"></th>
                     </tr>
                     <tr>
@@ -576,9 +578,9 @@
                       <th class="num colCostActual" scope="col"><span class="costPill costPill--actual">OpEx</span><span class="thLabel">Input</span></th>
                       <th class="num colCostActual" scope="col"><span class="costPill costPill--actual">OpEx</span><span class="thLabel">Output</span></th>
                       <th class="num colCostActual" scope="col"><span class="costPill costPill--actual">OpEx</span><span class="thLabel">Total</span></th>
-                      <th class="num colCostMarket" scope="col"><span class="costPill costPill--market">Ref. Arch.</span><span class="thLabel">Total</span></th>
-                      <th class="num colVariance colVariance--billing" scope="col"><span class="thLabel">OpEx total</span><span class="thUnit">vs tariff</span></th>
-                      <th class="num colVariance colVariance--meter" scope="col"><span class="thLabel">Meter</span><span class="thUnit">vs tariff</span></th>
+                      <th class="num colCostMarket" scope="col"><span class="costPill costPill--market">Market</span><span class="thLabel">Total</span></th>
+                      <th class="num colVariance colVariance--billing" scope="col"><span class="thLabel">OpEx total</span><span class="thUnit">vs market</span></th>
+                      <th class="num colVariance colVariance--meter" scope="col"><span class="thLabel">Meter</span><span class="thUnit">vs market</span></th>
                       <th class="num" scope="col">Days</th>
                     </tr>
                   </thead>
@@ -608,12 +610,12 @@
               <article class="card chartCard reportTrendCard reportExecChartCard">
                 <header class="reportChartHead reportChartHead--compact">
                   <h3 class="chartCardTitle">Daily comparison</h3>
-                  <p class="chartCardHint muted">OpEx billing vs Ref. Arch · Tariff benchmark</p>
+                  <p class="chartCardHint muted">OpEx billing vs Market benchmark</p>
                 </header>
                 <div class="chartCanvasHost chartPlot reportChartHost reportExecChartHost"><canvas id="reportMarketChart"></canvas></div>
                 <footer class="reportExecChartFoot muted" aria-label="Series key">
                   <span class="reportExecChartKey"><span class="reportExecChartSwatch reportExecChartSwatch--actual"></span>OpEx</span>
-                  <span class="reportExecChartKey"><span class="reportExecChartSwatch reportExecChartSwatch--market"></span>Ref. Arch · Tariff</span>
+                  <span class="reportExecChartKey"><span class="reportExecChartSwatch reportExecChartSwatch--market"></span>Market</span>
                 </footer>
               </article>
               <article class="card chartCard reportTrendCard reportExecChartCard">
@@ -718,7 +720,7 @@
     <script src="/static/js/forecasting.js?v=20260708-forecast"></script>
     <script src="/static/js/chart-plugins.js"></script>
     <script src="/static/js/chart-style.js?v=20260605-dates"></script>
-    <script src="/static/js/cost-semantics.js?v=20260708-ref-arch"></script>
+    <script src="/static/js/cost-semantics.js?v=20260710-list-price"></script>
     <script src="/static/js/unit-price-table.js?v=20260709-unit-rates"></script>
     <script src="/static/js/dashboard-ui.js?v=20260605-datesort"></script>
     <script src="/static/js/date-range-picker.js?v=20260606-drp"></script>
@@ -1093,7 +1095,7 @@
         if (hint) {
           const unpriced = catalog.unpriced_models || [];
           let hintText = unpriced.length
-            ? `${models.length} models · ${projCount} projects · ${unpriced.length} without Ref. Arch · Tariff`
+            ? `${models.length} models · ${projCount} projects · ${unpriced.length} without Market`
             : `${models.length} models · ${projCount} projects with token imports`;
           const tokenOnly = _modelsTokenOnlyNoBilling(daily);
           if (tokenOnly.length) {
@@ -1210,7 +1212,7 @@
                   unitType: 'currency',
                 },
                 costDs?.('market', { data: catalogData, dashed: true, pointRadius: ptR, borderWidth: 1.6 }) ?? {
-                  label: 'Tariff',
+                  label: 'Market',
                   data: catalogData,
                   borderColor: C.market || '#c084fc',
                   backgroundColor: 'transparent',
@@ -1513,7 +1515,7 @@
         const metaParts = [];
         if (summary.variance_pct != null) metaParts.push(`${fmtPct(summary.variance_pct)} vs OpEx`);
         metaParts.push('not invoice');
-        metaParts.push('from <a href="/prices">Tariff schedule</a>');
+        metaParts.push('from <a href="/prices">Price catalog</a>');
         const metaEl = document.getElementById('refArch_summary_meta');
         if (metaEl) {
           metaEl.innerHTML = metaParts.join(' · ');
@@ -1524,7 +1526,7 @@
         if (detail) {
           detail.textContent =
             opexTotal > 0 && tariff != null
-              ? `List price × token volume · not invoice spend`
+              ? `Market × token volume · not invoice spend`
               : 'Benchmark only · not invoice spend';
         }
       }
@@ -2043,7 +2045,7 @@
         }
         if (insightEl) {
           insightEl.textContent = summaries.length
-            ? `OpEx billing per project · both OpEx-total and Meter variance vs tariff (${rangeLabel}).`
+            ? `OpEx billing per project · both OpEx-total and Meter variance vs market (${rangeLabel}).`
             : `No billing in ${rangeLabel}.`;
         }
 
@@ -2085,7 +2087,7 @@
           'opex_total_usd',
           'opex_meter_usd',
           'opex_platform_usd',
-          'ref_arch_tariff_usd',
+          'catalog_list_price_usd',
           'billing_variance_pct',
           'billing_variance_usd',
           'meter_variance_pct',

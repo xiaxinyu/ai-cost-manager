@@ -461,6 +461,8 @@ def test_reports_page_layout_without_token_forecast(tmp_path):
     assert "reportAllocMeterVarianceChip" in page.text
     assert "reportModelBillingVarianceChip" in page.text
     assert "reportModelMeterVarianceChip" in page.text
+    assert "colGroupVariance--billing" in page.text
+    assert "colGroupVariance--meter" in page.text
     assert "colVariance--billing" in page.text
     assert "colVariance--meter" in page.text
     assert "colGroupVariance" in page.text
