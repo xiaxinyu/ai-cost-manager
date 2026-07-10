@@ -513,7 +513,7 @@
     <script src="/static/js/dashboard-ui.js?v=20260707-detail"></script>
     <script src="/static/js/dashboard-interactions.js?v=20260707-ui"></script>
     <script src="/static/js/billing-detail-table.js?v=20260707-detail"></script>
-    <script src="/static/js/date-range-picker.js?v=20260606-drp"></script>
+    <script src="/static/js/date-range-picker.js?v=20260710-drp-fix3"></script>
     <script>
       window.AppChartStyle?.applyDefaults?.();
       const CHART_OPTS = window.AppChartStyle;
@@ -555,6 +555,7 @@
       let currentCurrency = null;
       let currentStartDate = null;
       let currentEndDate = null;
+      let costDateRangePicker = null;
       const catalogMarketTotalEl = document.getElementById('catalogMarketTotal');
       const catalogMarketNoteEl = document.getElementById('catalogMarketNote');
       const catalogVariancePctEl = document.getElementById('catalogVariancePct');
@@ -2118,13 +2119,35 @@
           projectSelect.value = chosen;
           updateProjectModelHint(chosen);
           syncSubprojectOptions(chosen);
+          applyDefaultCostDateRange();
           await loadProjectSafe(chosen);
         }
       }
 
+      function commitDateInputsBeforeApply() {
+        const active = document.activeElement;
+        if (active === startDateInput || active === endDateInput) {
+          active.blur();
+        }
+      }
+
+      async function runApplyFilters() {
+        commitDateInputsBeforeApply();
+        await new Promise((resolve) => window.requestAnimationFrame(resolve));
+        await loadProjectSafe(projectSelect.value);
+      }
+
+      function setDateInputsQuietly(startYmd, endYmd) {
+        if (costDateRangePicker?.setValues) {
+          costDateRangePicker.setValues(startYmd || '', endYmd || '');
+          return;
+        }
+        if (startDateInput) startDateInput.value = startYmd || '';
+        if (endDateInput) endDateInput.value = endYmd || '';
+      }
+
       function clearDateFilters() {
-        if (startDateInput) startDateInput.value = '';
-        if (endDateInput) endDateInput.value = '';
+        setDateInputsQuietly('', '');
       }
 
       function applySubprojectFilterByName(name) {
@@ -2529,14 +2552,13 @@
         }
       }
 
-      async function loadProject(projectName, { skipRangeRecovery = false } = {}) {
+      async function loadProject(projectName) {
         if (!projectName) return;
         currentProjectName = projectName;
         if (projectSelect && projectSelect.value !== projectName) {
           projectSelect.value = projectName;
         }
         updateProjectModelHint(projectName);
-        applyDefaultCostDateRange();
         const startDate = startDateInput.value || null;
         const endDate = endDateInput.value || null;
         if (startDate && endDate && startDate > endDate) {
@@ -2555,28 +2577,13 @@
           `/api/projects/${encodeURIComponent(projectName)}/stats?${statsParams.toString()}`
         );
 
-        if (
-          !skipRangeRecovery
-          && stats.actual_days === 0
-          && (startDate || endDate)
-        ) {
-          const fullStatsParams = new URLSearchParams();
-          appendSubprojectParam(fullStatsParams);
-          const fullStats = await window.AppHttp.getJson(
-            `/api/projects/${encodeURIComponent(projectName)}/stats?${fullStatsParams.toString()}`
+        if (stats.actual_days === 0 && (startDate || endDate)) {
+          const filtered = `${startDate || '…'} – ${endDate || '…'}`;
+          window.AppShell?.toast?.(
+            `No billing in ${filtered}. Adjust the date range or clear filters.`,
+            'warn',
+            5200
           );
-          if (fullStats.actual_days > 0 && fullStats.min_usage_date && fullStats.max_usage_date) {
-            const shown = `${fullStats.min_usage_date} – ${fullStats.max_usage_date}`;
-            const filtered = `${startDate || '…'} – ${endDate || '…'}`;
-            window.AppShell?.toast?.(
-              `No billing in ${filtered}. Showing project data: ${shown}.`,
-              'warn',
-              5200
-            );
-            startDateInput.value = fullStats.min_usage_date;
-            endDateInput.value = fullStats.max_usage_date;
-            return loadProject(projectName, { skipRangeRecovery: true });
-          }
         }
 
         actualCostEl.textContent = fmt2(stats.actual_cost_usd_total);
@@ -2595,10 +2602,9 @@
         currentCurrency = stats.currency ?? null;
 
         if (!startDateInput.value && stats.min_usage_date) {
-          startDateInput.value = stats.min_usage_date;
-        }
-        if (!endDateInput.value && stats.max_usage_date) {
-          endDateInput.value = stats.max_usage_date;
+          setDateInputsQuietly(stats.min_usage_date, endDateInput.value || stats.max_usage_date || '');
+        } else if (!endDateInput.value && stats.max_usage_date) {
+          setDateInputsQuietly(startDateInput.value || stats.min_usage_date || '', stats.max_usage_date);
         }
         currentStartDate = startDateInput.value || null;
         currentEndDate = endDateInput.value || null;
@@ -2662,16 +2668,18 @@
           await loadProject(projectName);
         } catch (err) {
           console.error(err);
+          const msg = err?.message || String(err);
+          window.AppShell?.toast?.(msg, 'error', 4800);
         } finally {
           setDashboardLoading(false);
         }
       }
 
-      window.AppDateRangePicker?.mount({
+      costDateRangePicker = window.AppDateRangePicker?.mount({
         startInput: startDateInput,
         endInput: endDateInput,
-        autoApply: true,
-        onApply: () => loadProjectSafe(projectSelect.value),
+        autoApply: false,
+        onApply: () => runApplyFilters(),
       });
 
       projectSelect.addEventListener('change', (e) => {
@@ -2683,12 +2691,12 @@
         loadProjectSafe(projectSelect.value);
       });
       applyFiltersBtn.addEventListener('click', () => {
-        loadProjectSafe(projectSelect.value);
+        runApplyFilters();
       });
       document.querySelector('.costDashboard .filterBar')?.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') {
           e.preventDefault();
-          loadProjectSafe(projectSelect.value);
+          runApplyFilters();
         }
       });
       billingRawPrevBtn?.addEventListener('click', () => {

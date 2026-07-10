@@ -15,6 +15,9 @@
 # Already-normalized files (cost-*.csv, input-tokens-*.csv, ...) are copied with the same
 # relative path under bills/<project>/.
 #
+# Azure cost-analysis exports (cost-analysis.csv, cost-analysis (1).csv, ...) are renamed to
+# bills/<project>/cost-YYYY-M-D.csv using the latest UsageDate in the CSV (or --date).
+#
 # Usage:
 #   ./scripts/migrate-grafana-downloads.sh --all
 #   ./scripts/migrate-grafana-downloads.sh --all --dry-run
@@ -31,6 +34,7 @@ REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 SOURCE_DIR="${HOME}/Downloads/bills"
 BILLS_DIR="${REPO_ROOT}/bills"
+DEFAULT_SOURCE_DIR="${HOME}/Downloads/bills"
 PROJECT=""
 SUBPROJECT=""
 DATE_SUFFIX=""
@@ -42,12 +46,15 @@ SYNC_ALL=0
 COPY_MODE=1
 LOG_FILE=""
 LOG_AUTO=0
+FLAT_DOWNLOADS_DIR="${HOME}/Downloads"
+SCAN_FLAT_DOWNLOADS=0
 
 matched=0
 synced=0
 skipped=0
 warnings=0
 errors=0
+PROJECT_LAYOUT_DONE=()
 
 usage() {
   cat <<'EOF'
@@ -67,6 +74,7 @@ Options:
   -s, --source DIR     Source directory (default: ~/Downloads/bills)
   -b, --bills-dir DIR  Destination bills root (default: <repo>/bills)
   --log-file PATH      Append structured logs to PATH ("auto" -> logs/migrate-bills-*.log)
+  --flat-downloads DIR Also scan DIR/cost-analysis*.csv (opt-in; default: ~/Downloads)
   --move               Move source files instead of copy (legacy flat Downloads behavior)
   -n, --dry-run        Preview only; no files are copied or moved
   -f, --force          Overwrite destination when it already exists
@@ -77,9 +85,13 @@ Modes:
     Scans SOURCE/<project>/ recursively for .csv files.
     Normalized files keep their relative path (token/, performance/, nested subprojects).
     Grafana export names are classified and renamed into token/ or performance/.
+    cost-analysis*.csv exports are renamed to cost-YYYY-M-D.csv at project root.
+    New project / token / performance directories are created under bills/ when needed.
 
   Flat Downloads (legacy):
     Use -s ~/Downloads with -p PROJECT when Grafana CSVs sit directly in Downloads.
+    Optional: --flat-downloads scans ~/Downloads/cost-analysis*.csv and routes by
+    ResourceGroupName when present, or -p <project> when not.
 
 Examples:
   ./scripts/migrate-grafana-downloads.sh --all -n
@@ -197,6 +209,12 @@ while [[ $# -gt 0 ]]; do
       else
         LOG_FILE="$2"
       fi
+      shift 2
+      ;;
+    --flat-downloads)
+      [[ $# -ge 2 ]] || die "Missing value for $1"
+      FLAT_DOWNLOADS_DIR="$2"
+      SCAN_FLAT_DOWNLOADS=1
       shift 2
       ;;
     --move)
@@ -406,6 +424,129 @@ is_normalized_billing_file() {
   return 1
 }
 
+is_cost_analysis_file() {
+  local base="$1"
+  local low
+  low="$(printf '%s' "${base}" | tr '[:upper:]' '[:lower:]')"
+  [[ "${low}" =~ ^cost-analysis(\ \([0-9]+\))?\.csv$ ]]
+}
+
+parse_max_usage_date_from_csv() {
+  local src_abs="$1"
+  [[ -f "${src_abs}" ]] || return 1
+  awk -F',' '
+    NR == 1 {
+      col = 0
+      for (i = 1; i <= NF; i++) {
+        gsub(/"/, "", $i)
+        if (tolower($i) == "usagedate") col = i
+      }
+      next
+    }
+    col > 0 {
+      gsub(/"/, "", $col)
+      if ($col ~ /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/) print $col
+    }
+  ' "${src_abs}" | sort | tail -1
+}
+
+parse_resource_group_from_csv() {
+  local src_abs="$1"
+  [[ -f "${src_abs}" ]] || return 1
+  awk -F',' '
+    NR == 1 {
+      col = 0
+      for (i = 1; i <= NF; i++) {
+        gsub(/"/, "", $i)
+        if (tolower($i) == "resourcegroupname") col = i
+      }
+      next
+    }
+    col > 0 && NR == 2 {
+      gsub(/"/, "", $col)
+      if ($col != "") {
+        print $col
+        exit
+      }
+    }
+  ' "${src_abs}"
+}
+
+lookup_project_for_resource_group() {
+  local rg="$1"
+  local rg_low dir base low
+  [[ -n "${rg}" ]] || return 1
+  rg_low="$(printf '%s' "${rg}" | tr '[:upper:]' '[:lower:]')"
+  for dir in "${SOURCE_DIR}"/* "${BILLS_DIR}"/*; do
+    [[ -d "${dir}" ]] || continue
+    base="$(basename "${dir}")"
+    is_skipped_project_name "${base}" && continue
+    low="$(printf '%s' "${base}" | tr '[:upper:]' '[:lower:]')"
+    if [[ "${low}" == "${rg_low}" ]]; then
+      printf '%s' "${base}"
+      return 0
+    fi
+  done
+  printf '%s' "${rg}"
+}
+
+resolve_cost_analysis_date() {
+  local src_abs="$1"
+  local max_date parsed
+  if [[ "${DATE_FROM_CLI}" -eq 1 ]]; then
+    printf '%s' "${DATE_SUFFIX}"
+    return 0
+  fi
+  max_date="$(parse_max_usage_date_from_csv "${src_abs}" 2>/dev/null || true)"
+  if [[ -n "${max_date}" ]]; then
+    parsed="$(normalize_date_suffix "${max_date}" 2>/dev/null || true)"
+    if [[ -n "${parsed}" ]]; then
+      printf '%s' "${parsed}"
+      return 0
+    fi
+  fi
+  printf '%s' "${DATE_SUFFIX}"
+}
+
+resolve_cost_analysis_dest_rel() {
+  local src_abs="$1"
+  local date_suffix dest_name
+  date_suffix="$(resolve_cost_analysis_date "${src_abs}")"
+  dest_name="cost-${date_suffix}.csv"
+  printf '%s' "${dest_name}"
+}
+
+ensure_project_layout() {
+  local project_name="$1"
+  local dest_root="${BILLS_DIR}/${project_name}"
+  local sub d done_name created=0
+
+  for done_name in "${PROJECT_LAYOUT_DONE[@]+"${PROJECT_LAYOUT_DONE[@]}"}"; do
+    [[ "${done_name}" == "${project_name}" ]] && return 0
+  done
+  PROJECT_LAYOUT_DONE+=("${project_name}")
+
+  for sub in "" token performance; do
+    d="${dest_root}"
+    if [[ -n "${sub}" ]]; then
+      d="${dest_root}/${sub}"
+    fi
+    if [[ ! -d "${d}" ]]; then
+      created=1
+      if [[ "${DRY_RUN}" -eq 1 ]]; then
+        log "would create directory: ${d}/"
+      else
+        mkdir -p "${d}"
+        log "created directory: ${d}/"
+      fi
+    fi
+  done
+
+  if [[ "${created}" -eq 1 ]]; then
+    log "[${project_name}] initialized project layout under ${dest_root}/"
+  fi
+}
+
 is_normalized_token_metric_file() {
   local rel="$1"
   local base="${rel##*/}"
@@ -471,7 +612,13 @@ resolve_grafana_dest_rel() {
 resolve_dest_rel() {
   local src_rel="$1"
   local src_base="$2"
-  local grafana_rel=""
+  local src_abs="$3"
+  local grafana_rel cost_rel=""
+
+  if is_cost_analysis_file "${src_base}"; then
+    cost_rel="$(resolve_cost_analysis_dest_rel "${src_abs}")"
+    [[ -n "${cost_rel}" ]] && printf '%s' "${cost_rel}" && return 0
+  fi
 
   if is_valid_normalized_rel "${src_rel}"; then
     printf '%s' "${src_rel}"
@@ -498,11 +645,11 @@ sync_file_to_dest() {
     if cmp -s "${src}" "${dest}" 2>/dev/null; then
       skipped=$((skipped + 1))
       log_skip "${label}: unchanged ${dest}"
-      return 2
+      return 0
     fi
     skipped=$((skipped + 1))
     log_skip "${label}: exists ${dest} (use --force to overwrite)"
-    return 2
+    return 0
   fi
 
   if [[ "${DRY_RUN}" -eq 1 ]]; then
@@ -534,19 +681,81 @@ process_tree_csv() {
     return 0
   fi
 
-  dest_rel="$(resolve_dest_rel "${src_rel}" "${src_base}" 2>/dev/null || true)"
+  dest_rel="$(resolve_dest_rel "${src_rel}" "${src_base}" "${src_abs}" 2>/dev/null || true)"
   if [[ -z "${dest_rel}" ]]; then
     log_warn "[${project_name}] unrecognized: ${src_rel}"
     return 0
   fi
 
+  ensure_project_layout "${project_name}"
   dest_abs="${BILLS_DIR}/${project_name}/${dest_rel}"
-  if classify_file "${src_base}" >/dev/null 2>&1; then
+  if is_cost_analysis_file "${src_base}"; then
+    label="[${project_name}] billing rename"
+  elif classify_file "${src_base}" >/dev/null 2>&1; then
     label="[${project_name}] rename"
   else
     label="[${project_name}]"
   fi
   sync_file_to_dest "${src_abs}" "${dest_abs}" "${label}"
+}
+
+process_flat_cost_analysis() {
+  local src_abs="$1"
+  local src_base="$2"
+  local rg project_name dest_rel dest_abs label
+
+  if is_ignored_source_name "${src_base}"; then
+    return 0
+  fi
+  if ! is_cost_analysis_file "${src_base}"; then
+    return 0
+  fi
+
+  rg="$(parse_resource_group_from_csv "${src_abs}" 2>/dev/null || true)"
+  if [[ -z "${rg}" ]]; then
+    if [[ -n "${PROJECT}" ]]; then
+      project_name="${PROJECT}"
+      log "[flat] ${src_base}: using --project ${project_name}"
+    else
+      log "[flat] skipped ${src_base}: move to ~/Downloads/bills/<project>/ and run --all, or pass -p <project> --flat-downloads"
+      return 0
+    fi
+  else
+    project_name="$(lookup_project_for_resource_group "${rg}")"
+    log "[flat] ResourceGroupName=${rg} -> project ${project_name}"
+  fi
+
+  dest_rel="$(resolve_cost_analysis_dest_rel "${src_abs}")"
+  ensure_project_layout "${project_name}"
+  dest_abs="${BILLS_DIR}/${project_name}/${dest_rel}"
+  label="[${project_name}] billing rename (flat:${src_base})"
+  sync_file_to_dest "${src_abs}" "${dest_abs}" "${label}"
+}
+
+scan_flat_cost_analysis_files() {
+  local f src_base
+  shopt -s nullglob
+  local -a files=()
+
+  if [[ "${SCAN_FLAT_DOWNLOADS}" -eq 0 ]]; then
+    return 0
+  fi
+
+  [[ -d "${FLAT_DOWNLOADS_DIR}" ]] || return 0
+
+  for f in "${FLAT_DOWNLOADS_DIR}"/cost-analysis*.csv; do
+    [[ -f "${f}" ]] || continue
+    files+=("${f}")
+  done
+
+  [[ ${#files[@]} -eq 0 ]] && return 0
+
+  log ""
+  log "---- flat cost-analysis: ${FLAT_DOWNLOADS_DIR} ----"
+  log "discovered ${#files[@]} cost-analysis file(s)"
+  for f in "${files[@]}"; do
+    process_flat_cost_analysis "${f}" "$(basename "${f}")"
+  done
 }
 
 scan_project_tree() {
@@ -594,7 +803,9 @@ sync_all_projects() {
     scan_project_tree "${project_name}" "${entry}"
   done
 
-  if [[ "${count}" -eq 0 ]]; then
+  scan_flat_cost_analysis_files
+
+  if [[ "${count}" -eq 0 && "${matched}" -eq 0 ]]; then
     log_warn "No project subdirectories found under ${SOURCE_DIR}"
   fi
 }
@@ -789,7 +1000,7 @@ fi
 if [[ "${DATE_FROM_CLI}" -eq 1 ]]; then
   log "Date:    ${DATE_SUFFIX} (from --date)"
 else
-  log "Date:    per Grafana filename, fallback ${DATE_SUFFIX}"
+  log "Date:    per file (Grafana name / cost-analysis UsageDate), fallback ${DATE_SUFFIX}"
 fi
 [[ "${DRY_RUN}" -eq 1 ]] && log "Dry-run: yes"
 [[ "${FORCE}" -eq 1 ]] && log "Force:   yes"

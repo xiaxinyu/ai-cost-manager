@@ -269,6 +269,12 @@
 
     let activePreset = null;
     let open = false;
+    let suppressManualApply = false;
+
+    function setInputValues(startYmd, endYmd) {
+      startInput.value = startYmd || "";
+      endInput.value = endYmd || "";
+    }
 
     function refreshHints() {
       panel.querySelectorAll(".dateRangePickerOption[data-preset]:not([data-action='custom'])").forEach((btn) => {
@@ -290,22 +296,49 @@
       });
     }
 
+    function isManualRangeValid() {
+      const startYmd = startInput.value || "";
+      const endYmd = endInput.value || "";
+      if (!startYmd && !endYmd) return true;
+      if (!startYmd || !endYmd) return true;
+      return startYmd <= endYmd;
+    }
+
     function emitApply(preset = activePreset) {
+      if (!isManualRangeValid()) return;
       if (typeof onApply === "function") {
         onApply({
           preset,
           start: startInput.value || "",
           end: endInput.value || "",
+          valid: true,
         });
       }
     }
 
-    function applyRange(start, end, preset = null) {
+    let manualApplyTimer = null;
+    function scheduleManualApply() {
+      if (!autoApply || suppressManualApply) return;
+      if (manualApplyTimer) window.clearTimeout(manualApplyTimer);
+      manualApplyTimer = null;
+      activePreset = detectActivePreset(startInput.value, endInput.value);
+      syncActiveOption();
+      if (!isManualRangeValid()) return;
+      manualApplyTimer = window.setTimeout(() => {
+        manualApplyTimer = null;
+        if (!isManualRangeValid()) return;
+        emitApply(activePreset);
+      }, 320);
+    }
+
+    function applyRange(start, end, preset = null, { emit = true } = {}) {
+      suppressManualApply = true;
       startInput.value = start ? toYmd(start) : "";
       endInput.value = end ? toYmd(end) : "";
+      suppressManualApply = false;
       activePreset = preset;
       syncActiveOption();
-      if (autoApply) emitApply(preset);
+      if (emit) emitApply(preset);
     }
 
     function setPreset(presetId) {
@@ -344,7 +377,6 @@
         const shifted = shiftRangeByWindow(startInput.value, endInput.value, dir);
         if (shifted) {
           applyRange(shifted.start, shifted.end, null);
-          if (autoApply) emitApply(null);
         }
         return;
       }
@@ -363,7 +395,6 @@
       if (!presetId) return;
       setPreset(presetId);
       closePanel();
-      if (autoApply) emitApply(presetId);
     });
 
     function onDocClick(e) {
@@ -380,22 +411,30 @@
     document.addEventListener("click", onDocClick);
     document.addEventListener("keydown", onKeydown);
 
-    startInput.addEventListener("change", () => {
+    function onManualDateInput() {
       activePreset = detectActivePreset(startInput.value, endInput.value);
       syncActiveOption();
-    });
-    endInput.addEventListener("change", () => {
-      activePreset = detectActivePreset(startInput.value, endInput.value);
-      syncActiveOption();
-    });
+      scheduleManualApply();
+    }
+
+    startInput.addEventListener("change", onManualDateInput);
+    endInput.addEventListener("change", onManualDateInput);
 
     syncActiveOption();
 
     return {
       setPreset,
       clear: () => setPreset("clear"),
+      setValues(startYmd, endYmd) {
+        suppressManualApply = true;
+        setInputValues(startYmd, endYmd);
+        suppressManualApply = false;
+        activePreset = detectActivePreset(startInput.value, endInput.value);
+        syncActiveOption();
+      },
       close: closePanel,
       destroy() {
+        if (manualApplyTimer) window.clearTimeout(manualApplyTimer);
         document.removeEventListener("click", onDocClick);
         document.removeEventListener("keydown", onKeydown);
         closePanel();
