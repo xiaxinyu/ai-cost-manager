@@ -1,42 +1,35 @@
 #!/usr/bin/env bash
-# Migrate Grafana export CSVs from ~/Downloads into bills/<project>/token|performance.
+# Sync Grafana export CSVs from ~/Downloads/bills into <repo>/bills/.
 #
-# Matches macOS Grafana export names such as:
-#   Output Tokens-data-7_6_2026, 5_06_55 PM.csv
-#   Input Tokens-data-7_6_2026, 5_06_47 PM.csv
-#   Token Cache Match Rate-data-7_6_2026, 5_04_39 PM.csv
-#   Model requests-data-7_6_2026, 5_04_30 PM.csv
-#   Average Latency-data-7_6_2026, 5_04_25 PM.csv
+# Two source layouts are supported:
+#   1. Bills tree (default): ~/Downloads/bills/<project>/{cost-*.csv,token/,performance/,...}
+#   2. Flat Downloads (legacy): ~/Downloads/*.csv with Grafana panel export names
 #
-# Renames to repo conventions:
+# Grafana exports are renamed to repo conventions:
 #   token/input-tokens-YYYY-M-D.csv
 #   token/output-tokens-YYYY-M-D.csv
 #   performance/cache-match-rate-YYYY-M-D.csv
 #   performance/model-requests-YYYY-M-D.csv
 #   performance/avg-latency-YYYY-M-D.csv
 #
-# With --subproject NAME, writes into token/<subproject>/ or performance/<subproject>/:
-#   token/coding-1/input-tokens-YYYY-M-D.csv
-#   performance/coding-1/model-requests-YYYY-M-D.csv
+# Already-normalized files (cost-*.csv, input-tokens-*.csv, ...) are copied with the same
+# relative path under bills/<project>/.
 #
 # Usage:
-#   ./scripts/migrate-grafana-downloads.sh --project RG-HK-S56-TATP-QA-Agent
-#   ./scripts/migrate-grafana-downloads.sh -p techlab-aimas-marketing --subproject gpt-5.4 -d 2026-6-30
-#   ./scripts/migrate-grafana-downloads.sh -p rg-techlab-ai-coding -s ~/Downloads -n
-#   ./scripts/migrate-grafana-downloads.sh -p RG-HK-S56-TATP-QA-Agent --date 2026-7-6
-#   ./scripts/migrate-grafana-downloads.sh -p RG-HK-S56-TATP-QA-Agent --dry-run
-#   ./scripts/migrate-grafana-downloads.sh -p RG-HK-S56-TATP-QA-Agent --force
-#
-# Dry-run (-n / --dry-run): scan Downloads and print each source file and its
-# destination path without moving or renaming anything. Use this to verify project,
-# date suffix, and target folders before running without -n.
+#   ./scripts/migrate-grafana-downloads.sh --all
+#   ./scripts/migrate-grafana-downloads.sh --all --dry-run
+#   ./scripts/migrate-grafana-downloads.sh -p techlab-aiops-gpt5.1
+#   ./scripts/migrate-grafana-downloads.sh -p RG-HK-S56-TATP-QA-Agent -s ~/Downloads -n
+#   ./scripts/migrate-grafana-downloads.sh -p techlab-aimas-marketing -u gpt-5.4 -d 2026-6-30
+#   ./scripts/migrate-grafana-downloads.sh -p RG-HK-S56-MDM-Coding -u proj-mdm-coding-1-resource \
+#     --relocate-legacy coding-1 -n
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
-SOURCE_DIR="${HOME}/Downloads"
+SOURCE_DIR="${HOME}/Downloads/bills"
 BILLS_DIR="${REPO_ROOT}/bills"
 PROJECT=""
 SUBPROJECT=""
@@ -45,66 +38,126 @@ DATE_FROM_CLI=0
 RELOCATE_LEGACY=""
 DRY_RUN=0
 FORCE=0
+SYNC_ALL=0
+COPY_MODE=1
+LOG_FILE=""
+LOG_AUTO=0
+
+matched=0
+synced=0
+skipped=0
+warnings=0
+errors=0
 
 usage() {
   cat <<'EOF'
-Migrate Grafana CSV exports from Downloads into bills/<project>/.
+Sync Grafana / billing CSVs from ~/Downloads/bills into <repo>/bills/.
 
 Options:
-  -p, --project NAME   Project folder under bills/ (required)
+  -a, --all            Sync every project subdirectory under the source bills tree
+                       (default source: ~/Downloads/bills). Implies copy mode.
+  -p, --project NAME   Sync one project folder (required unless --all)
   -u, --subproject NAME
-                       Optional subfolder under token/ or performance/
-                       (e.g. token/coding-1/input-tokens-2026-6-30.csv)
+                       Optional subfolder under token/ or performance/ for Grafana
+                       exports (flat Downloads mode, or when overriding path)
   --relocate-legacy SLUG
                        Reorganize flat bills files named *-SLUG-YYYY-M-D.csv into
                        token|performance/<subproject>/ (requires -u; use with -n)
-  -d, --date DATE      Date suffix for all output filenames (overrides filename date)
-                       If omitted, each file uses the date embedded in its Grafana
-                       export name (e.g. ...-data-7_7_2026,... -> 2026-7-7), else today
-                       Accepted for --date: YYYY-M-D, YYYY-MM-DD, M_D_YYYY, M/D/YYYY
-  -s, --source DIR     Source directory (default: ~/Downloads)
-  -b, --bills-dir DIR  Bills root (default: <repo>/bills)
-  -n, --dry-run        Preview only: show source -> destination mapping;
-                       does not move, rename, or delete any file. Recommended
-                       before the first run or when changing --project/--date.
-  -f, --force          Overwrite destination if it already exists
+  -d, --date DATE      Date suffix for Grafana output filenames (overrides filename date)
+  -s, --source DIR     Source directory (default: ~/Downloads/bills)
+  -b, --bills-dir DIR  Destination bills root (default: <repo>/bills)
+  --log-file PATH      Append structured logs to PATH ("auto" -> logs/migrate-bills-*.log)
+  --move               Move source files instead of copy (legacy flat Downloads behavior)
+  -n, --dry-run        Preview only; no files are copied or moved
+  -f, --force          Overwrite destination when it already exists
   -h, --help           Show this help
 
-Recognized source filename prefixes (optional --subproject subfolder):
-  Output Tokens-data*        -> token[/SLUG]/output-tokens-YYYY-M-D.csv
-  Input Tokens-data*         -> token[/SLUG]/input-tokens-YYYY-M-D.csv
-  Token Cache Match Rate*    -> performance[/SLUG]/cache-match-rate-YYYY-M-D.csv
-  Model requests-data*       -> performance[/SLUG]/model-requests-YYYY-M-D.csv
-  Average Latency*           -> performance[/SLUG]/avg-latency-YYYY-M-D.csv
+Modes:
+  Bills tree sync (default):
+    Scans SOURCE/<project>/ recursively for .csv files.
+    Normalized files keep their relative path (token/, performance/, nested subprojects).
+    Grafana export names are classified and renamed into token/ or performance/.
+
+  Flat Downloads (legacy):
+    Use -s ~/Downloads with -p PROJECT when Grafana CSVs sit directly in Downloads.
 
 Examples:
-  # Preview (no files changed)
-  ./scripts/migrate-grafana-downloads.sh -p RG-HK-S56-TATP-QA-Agent --dry-run
-  ./scripts/migrate-grafana-downloads.sh -p techlab-aimas-marketing -u gpt-5.4 -d 2026-6-30 -n
-
-  # Migrate for real
-  ./scripts/migrate-grafana-downloads.sh --project RG-HK-S56-TATP-QA-Agent
-  ./scripts/migrate-grafana-downloads.sh -p RG-HK-S56-TATP-QA-Agent -d 7_6_2026
-  ./scripts/migrate-grafana-downloads.sh -p techlab-aimas-marketing --subproject gpt-5.4 -d 2026-6-30
+  ./scripts/migrate-grafana-downloads.sh --all -n
+  ./scripts/migrate-grafana-downloads.sh --all --log-file auto
+  ./scripts/migrate-grafana-downloads.sh -p techlab-aiops-gpt5.1
+  ./scripts/migrate-grafana-downloads.sh -p RG-HK-S56-TATP-QA-Agent -s ~/Downloads --move -f
 EOF
 }
 
+timestamp() {
+  date '+%Y-%m-%d %H:%M:%S'
+}
+
+log_write() {
+  local level="$1"
+  shift
+  local line="[$(timestamp)] [${level}] $*"
+  printf '%s\n' "${line}"
+  if [[ -n "${LOG_FILE}" ]]; then
+    printf '%s\n' "${line}" >> "${LOG_FILE}"
+  fi
+}
+
 log() {
-  printf '%s\n' "$*"
+  log_write INFO "$@"
+}
+
+log_warn() {
+  warnings=$((warnings + 1))
+  log_write WARN "$@"
+}
+
+log_skip() {
+  log_write SKIP "$@"
+}
+
+log_sync() {
+  log_write SYNC "$@"
+}
+
+log_error() {
+  errors=$((errors + 1))
+  log_write ERROR "$@"
 }
 
 die() {
-  printf 'Error: %s\n' "$*" >&2
+  log_error "$*"
   exit 1
 }
 
+init_log_file() {
+  if [[ "${LOG_AUTO}" -eq 1 && -z "${LOG_FILE}" ]]; then
+    mkdir -p "${REPO_ROOT}/logs"
+    LOG_FILE="${REPO_ROOT}/logs/migrate-bills-$(date '+%Y%m%d-%H%M%S').log"
+  fi
+  if [[ -n "${LOG_FILE}" ]]; then
+    mkdir -p "$(dirname "${LOG_FILE}")"
+    {
+      printf '\n=== migrate-grafana-downloads %s ===\n' "$(timestamp)"
+      printf 'source=%s dest=%s mode=%s dry_run=%s force=%s\n' \
+        "${SOURCE_DIR}" "${BILLS_DIR}" \
+        "$( [[ "${SYNC_ALL}" -eq 1 ]] && printf all || printf project:${PROJECT} )" \
+        "${DRY_RUN}" "${FORCE}"
+    } >> "${LOG_FILE}"
+    log "Log file: ${LOG_FILE}"
+  fi
+}
+
 while [[ $# -gt 0 ]]; do
-  # Ignore blank args (often from a broken `\` line continuation with trailing spaces).
   if [[ -z "${1//[[:space:]]/}" ]]; then
     shift
     continue
   fi
   case "$1" in
+    -a|--all)
+      SYNC_ALL=1
+      shift
+      ;;
     -p|--project)
       [[ $# -ge 2 ]] || die "Missing value for $1"
       PROJECT="$2"
@@ -136,6 +189,20 @@ while [[ $# -gt 0 ]]; do
       BILLS_DIR="$2"
       shift 2
       ;;
+    --log-file)
+      [[ $# -ge 2 ]] || die "Missing value for $1"
+      if [[ "$2" == "auto" ]]; then
+        LOG_AUTO=1
+        LOG_FILE=""
+      else
+        LOG_FILE="$2"
+      fi
+      shift 2
+      ;;
+    --move)
+      COPY_MODE=0
+      shift
+      ;;
     -n|--dry-run)
       DRY_RUN=1
       shift
@@ -149,16 +216,17 @@ while [[ $# -gt 0 ]]; do
       exit 0
       ;;
     *)
-      if [[ "$1" == "--dry-run" ]]; then
-        die "Unknown option: $1 — broken line continuation? Put nothing after backslash, or use -n on the same line."
-      fi
       die "Unknown option: $1 (use --help)"
       ;;
   esac
 done
 
-[[ -n "${PROJECT}" ]] || die "Project name is required. Example: --project RG-HK-S56-TATP-QA-Agent"
-[[ "${PROJECT}" != *"/"* && "${PROJECT}" != *".."* ]] || die "Invalid project name (no slashes or ..): ${PROJECT}"
+if [[ "${SYNC_ALL}" -eq 0 ]]; then
+  [[ -n "${PROJECT}" ]] || die "Project name is required unless --all is used."
+fi
+if [[ -n "${PROJECT}" ]]; then
+  [[ "${PROJECT}" != *"/"* && "${PROJECT}" != *".."* ]] || die "Invalid project name: ${PROJECT}"
+fi
 
 SOURCE_DIR="$(cd "${SOURCE_DIR}" 2>/dev/null && pwd || true)"
 [[ -n "${SOURCE_DIR}" && -d "${SOURCE_DIR}" ]] || die "Source directory not found: ${SOURCE_DIR}"
@@ -185,9 +253,6 @@ resolve_bills_dir() {
 
 BILLS_DIR="$(resolve_bills_dir "${BILLS_DIR}" || true)"
 [[ -n "${BILLS_DIR}" ]] || die "Bills directory not found (create parent or pass -b): ${BILLS_DIR}"
-
-DEST_TOKEN="${BILLS_DIR}/${PROJECT}/token"
-DEST_PERF="${BILLS_DIR}/${PROJECT}/performance"
 
 normalize_date_suffix() {
   local input="$1"
@@ -228,10 +293,6 @@ parse_date_from_grafana_name() {
   local name="$1"
   local year month day
 
-  # Match M_D_YYYY anywhere in Grafana export names, e.g.:
-  #   ...-data-7_7_2026, ...
-  #   ...-data-as-joinbyfield-7_7_2026, ...
-  #   Average Latency (Time to Last Byte)-data-7_7_2026, ...
   if [[ "${name}" =~ ([0-9]{1,2})_([0-9]{1,2})_([0-9]{4}) ]]; then
     month="${BASH_REMATCH[1]}"
     day="${BASH_REMATCH[2]}"
@@ -260,13 +321,14 @@ normalize_subproject_slug() {
 
 if [[ -n "${SUBPROJECT}" ]]; then
   SUBPROJECT="$(normalize_subproject_slug "${SUBPROJECT}")"
-  [[ -n "${SUBPROJECT}" ]] || die "Invalid --subproject value (use letters, numbers, hyphens, underscores)"
+  [[ -n "${SUBPROJECT}" ]] || die "Invalid --subproject value"
 fi
 
 if [[ -n "${RELOCATE_LEGACY}" ]]; then
   RELOCATE_LEGACY="$(normalize_subproject_slug "${RELOCATE_LEGACY}")"
   [[ -n "${RELOCATE_LEGACY}" ]] || die "Invalid --relocate-legacy slug"
-  [[ -n "${SUBPROJECT}" ]] || die "--relocate-legacy requires --subproject (target subfolder name)"
+  [[ -n "${SUBPROJECT}" ]] || die "--relocate-legacy requires --subproject"
+  [[ -n "${PROJECT}" ]] || die "--relocate-legacy requires --project"
 fi
 
 build_dest_name() {
@@ -317,28 +379,251 @@ resolve_dest_date() {
   fi
 }
 
+is_ignored_source_name() {
+  local name="$1"
+  [[ "${name}" == .DS_Store ]] && return 0
+  [[ "${name}" == ._* ]] && return 0
+  return 1
+}
+
+is_skipped_project_name() {
+  local name="$1"
+  local low
+  low="$(printf '%s' "${name}" | tr '[:upper:]' '[:lower:]')"
+  case "${low}" in
+    price|prices|.""|"..") return 0 ;;
+  esac
+  [[ "${name}" == .* ]] && return 0
+  return 1
+}
+
+is_normalized_billing_file() {
+  local rel="$1"
+  local base="${rel##*/}"
+  [[ "${rel}" == */* ]] && return 1
+  [[ "${base}" =~ ^cost-[0-9]{4}-[0-9]{1,2}(-[0-9]{1,2})?\.csv$ ]] && return 0
+  [[ "${base}" =~ ^cost-[0-9]{4}\.csv$ ]] && return 0
+  return 1
+}
+
+is_normalized_token_metric_file() {
+  local rel="$1"
+  local base="${rel##*/}"
+  local low
+  low="$(printf '%s' "${base}" | tr '[:upper:]' '[:lower:]')"
+  [[ "${low}" == input-tokens-* ]] && return 0
+  [[ "${low}" == output-tokens-* ]] && return 0
+  [[ "${low}" == cache-match-rate-* ]] && return 0
+  [[ "${low}" == model-requests-* ]] && return 0
+  [[ "${low}" == avg-latency-* ]] && return 0
+  return 1
+}
+
+is_valid_normalized_rel() {
+  local rel="$1"
+  is_normalized_billing_file "${rel}" && return 0
+  [[ "${rel}" == token/* || "${rel}" == performance/* ]] || return 1
+  is_normalized_token_metric_file "${rel}"
+}
+
+subproject_from_source_rel() {
+  local rel="$1"
+  if [[ "${rel}" =~ ^(token|performance)/([^/]+)/.+ ]]; then
+    local seg="${BASH_REMATCH[2]}"
+    case "${seg}" in
+      input-tokens*|output-tokens*|cache-match-rate*|model-requests*|avg-latency*)
+        return 1
+        ;;
+      *)
+        printf '%s' "${seg}"
+        return 0
+        ;;
+    esac
+  fi
+  return 1
+}
+
+resolve_grafana_dest_rel() {
+  local src_rel="$1"
+  local src_base="$2"
+  local kind_and_stem dest_subdir file_stem dest_date dest_name subproj=""
+
+  kind_and_stem="$(classify_file "${src_base}" 2>/dev/null || true)"
+  [[ -n "${kind_and_stem}" ]] || return 1
+
+  read -r dest_subdir file_stem <<<"${kind_and_stem}"
+  dest_date="$(resolve_dest_date "${src_base}")"
+  dest_name="$(build_dest_name "${file_stem}" "${dest_date}")"
+
+  if [[ -n "${SUBPROJECT}" ]]; then
+    subproj="${SUBPROJECT}"
+  else
+    subproj="$(subproject_from_source_rel "${src_rel}" 2>/dev/null || true)"
+  fi
+
+  if [[ -n "${subproj}" ]]; then
+    printf '%s/%s/%s' "${dest_subdir}" "${subproj}" "${dest_name}"
+  else
+    printf '%s/%s' "${dest_subdir}" "${dest_name}"
+  fi
+}
+
+resolve_dest_rel() {
+  local src_rel="$1"
+  local src_base="$2"
+  local grafana_rel=""
+
+  if is_valid_normalized_rel "${src_rel}"; then
+    printf '%s' "${src_rel}"
+    return 0
+  fi
+
+  grafana_rel="$(resolve_grafana_dest_rel "${src_rel}" "${src_base}" 2>/dev/null || true)"
+  if [[ -n "${grafana_rel}" ]]; then
+    printf '%s' "${grafana_rel}"
+    return 0
+  fi
+
+  return 1
+}
+
+sync_file_to_dest() {
+  local src="$1"
+  local dest="$2"
+  local label="$3"
+
+  matched=$((matched + 1))
+
+  if [[ -e "${dest}" && "${FORCE}" -eq 0 ]]; then
+    if cmp -s "${src}" "${dest}" 2>/dev/null; then
+      skipped=$((skipped + 1))
+      log_skip "${label}: unchanged ${dest}"
+      return 2
+    fi
+    skipped=$((skipped + 1))
+    log_skip "${label}: exists ${dest} (use --force to overwrite)"
+    return 2
+  fi
+
+  if [[ "${DRY_RUN}" -eq 1 ]]; then
+    log_sync "${label}: ${src} -> ${dest}"
+    synced=$((synced + 1))
+    return 0
+  fi
+
+  mkdir -p "$(dirname "${dest}")"
+  if [[ "${COPY_MODE}" -eq 1 ]]; then
+    cp -p "${src}" "${dest}"
+    log_sync "${label}: copied $(basename "${src}") -> ${dest}"
+  else
+    mv "${src}" "${dest}"
+    log_sync "${label}: moved $(basename "${src}") -> ${dest}"
+  fi
+  synced=$((synced + 1))
+  return 0
+}
+
+process_tree_csv() {
+  local project_name="$1"
+  local src_abs="$2"
+  local src_rel="$3"
+  local src_base dest_rel dest_abs label
+
+  src_base="$(basename "${src_abs}")"
+  if is_ignored_source_name "${src_base}"; then
+    return 0
+  fi
+
+  dest_rel="$(resolve_dest_rel "${src_rel}" "${src_base}" 2>/dev/null || true)"
+  if [[ -z "${dest_rel}" ]]; then
+    log_warn "[${project_name}] unrecognized: ${src_rel}"
+    return 0
+  fi
+
+  dest_abs="${BILLS_DIR}/${project_name}/${dest_rel}"
+  if classify_file "${src_base}" >/dev/null 2>&1; then
+    label="[${project_name}] rename"
+  else
+    label="[${project_name}]"
+  fi
+  sync_file_to_dest "${src_abs}" "${dest_abs}" "${label}"
+}
+
+scan_project_tree() {
+  local project_name="$1"
+  local project_src="$2"
+  local -a found=()
+  local rel src_abs
+
+  if [[ ! -d "${project_src}" ]]; then
+    log_warn "Project source missing, skipped: ${project_src}"
+    return 0
+  fi
+
+  log ""
+  log "---- project: ${project_name} ----"
+  log "source: ${project_src}"
+  log "dest:   ${BILLS_DIR}/${project_name}/"
+
+  while IFS= read -r -d '' src_abs; do
+    rel="${src_abs#"${project_src}/"}"
+    found+=("${rel}")
+  done < <(find "${project_src}" -type f -name '*.csv' -print0 | sort -z)
+
+  if [[ ${#found[@]} -eq 0 ]]; then
+    log_warn "[${project_name}] no .csv files found"
+    return 0
+  fi
+
+  log "[${project_name}] discovered ${#found[@]} csv file(s)"
+  local item
+  for item in "${found[@]}"; do
+    process_tree_csv "${project_name}" "${project_src}/${item}" "${item}"
+  done
+}
+
+sync_all_projects() {
+  local entry project_name project_src count=0
+
+  shopt -s nullglob
+  for entry in "${SOURCE_DIR}"/*; do
+    [[ -d "${entry}" ]] || continue
+    project_name="$(basename "${entry}")"
+    is_skipped_project_name "${project_name}" && continue
+    count=$((count + 1))
+    scan_project_tree "${project_name}" "${entry}"
+  done
+
+  if [[ "${count}" -eq 0 ]]; then
+    log_warn "No project subdirectories found under ${SOURCE_DIR}"
+  fi
+}
+
+uses_bills_tree_mode() {
+  if [[ "${SYNC_ALL}" -eq 1 ]]; then
+    return 0
+  fi
+  if [[ -n "${PROJECT}" && -d "${SOURCE_DIR}/${PROJECT}" ]]; then
+    return 0
+  fi
+  return 1
+}
+
+effective_dest_root() {
+  local base="$1"
+  if [[ -n "${SUBPROJECT}" ]]; then
+    printf '%s/%s' "${base}" "${SUBPROJECT}"
+  else
+    printf '%s' "${base}"
+  fi
+}
+
 move_file() {
   local src="$1"
   local dest_dir="$2"
   local dest_name="$3"
   local dest="${dest_dir}/${dest_name}"
-
-  if [[ -e "${dest}" && "${FORCE}" -eq 0 ]]; then
-    log "  SKIP (exists): ${dest_name}  <- $(basename "${src}")"
-    return 2
-  fi
-
-  if [[ "${DRY_RUN}" -eq 1 ]]; then
-    log "  DRY-RUN: $(basename "${src}")"
-    log "        -> ${dest}"
-    return 0
-  fi
-
-  mkdir -p "${dest_dir}"
-  mv "${src}" "${dest}"
-  log "  MOVED: $(basename "${src}")"
-  log "      -> ${dest}"
-  return 0
+  sync_file_to_dest "${src}" "${dest}" "flat"
 }
 
 process_group() {
@@ -346,7 +631,7 @@ process_group() {
   local dest_dir="$2"
   shift 2
   local -a entries=("$@")
-  local entry file_stem src dest_name dest_path target_dir dest_date src_base rc
+  local entry file_stem src dest_name dest_path target_dir dest_date src_base
   local seen_dest_paths=""
 
   [[ ${#entries[@]} -eq 0 ]] && return 0
@@ -364,36 +649,20 @@ process_group() {
     src="${entry#*|}"
     src_base="$(basename "${src}")"
 
-    matched=$((matched + 1))
     dest_date="$(resolve_dest_date "${src_base}")"
     dest_name="$(build_dest_name "${file_stem}" "${dest_date}")"
     dest_path="${target_dir}/${dest_name}"
 
     if printf '%s\n' "${seen_dest_paths}" | grep -Fxq "${dest_path}"; then
-      log "  WARN: duplicate destination ${dest_name} (multiple sources map to same path)"
+      log_warn "duplicate destination ${dest_name}"
     else
       seen_dest_paths="${seen_dest_paths}${dest_path}"$'\n'
     fi
 
-    move_file "${src}" "${target_dir}" "${dest_name}"
-    rc=$?
-    if [[ "${rc}" -eq 2 ]]; then
-      skipped=$((skipped + 1))
-    elif [[ "${rc}" -eq 0 ]]; then
-      moved=$((moved + 1))
-    fi
+    move_file "${src}" "${target_dir}" "${dest_name}" || true
   done
 
   log ""
-}
-
-effective_dest_root() {
-  local base="$1"
-  if [[ -n "${SUBPROJECT}" ]]; then
-    printf '%s/%s' "${base}" "${SUBPROJECT}"
-  else
-    printf '%s' "${base}"
-  fi
 }
 
 report_no_download_matches() {
@@ -407,14 +676,10 @@ report_no_download_matches() {
 
   log "No matching Grafana export files found in ${SOURCE_DIR}."
   if [[ "${csv_count}" -eq 0 ]]; then
-    log ""
-    log "Downloads has no .csv files. Common causes:"
-    log "  1. Grafana exports were already moved by a previous migrate run."
-    log "  2. Export again from Grafana (panel menu -> Inspect -> Data -> Download CSV)."
-    log "  3. Use -s DIR if files are not in ~/Downloads."
+    log "Source has no top-level .csv files."
+    log "For bills tree sync, place files under ${SOURCE_DIR}/<project>/ or run with --all."
   else
-    log ""
-    log "Found ${csv_count} .csv file(s) in Downloads, but none matched Grafana panel names:"
+    log "Found ${csv_count} top-level .csv file(s), but none matched Grafana panel names:"
     for f in "${SOURCE_DIR}"/*.csv; do
       [[ -f "${f}" ]] || continue
       base="$(basename "${f}")"
@@ -423,25 +688,13 @@ report_no_download_matches() {
       fi
     done
   fi
-  log ""
-  log "Expected Grafana export name prefixes (case-insensitive):"
-  log "  Output Tokens-data*"
-  log "  Input Tokens-data*"
-  log "  Token Cache Match Rate*"
-  log "  Model requests-data*"
-  log "  Average Latency*"
-  if [[ -n "${SUBPROJECT}" ]]; then
-    log ""
-    log "If you already migrated with slug-in-filename (e.g. input-tokens-coding-1-2026-7-7.csv),"
-    log "reorganize into subfolders instead of re-downloading:"
-    log "  ./scripts/migrate-grafana-downloads.sh -p ${PROJECT} -u ${SUBPROJECT} \\"
-    log "    --relocate-legacy coding-1 -n"
-  fi
 }
 
 relocate_legacy_bills_files() {
-  local subdir dest_dir src base stem legacy_slug date_suffix dest_name dest_path target_dir
+  local subdir dest_dir src base stem date_suffix dest_name target_dir
   local -a stems=("input-tokens" "output-tokens" "cache-match-rate" "avg-latency" "model-requests")
+  local DEST_TOKEN="${BILLS_DIR}/${PROJECT}/token"
+  local DEST_PERF="${BILLS_DIR}/${PROJECT}/performance"
 
   log "Relocate legacy flat files (*-${RELOCATE_LEGACY}-YYYY-M-D.csv) -> subfolder ${SUBPROJECT}/"
   log ""
@@ -460,100 +713,107 @@ relocate_legacy_bills_files() {
         fi
         date_suffix="${BASH_REMATCH[2]}"
         dest_name="${stem}-${date_suffix}.csv"
-        dest_path="${target_dir}/${dest_name}"
-
-        matched=$((matched + 1))
-        move_file "${src}" "${target_dir}" "${dest_name}"
-        rc=$?
-        if [[ "${rc}" -eq 2 ]]; then
-          skipped=$((skipped + 1))
-        elif [[ "${rc}" -eq 0 ]]; then
-          moved=$((moved + 1))
-        fi
+        move_file "${src}" "${target_dir}" "${dest_name}" || true
       done
     done
   done
 }
 
-shopt -s nullglob
-matched=0
-moved=0
-skipped=0
+process_flat_downloads() {
+  local DEST_TOKEN="${BILLS_DIR}/${PROJECT}/token"
+  local DEST_PERF="${BILLS_DIR}/${PROJECT}/performance"
+  local -a perf_entries=() token_entries=()
+  local src base kind_and_stem dest_subdir file_stem entry
+
+  shopt -s nullglob
+  for src in "${SOURCE_DIR}"/*.csv; do
+    [[ -f "${src}" ]] || continue
+    base="$(basename "${src}")"
+    kind_and_stem="$(classify_file "${base}" 2>/dev/null || true)"
+    [[ -n "${kind_and_stem}" ]] || continue
+    read -r dest_subdir file_stem <<<"${kind_and_stem}"
+    entry="${file_stem}|${src}"
+    case "${dest_subdir}" in
+      performance) perf_entries+=("${entry}") ;;
+      token) token_entries+=("${entry}") ;;
+      *) die "Internal error: unknown dest subdir ${dest_subdir}" ;;
+    esac
+  done
+
+  if [[ ${#perf_entries[@]} -gt 0 ]]; then
+    local sorted_perf=()
+    while IFS= read -r line; do
+      sorted_perf+=("${line}")
+    done < <(printf '%s\n' "${perf_entries[@]}" | sort)
+    process_group "performance" "${DEST_PERF}" "${sorted_perf[@]}"
+  fi
+  if [[ ${#token_entries[@]} -gt 0 ]]; then
+    local sorted_token=()
+    while IFS= read -r line; do
+      sorted_token+=("${line}")
+    done < <(printf '%s\n' "${token_entries[@]}" | sort)
+    process_group "token" "${DEST_TOKEN}" "${sorted_token[@]}"
+  fi
+
+  if [[ "${matched}" -eq 0 ]]; then
+    report_no_download_matches
+  fi
+}
+
+print_summary() {
+  log ""
+  log "======== summary ========"
+  log "matched=${matched} synced=${synced} skipped=${skipped} warnings=${warnings} errors=${errors}"
+  if [[ -n "${LOG_FILE}" ]]; then
+    log "log file: ${LOG_FILE}"
+  fi
+  if [[ "${DRY_RUN}" -eq 1 ]]; then
+    log "mode: dry-run (no files changed)"
+  elif [[ "${COPY_MODE}" -eq 1 ]]; then
+    log "mode: copy (source preserved)"
+  else
+    log "mode: move (source removed on success)"
+  fi
+}
+
+init_log_file
 
 log "Source:  ${SOURCE_DIR}"
-log "Project: ${PROJECT}"
-[[ -n "${SUBPROJECT}" ]] && log "Subproject: ${SUBPROJECT}"
-if [[ "${DATE_FROM_CLI}" -eq 1 ]]; then
-  log "Date:    ${DATE_SUFFIX} (from --date, all files)"
+log "Dest:    ${BILLS_DIR}"
+if [[ "${SYNC_ALL}" -eq 1 ]]; then
+  log "Scope:   all projects"
 else
-  log "Date:    per file from Grafana name (*-data-M_D_YYYY,...), fallback ${DATE_SUFFIX}"
+  log "Project: ${PROJECT}"
 fi
-log "Dest:    $(effective_dest_root "${DEST_PERF}")"
-log "         $(effective_dest_root "${DEST_TOKEN}")"
-log "Order:   performance -> token"
-[[ "${DRY_RUN}" -eq 1 ]] && log "Mode:    dry-run"
-[[ "${FORCE}" -eq 1 ]] && log "Mode:    force overwrite"
-log ""
+[[ -n "${SUBPROJECT}" ]] && log "Subproject override: ${SUBPROJECT}"
+if [[ "${DATE_FROM_CLI}" -eq 1 ]]; then
+  log "Date:    ${DATE_SUFFIX} (from --date)"
+else
+  log "Date:    per Grafana filename, fallback ${DATE_SUFFIX}"
+fi
+[[ "${DRY_RUN}" -eq 1 ]] && log "Dry-run: yes"
+[[ "${FORCE}" -eq 1 ]] && log "Force:   yes"
 
 if [[ -n "${RELOCATE_LEGACY}" ]]; then
+  COPY_MODE=0
   relocate_legacy_bills_files
-  log ""
-  if [[ "${matched}" -eq 0 ]]; then
-    log "No legacy flat files matching *-${RELOCATE_LEGACY}-YYYY-M-D.csv under:"
-    log "  ${DEST_TOKEN}/"
-    log "  ${DEST_PERF}/"
-    exit 0
+  print_summary
+  exit 0
+fi
+
+if uses_bills_tree_mode; then
+  if [[ "${SYNC_ALL}" -eq 1 ]]; then
+    sync_all_projects
+  else
+    scan_project_tree "${PROJECT}" "${SOURCE_DIR}/${PROJECT}"
   fi
-  log "Done (relocate). matched=${matched} moved=${moved} skipped=${skipped}"
-  exit 0
+else
+  COPY_MODE=0
+  process_flat_downloads
 fi
 
-perf_entries=()
-token_entries=()
+print_summary
 
-for src in "${SOURCE_DIR}"/*.csv; do
-  [[ -f "${src}" ]] || continue
-  base="$(basename "${src}")"
-
-  kind_and_stem="$(classify_file "${base}" 2>/dev/null || true)"
-  [[ -n "${kind_and_stem}" ]] || continue
-
-  read -r dest_subdir file_stem <<<"${kind_and_stem}"
-  entry="${file_stem}|${src}"
-
-  case "${dest_subdir}" in
-    performance) perf_entries+=("${entry}") ;;
-    token) token_entries+=("${entry}") ;;
-    *) die "Internal error: unknown dest subdir ${dest_subdir}" ;;
-  esac
-done
-
-if [[ ${#perf_entries[@]} -gt 0 ]]; then
-  sorted_perf=()
-  while IFS= read -r line; do
-    sorted_perf+=("${line}")
-  done < <(printf '%s\n' "${perf_entries[@]}" | sort)
-  perf_entries=("${sorted_perf[@]}")
+if [[ "${errors}" -gt 0 ]]; then
+  exit 1
 fi
-if [[ ${#token_entries[@]} -gt 0 ]]; then
-  sorted_token=()
-  while IFS= read -r line; do
-    sorted_token+=("${line}")
-  done < <(printf '%s\n' "${token_entries[@]}" | sort)
-  token_entries=("${sorted_token[@]}")
-fi
-
-if [[ ${#perf_entries[@]} -gt 0 ]]; then
-  process_group "performance" "${DEST_PERF}" "${perf_entries[@]}"
-fi
-if [[ ${#token_entries[@]} -gt 0 ]]; then
-  process_group "token" "${DEST_TOKEN}" "${token_entries[@]}"
-fi
-
-log ""
-if [[ "${matched}" -eq 0 ]]; then
-  report_no_download_matches
-  exit 0
-fi
-
-log "Done. matched=${matched} moved=${moved} skipped=${skipped}"
