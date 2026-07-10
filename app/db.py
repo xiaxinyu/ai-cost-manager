@@ -3755,10 +3755,12 @@ def get_all_catalog_market_breakdown(
         )
 
     total_catalog = sum(catalog_by_date.values())
-    total_actual = sum(
-        float(p["actual_cost_usd"])
-        for p in points
-        if p.get("actual_cost_usd") is not None
+    total_actual = _sum_billing_cost_usd(
+        conn,
+        start_date=start_date,
+        end_date=end_date,
+        currency=chosen_currency,
+        project_names=scoped_projects,
     )
     total_input = sum(
         float(r["input_cost_usd"])
@@ -5437,7 +5439,12 @@ def get_financial_project_breakdown(
         avg_daily = round_cost(total / actual_days) if actual_days > 0 and total > 0 else None
         meter_cost: float | None = None
         platform_cost: float | None = None
-        if total > 0 and chosen_currency is not None:
+        catalog_cost: float | None = None
+        billing_variance_usd: float | None = None
+        billing_variance_pct: float | None = None
+        meter_variance_usd: float | None = None
+        meter_variance_pct: float | None = None
+        if chosen_currency is not None and (total > 0 or has_tokens):
             ts = get_catalog_market_cost_timeseries(
                 conn,
                 pn,
@@ -5448,18 +5455,35 @@ def get_financial_project_breakdown(
             cm_summary = ts.get("summary") or {}
             meter_raw = cm_summary.get("total_meter_cost_usd")
             platform_raw = cm_summary.get("billing_other_usd")
+            catalog_raw = cm_summary.get("total_catalog_cost_usd")
             if meter_raw is not None:
                 meter_cost = float(meter_raw)
             if platform_raw is not None:
                 platform_cost = float(platform_raw)
             elif meter_cost is None and total > 0:
                 platform_cost = round_cost(total)
+            if catalog_raw is not None:
+                catalog_f = float(catalog_raw)
+                if catalog_f > 0:
+                    catalog_cost = round_cost(catalog_f)
+                    if total > 0:
+                        billing_variance_usd = round_cost(total - catalog_f)
+                        billing_variance_pct = round(
+                            (total - catalog_f) / catalog_f * 100.0, 1
+                        )
+                    meter_variance_usd = cm_summary.get("meter_variance_usd")
+                    meter_variance_pct = cm_summary.get("meter_variance_pct")
         out.append(
             {
                 "project_name": pn,
                 "actual_cost_usd_total": total,
                 "meter_cost_usd": meter_cost,
                 "platform_cost_usd": platform_cost,
+                "catalog_cost_usd": catalog_cost,
+                "billing_variance_usd": billing_variance_usd,
+                "billing_variance_pct": billing_variance_pct,
+                "meter_variance_usd": meter_variance_usd,
+                "meter_variance_pct": meter_variance_pct,
                 "actual_days": actual_days,
                 "avg_daily_cost_usd": avg_daily,
                 "currency": chosen_currency,

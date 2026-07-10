@@ -405,6 +405,10 @@
   --cost-platform-rgb: 251, 191, 36;
   --cost-platform-bg: rgba(251, 191, 36, 0.1);
   --cost-platform-border: rgba(251, 191, 36, 0.38);
+  --cost-variance: #fde68a;
+  --cost-variance-rgb: 253, 230, 138;
+  --cost-variance-bg: rgba(253, 230, 138, 0.1);
+  --cost-variance-border: rgba(253, 230, 138, 0.38);
 }
 
 .costTypeLegend {
@@ -491,6 +495,17 @@
   box-shadow: 0 0 0 2px rgba(var(--cost-platform-rgb), 0.2);
 }
 
+.costPill--variance {
+  color: #fde68a;
+  border: 1px solid var(--cost-variance-border);
+  background: var(--cost-variance-bg);
+}
+
+.costPill--variance::before {
+  background: var(--cost-variance);
+  box-shadow: 0 0 0 2px rgba(var(--cost-variance-rgb), 0.2);
+}
+
 .dashboardDesc .costPill,
 .modelTableHint .costPill,
 .reportSectionLead .costPill,
@@ -517,7 +532,8 @@
 
 .dashTable thead th.colCostActual,
 .dashTable thead th.colCostMarket,
-.dashTable thead th.colCostPlatform {
+.dashTable thead th.colCostPlatform,
+.dashTable thead th.colVariance {
   border-top: 2px solid transparent;
 }
 
@@ -534,6 +550,11 @@
 .dashTable thead th.colCostPlatform {
   border-top-color: var(--cost-platform);
   background: linear-gradient(180deg, rgba(var(--cost-platform-rgb), 0.12), rgba(14, 20, 28, 0.96) 55%);
+}
+
+.dashTable thead th.colVariance {
+  border-top-color: var(--cost-variance);
+  background: linear-gradient(180deg, rgba(var(--cost-variance-rgb), 0.1), rgba(14, 20, 28, 0.96) 55%);
 }
 
 .dashTable thead tr.costColGroupRow th {
@@ -558,12 +579,19 @@
   text-align: center;
 }
 
+.dashTable thead tr.costColGroupRow .colGroupVariance {
+  border-top: 2px solid var(--cost-variance);
+  background: linear-gradient(180deg, rgba(var(--cost-variance-rgb), 0.14), rgba(14, 20, 28, 0.96) 70%);
+  text-align: center;
+}
+
 .dashTable thead tr.costColGroupRow .colGroupMeta {
   background: rgba(14, 20, 28, 0.96);
 }
 
 .dashTable thead th.colCostActual .costPill,
-.dashTable thead th.colCostMarket .costPill {
+.dashTable thead th.colCostMarket .costPill,
+.dashTable thead tr.costColGroupRow .colGroupVariance .costPill {
   display: inline-flex;
   width: fit-content;
   margin: 0 0 4px;

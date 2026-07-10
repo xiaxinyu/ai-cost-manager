@@ -66,8 +66,16 @@ def test_all_financial_report_stats(tmp_path):
     by_name = {r["project_name"]: r for r in pb}
     assert by_name["projA"]["actual_cost_usd_total"] == 4.0
     assert by_name["projB"]["actual_cost_usd_total"] == 2.0
-    assert "meter_cost_usd" in by_name["projA"]
-    assert "platform_cost_usd" in by_name["projA"]
+    assert "catalog_cost_usd" in by_name["projA"]
+    assert "billing_variance_usd" in by_name["projA"]
+    assert "billing_variance_pct" in by_name["projA"]
+    assert "meter_variance_usd" in by_name["projA"]
+    assert "meter_variance_pct" in by_name["projA"]
+    assert by_name["projA"]["catalog_cost_usd"] is None
+    assert by_name["projA"]["billing_variance_usd"] is None
+    assert by_name["projA"]["billing_variance_pct"] is None
+    assert by_name["projA"]["meter_variance_usd"] is None
+    assert by_name["projA"]["meter_variance_pct"] is None
     # Billing-only projects: no meter match → platform attributed to full total
     assert by_name["projA"]["meter_cost_usd"] is None
     assert by_name["projA"]["platform_cost_usd"] == 4.0
@@ -233,6 +241,44 @@ def _write_foundry_cost(path, rows: list[tuple[str, str, float]]) -> None:
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
+def _seed_gpt53_codex_prices(conn: sqlite3.Connection) -> None:
+    for metric, amount in (("input", 1.75), ("output", 14.0)):
+        conn.execute(
+            """
+            INSERT INTO model_prices(
+                source_id, source_url, effective_date, retrieved_at_utc,
+                vendor, platform, price_region, price_currency,
+                model_series, model_name, context_bucket, deployment_scope,
+                billing_mode, metric_name, amount,
+                unit_quantity, unit_name, unit_expression, notes, source_detail_json
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                "src",
+                "https://example.com",
+                "2026-04-29",
+                "2026-04-29T00:00:00Z",
+                "Microsoft",
+                "azure-openai",
+                "East US",
+                "USD",
+                "GPT-5.3",
+                "GPT-5.3 Codex",
+                None,
+                "global",
+                "standard",
+                metric,
+                amount,
+                1_000_000,
+                "tokens",
+                "USD/1M tokens",
+                None,
+                None,
+            ),
+        )
+    conn.commit()
+
+
 def test_all_financial_report_exposes_unit_rate_comparison(tmp_path):
     bills_dir = tmp_path / "bills"
     project_dir = bills_dir / "projBridge"
@@ -258,6 +304,14 @@ def test_all_financial_report_exposes_unit_rate_comparison(tmp_path):
     ingest_all(bills_dir=bills_dir, db_path=db_path, reimport_changed=False)
     ingest_token_all(bills_dir=bills_dir, db_path=db_path, reimport_changed=False)
 
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    try:
+        init_db(conn)
+        _seed_gpt53_codex_prices(conn)
+    finally:
+        conn.close()
+
     app = create_app(db_path=str(db_path), bills_dir=str(bills_dir), auto_ingest=False)
     client = TestClient(app)
     _create_admin(str(db_path))
@@ -274,6 +328,84 @@ def test_all_financial_report_exposes_unit_rate_comparison(tmp_path):
     )
     assert row["effective_usd_per_1m_input"] == 5.0
     assert row["effective_usd_per_1m_output"] == 20.0
+
+    payload = res.json()
+    summary = catalog["summary"]
+    assert summary["variance_pct"] is not None
+    assert summary["variance_usd"] is not None
+    assert summary["meter_variance_pct"] is not None
+    assert summary["meter_variance_usd"] is not None
+    pb = payload["project_breakdown"][0]
+    assert pb["project_name"] == "projBridge"
+    assert pb["catalog_cost_usd"] == summary["total_catalog_cost_usd"]
+    assert pb["billing_variance_pct"] == summary["variance_pct"]
+    assert pb["billing_variance_usd"] == summary["variance_usd"]
+    assert pb["meter_variance_pct"] == summary["meter_variance_pct"]
+    assert pb["meter_variance_usd"] == summary["meter_variance_usd"]
+
+
+def test_project_breakdown_exposes_billing_and_meter_variance(tmp_path):
+    """Platform fees inflate billing variance but not meter variance."""
+    bills_dir = tmp_path / "bills"
+    project_dir = bills_dir / "projPlatformHeavy"
+    token_dir = project_dir / "token"
+    token_dir.mkdir(parents=True)
+    _write_foundry_cost(
+        project_dir / "cost.csv",
+        [
+            ("2026-05-12", "5.3 codex inp Gl 1M Tokens", 10.0),
+            ("2026-05-12", "5.3 codex opt Gl 1M Tokens", 4.0),
+        ],
+    )
+    (project_dir / "platform.csv").write_text(
+        '"UsageDate","CostUSD","Cost","ForecastCost","Currency"\n'
+        '"2026-05-12","100.0","100.0","","USD"\n',
+        encoding="utf-8",
+    )
+    (token_dir / "input-tokens.csv").write_text(
+        '"Time","gpt-5.3-codex"\n2026-05-12 10:00:00,2 Mil\n',
+        encoding="utf-8",
+    )
+    (token_dir / "output-tokens.csv").write_text(
+        '"Time","gpt-5.3-codex"\n2026-05-12 10:00:00,200 K\n',
+        encoding="utf-8",
+    )
+
+    db_path = tmp_path / "cost_mgmt.sqlite3"
+    ingest_all(bills_dir=bills_dir, db_path=db_path, reimport_changed=False)
+    ingest_token_all(bills_dir=bills_dir, db_path=db_path, reimport_changed=False)
+
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    try:
+        init_db(conn)
+        _seed_gpt53_codex_prices(conn)
+    finally:
+        conn.close()
+
+    app = create_app(db_path=str(db_path), bills_dir=str(bills_dir), auto_ingest=False)
+    client = TestClient(app)
+    _create_admin(str(db_path))
+    client.post("/auth/login", data={"username": "admin", "password": "admin12345"})
+
+    res = client.get(
+        "/api/reports/all-financial?currency=USD&project_names=projPlatformHeavy"
+    )
+    assert res.status_code == 200
+    payload = res.json()
+    pb = payload["project_breakdown"][0]
+    summary = payload["catalog_market"]["summary"]
+
+    assert pb["actual_cost_usd_total"] == 114.0
+    assert pb["meter_cost_usd"] == 14.0
+    assert pb["platform_cost_usd"] == 100.0
+    assert pb["billing_variance_pct"] == summary["variance_pct"]
+    assert pb["billing_variance_usd"] == summary["variance_usd"]
+    assert pb["meter_variance_pct"] == summary["meter_variance_pct"]
+    assert pb["meter_variance_usd"] == summary["meter_variance_usd"]
+    assert pb["billing_variance_pct"] is not None
+    assert pb["meter_variance_pct"] is not None
+    assert pb["billing_variance_pct"] > pb["meter_variance_pct"]
 
 
 def test_reports_page_layout_without_token_forecast(tmp_path):
@@ -325,6 +457,13 @@ def test_reports_page_layout_without_token_forecast(tmp_path):
     assert "reportModelExtrasDetails" in page.text
     assert "reportSectionCard" in page.text
     assert "reportConsumeChartPane" in page.text
+    assert "reportAllocBillingVarianceChip" in page.text
+    assert "reportAllocMeterVarianceChip" in page.text
+    assert "reportModelBillingVarianceChip" in page.text
+    assert "reportModelMeterVarianceChip" in page.text
+    assert "colVariance--billing" in page.text
+    assert "colVariance--meter" in page.text
+    assert "colGroupVariance" in page.text
     assert "reportConsumeStatement" not in page.text
 
 

@@ -2196,6 +2196,178 @@
   word-break: break-word;
 }
 
+.reportPanelToolbarWithVariance {
+  align-items: flex-start;
+}
+
+.reportPanelToolbarActions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.reportVarianceChipGroup {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.reportVarianceChip {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(var(--cost-variance-rgb), 0.22);
+  background: linear-gradient(180deg, rgba(var(--cost-variance-rgb), 0.12), rgba(0, 0, 0, 0.22));
+  white-space: nowrap;
+}
+
+.reportVarianceChipKey {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--report-text-muted);
+  align-self: flex-start;
+}
+
+.reportVarianceChipPct {
+  font-size: 15px;
+  font-weight: 780;
+  font-variant-numeric: tabular-nums;
+  color: var(--cost-variance);
+  line-height: 1.1;
+}
+
+.reportVarianceChipUsd {
+  font-size: 11px;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+  color: rgba(226, 232, 240, 0.78);
+}
+
+.reportVarianceChip--meter {
+  border-color: rgba(var(--cost-actual-rgb), 0.22);
+  background: linear-gradient(180deg, rgba(var(--cost-actual-rgb), 0.1), rgba(0, 0, 0, 0.22));
+}
+
+.reportVarianceChip--meter .reportVarianceChipPct {
+  color: var(--cost-actual);
+}
+
+.reportVarianceChip--meter .reportVarianceChipKey {
+  color: rgba(94, 234, 212, 0.72);
+}
+
+.varianceCell {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+  min-width: 5.5rem;
+}
+
+.varianceCell--na {
+  color: var(--report-text-muted);
+  font-weight: 600;
+}
+
+.variancePct {
+  font-size: 12px;
+  font-weight: 720;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+  line-height: 1.15;
+}
+
+.varianceAmt {
+  font-size: 10px;
+  font-weight: 520;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+  opacity: 0.88;
+}
+
+.variancePct--under,
+.varianceAmt--under {
+  color: var(--cost-actual);
+}
+
+.variancePct--over,
+.varianceAmt--over {
+  color: var(--cost-platform);
+}
+
+.variancePct--flat,
+.varianceAmt--flat {
+  color: var(--report-text-muted);
+}
+
+.reportProjectSummaryTable .colGroupVariance,
+.reportProjectSummaryTable .colVariance,
+.reportModelPanel .colVariance,
+.reportModelPanel .tdVariance {
+  min-width: 7.5rem;
+}
+
+.reportProjectSummaryTable .colVariance--billing,
+.reportProjectSummaryTable td.tdVariance--billing,
+.reportModelPanel .colVariance--billing,
+.reportModelPanel td.tdVariance--billing {
+  min-width: 7.25rem;
+}
+
+.reportProjectSummaryTable .colVariance--meter,
+.reportProjectSummaryTable td.tdVariance--meter,
+.reportModelPanel .colVariance--meter,
+.reportModelPanel td.tdVariance--meter {
+  min-width: 7.25rem;
+}
+
+.reportProjectSummaryTable td.tdVariance,
+.reportModelPanel td.tdVariance,
+.reportModelPanel tfoot td.tdVariance {
+  background: rgba(var(--cost-variance-rgb), 0.04);
+}
+
+.reportProjectSummaryTable td.tdVariance--meter,
+.reportModelPanel td.tdVariance--meter,
+.reportModelPanel tfoot td.tdVariance--meter {
+  background: rgba(var(--cost-actual-rgb), 0.04);
+  box-shadow: inset 1px 0 0 rgba(var(--cost-actual-rgb), 0.14);
+}
+
+.reportProjectSummaryTable td.tdVariance--billing,
+.reportModelPanel td.tdVariance--billing,
+.reportModelPanel tfoot td.tdVariance--billing {
+  box-shadow: inset 1px 0 0 rgba(var(--cost-variance-rgb), 0.14);
+}
+
+.reportProjectSummaryTable thead th.colVariance .thLabel,
+.reportModelPanel thead th.colVariance .thLabel {
+  color: #fde68a;
+  font-weight: 700;
+}
+
+.reportProjectSummaryTable thead th.colVariance--meter .thLabel,
+.reportModelPanel thead th.colVariance--meter .thLabel {
+  color: var(--cost-actual);
+}
+
+.reportProjectSummaryTable thead th.colVariance .thUnit,
+.reportModelPanel thead th.colVariance .thUnit {
+  color: rgba(253, 230, 138, 0.72);
+}
+
+.reportProjectSummaryTable thead th.colVariance--meter .thUnit,
+.reportModelPanel thead th.colVariance--meter .thUnit {
+  color: rgba(94, 234, 212, 0.72);
+}
+
 .reportStatementLayerTag {
   display: flex;
   align-items: center;
