@@ -7,7 +7,7 @@
     rgb: "94,234,212",
     label: "OpEx",
     shortLabel: "OpEx",
-    subtitle: "Actual billing",
+    subtitle: "OpEx billing",
     hint: "Billing CSV CostUSD — daily invoice actual (UsageDate)",
     pillClass: "costPill--actual",
     colClass: "colCostActual",

@@ -120,7 +120,7 @@
                 </div>
 
                 <div class="costStatementLayer costStatementLayer--opex" id="costOpexCompositionRow" hidden aria-label="OpEx composition">
-                  <p class="costStatementLayerTag muted">Actual billing · composition</p>
+                  <p class="costStatementLayerTag muted">OpEx billing · composition</p>
                   <div class="costMonitorKpi costFinOpexCompositionKpi">
                     <article class="monitorKpi monitorKpi--actual">
                       <div class="stat">
@@ -391,7 +391,7 @@
                 <header class="detailTableHead">
                   <div class="detailTableIdentity">
                     <h3 class="detailTableTitle">By resource</h3>
-                    <p class="detailTableDesc muted">Aggregated actual cost per resource and service.</p>
+                    <p class="detailTableDesc muted">Aggregated OpEx cost per resource and service.</p>
                   </div>
                   <div class="detailTableActions">
                     <span id="resourceBillingHint" class="detailTableDesc muted costBreakdownPanelHint" hidden></span>
@@ -411,19 +411,23 @@
                       <col class="colDays" />
                     </colgroup>
                     <thead>
+                      <tr class="costColGroupRow">
+                        <th colspan="4" scope="colgroup" class="colGroupMeta"></th>
+                        <th colspan="1" scope="colgroup" class="colGroupActual"><span class="costPill costPill--actual">OpEx</span></th>
+                        <th colspan="2" scope="colgroup" class="colGroupMeta"></th>
+                      </tr>
                       <tr>
-                        <th class="thResourceCol" scope="col" data-sortable data-sort-type="text">Resource</th>
-                        <th scope="col" data-sortable data-sort-type="text">Service</th>
-                        <th scope="col" data-sortable data-sort-type="text">Location</th>
-                        <th scope="col" data-sortable data-sort-type="text">Resource group</th>
+                        <th class="thResourceCol colHeaderMeta" scope="col" data-sortable data-sort-type="text">Resource</th>
+                        <th class="colHeaderMeta" scope="col" data-sortable data-sort-type="text">Service</th>
+                        <th class="colHeaderMeta" scope="col" data-sortable data-sort-type="text">Location</th>
+                        <th class="colHeaderMeta" scope="col" data-sortable data-sort-type="text">Resource group</th>
                         <th class="num colCostActual" scope="col" data-sortable data-sort-type="number" aria-sort="descending">
-                          <span class="costPill costPill--actual">Actual</span>
                           <span class="thLabel">Cost</span><span class="thUnit">USD</span>
                         </th>
-                        <th class="num" scope="col" data-sortable data-sort-type="number">
+                        <th class="num colHeaderMeta" scope="col" data-sortable data-sort-type="number">
                           <span class="thLabel">Share</span><span class="thUnit">%</span>
                         </th>
-                        <th class="num" scope="col" data-sortable data-sort-type="number">
+                        <th class="num colHeaderMeta" scope="col" data-sortable data-sort-type="number">
                           <span class="thLabel">Days</span>
                         </th>
                       </tr>
@@ -459,18 +463,22 @@
                         <col class="colSource" />
                       </colgroup>
                       <thead>
+                        <tr class="costColGroupRow">
+                          <th colspan="5" scope="colgroup" class="colGroupMeta"></th>
+                          <th colspan="1" scope="colgroup" class="colGroupActual"><span class="costPill costPill--actual">OpEx</span></th>
+                          <th colspan="2" scope="colgroup" class="colGroupMeta"></th>
+                        </tr>
                         <tr>
-                          <th class="thDateCol" scope="col">Date</th>
-                          <th class="thResourceCol" scope="col">Resource</th>
-                          <th scope="col">Service</th>
-                          <th scope="col">Tier</th>
-                          <th scope="col">Meter</th>
+                          <th class="thDateCol colHeaderMeta" scope="col">Date</th>
+                          <th class="thResourceCol colHeaderMeta" scope="col">Resource</th>
+                          <th class="colHeaderMeta" scope="col">Service</th>
+                          <th class="colHeaderMeta" scope="col">Tier</th>
+                          <th class="colHeaderMeta" scope="col">Meter</th>
                           <th class="num colCostActual" scope="col">
-                            <span class="costPill costPill--actual">Actual</span>
                             <span class="thLabel">Cost</span><span class="thUnit">USD</span>
                           </th>
-                          <th scope="col">Currency</th>
-                          <th scope="col">Source</th>
+                          <th class="colHeaderMeta" scope="col">Currency</th>
+                          <th class="colHeaderMeta" scope="col">Source</th>
                         </tr>
                       </thead>
                       <tbody id="billingRawTbody"></tbody>
@@ -501,7 +509,7 @@
     <script src="/static/js/http.js"></script>
     <script src="/static/js/chart-plugins.js"></script>
     <script src="/static/js/chart-style.js?v=20260605-dates"></script>
-    <script src="/static/js/cost-semantics.js?v=20260710-market"></script>
+    <script src="/static/js/cost-semantics.js?v=20260710-opex"></script>
     <script src="/static/js/dashboard-ui.js?v=20260707-detail"></script>
     <script src="/static/js/dashboard-interactions.js?v=20260707-ui"></script>
     <script src="/static/js/billing-detail-table.js?v=20260707-detail"></script>
