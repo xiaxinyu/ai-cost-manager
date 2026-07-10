@@ -6,7 +6,7 @@
     <title>Cost - Models Cost Management</title>
     <link rel="stylesheet" href="/static/css/app-shell.css" />
     <link rel="stylesheet" href="/static/css/page-common.css" />
-    <link rel="stylesheet" href="/static/css/pages/index.css?v=20260708-composition" />
+    <link rel="stylesheet" href="/static/css/pages/index.css?v=20260710-chart-sharp" />
     <link rel="stylesheet" href="/static/css/layout-pro.css" />
     <link rel="stylesheet" href="/static/css/dashboard-shared.css?v=20260710-table-unify" />
     <link rel="stylesheet" href="/static/css/date-range-picker.css?v=20260606-drp" />
@@ -507,8 +507,8 @@
     <script src="/static/js/app-shell.js"></script>
     <script src="/static/js/money.js"></script>
     <script src="/static/js/http.js"></script>
-    <script src="/static/js/chart-plugins.js"></script>
-    <script src="/static/js/chart-style.js?v=20260605-dates"></script>
+    <script src="/static/js/chart-plugins.js?v=20260710-chart-sharp"></script>
+    <script src="/static/js/chart-style.js?v=20260710-chart-sharp"></script>
     <script src="/static/js/cost-semantics.js?v=20260710-opex"></script>
     <script src="/static/js/dashboard-ui.js?v=20260707-detail"></script>
     <script src="/static/js/dashboard-interactions.js?v=20260707-ui"></script>
@@ -613,16 +613,6 @@
       let lastModelProjectSummary = {};
       let modelTableSort = { key: 'actual_cost_usd', dir: 'desc' };
 
-      const MODEL_CHART_COLORS = [
-        { border: '#60a5fa', fill: 'rgba(96, 165, 250, 0.12)' },
-        { border: '#a78bfa', fill: 'rgba(167, 139, 250, 0.12)' },
-        { border: '#5eead4', fill: 'rgba(94, 234, 212, 0.12)' },
-        { border: '#fbbf24', fill: 'rgba(251, 191, 36, 0.12)' },
-        { border: '#f87171', fill: 'rgba(248, 113, 113, 0.12)' },
-        { border: '#34d399', fill: 'rgba(52, 211, 153, 0.12)' },
-      ];
-
-      /** Below this day count, model cost lines use straight segments (tension 0). */
       const MODEL_CHART_SMOOTH_MIN_DAYS = 5;
 
       function _isMeterAllocated(method) {
@@ -1594,7 +1584,6 @@
         const labels = _billedDatesForDir(dailyByModel, valueKey);
         const stackId = valueKey === 'output_cost_usd' ? 'output' : 'input';
         const barDatasets = models.map((model, idx) => {
-          const col = MODEL_CHART_COLORS[idx % MODEL_CHART_COLORS.length];
           const byDate = new Map(
             (dailyByModel || [])
               .filter((r) => String(r.model_name) === model)
@@ -1604,18 +1593,16 @@
             const v = byDate.get(d);
             return v === null || v === undefined ? null : window.AppMoney?.roundCost(v);
           });
-          const bg = col.fill.replace(/0\.1[24]/, '0.55');
-          return {
-            label: model,
-            data,
-            backgroundColor: bg,
-            borderColor: col.border,
-            borderWidth: 1,
-            borderRadius: 4,
-            maxBarThickness: 32,
-            stack: stackId,
-            unitType: 'currency',
-          };
+          if (CHART_OPTS?.datasetStackedBarSeries) {
+            return CHART_OPTS.datasetStackedBarSeries({
+              label: model,
+              data,
+              seriesIndex: idx,
+              stack: stackId,
+              labelCount: labels.length,
+            });
+          }
+          return { label: model, data, stack: stackId, unitType: 'currency' };
         });
         return { labels, datasets: barDatasets, models, stackId };
       }
@@ -1631,36 +1618,25 @@
       }
 
       function _renderDirCostChart(canvasId, existingChart, dailyByModel, valueKey, emptyMsg, footnoteEl) {
-        const { labels, datasets, models, stackId } = _buildModelDirCostChart(dailyByModel, valueKey);
+        const { labels, datasets, models } = _buildModelDirCostChart(dailyByModel, valueKey);
         if (existingChart) existingChart.destroy();
         const ctx = document.getElementById(canvasId)?.getContext('2d');
         if (!ctx) return null;
-        const lineOpts = buildCostLineOptions({
+        const barOpts = CHART_OPTS?.buildStackedBarChartOptions?.({
+          currency: currentCurrency,
           labelCount: labels.length,
           showLegend: models.length > 0,
           legendVariant: 'compact',
           tooltipCallbacks: {
-            title: (items) => (items?.[0] ? String(labels[items[0].dataIndex] ?? '') : ''),
             label: tooltipLabelForValue,
           },
-        });
+        }) ?? {};
         const total = _dirCostChartTotal(datasets);
         _updateModelDirChartFootnotes(dailyByModel, valueKey, footnoteEl, models.length, total);
         return new Chart(ctx, {
           type: 'bar',
           data: { labels, datasets },
-          options: {
-            ...lineOpts,
-            layout: {
-              ...(lineOpts.layout || {}),
-              padding: { top: 4, right: 6, bottom: 8, left: 4 },
-            },
-            scales: {
-              ...lineOpts.scales,
-              x: { ...lineOpts.scales?.x, stacked: true },
-              y: { ...lineOpts.scales?.y, stacked: true, beginAtZero: true },
-            },
-          },
+          options: barOpts,
           plugins: [emptyStatePlugin(emptyMsg), ...chartPluginsExtra()],
         });
       }

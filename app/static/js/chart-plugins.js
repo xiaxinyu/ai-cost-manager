@@ -69,6 +69,23 @@
     };
   }
 
-  window.AppChartPlugins = { forecastHorizonShade, hoverCrosshair };
+  /** Keep canvas bitmap aligned with display density after layout changes. */
+  function sharpCanvas({ maxRatio = 2.5 } = {}) {
+    return {
+      id: 'sharpCanvas',
+      beforeInit(chart) {
+        chart.options.devicePixelRatio = Math.min(window.devicePixelRatio || 1, maxRatio);
+      },
+      resize(chart, size) {
+        const ratio = Math.min(window.devicePixelRatio || 1, maxRatio);
+        if (chart.options.devicePixelRatio !== ratio) {
+          chart.options.devicePixelRatio = ratio;
+        }
+        return true;
+      },
+    };
+  }
+
+  window.AppChartPlugins = { forecastHorizonShade, hoverCrosshair, sharpCanvas };
 })();
 

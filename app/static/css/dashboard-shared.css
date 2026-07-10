@@ -84,8 +84,6 @@
 .tokenPage .chartCanvasWrap canvas,
 .reportPage .chartCanvasHost canvas {
   display: block;
-  width: 100% !important;
-  height: 100% !important;
 }
 
 .costDashboard .chartCanvasHost.is-chartLoading::after,

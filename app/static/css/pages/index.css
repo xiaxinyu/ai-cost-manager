@@ -404,7 +404,7 @@
       .qualityBadge.qualityHigh { border-color: rgba(94,234,212,0.35); background: rgba(94,234,212,0.12); }
       .qualityBadge.qualityMedium { border-color: rgba(245,158,11,0.35); background: rgba(245,158,11,0.12); }
       .qualityBadge.qualityLow { border-color: rgba(248,113,113,0.35); background: rgba(248,113,113,0.12); }
-      .costDashboard .chartCanvasHost canvas { width: 100% !important; height: 100% !important; }
+      .costDashboard .chartCanvasHost canvas { display: block; }
       @media (max-width: 980px) {
         .controls {
           justify-content: flex-start;
@@ -422,7 +422,7 @@
   --cost-control-h: 33px;
   --cost-chart-h: clamp(228px, 29vh, 288px);
   --cost-chart-h-tall: clamp(240px, 30vh, 300px);
-  --cost-chart-h-model: clamp(214px, 27vh, 268px);
+  --cost-chart-h-model: clamp(248px, 32vh, 312px);
   display: grid;
   gap: var(--cost-gap);
   width: 100%;
@@ -632,9 +632,11 @@
   flex: 0 0 auto;
   height: var(--cost-chart-h-model) !important;
   max-height: none !important;
-  min-height: 214px;
-  padding: 6px 10px 12px;
+  min-height: 248px;
+  padding: 8px 12px 14px;
   box-sizing: border-box;
+  background: linear-gradient(180deg, rgba(10, 16, 26, 0.42), rgba(8, 12, 18, 0.78));
+  border-top: 1px solid rgba(148, 163, 184, 0.06);
 }
 
 .costModelCharts .monitorCardFoot--summary {
@@ -1488,8 +1490,6 @@
 
 .costDashboard .chartCanvasHost canvas {
   display: block;
-  width: 100% !important;
-  height: 100% !important;
 }
 
 .costDashboard .chartCanvasHost.is-chartLoading::after {

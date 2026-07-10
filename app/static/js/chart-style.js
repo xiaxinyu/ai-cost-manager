@@ -37,8 +37,14 @@
     crosshair: 'rgba(148, 163, 184, 0.38)',
   };
 
+  function devicePixelRatio(max = 2.5) {
+    const dpr = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
+    return Math.min(Math.max(dpr, 1), max);
+  }
+
   function applyDefaults() {
     if (typeof Chart === 'undefined') return;
+    Chart.defaults.devicePixelRatio = devicePixelRatio();
     Chart.defaults.font.family = theme.fontFamily;
     Chart.defaults.color = '#e7edf6';
     Chart.defaults.font.size = 12;
@@ -309,6 +315,7 @@
     return {
       responsive: true,
       maintainAspectRatio: false,
+      devicePixelRatio: devicePixelRatio(),
       interaction: { mode: 'index', intersect: false, axis: 'x' },
       animation: { duration: 360, easing: 'easeOutQuart' },
       layout: { padding: { top: 10, right: 14, bottom: 6, left: 10 } },
@@ -375,14 +382,135 @@
 
   function chartPluginsExtra() {
     const P = window.AppChartPlugins;
-    const plugin = P?.hoverCrosshair?.({ color: theme.crosshair });
-    return plugin ? [plugin] : [];
+    const plugins = [];
+    const cross = P?.hoverCrosshair?.({ color: theme.crosshair });
+    const sharp = P?.sharpCanvas?.();
+    if (cross) plugins.push(cross);
+    if (sharp) plugins.push(sharp);
+    return plugins;
   }
 
   /** Point visibility: show dots when the series is short enough to read. */
   function pointRadiusForCount(n, { sparse = 3, dense = 0 } = {}) {
     const count = Number(n) || 0;
     return count <= 45 ? sparse : dense;
+  }
+
+  /** Rounded top only on the visible stack segment for stacked bars. */
+  function stackedBarTopRadius(ctx, { radius = 5 } = {}) {
+    const chart = ctx.chart;
+    const { datasetIndex, dataIndex } = ctx;
+    const datasets = chart.data?.datasets || [];
+    const stackId = datasets[datasetIndex]?.stack;
+    if (!stackId) return radius;
+    let topDatasetIndex = -1;
+    for (let i = datasets.length - 1; i >= 0; i -= 1) {
+      const ds = datasets[i];
+      if (ds.stack !== stackId) continue;
+      const v = ds.data?.[dataIndex];
+      if (v != null && Number(v) > 0) {
+        topDatasetIndex = i;
+        break;
+      }
+    }
+    if (datasetIndex !== topDatasetIndex) return 0;
+    return { topLeft: radius, topRight: radius, bottomLeft: 0, bottomRight: 0 };
+  }
+
+  function maxBarThicknessForLabels(labelCount, { min = 12, max = 30 } = {}) {
+    const n = Math.max(Number(labelCount) || 1, 1);
+    return Math.min(max, Math.max(min, Math.floor(360 / n)));
+  }
+
+  /** Stacked bar charts — denser layout, crisp grid, compact legend. */
+  function buildStackedBarChartOptions({
+    currency = null,
+    labelCount = 0,
+    showLegend = true,
+    legendVariant = 'compact',
+    tooltipCallbacks = {},
+  } = {}) {
+    const callbacks = {
+      title: tooltipTitleFullDate,
+      ...tooltipCallbacks,
+    };
+    return {
+      responsive: true,
+      maintainAspectRatio: false,
+      devicePixelRatio: devicePixelRatio(),
+      interaction: { mode: 'index', intersect: false, axis: 'x' },
+      animation: { duration: 260, easing: 'easeOutCubic' },
+      layout: { padding: { top: 4, right: 10, bottom: 8, left: 6 } },
+      datasets: {
+        bar: {
+          categoryPercentage: 0.7,
+          barPercentage: 0.9,
+          borderSkipped: false,
+        },
+      },
+      elements: {
+        bar: {
+          borderWidth: 1,
+          borderRadius: 4,
+        },
+      },
+      plugins: {
+        ...pluginsLegend({ show: showLegend, variant: legendVariant }),
+        ...pluginsTooltip(callbacks),
+      },
+      scales: {
+        x: {
+          stacked: true,
+          ticks: xAxisTicks(labelCount),
+          grid: { display: false, drawOnChartArea: false },
+          border: { display: false },
+        },
+        y: {
+          stacked: true,
+          beginAtZero: true,
+          ...yAxisCost(currency),
+          grid: { color: theme.grid, drawTicks: false, lineWidth: 1 },
+        },
+      },
+    };
+  }
+
+  const modelBarPalette = [
+    { border: '#60a5fa', fill: 'rgba(96, 165, 250, 0.86)', hover: 'rgba(96, 165, 250, 0.96)' },
+    { border: '#a78bfa', fill: 'rgba(167, 139, 250, 0.86)', hover: 'rgba(167, 139, 250, 0.96)' },
+    { border: '#5eead4', fill: 'rgba(94, 234, 212, 0.84)', hover: 'rgba(94, 234, 212, 0.94)' },
+    { border: '#fbbf24', fill: 'rgba(251, 191, 36, 0.86)', hover: 'rgba(251, 191, 36, 0.96)' },
+    { border: '#f87171', fill: 'rgba(248, 113, 113, 0.86)', hover: 'rgba(248, 113, 113, 0.96)' },
+    { border: '#34d399', fill: 'rgba(52, 211, 153, 0.84)', hover: 'rgba(52, 211, 153, 0.94)' },
+  ];
+
+  function modelBarColorAt(index) {
+    const i = Number(index) || 0;
+    return modelBarPalette[((i % modelBarPalette.length) + modelBarPalette.length) % modelBarPalette.length];
+  }
+
+  function datasetStackedBarSeries({
+    label,
+    data,
+    seriesIndex = 0,
+    stack = 'stack',
+    unitType = 'currency',
+    labelCount = 0,
+  } = {}) {
+    const col = modelBarColorAt(seriesIndex);
+    return {
+      label,
+      data,
+      stack,
+      backgroundColor: col.fill,
+      hoverBackgroundColor: col.hover,
+      borderColor: col.border,
+      hoverBorderColor: col.border,
+      borderWidth: 1,
+      borderRadius: (ctx) => stackedBarTopRadius(ctx),
+      maxBarThickness: maxBarThicknessForLabels(labelCount),
+      unitType,
+    };
   }
 
   /** Distinct colors for multi-model performance / breakdown series. */
@@ -533,6 +661,13 @@
     buildChartOptionsForUnit,
     chartPluginsExtra,
     pointRadiusForCount,
+    devicePixelRatio,
+    buildStackedBarChartOptions,
+    stackedBarTopRadius,
+    maxBarThicknessForLabels,
+    modelBarPalette,
+    modelBarColorAt,
+    datasetStackedBarSeries,
     datasetLineCurrency,
     modelSeriesPalette,
     modelColorAt,
