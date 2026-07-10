@@ -1907,9 +1907,16 @@
   letter-spacing: 0.05em;
   text-transform: uppercase;
   color: var(--text-subtle);
-  background: #1c2430;
   border-bottom: 1px solid rgba(148, 163, 184, 0.2);
   white-space: nowrap;
+}
+
+.costDashboard .modelSummaryTable thead tr.costColGroupRow th {
+  text-transform: none;
+}
+
+.costDashboard .modelSummaryTable thead th.colHeaderMeta {
+  background: rgba(14, 20, 28, 0.96);
 }
 
 .costDashboard .modelSummaryTable thead th.sortable {

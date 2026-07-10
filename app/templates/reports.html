@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="/static/css/page-common.css" />
     <link rel="stylesheet" href="/static/css/pages/reports.css?v=20260710-variance-bands" />
     <link rel="stylesheet" href="/static/css/layout-pro.css" />
-    <link rel="stylesheet" href="/static/css/dashboard-shared.css?v=20260710-variance-bands" />
+    <link rel="stylesheet" href="/static/css/dashboard-shared.css?v=20260710-table-unify" />
     <link rel="stylesheet" href="/static/css/date-range-picker.css?v=20260606-drp" />
   </head>
   <body>
@@ -426,15 +426,15 @@
                     <th colspan="2" scope="colgroup" class="colGroupMeta"></th>
                   </tr>
                   <tr>
-                    <th scope="col">Project</th>
+                    <th scope="col" class="colHeaderMeta">Project</th>
                     <th class="num colCostActual" scope="col">Total</th>
                     <th class="num colCostActual" scope="col">Meter</th>
                     <th class="num colCostPlatform" scope="col">Platform</th>
                     <th class="num colCostMarket" scope="col">Market</th>
                     <th class="num colVariance colVariance--billing" scope="col"><span class="thLabel">OpEx total</span><span class="thUnit">vs market</span></th>
                     <th class="num colVariance colVariance--meter" scope="col"><span class="thLabel">Meter</span><span class="thUnit">vs market</span></th>
-                    <th class="num" scope="col">Billed days</th>
-                    <th class="num colCostActual" scope="col">Avg / day</th>
+                    <th class="num colHeaderMeta" scope="col">Billed days</th>
+                    <th class="num colHeaderMeta" scope="col">Avg / day</th>
                   </tr>
                 </thead>
                 <tbody id="projectSummariesTbody">
@@ -503,22 +503,22 @@
               </div>
               <div id="reportUnitRatesScoped" class="unitPriceSummary">
                 <div class="tableScroll unitPriceSummaryScroll">
-                  <table class="unitPriceSummaryTable" id="reportUnitRatesScopedTable">
+                  <table class="unitPriceSummaryTable dataTable dashTable" id="reportUnitRatesScopedTable">
                     <thead>
-                      <tr>
-                        <th scope="col" rowspan="2">Model</th>
-                        <th class="num unitPriceGroupHead unitPriceGroupHead--tariff" scope="colgroup" colspan="2">
+                      <tr class="costColGroupRow">
+                        <th scope="col" rowspan="2" class="colGroupMeta colHeaderMeta">Model</th>
+                        <th class="num colGroupMarket" scope="colgroup" colspan="2">
                           <span class="costPill costPill--market">Market</span>
                         </th>
-                        <th class="num unitPriceGroupHead unitPriceGroupHead--effective" scope="colgroup" colspan="2">
+                        <th class="num colGroupActual" scope="colgroup" colspan="2">
                           <span class="costPill costPill--actual">OpEx</span> Effective
                         </th>
                       </tr>
                       <tr>
-                        <th class="num" scope="col">Input</th>
-                        <th class="num" scope="col">Output</th>
-                        <th class="num" scope="col">Input</th>
-                        <th class="num" scope="col">Output</th>
+                        <th class="num colCostMarket" scope="col">Input</th>
+                        <th class="num colCostMarket" scope="col">Output</th>
+                        <th class="num colCostActual" scope="col">Input</th>
+                        <th class="num colCostActual" scope="col">Output</th>
                       </tr>
                     </thead>
                     <tbody id="reportUnitRatesScopedTbody"></tbody>
@@ -574,14 +574,14 @@
                       <th colspan="1" scope="colgroup" class="colGroupMeta"></th>
                     </tr>
                     <tr>
-                      <th scope="col">Model</th>
-                      <th class="num colCostActual" scope="col"><span class="costPill costPill--actual">OpEx</span><span class="thLabel">Input</span></th>
-                      <th class="num colCostActual" scope="col"><span class="costPill costPill--actual">OpEx</span><span class="thLabel">Output</span></th>
-                      <th class="num colCostActual" scope="col"><span class="costPill costPill--actual">OpEx</span><span class="thLabel">Total</span></th>
-                      <th class="num colCostMarket" scope="col"><span class="costPill costPill--market">Market</span><span class="thLabel">Total</span></th>
+                      <th scope="col" class="colHeaderMeta">Model</th>
+                      <th class="num colCostActual" scope="col"><span class="thLabel">Input</span></th>
+                      <th class="num colCostActual" scope="col"><span class="thLabel">Output</span></th>
+                      <th class="num colCostActual" scope="col"><span class="thLabel">Total</span></th>
+                      <th class="num colCostMarket" scope="col"><span class="thLabel">Total</span></th>
                       <th class="num colVariance colVariance--billing" scope="col"><span class="thLabel">OpEx total</span><span class="thUnit">vs market</span></th>
                       <th class="num colVariance colVariance--meter" scope="col"><span class="thLabel">Meter</span><span class="thUnit">vs market</span></th>
-                      <th class="num" scope="col">Days</th>
+                      <th class="num colHeaderMeta" scope="col">Days</th>
                     </tr>
                   </thead>
                   <tbody id="reportModelCostTbody"></tbody>

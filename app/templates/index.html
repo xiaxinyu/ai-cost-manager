@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="/static/css/page-common.css" />
     <link rel="stylesheet" href="/static/css/pages/index.css?v=20260708-composition" />
     <link rel="stylesheet" href="/static/css/layout-pro.css" />
-    <link rel="stylesheet" href="/static/css/dashboard-shared.css?v=20260708-dash-polish" />
+    <link rel="stylesheet" href="/static/css/dashboard-shared.css?v=20260710-table-unify" />
     <link rel="stylesheet" href="/static/css/date-range-picker.css?v=20260606-drp" />
   </head>
   <body>
@@ -236,10 +236,17 @@
                 <div class="tableScroll dataTableWrap dashTableShell modelSummaryTableWrap">
                   <table class="dataTable dashTable modelSummaryTable" id="modelCostSummaryTable">
                     <thead>
+                      <tr class="costColGroupRow">
+                        <th colspan="1" scope="colgroup" class="colGroupMeta"></th>
+                        <th colspan="1" scope="colgroup" class="colGroupMarket"><span class="costPill costPill--market">Market</span></th>
+                        <th colspan="3" scope="colgroup" class="colGroupActual"><span class="costPill costPill--actual">OpEx · Meter</span></th>
+                        <th colspan="1" scope="colgroup" class="colGroupMarket"><span class="costPill costPill--market">Market</span></th>
+                        <th colspan="1" scope="colgroup" class="colGroupVariance colGroupVariance--meter"><span class="costPill costPill--actual">Meter vs market</span></th>
+                        <th colspan="1" scope="colgroup" class="colGroupMeta"></th>
+                      </tr>
                       <tr>
-                        <th scope="col" class="sortable" data-sort-key="model_name">Model</th>
+                        <th scope="col" class="sortable colHeaderMeta" data-sort-key="model_name">Model</th>
                         <th scope="col" class="colCostMarket colCostMarketMeta">
-                          <span class="costPill costPill--market">Market</span>
                           <span class="thLabel">List rate</span><span class="thUnit">USD/1M</span>
                         </th>
                         <th class="num sortable colCostActual" scope="col" data-sort-key="input_cost_usd">
@@ -252,12 +259,12 @@
                           <span class="thLabel">Meter</span><span class="thUnit">USD</span>
                         </th>
                         <th class="num sortable colCostMarket" scope="col" data-sort-key="catalog_cost_usd">
-                          <span class="thLabel">Market</span><span class="thUnit">USD</span>
+                          <span class="thLabel">Total</span><span class="thUnit">USD</span>
                         </th>
-                        <th class="num sortable" scope="col" data-sort-key="variance_pct">
-                          <span class="thLabel">Δ</span><span class="thUnit">%</span>
+                        <th class="num sortable colVariance colVariance--meter" scope="col" data-sort-key="variance_pct">
+                          <span class="thLabel">Meter</span><span class="thUnit">vs market</span>
                         </th>
-                        <th class="num sortable" scope="col" data-sort-key="days_with_rows">
+                        <th class="num sortable colHeaderMeta" scope="col" data-sort-key="days_with_rows">
                           <span class="thLabel">Days</span>
                         </th>
                       </tr>
@@ -330,20 +337,30 @@
                         <col class="colRatio" />
                       </colgroup>
                       <thead>
+                        <tr class="costColGroupRow">
+                          <th colspan="2" scope="colgroup" class="colGroupMeta"></th>
+                          <th colspan="2" scope="colgroup" class="colGroupMeta"></th>
+                          <th colspan="3" scope="colgroup" class="colGroupActual"><span class="costPill costPill--actual">OpEx</span></th>
+                          <th colspan="1" scope="colgroup" class="colGroupMarket"><span class="costPill costPill--market">Market</span></th>
+                          <th colspan="1" scope="colgroup" class="colGroupVariance colGroupVariance--meter"><span class="costPill costPill--actual">Meter vs market</span></th>
+                          <th colspan="1" scope="colgroup" class="colGroupMeta"></th>
+                          <th colspan="2" scope="colgroup" class="colGroupActual"><span class="costPill costPill--actual">Effective rate</span></th>
+                          <th colspan="1" scope="colgroup" class="colGroupMeta"></th>
+                        </tr>
                         <tr>
-                          <th class="thDateCol" scope="col">Date</th>
-                          <th class="thModelCol" scope="col">Model</th>
-                          <th class="num" scope="col">Input</th>
-                          <th class="num" scope="col">Output</th>
+                          <th class="thDateCol colHeaderMeta" scope="col">Date</th>
+                          <th class="thModelCol colHeaderMeta" scope="col">Model</th>
+                          <th class="num colHeaderMeta" scope="col">Input</th>
+                          <th class="num colHeaderMeta" scope="col">Output</th>
                           <th class="num colCostActual" scope="col"><span class="thLabel">Input</span><span class="thUnit">USD</span></th>
                           <th class="num colCostActual" scope="col"><span class="thLabel">Output</span><span class="thUnit">USD</span></th>
                           <th class="num colCostActual" scope="col"><span class="thLabel">OpEx</span><span class="thUnit">USD</span></th>
                           <th class="num colCostMarket" scope="col"><span class="thLabel">Market</span><span class="thUnit">USD</span></th>
-                          <th class="num" scope="col"><span class="thLabel">Δ</span><span class="thUnit">%</span></th>
-                          <th scope="col">Billing</th>
+                          <th class="num colVariance colVariance--meter" scope="col"><span class="thLabel">Meter</span><span class="thUnit">vs market</span></th>
+                          <th class="colHeaderMeta" scope="col">Billing</th>
                           <th class="num colCostActual" scope="col"><span class="thLabel">$/1M in</span></th>
                           <th class="num colCostActual" scope="col"><span class="thLabel">$/1M out</span></th>
-                          <th class="num" scope="col">
+                          <th class="num colHeaderMeta" scope="col">
                             <div class="thStack">
                               <span class="thHeadPrimary">Ratio</span>
                               <span class="thHeadSecondary muted">Out ÷ in</span>

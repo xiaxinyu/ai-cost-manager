@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="/static/css/page-common.css" />
     <link rel="stylesheet" href="/static/css/pages/tokens.css?v=20260708-dash-polish" />
     <link rel="stylesheet" href="/static/css/layout-pro.css" />
-    <link rel="stylesheet" href="/static/css/dashboard-shared.css?v=20260708-dash-polish" />
+    <link rel="stylesheet" href="/static/css/dashboard-shared.css?v=20260710-table-unify" />
     <link rel="stylesheet" href="/static/css/date-range-picker.css?v=20260606-drp" />
   </head>
   <body>
@@ -321,22 +321,22 @@
               <div class="flowBlockBody card unitPriceSection tokenEconomicsPanelBody">
               <div id="catalogRefLine" class="unitPriceSummary" hidden role="region" aria-label="Rate comparison table">
                 <div class="tableScroll unitPriceSummaryScroll">
-                  <table class="unitPriceSummaryTable">
+                  <table class="unitPriceSummaryTable dataTable dashTable">
                     <thead>
-                      <tr>
-                        <th scope="col" rowspan="2">Model</th>
-                        <th class="num unitPriceGroupHead unitPriceGroupHead--tariff" scope="colgroup" colspan="2">
+                      <tr class="costColGroupRow">
+                        <th scope="col" rowspan="2" class="colGroupMeta colHeaderMeta">Model</th>
+                        <th class="num colGroupMarket" scope="colgroup" colspan="2">
                           <span class="costPill costPill--market">Market</span>
                         </th>
-                        <th class="num unitPriceGroupHead unitPriceGroupHead--effective" scope="colgroup" colspan="2">
+                        <th class="num colGroupActual" scope="colgroup" colspan="2">
                           <span class="costPill costPill--actual">OpEx</span> Effective
                         </th>
                       </tr>
                       <tr>
-                        <th class="num" scope="col">Input</th>
-                        <th class="num" scope="col">Output</th>
-                        <th class="num" scope="col">Input</th>
-                        <th class="num" scope="col">Output</th>
+                        <th class="num colCostMarket" scope="col">Input</th>
+                        <th class="num colCostMarket" scope="col">Output</th>
+                        <th class="num colCostActual" scope="col">Input</th>
+                        <th class="num colCostActual" scope="col">Output</th>
                       </tr>
                     </thead>
                     <tbody id="unitPriceSummaryTbody"></tbody>
