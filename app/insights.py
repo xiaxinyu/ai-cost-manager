@@ -105,22 +105,22 @@ def _market_variance_insight(catalog: dict[str, Any] | None) -> InsightCard | No
         return None
     if v_pct is not None and v_pct < -5:
         severity = "info"
-        title = "Below list price"
+        title = "Below market"
         summary = (
-            f"OpEx {_fmt_cost(actual)} is {_fmt_pct(v_pct)} vs list price {_fmt_cost(market)} "
+            f"OpEx {_fmt_cost(actual)} is {_fmt_pct(v_pct)} vs market {_fmt_cost(market)} "
             f"({_fmt_cost(v_usd)} gap)."
         )
     elif v_pct is not None and v_pct > 5:
         severity = "watch"
-        title = "Above list price"
+        title = "Above market"
         summary = (
-            f"OpEx {_fmt_cost(actual)} exceeds list price {_fmt_cost(market)} by {_fmt_pct(v_pct)} "
+            f"OpEx {_fmt_cost(actual)} exceeds market {_fmt_cost(market)} by {_fmt_pct(v_pct)} "
             f"({_fmt_cost(v_usd)})."
         )
     else:
         severity = "info"
-        title = "Aligned with list price"
-        summary = f"OpEx {_fmt_cost(actual)} vs list price {_fmt_cost(market)} ({_fmt_pct(v_pct)})."
+        title = "Aligned with market"
+        summary = f"OpEx {_fmt_cost(actual)} vs market {_fmt_cost(market)} ({_fmt_pct(v_pct)})."
     return InsightCard(
         id="market_variance",
         category="market",
@@ -149,10 +149,10 @@ def _unpriced_models_insight(catalog: dict[str, Any] | None) -> InsightCard | No
         id="unpriced_models",
         category="market",
         severity="watch" if n >= 2 else "info",
-        title="Models without list price",
-        summary=f"{n} model(s) lack catalog USD/1M — list-price totals exclude them ({sample}{more}).",
+        title="Models without market rates",
+        summary=f"{n} model(s) lack catalog USD/1M — market totals exclude them ({sample}{more}).",
         metrics={"count": n, "models": unpriced[:8]},
-        recommendation="Add or sync prices in Price catalog for complete list-price comparison.",
+        recommendation="Add or sync prices in Price catalog for complete market comparison.",
     )
 
 
@@ -379,11 +379,11 @@ def _missing_token_csv_insight(
         severity="watch",
         title="No imported token CSV",
         summary=(
-            f"Billing exists{proj} but token CSV is missing — list-price and $/1M insights need "
+            f"Billing exists{proj} but token CSV is missing — market and $/1M insights need "
             "bills/<project>/token/ imports."
         ),
         metrics={"token_data_source": token_data_source},
-        recommendation="Import token CSV via Import page to unlock token and list-price analysis.",
+        recommendation="Import token CSV via Import page to unlock token and market analysis.",
     )
 
 
@@ -425,8 +425,8 @@ def _unit_price_drift_insight(daily_by_model: list[dict[str, Any]]) -> InsightCa
         id="unit_price_drift",
         category="market",
         severity="info",
-        title="Unit price vs list price",
-        summary=f"Latest {name}: {' · '.join(bits)} vs catalog list price USD/1M.",
+        title="Unit price vs market",
+        summary=f"Latest {name}: {' · '.join(bits)} vs market USD/1M.",
         metrics={"model": name, "in_pct": pin, "out_pct": pout, "models_compared": len(drifts)},
     )
 
