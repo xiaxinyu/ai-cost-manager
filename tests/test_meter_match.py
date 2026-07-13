@@ -102,3 +102,42 @@ def test_token_models_match_gpt_4o_catalog_snapshot():
 def test_token_model_name():
     assert token_model_name(version="5.3", family="codex") == "gpt-5.3-codex"
     assert token_model_name(version="5.4", family=None) == "gpt-5.4"
+
+
+@pytest.mark.parametrize(
+    "meter,token_dir,billing_dir,token_model",
+    [
+        ("V4 Pro Inp glbl Tokens", "input", "input", "DeepSeek-V4-Pro"),
+        ("V4 Pro Outp glbl Tokens", "output", "output", "DeepSeek-V4-Pro"),
+    ],
+)
+def test_parse_deepseek_v4_pro_meters(meter, token_dir, billing_dir, token_model):
+    parsed = parse_foundry_meter(meter)
+    assert parsed is not None
+    assert parsed.version == "4"
+    assert parsed.family == "pro"
+    assert parsed.token_direction == token_dir
+    assert parsed.billing_direction == billing_dir
+    assert parsed.token_model == token_model
+    assert parsed.rule_id == "deepseek_v4"
+
+
+def test_sum_meter_costs_deepseek_v4_pro():
+    rows = [
+        ("V4 Pro Inp glbl Tokens", 95.48),
+        ("V4 Pro Outp glbl Tokens", 2.15),
+        ("5.4 mini Inp Gl 1M Tokens", 0.26),
+    ]
+    assert sum_meter_costs(rows, token_model="DeepSeek-V4-Pro", token_direction="input") == pytest.approx(95.48)
+    assert sum_meter_costs(rows, token_model="DeepSeek-V4-Pro", token_direction="output") == pytest.approx(2.15)
+
+
+def test_aggregate_billing_rows_deepseek_v4_pro():
+    rows = [
+        ("2026-07-09", "V4 Pro Inp glbl Tokens", 95.48),
+        ("2026-07-09", "V4 Pro Outp glbl Tokens", 2.15),
+    ]
+    agg = aggregate_billing_rows(rows, token_models=["DeepSeek-V4-Pro"])
+    ds = agg["2026-07-09"]["DeepSeek-V4-Pro"]
+    assert ds["input"] == pytest.approx(95.48)
+    assert ds["output"] == pytest.approx(2.15)

@@ -264,11 +264,11 @@
                 <p class="reportSectionLead muted" id="costTrendInsight">Operating cash outflow from invoice actuals — daily rhythm and general ledger.</p>
               </div>
             </div>
-            <p class="reportTieOutBar" id="reportCashFlowTieOut" role="status">Load a report to verify daily outflows tie to OpEx Total.</p>
+            <p class="reportTieOutBar" id="reportCashFlowTieOut" role="status">Load a report to verify daily totals tie to OpEx Total.</p>
 
             <article class="card chartCard reportTrendCard reportCashFlowChart" id="reportDailyChartCard">
               <header class="reportChartHead">
-                <h3 class="chartCardTitle">Daily cash outflow</h3>
+                <h3 class="chartCardTitle">Daily total spend</h3>
                 <p class="chartCardHint muted" id="reportDailyChartHint">Invoice CostUSD by day · not forecast.</p>
               </header>
               <div id="reportDailySegmentLegend" class="costSpendLegendRow" hidden aria-label="Daily cost segments"></div>
@@ -283,7 +283,7 @@
               <header class="reportLedgerHead">
                 <div class="reportLedgerHeadMain">
                   <h3 class="reportLedgerTitle">General ledger — daily</h3>
-                  <p class="reportLedgerHint muted" id="tableAnalysisNote">Newest first · vs period average</p>
+                  <p class="reportLedgerHint muted" id="tableAnalysisNote">Each row = that day&apos;s full invoice total (CostUSD) · newest first</p>
                 </div>
                 <span class="reportLedgerScope costPill costPill--actual">OpEx · USD</span>
               </header>
@@ -298,11 +298,12 @@
                   <thead>
                     <tr>
                       <th scope="col">Date</th>
-                      <th class="num colCostActual" scope="col"><span class="thLabel">Outflow</span><span class="thUnit">USD</span></th>
+                      <th class="num colCostActual" scope="col"><span class="thLabel">Daily total</span><span class="thUnit">USD</span></th>
                       <th class="num" scope="col"><span class="thLabel">vs avg</span><span class="thUnit">%</span></th>
                     </tr>
                   </thead>
                   <tbody id="dailyTbody"></tbody>
+                  <tfoot id="dailyTfoot"></tfoot>
                 </table>
               </div>
               <footer class="reportLedgerFoot">
@@ -344,6 +345,7 @@
                     </div>
                     <span class="reportLedgerScope costPill costPill--actual">OpEx · USD</span>
                   </header>
+                  <div class="reportLedgerInsightBar" id="reportMonthlyInsightBar" hidden aria-label="Monthly ledger highlights"></div>
                   <div class="reportLedgerTableWrap dashTableShell">
                     <table class="dataTable dashTable reportBillingTable reportLedgerTable">
                       <colgroup>
@@ -355,12 +357,13 @@
                       <thead>
                         <tr>
                           <th scope="col">Month</th>
-                          <th class="num colCostActual" scope="col"><span class="thLabel">Outflow</span><span class="thUnit">USD</span></th>
+                          <th class="num colCostActual" scope="col"><span class="thLabel">Monthly total</span><span class="thUnit">USD</span></th>
                           <th class="num" scope="col"><span class="thLabel">Share</span><span class="thUnit">%</span></th>
                           <th class="num" scope="col"><span class="thLabel">Δ vs prior</span><span class="thUnit">mo</span></th>
                         </tr>
                       </thead>
                       <tbody id="monthlyTbody"></tbody>
+                      <tfoot id="monthlyTfoot"></tfoot>
                     </table>
                   </div>
                   <footer class="reportLedgerFoot">
@@ -1540,7 +1543,7 @@
         );
         const total = Number(report?.daily?.total_actual ?? 0);
         const ok = Number.isFinite(dailySum) && Number.isFinite(total) && Math.abs(dailySum - total) < 0.02;
-        el.textContent = `Sum of daily outflows ${fmtCost(dailySum)} · OpEx Total ${fmtCost(total)}${ok ? ' · tied' : ' · check scope'}`;
+        el.textContent = `Sum of daily totals ${fmtCost(dailySum)} · OpEx Total ${fmtCost(total)}${ok ? ' · tied' : ' · check scope'}`;
         el.classList.toggle('reportTieOutBar--ok', ok);
         el.classList.toggle('reportTieOutBar--warn', !ok && total > 0);
       }
@@ -2471,14 +2474,14 @@
           dailyGradient.addColorStop(1, 'rgba(94,234,212,0.00)');
           dailyDatasets.push(
             CHART_OPTS?.datasetLineCurrency?.({
-              label: 'Daily cost',
+              label: 'Daily total',
               data: dailyActual,
               borderColor: C.actual || C.cost || '#5eead4',
               backgroundColor: dailyGradient,
               fill: true,
               pointRadius: ptRTotal,
             }) ?? {
-              label: 'Daily cost',
+              label: 'Daily total',
               data: dailyActual,
               borderColor: C.cost || '#5eead4',
               backgroundColor: dailyGradient,
@@ -2792,12 +2795,50 @@
         return safePage;
       }
 
+      function medianFromCosts(points) {
+        const vals = (points || [])
+          .map((p) => Number(p?.cost_usd ?? 0))
+          .filter((v) => Number.isFinite(v))
+          .sort((a, b) => a - b);
+        if (!vals.length) return null;
+        const mid = Math.floor(vals.length / 2);
+        return vals.length % 2 === 1 ? vals[mid] : (vals[mid - 1] + vals[mid]) / 2;
+      }
+
+      function renderLedgerInsightBar(el, chips) {
+        if (!el) return;
+        el.replaceChildren();
+        if (!chips.length) {
+          el.hidden = true;
+          return;
+        }
+        el.hidden = false;
+        const frag = document.createDocumentFragment();
+        for (const chip of chips) {
+          const node = document.createElement('span');
+          node.className = 'reportLedgerInsightChip';
+          node.innerHTML = `<span class="reportLedgerInsightLabel">${chip.label}</span><strong class="reportLedgerInsightValue">${chip.value}</strong>${chip.meta ? `<span class="reportLedgerInsightMeta">${chip.meta}</span>` : ''}`;
+          frag.appendChild(node);
+        }
+        el.replaceChildren(frag);
+      }
+
       function renderTables(report) {
         const periodAvg = Number(report?.daily?.avg_actual);
+        const periodMedian = Number(report?.daily?.median_actual);
+        const monthlyAvg = Number(report?.monthly?.avg_actual);
+        const monthlyMedian = Number(report?.monthly?.median_actual);
         const daily = enrichDailyPoints(report.daily_points || [], periodAvg);
         const monthly = enrichCostPoints(report.monthly_points || []);
+        const periodTotal = daily.reduce((s, r) => s + Number(r.cost_usd || 0), 0);
+        const monthlyTotal = monthly.reduce((s, r) => s + Number(r.cost_usd || 0), 0);
+        const computedAvg = daily.length > 0 ? periodTotal / daily.length : null;
+        const computedDailyMedian = medianFromCosts(daily);
+        const computedMonthlyAvg = monthly.length > 0 ? monthlyTotal / monthly.length : null;
+        const computedMonthlyMedian = medianFromCosts(monthly);
         const note = document.getElementById('tableAnalysisNote');
         const insightBar = document.getElementById('reportLedgerInsightBar');
+        const monthlyInsightBar = document.getElementById('reportMonthlyInsightBar');
         const dailyPeak = daily.length
           ? daily.reduce((b, r) => (r.cost_usd > (b?.cost_usd ?? -1) ? r : b), null)
           : null;
@@ -2805,49 +2846,98 @@
           ? monthly.reduce((b, r) => (r.cost_usd > (b?.cost_usd ?? -1) ? r : b), null)
           : null;
         if (note) {
-          note.textContent = 'Newest first · vs period average';
+          note.textContent = "Each row = that day's full invoice total (CostUSD) · newest first";
         }
-        if (insightBar) {
-          insightBar.replaceChildren();
-          const chips = [];
-          if (dailyPeak) {
-            const vsAvg =
-              dailyPeak.vs_avg_pct != null && Number.isFinite(Number(dailyPeak.vs_avg_pct))
-                ? fmtPct(dailyPeak.vs_avg_pct)
-                : null;
-            chips.push({
-              label: 'Daily peak',
-              value: `${dailyPeak.date} · ${fmtCost(dailyPeak.cost_usd)}`,
-              meta: vsAvg ? `${vsAvg} vs avg` : null,
+        const dailyMedianVal =
+          Number.isFinite(periodMedian) && periodMedian >= 0 ? periodMedian : computedDailyMedian;
+        const monthlyAvgVal =
+          Number.isFinite(monthlyAvg) && monthlyAvg > 0 ? monthlyAvg : computedMonthlyAvg;
+        const monthlyMedianVal =
+          Number.isFinite(monthlyMedian) && monthlyMedian >= 0 ? monthlyMedian : computedMonthlyMedian;
+
+        const dailyChips = [];
+        if (daily.length) {
+          dailyChips.push({
+            label: 'Period total',
+            value: fmtCost(periodTotal),
+            meta: `${daily.length} days`,
+          });
+          const avgVal = Number.isFinite(periodAvg) && periodAvg > 0 ? periodAvg : computedAvg;
+          if (avgVal != null && Number.isFinite(avgVal)) {
+            dailyChips.push({
+              label: 'Daily average',
+              value: fmtCost(avgVal),
+              meta: 'per day',
+            });
+          }
+          if (dailyMedianVal != null && Number.isFinite(dailyMedianVal)) {
+            dailyChips.push({
+              label: 'Daily median',
+              value: fmtCost(dailyMedianVal),
+              meta: 'per day',
+            });
+          }
+        }
+        if (dailyPeak) {
+          const vsAvg =
+            dailyPeak.vs_avg_pct != null && Number.isFinite(Number(dailyPeak.vs_avg_pct))
+              ? fmtPct(dailyPeak.vs_avg_pct)
+              : null;
+          dailyChips.push({
+            label: 'Daily peak',
+            value: `${dailyPeak.date} · ${fmtCost(dailyPeak.cost_usd)}`,
+            meta: vsAvg ? `${vsAvg} vs avg` : null,
+          });
+        }
+        if (monthlyPeak) {
+          dailyChips.push({
+            label: 'Monthly peak',
+            value: `${monthlyPeak.date} · ${fmtCost(monthlyPeak.cost_usd)}`,
+            meta: monthlyPeak.share_pct != null ? `${fmtPct(monthlyPeak.share_pct)} share` : null,
+          });
+        }
+        renderLedgerInsightBar(insightBar, dailyChips);
+
+        const monthlyChips = [];
+        if (monthly.length) {
+          monthlyChips.push({
+            label: 'Period total',
+            value: fmtCost(monthlyTotal),
+            meta: `${monthly.length} months`,
+          });
+          if (monthlyAvgVal != null && Number.isFinite(monthlyAvgVal)) {
+            monthlyChips.push({
+              label: 'Monthly average',
+              value: fmtCost(monthlyAvgVal),
+              meta: 'per month',
+            });
+          }
+          if (monthlyMedianVal != null && Number.isFinite(monthlyMedianVal)) {
+            monthlyChips.push({
+              label: 'Monthly median',
+              value: fmtCost(monthlyMedianVal),
+              meta: 'per month',
             });
           }
           if (monthlyPeak) {
-            chips.push({
+            monthlyChips.push({
               label: 'Monthly peak',
               value: `${monthlyPeak.date} · ${fmtCost(monthlyPeak.cost_usd)}`,
               meta: monthlyPeak.share_pct != null ? `${fmtPct(monthlyPeak.share_pct)} share` : null,
             });
           }
-          if (!chips.length) {
-            insightBar.hidden = true;
-          } else {
-            insightBar.hidden = false;
-            const frag = document.createDocumentFragment();
-            for (const chip of chips) {
-              const el = document.createElement('span');
-              el.className = 'reportLedgerInsightChip';
-              el.innerHTML = `<span class="reportLedgerInsightLabel">${chip.label}</span><strong class="reportLedgerInsightValue">${chip.value}</strong>${chip.meta ? `<span class="reportLedgerInsightMeta">${chip.meta}</span>` : ''}`;
-              frag.appendChild(el);
-            }
-            insightBar.replaceChildren(frag);
-          }
         }
+        renderLedgerInsightBar(monthlyInsightBar, monthlyChips);
 
         const dailyTbody = document.getElementById('dailyTbody');
+        const dailyTfoot = document.getElementById('dailyTfoot');
         const dailyPrevBtn = document.getElementById('dailyPrevBtn');
         const dailyNextBtn = document.getElementById('dailyNextBtn');
         const dailyPageInfo = document.getElementById('dailyPageInfo');
-        setCollapseHint('reportDailyLedgerHint', daily.length ? `${daily.length} days` : '');
+        setCollapseHint(
+          'reportDailyLedgerHint',
+          daily.length ? `${daily.length} days · ${fmtCost(periodTotal)} total` : ''
+        );
         dailyPage = renderPagedTable({
           points: daily,
           page: dailyPage,
@@ -2860,8 +2950,29 @@
           peakDate: dailyPeak?.date ?? null,
           mode: 'daily',
         });
+        if (dailyTfoot) {
+          if (!daily.length) {
+            dailyTfoot.innerHTML = '';
+          } else {
+            const avgVal = Number.isFinite(periodAvg) && periodAvg > 0 ? periodAvg : computedAvg;
+            const statsParts = [];
+            if (avgVal != null && Number.isFinite(avgVal)) {
+              statsParts.push(`${fmtCost(avgVal)} avg/day`);
+            }
+            if (dailyMedianVal != null && Number.isFinite(dailyMedianVal)) {
+              statsParts.push(`${fmtCost(dailyMedianVal)} median`);
+            }
+            const statsCell = statsParts.length ? `<span class="muted">${statsParts.join(' · ')}</span>` : '—';
+            dailyTfoot.innerHTML = `<tr class="modelCostTotalRow reportLedgerTotalRow">
+              <th scope="row">Period total</th>
+              <td class="num mono tdCostActual">${fmtCostCell(periodTotal)}</td>
+              <td class="num">${statsCell}</td>
+            </tr>`;
+          }
+        }
 
         const monthlyTbody = document.getElementById('monthlyTbody');
+        const monthlyTfoot = document.getElementById('monthlyTfoot');
         const monthlyPrevBtn = document.getElementById('monthlyPrevBtn');
         const monthlyNextBtn = document.getElementById('monthlyNextBtn');
         const monthlyPageInfo = document.getElementById('monthlyPageInfo');
@@ -2876,6 +2987,36 @@
           label: 'months',
           peakDate: monthlyPeak?.date ?? null,
         });
+        if (monthlyTfoot) {
+          if (!monthly.length) {
+            monthlyTfoot.innerHTML = '';
+          } else {
+            const avgRow =
+              monthlyAvgVal != null && Number.isFinite(monthlyAvgVal)
+                ? `<tr class="reportLedgerStatsRow">
+                    <th scope="row">Average</th>
+                    <td class="num mono tdCostActual">${fmtCostCell(monthlyAvgVal)}</td>
+                    <td class="num muted">—</td>
+                    <td class="num muted">per month</td>
+                  </tr>`
+                : '';
+            const medianRow =
+              monthlyMedianVal != null && Number.isFinite(monthlyMedianVal)
+                ? `<tr class="reportLedgerStatsRow">
+                    <th scope="row">Median</th>
+                    <td class="num mono tdCostActual">${fmtCostCell(monthlyMedianVal)}</td>
+                    <td class="num muted">—</td>
+                    <td class="num muted">per month</td>
+                  </tr>`
+                : '';
+            monthlyTfoot.innerHTML = `<tr class="modelCostTotalRow reportLedgerTotalRow">
+                <th scope="row">Period total</th>
+                <td class="num mono tdCostActual">${fmtCostCell(monthlyTotal)}</td>
+                <td class="num muted">100%</td>
+                <td class="num muted">—</td>
+              </tr>${avgRow}${medianRow}`;
+          }
+        }
 
         renderCashFlowTieOut(report);
       }

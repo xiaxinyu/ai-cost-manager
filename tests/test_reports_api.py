@@ -454,6 +454,11 @@ def test_reports_page_layout_without_token_forecast(tmp_path):
     assert "reportIncomeSupplement" in page.text
     assert "reportCollapseDetails" in page.text
     assert "reportCashFlowLedgerDetails" in page.text
+    assert "dailyTfoot" in page.text
+    assert "monthlyTfoot" in page.text
+    assert "reportMonthlyInsightBar" in page.text
+    assert "Daily total" in page.text
+    assert "Monthly total" in page.text
     assert "reportModelExtrasDetails" in page.text
     assert "reportSectionCard" in page.text
     assert "reportConsumeChartPane" in page.text

@@ -116,6 +116,59 @@ def test_openai_gpt55_api_pricing_csv_merge(tmp_path):
         conn.close()
 
 
+def test_deepseek_v4_pro_foundry_pricing_csv_merge(tmp_path):
+    db_path = tmp_path / "deepseek.sqlite3"
+    csv_path = (
+        Path(__file__).resolve().parents[1]
+        / "fixtures"
+        / "pricing"
+        / "azure_foundry_deepseek_v4_pro_global_2026-07-13.csv"
+    )
+    r = import_price_csv_merge(db_path=str(db_path), csv_path=str(csv_path))
+    assert r.rows_read == 4
+
+    import sqlite3
+
+    from app.db import _resolve_catalog_prices_for_model_name, get_connection, init_db
+
+    conn = get_connection(str(db_path))
+    try:
+        init_db(conn)
+        n = int(
+            conn.execute(
+                "SELECT COUNT(*) FROM model_prices WHERE source_id = ?",
+                ("azure_foundry_deepseek_v4_pro_global_20260713",),
+            ).fetchone()[0]
+        )
+        assert n == 4
+        row = conn.execute(
+            """
+            SELECT metric_name, amount, model_name, platform
+            FROM model_prices
+            WHERE model_name = ? AND metric_name IN ('input', 'output')
+            ORDER BY metric_name
+            """,
+            ("DeepSeek-V4-Pro",),
+        ).fetchall()
+        assert len(row) == 2
+        assert float(row[0]["amount"]) == 1.74
+        assert float(row[1]["amount"]) == 3.48
+        assert row[0]["platform"] == "azure-foundry"
+
+        resolved = _resolve_catalog_prices_for_model_name(conn, "DeepSeek-V4-Pro")
+        assert resolved["input"] == 1.74
+        assert resolved["output"] == 3.48
+        assert resolved["input_source"]["match_kind"] == "exact"
+
+        sources = conn.execute(
+            "SELECT source_key FROM price_source_catalog WHERE source_key = ?",
+            ("azure_foundry_deepseek_pricing",),
+        ).fetchone()
+        assert sources is not None
+    finally:
+        conn.close()
+
+
 def test_import_price_csv_merge_preserves_other_sources(tmp_path):
     db_path = tmp_path / "merge.sqlite3"
     bills_dir = tmp_path / "bills_m"

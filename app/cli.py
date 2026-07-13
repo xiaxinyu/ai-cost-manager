@@ -51,6 +51,15 @@ def _default_openai_gpt55_api_csv_path() -> str:
     )
 
 
+def _default_deepseek_v4_pro_csv_path() -> str:
+    return str(
+        Path(__file__).resolve().parents[1]
+        / "fixtures"
+        / "pricing"
+        / "azure_foundry_deepseek_v4_pro_global_2026-07-13.csv"
+    )
+
+
 def _cli_common_parent() -> argparse.ArgumentParser:
     """Shared --db-path / --bills-dir on each subcommand (can appear after the subcommand name)."""
     p = argparse.ArgumentParser(add_help=False)
@@ -140,6 +149,13 @@ def main() -> None:
     )
     openai55_p.add_argument("--csv-path", default=_default_openai_gpt55_api_csv_path(), help="Override CSV path")
 
+    deepseek_p = sub.add_parser(
+        "import-deepseek-v4-pro-prices",
+        parents=[common],
+        help="Merge Azure Foundry DeepSeek-V4 Pro Global pricing (USD per 1M tokens)",
+    )
+    deepseek_p.add_argument("--csv-path", default=_default_deepseek_v4_pro_csv_path(), help="Override CSV path")
+
     args = parser.parse_args()
 
     bills_dir = args.bills_dir
@@ -209,6 +225,11 @@ def main() -> None:
         return
 
     if args.cmd == "import-openai-gpt55-api-prices":
+        result = import_price_csv_merge(db_path=db_path, csv_path=str(args.csv_path))
+        print(result)
+        return
+
+    if args.cmd == "import-deepseek-v4-pro-prices":
         result = import_price_csv_merge(db_path=db_path, csv_path=str(args.csv_path))
         print(result)
         return

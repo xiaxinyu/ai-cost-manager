@@ -3407,6 +3407,30 @@
   color: var(--report-text-primary);
 }
 
+.reportPageRoot .reportLedgerTable tfoot th,
+.reportPageRoot .reportLedgerTable tfoot td {
+  padding: 10px 12px;
+  border-top: 1px solid rgba(173, 196, 228, 0.16);
+  background: rgba(255, 255, 255, 0.03);
+  font-size: 12px;
+}
+
+.reportPageRoot .reportLedgerTable tfoot .reportLedgerTotalRow th,
+.reportPageRoot .reportLedgerTable tfoot .reportLedgerTotalRow td {
+  font-weight: 720;
+}
+
+.reportPageRoot .reportLedgerTable tfoot .reportLedgerTotalRow td.tdCostActual {
+  color: var(--report-accent-actual, #5eead4);
+  font-size: 13px;
+}
+
+.reportPageRoot .reportLedgerTable tfoot .reportLedgerStatsRow th,
+.reportPageRoot .reportLedgerTable tfoot .reportLedgerStatsRow td {
+  font-weight: 600;
+  color: var(--report-text-muted);
+}
+
 .reportPageRoot .reportLedgerDate {
   font-variant-numeric: tabular-nums;
   color: var(--report-text-secondary);

@@ -24,6 +24,10 @@ _FOUNDRY_METER_RE = re.compile(
     r"(?P<dir>inp|opt)\b",
     re.IGNORECASE,
 )
+_DEEPSEEK_V4_METER_RE = re.compile(
+    r"^\s*v(?P<version>\d+)\s+pro\s+(?P<dir>inp|outp)\b",
+    re.IGNORECASE,
+)
 _METER_TOKEN_RE = re.compile(r"[a-z0-9.]+", re.IGNORECASE)
 _MODEL_VERSION_RE = re.compile(r"(?<!\d)(\d+(?:\.\d+)?)(?!\d)")
 _MODEL_PREFIXED_VERSION_RE = re.compile(r"^gpt(\d+(?:\.\d+)?)$")
@@ -47,6 +51,12 @@ def token_model_name(*, version: str, family: str | None) -> str:
     if fam:
         return f"gpt-{version}-{fam}"
     return f"gpt-{version}"
+
+
+def deepseek_token_model_name(*, version: str, family: str | None = "pro") -> str:
+    fam = (family or "pro").strip().lower()
+    title_fam = fam[:1].upper() + fam[1:] if fam else "Pro"
+    return f"DeepSeek-V{version}-{title_fam}"
 
 
 _AZURE_MODEL_DATE_SUFFIX_RE = re.compile(
@@ -107,6 +117,15 @@ def canonical_model_name(name: str | None) -> str:
     gpt_4o = _canonical_gpt_4o_family(raw, compact, tokens)
     if gpt_4o:
         return gpt_4o
+
+    if "deepseek" in compact or "deepseek" in raw:
+        version = None
+        if "v4" in compact or re.search(r"\bv\s*4\b", raw):
+            version = "4"
+        if version and "pro" in compact:
+            return "deepseek-v4-pro"
+        if version and "flash" in compact:
+            return "deepseek-v4-flash"
 
     has_gpt_hint = ("gpt" in tokens) or ("gpt" in compact)
     has_codex_hint = ("codex" in tokens) or ("codex" in compact)
@@ -210,6 +229,9 @@ def _tokenize_meter(meter: str | None) -> list[str]:
 def _model_signature(model_name: str | None) -> tuple[str | None, str | None]:
     if not model_name:
         return None, None
+    ds = _deepseek_model_signature(str(model_name))
+    if ds[0]:
+        return ds
     canonical = canonical_model_name(model_name)
     if not canonical.startswith("gpt-"):
         return None, None
@@ -243,6 +265,9 @@ def meter_matches_model_direction(
     if not any(tok in dirs for tok in tokens):
         return False
 
+    if str(token_model).lower().startswith("deepseek"):
+        return _meter_has_version_family(tokens, version=version or "", family=family)
+
     has_version = False
     for i, tok in enumerate(tokens):
         if tok == version:
@@ -260,6 +285,62 @@ def meter_matches_model_direction(
 
     if family == "codex":
         return "codex" in tokens
+    if family:
+        return family in tokens
+    return True
+
+
+def _parse_deepseek_meter(raw: str) -> ParsedFoundryMeter | None:
+    m = _DEEPSEEK_V4_METER_RE.match(raw.lower())
+    if not m:
+        return None
+    version = m.group("version")
+    direction_token = m.group("dir").lower()
+    if direction_token == "inp":
+        billing_direction = "input"
+        token_direction = "input"
+    elif direction_token == "outp":
+        billing_direction = "output"
+        token_direction = "output"
+    else:
+        return None
+    return ParsedFoundryMeter(
+        raw_meter=raw,
+        version=version,
+        family="pro",
+        billing_direction=billing_direction,
+        token_direction=token_direction,
+        token_model=deepseek_token_model_name(version=version, family="pro"),
+        rule_id="deepseek_v4",
+    )
+
+
+def _deepseek_model_signature(model_name: str) -> tuple[str | None, str | None]:
+    low = str(model_name or "").strip().lower()
+    compact = "".join(ch for ch in low if ch.isalnum())
+    if "deepseek" not in compact:
+        return None, None
+    version = "4" if "v4" in compact or re.search(r"deepseekv?4", compact) else None
+    if not version:
+        return None, None
+    if "pro" in compact:
+        return version, "pro"
+    if "flash" in compact:
+        return version, "flash"
+    return version, None
+
+
+def _meter_has_version_family(
+    tokens: list[str],
+    *,
+    version: str,
+    family: str | None,
+) -> bool:
+    version_tokens = {version.lower(), f"v{version.lower()}"}
+    if not any(tok in version_tokens for tok in tokens):
+        return False
+    if family:
+        return family.lower() in tokens
     return True
 
 
@@ -289,6 +370,10 @@ def parse_foundry_meter(meter: str | None) -> ParsedFoundryMeter | None:
             token_direction=token_direction,
             token_model=token_model_name(version=version, family=family),
         )
+
+    deepseek = _parse_deepseek_meter(raw)
+    if deepseek is not None:
+        return deepseek
 
     return _parse_foundry_meter_by_tokens(raw)
 
@@ -332,6 +417,11 @@ def list_known_meter_patterns() -> list[dict[str, str]]:
             "pattern": r"{version} [codex] [cd] inp|opt",
             "example": "5.4 opt Gl 1M Tokens → gpt-5.4 / output",
         },
+        {
+            "rule_id": "deepseek_v4",
+            "pattern": r"V{version} Pro inp|outp glbl Tokens",
+            "example": "V4 Pro Inp glbl Tokens → DeepSeek-V4-Pro / input",
+        },
     ]
 
 
@@ -372,7 +462,7 @@ def aggregate_billing_rows(
     """
     models_list = sorted(
         {
-            canonical_model_name(m) or str(m)
+            str(m).strip()
             for m in (token_models or [])
             if m and str(m).strip()
         }

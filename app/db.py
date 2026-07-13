@@ -739,6 +739,14 @@ PRICE_SOURCE_CATALOG_SEED: tuple[tuple[str, str, str, str, str, int], ...] = (
         10,
     ),
     (
+        "azure_foundry_deepseek_pricing",
+        "Azure Foundry Models — DeepSeek (marketing)",
+        "https://azure.microsoft.com/en-us/pricing/details/ai-foundry-models/deepseek/",
+        "",
+        "Serverless DeepSeek language model rows from the Foundry Models pricing page (USD per 1M tokens).",
+        15,
+    ),
+    (
         "internal_billing_csv",
         "Project billing CSV exports",
         "",
@@ -760,14 +768,12 @@ PRICE_SOURCE_CATALOG_SEED: tuple[tuple[str, str, str, str, str, int], ...] = (
 def _ensure_price_source_catalog(conn: sqlite3.Connection) -> None:
     if not _table_exists(conn, "price_source_catalog"):
         return
-    cnt = int(conn.execute("SELECT COUNT(*) AS c FROM price_source_catalog").fetchone()["c"])
-    if cnt > 0:
-        return
     for sk, title, ref, api, notes, so in PRICE_SOURCE_CATALOG_SEED:
         conn.execute(
             """
             INSERT INTO price_source_catalog (source_key, title, reference_url, api_url, notes, sort_order)
             VALUES (?, ?, ?, ?, ?, ?)
+            ON CONFLICT(source_key) DO NOTHING
             """,
             (sk, title, ref, api, notes, so),
         )
@@ -4132,7 +4138,7 @@ def get_project_model_config(conn: sqlite3.Connection, project_name: str) -> dic
 
 
 def _norm_model_name(v: str | None) -> str:
-    return normalize_token_column(canonical_model_name(v))
+    return normalize_token_column(v)
 
 
 def _get_project_token_price_model(
