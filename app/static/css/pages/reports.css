@@ -3232,43 +3232,97 @@
   margin-bottom: 4px;
 }
 
-.reportLedgerInsightBar {
+.reportPageRoot .reportLedgerStatStrip {
   display: flex;
-  flex-wrap: wrap;
+  align-items: stretch;
+  flex-wrap: nowrap;
   gap: 8px;
-  margin: 0 0 12px;
-}
-
-.reportLedgerInsightChip {
-  display: inline-flex;
-  align-items: baseline;
-  flex-wrap: wrap;
-  gap: 4px 8px;
-  padding: 6px 10px;
+  margin: 0 12px 12px;
+  padding: 8px;
   border-radius: 8px;
   border: 1px solid rgba(173, 196, 228, 0.1);
-  background: rgba(255, 255, 255, 0.025);
-  font-size: 11.5px;
+  background: rgba(255, 255, 255, 0.02);
+  overflow-x: auto;
+  scrollbar-gutter: stable;
 }
 
-.reportLedgerInsightLabel {
-  font-size: 10px;
+.reportPageRoot .reportLedgerStatChip {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: 3px;
+  min-width: 132px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(173, 196, 228, 0.12);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(0, 0, 0, 0.18));
+}
+
+.reportPageRoot .reportLedgerStatChip--primary {
+  border-color: rgba(var(--cost-actual-rgb), 0.3);
+  background: linear-gradient(180deg, rgba(var(--cost-actual-rgb), 0.14), rgba(0, 0, 0, 0.2));
+  box-shadow: inset 3px 0 0 var(--cost-actual);
+}
+
+.reportPageRoot .reportLedgerStatChip--peak {
+  border-color: rgba(var(--cost-variance-rgb), 0.24);
+  background: linear-gradient(180deg, rgba(var(--cost-variance-rgb), 0.1), rgba(0, 0, 0, 0.2));
+  box-shadow: inset 3px 0 0 var(--cost-variance);
+}
+
+.reportPageRoot .reportLedgerStatChipKey,
+.reportPageRoot .reportLedgerStatChipValue,
+.reportPageRoot .reportLedgerStatChipMeta {
+  display: block;
+  width: 100%;
+  line-height: 1.25;
+}
+
+.reportPageRoot .reportLedgerStatChipKey {
+  font-size: 9px;
   font-weight: 700;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.07em;
   text-transform: uppercase;
   color: var(--report-text-muted);
 }
 
-.reportLedgerInsightValue {
-  font-size: 12px;
-  font-weight: 720;
-  font-variant-numeric: tabular-nums;
-  color: var(--report-text-primary);
+.reportPageRoot .reportLedgerStatChip--primary .reportLedgerStatChipKey {
+  color: rgba(94, 234, 212, 0.82);
 }
 
-.reportLedgerInsightMeta {
-  font-size: 11px;
-  color: var(--report-text-muted);
+.reportPageRoot .reportLedgerStatChip--peak .reportLedgerStatChipKey {
+  color: rgba(253, 230, 138, 0.82);
+}
+
+.reportPageRoot .reportLedgerStatChipValue {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 760;
+  font-variant-numeric: tabular-nums;
+  color: var(--report-text-primary);
+  letter-spacing: -0.01em;
+}
+
+.reportPageRoot .reportLedgerStatChip--primary .reportLedgerStatChipValue {
+  color: var(--cost-actual);
+}
+
+.reportPageRoot .reportLedgerStatChip--peak .reportLedgerStatChipValue {
+  color: var(--cost-variance);
+}
+
+.reportPageRoot .reportLedgerStatChipMeta {
+  font-size: 10.5px;
+  color: rgba(226, 232, 240, 0.68);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.reportPageRoot .reportLedgerStatChipMeta--empty {
+  visibility: hidden;
 }
 
 .reportLedgerGrid {
@@ -3321,6 +3375,59 @@
   flex-shrink: 0;
   font-size: 10px;
   padding: 3px 8px;
+}
+
+.reportLedgerTableScroll {
+  margin: 0 12px 12px;
+  border: 1px solid var(--report-border-subtle);
+  border-radius: 8px;
+  background: rgba(8, 14, 24, 0.35);
+  max-height: clamp(280px, 34vh, 380px);
+  overflow: auto;
+  scrollbar-gutter: stable;
+}
+
+.reportPageRoot .reportLedgerTableScroll .dashTable thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: rgba(12, 18, 28, 0.96);
+  backdrop-filter: blur(6px);
+  padding: 10px 10px 9px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--report-text-secondary);
+  border-bottom: 1px solid rgba(173, 196, 228, 0.14);
+  vertical-align: bottom;
+  letter-spacing: 0.02em;
+  text-transform: none;
+}
+
+.reportPageRoot .reportLedgerTableScroll .dashTable thead th .thLabel {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: none;
+}
+
+.reportPageRoot .reportLedgerTableScroll .dashTable thead th .thUnit {
+  display: block;
+  margin-top: 2px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.reportPageRoot .reportLedgerTableScroll .dashTable thead th.num .thLabel,
+.reportPageRoot .reportLedgerTableScroll .dashTable thead th.num .thUnit {
+  text-align: right;
+}
+
+.reportPageRoot .reportLedgerTable tfoot th,
+.reportPageRoot .reportLedgerTable tfoot td {
+  position: static;
 }
 
 .reportLedgerTableWrap {
@@ -3380,10 +3487,11 @@
 }
 
 .reportPageRoot .reportLedgerTable tbody td {
-  padding: 7px 10px;
+  padding: 8px 10px;
   font-size: 12px;
-  line-height: 1.4;
-  border-bottom: 1px solid rgba(173, 196, 228, 0.05);
+  line-height: 1.45;
+  border-bottom: 1px solid rgba(173, 196, 228, 0.08);
+  vertical-align: middle;
 }
 
 .reportPageRoot .reportLedgerTable tbody tr:last-child td {
@@ -3439,8 +3547,10 @@
 }
 
 .reportPageRoot .reportLedgerTable td.tdCostActual {
-  font-weight: 660;
+  font-weight: 650;
   font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
   color: var(--report-text-primary);
   background: transparent;
   box-shadow: none;
@@ -3618,6 +3728,17 @@
 @media (max-width: 1100px) {
   .reportLedgerGrid {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 900px) {
+  .reportPageRoot .reportLedgerStatStrip {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+  }
+
+  .reportPageRoot .reportLedgerStatChip {
+    flex: 0 0 148px;
   }
 }
 
