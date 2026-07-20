@@ -12,8 +12,8 @@
 #   performance/model-requests-YYYY-M-D.csv
 #   performance/avg-latency-YYYY-M-D.csv
 #
-# Already-normalized files (cost-*.csv, input-tokens-*.csv, ...) are copied with the same
-# relative path under bills/<project>/.
+# Already-normalized files (cost-*.csv, input-tokens-*.csv, ...) are moved with the same
+# relative path under bills/<project>/ (use --copy to keep sources).
 #
 # Azure cost-analysis exports (cost-analysis.csv, cost-analysis (1).csv, ...) are renamed to
 # bills/<project>/cost-YYYY-M-D.csv using the latest UsageDate in the CSV (or --date).
@@ -21,6 +21,7 @@
 # Usage:
 #   ./scripts/migrate-grafana-downloads.sh --all
 #   ./scripts/migrate-grafana-downloads.sh --all --dry-run
+#   ./scripts/migrate-grafana-downloads.sh --all --copy
 #   ./scripts/migrate-grafana-downloads.sh -p techlab-aiops-gpt5.1
 #   ./scripts/migrate-grafana-downloads.sh -p RG-HK-S56-TATP-QA-Agent -s ~/Downloads -n
 #   ./scripts/migrate-grafana-downloads.sh -p techlab-aimas-marketing -u gpt-5.4 -d 2026-6-30
@@ -43,7 +44,8 @@ RELOCATE_LEGACY=""
 DRY_RUN=0
 FORCE=0
 SYNC_ALL=0
-COPY_MODE=1
+# Default: move (remove source after successful sync). Use --copy to keep sources.
+COPY_MODE=0
 LOG_FILE=""
 LOG_AUTO=0
 FLAT_DOWNLOADS_DIR="${HOME}/Downloads"
@@ -62,7 +64,7 @@ Sync Grafana / billing CSVs from ~/Downloads/bills into <repo>/bills/.
 
 Options:
   -a, --all            Sync every project subdirectory under the source bills tree
-                       (default source: ~/Downloads/bills). Implies copy mode.
+                       (default source: ~/Downloads/bills). Default is move mode.
   -p, --project NAME   Sync one project folder (required unless --all)
   -u, --subproject NAME
                        Optional subfolder under token/ or performance/ for Grafana
@@ -75,7 +77,8 @@ Options:
   -b, --bills-dir DIR  Destination bills root (default: <repo>/bills)
   --log-file PATH      Append structured logs to PATH ("auto" -> logs/migrate-bills-*.log)
   --flat-downloads DIR Also scan DIR/cost-analysis*.csv (opt-in; default: ~/Downloads)
-  --move               Move source files instead of copy (legacy flat Downloads behavior)
+  --move               Move source files into bills/ (default; removes originals)
+  --copy               Copy into bills/ and keep source files
   -n, --dry-run        Preview only; no files are copied or moved
   -f, --force          Overwrite destination when it already exists
   -h, --help           Show this help
@@ -87,6 +90,8 @@ Modes:
     Grafana export names are classified and renamed into token/ or performance/.
     cost-analysis*.csv exports are renamed to cost-YYYY-M-D.csv at project root.
     New project / token / performance directories are created under bills/ when needed.
+    After a successful sync (or identical dest already present), source files are removed
+    unless --copy is set.
 
   Flat Downloads (legacy):
     Use -s ~/Downloads with -p PROJECT when Grafana CSVs sit directly in Downloads.
@@ -97,7 +102,8 @@ Examples:
   ./scripts/migrate-grafana-downloads.sh --all -n
   ./scripts/migrate-grafana-downloads.sh --all --log-file auto
   ./scripts/migrate-grafana-downloads.sh -p techlab-aiops-gpt5.1
-  ./scripts/migrate-grafana-downloads.sh -p RG-HK-S56-TATP-QA-Agent -s ~/Downloads --move -f
+  ./scripts/migrate-grafana-downloads.sh -p RG-HK-S56-TATP-QA-Agent -s ~/Downloads -f
+  ./scripts/migrate-grafana-downloads.sh --all --copy
 EOF
 }
 
@@ -219,6 +225,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --move)
       COPY_MODE=0
+      shift
+      ;;
+    --copy)
+      COPY_MODE=1
       shift
       ;;
     -n|--dry-run)
@@ -634,6 +644,26 @@ resolve_dest_rel() {
   return 1
 }
 
+remove_source_after_sync() {
+  local src="$1"
+  local dest="$2"
+  local label="$3"
+
+  if [[ "${COPY_MODE}" -ne 0 || "${DRY_RUN}" -eq 1 ]]; then
+    return 0
+  fi
+  if [[ ! -e "${src}" ]]; then
+    return 0
+  fi
+  # Same inode (or identical path): never delete.
+  if [[ -e "${dest}" && "${src}" -ef "${dest}" ]]; then
+    log_warn "${label}: source is destination; not removing ${src}"
+    return 0
+  fi
+  rm -f "${src}"
+  log "${label}: removed source $(basename "${src}")"
+}
+
 sync_file_to_dest() {
   local src="$1"
   local dest="$2"
@@ -645,6 +675,8 @@ sync_file_to_dest() {
     if cmp -s "${src}" "${dest}" 2>/dev/null; then
       skipped=$((skipped + 1))
       log_skip "${label}: unchanged ${dest}"
+      # Already migrated: drop leftover source in move mode.
+      remove_source_after_sync "${src}" "${dest}" "${label}"
       return 0
     fi
     skipped=$((skipped + 1))
@@ -663,8 +695,14 @@ sync_file_to_dest() {
     cp -p "${src}" "${dest}"
     log_sync "${label}: copied $(basename "${src}") -> ${dest}"
   else
-    mv "${src}" "${dest}"
-    log_sync "${label}: moved $(basename "${src}") -> ${dest}"
+    # Prefer mv; fall back to copy+rm when crossing filesystems.
+    if mv "${src}" "${dest}" 2>/dev/null; then
+      log_sync "${label}: moved $(basename "${src}") -> ${dest}"
+    else
+      cp -p "${src}" "${dest}"
+      rm -f "${src}"
+      log_sync "${label}: moved (copy+rm) $(basename "${src}") -> ${dest}"
+    fi
   fi
   synced=$((synced + 1))
   return 0

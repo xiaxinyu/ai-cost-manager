@@ -99,9 +99,27 @@ assert_contains "${out_all}" "proj-b/token/sub-a/output-tokens-2026-7-9.csv" "ne
 assert_contains "${out_all}" "matched=4" "four files in tree sync"
 
 "${SCRIPT}" --all -s "${tree_src}" -b "${tree_bills}" -f >/dev/null
-[[ -f "${tree_bills}/proj-a/cost-2026-7-8.csv" ]] || fail "tree billing not copied"
-[[ -f "${tree_bills}/proj-a/performance/model-requests-2026-7-8.csv" ]] || fail "tree grafana not copied"
-[[ -f "${tree_src}/proj-a/cost-2026-7-8.csv" ]] || fail "copy mode should keep source"
+[[ -f "${tree_bills}/proj-a/cost-2026-7-8.csv" ]] || fail "tree billing not moved"
+[[ -f "${tree_bills}/proj-a/performance/model-requests-2026-7-8.csv" ]] || fail "tree grafana not moved"
+[[ ! -f "${tree_src}/proj-a/cost-2026-7-8.csv" ]] || fail "move mode should remove source"
+[[ ! -f "${tree_src}/proj-a/token/input-tokens-2026-7-8.csv" ]] || fail "move mode should remove token source"
+[[ ! -f "${tree_src}/proj-a/performance/Model requests-data-7_8_2026, 1_00_00 PM.csv" ]] || fail "move mode should remove grafana source"
+
+# --copy keeps sources
+mkdir -p "${tree_src}/proj-copy/token"
+printf 'keep-me\n' > "${tree_src}/proj-copy/cost-2026-7-8.csv"
+printf 'keep-tok\n' > "${tree_src}/proj-copy/token/input-tokens-2026-7-8.csv"
+"${SCRIPT}" -p proj-copy -s "${tree_src}" -b "${tree_bills}" --copy -f >/dev/null
+[[ -f "${tree_bills}/proj-copy/cost-2026-7-8.csv" ]] || fail "copy mode should write dest"
+[[ -f "${tree_src}/proj-copy/cost-2026-7-8.csv" ]] || fail "copy mode should keep source"
+
+# identical dest already present: move mode still cleans leftover source
+mkdir -p "${tree_src}/proj-dup"
+printf 'dup\n' > "${tree_src}/proj-dup/cost-2026-7-8.csv"
+mkdir -p "${tree_bills}/proj-dup"
+printf 'dup\n' > "${tree_bills}/proj-dup/cost-2026-7-8.csv"
+"${SCRIPT}" -p proj-dup -s "${tree_src}" -b "${tree_bills}" >/dev/null
+[[ ! -f "${tree_src}/proj-dup/cost-2026-7-8.csv" ]] || fail "unchanged move should still remove source"
 
 mkdir -p "${tree_src}/techlab-aiops-gpt5.1"
 printf '"UsageDate","ResourceId","ResourceType","ResourceLocation","ResourceGroupName","ServiceName","ServiceTier","Meter","CostUSD","Cost","Currency"\n' > "${tree_src}/techlab-aiops-gpt5.1/cost-analysis (2).csv"
@@ -115,6 +133,7 @@ assert_not_contains "${out_cost}" "unrecognized: cost-analysis" "cost-analysis s
 
 "${SCRIPT}" -p techlab-aiops-gpt5.1 -s "${tree_src}" -b "${tree_bills}" -f >/dev/null
 [[ -f "${tree_bills}/techlab-aiops-gpt5.1/cost-2026-7-9.csv" ]] || fail "cost-analysis not synced"
+[[ ! -f "${tree_src}/techlab-aiops-gpt5.1/cost-analysis (2).csv" ]] || fail "cost-analysis source should be removed"
 [[ -d "${tree_bills}/techlab-aiops-gpt5.1/token" ]] || fail "token dir should be created"
 [[ -d "${tree_bills}/techlab-aiops-gpt5.1/performance" ]] || fail "performance dir should be created"
 
