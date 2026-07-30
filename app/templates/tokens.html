@@ -6,7 +6,7 @@
     <title>Tokens - Models Cost Management</title>
     <link rel="stylesheet" href="/static/css/app-shell.css" />
     <link rel="stylesheet" href="/static/css/page-common.css" />
-    <link rel="stylesheet" href="/static/css/pages/tokens.css?v=20260708-dash-polish" />
+    <link rel="stylesheet" href="/static/css/pages/tokens.css?v=20260730-scope-ux" />
     <link rel="stylesheet" href="/static/css/layout-pro.css" />
     <link rel="stylesheet" href="/static/css/dashboard-shared.css?v=20260710-table-unify" />
     <link rel="stylesheet" href="/static/css/date-range-picker.css?v=20260606-drp" />
@@ -66,10 +66,12 @@
               </div>
               <div class="toolbarActions">
                 <button id="loadTokensBtn" class="btnPrimary btnLoad" type="button">Load data</button>
+                <a id="openInCostLink" class="btnSecondary btnLinkQuiet" href="/">Open in Cost</a>
                 <a href="/import" class="btnSecondary btnLinkQuiet">Import</a>
               </div>
             </div>
             <div id="dataStatusBar" class="dataStatusBar dataStatusBar--compact" hidden aria-live="polite" aria-label="Load summary"></div>
+            <p id="tokenSelectionHint" class="tableSelectionHint muted" hidden aria-live="polite"></p>
           </section>
 
           <div id="noImportState" class="card emptyState" hidden>
@@ -78,6 +80,7 @@
             <p class="muted">This page shows usage from Grafana token CSV files only. Import input/output files under <code>bills/&lt;project&gt;/token/</code> or <code>bills/&lt;project&gt;/token/&lt;subproject&gt;/</code> on the Import page.</p>
             <div class="emptyActions">
               <a href="/import" class="btnPrimary">Import token CSVs</a>
+              <a id="noImportOpenCostLink" href="/" class="btnSecondary">Open in Cost</a>
             </div>
           </div>
 
@@ -86,6 +89,7 @@
             <p class="muted">Add a project under <code>bills/&lt;project&gt;/token/</code> and import token CSVs from the Import page.</p>
             <div class="emptyActions">
               <a href="/import" class="btnPrimary">Open Import</a>
+              <a href="/" class="btnSecondary">Open Cost</a>
             </div>
           </div>
 
@@ -136,6 +140,20 @@
                       <div class="label">Avg / day</div>
                       <div class="value value--md" id="avgDailyTokens">-</div>
                       <div class="sub kpiFootnote">Total ÷ active days</div>
+                    </div>
+                  </article>
+                  <article class="monitorKpi monitorKpi--neutral" id="outInRatioCard">
+                    <div class="stat">
+                      <div class="label">Out / In ratio</div>
+                      <div class="value value--md" id="outInRatioKpi">—</div>
+                      <div class="sub kpiFootnote" id="outInRatioNote">Output ÷ input · period</div>
+                    </div>
+                  </article>
+                  <article class="monitorKpi monitorKpi--neutral" id="costPer1kRequestsCard" hidden>
+                    <div class="stat">
+                      <div class="label">OpEx / 1k requests</div>
+                      <div class="value value--md" id="costPer1kRequestsKpi">—</div>
+                      <div class="sub kpiFootnote" id="costPer1kRequestsNote">Invoice ÷ model requests</div>
                     </div>
                   </article>
                 </div>
@@ -251,7 +269,11 @@
                   <div class="chartCanvasHost chartCanvasHostShort monitorChartHost" data-chart-host>
                     <canvas id="avgLatencyChart"></canvas>
                   </div>
-                  <p class="metricPanelEmpty muted" data-metric-empty hidden>No avg-latency data for this scope.</p>
+                  <p class="metricPanelEmpty muted" data-metric-empty hidden>
+                    No avg-latency data for this scope.
+                    <a class="drillLink" href="/import">Import avg-latency CSV</a>
+                    under <code>performance/</code>.
+                  </p>
                 </article>
               </div>
             </section>
@@ -362,8 +384,9 @@
     <script src="/static/js/cost-semantics.js?v=20260710-market"></script>
     <script src="/static/js/dashboard-ui.js?v=20260605-datesort"></script>
     <script src="/static/js/dashboard-interactions.js?v=20260707-ui"></script>
+    <script src="/static/js/scope-url.js?v=20260730-scope"></script>
     <script src="/static/js/date-range-picker.js?v=20260710-drp-fix2"></script>
     <script src="/static/js/unit-price-table.js?v=20260709-unit-rates"></script>
-    <script src="/static/js/pages/tokens.js?v=20260709-effective-rate"></script>
+    <script src="/static/js/pages/tokens.js?v=20260730-scope-ux"></script>
   </body>
 </html>

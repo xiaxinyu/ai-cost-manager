@@ -27,6 +27,23 @@
   font-size: 10.5px;
 }
 
+.reportLegendNote,
+.reportLegendRow .costLegendNote {
+  margin-left: 4px;
+  font-size: 10.5px;
+  color: var(--report-text-muted, #94a3b8);
+}
+
+.reportNav .dashSectionNavLink.is-navActive {
+  color: var(--report-accent, #5eead4);
+  border-color: rgba(94, 234, 212, 0.45);
+  background: rgba(94, 234, 212, 0.08);
+}
+
+.reportPageRoot .reportLedgerTable tbody tr.is-rowSelected td {
+  background: rgba(94, 234, 212, 0.12);
+}
+
 .reportNavSticky {
   position: sticky;
   top: 6px;

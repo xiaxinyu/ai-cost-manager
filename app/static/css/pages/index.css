@@ -438,6 +438,45 @@
   font-size: 10.5px;
 }
 
+.costLegendNote,
+.reportLegendNote,
+.costLegendRow .costLegendNote {
+  margin-left: 4px;
+  font-size: 10.5px;
+  color: var(--text-muted, #94a3b8);
+  letter-spacing: 0.01em;
+}
+
+.costPageRoot .costFilterCard .toolbarActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.costPageRoot .modelTokensLink {
+  text-decoration: none;
+  color: inherit;
+}
+
+.costPageRoot .modelTokensLink:hover code {
+  color: var(--cost-actual, #5eead4);
+  text-decoration: underline;
+}
+
+.costPageRoot #costSelectionHint {
+  margin: 8px 0 0;
+}
+
+.costPageRoot .costModelDailyTable tbody tr.is-rowSelected td,
+.costPageRoot .modelSummaryTable tbody tr.is-rowSelected td {
+  background: rgba(94, 234, 212, 0.12);
+}
+
+.costPageRoot .costModelDailyTable tbody tr.costDayPeak td {
+  box-shadow: inset 3px 0 0 rgba(251, 191, 36, 0.85);
+}
+
 .costNavSticky {
   position: sticky;
   top: 6px;

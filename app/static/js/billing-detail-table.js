@@ -99,15 +99,18 @@
   function appendRow(tbody, row, { currency = "USD", variant = "tokens" } = {}) {
     const tr = document.createElement("tr");
     if (!isMeterAllocated(row.allocation_method)) tr.classList.add("rowNoMeter");
+    const dateLabel = String(row.date || "").trim();
+    const modelLabel = String(row.model_name || "").trim() || "—";
+    if (dateLabel) tr.dataset.date = dateLabel;
+    if (modelLabel && modelLabel !== "—") tr.dataset.modelName = modelLabel;
 
     const tdDate = document.createElement("td");
     tdDate.className = "tdDate mono";
-    tdDate.textContent = row.date || "—";
+    tdDate.textContent = dateLabel || "—";
     tr.appendChild(tdDate);
 
     const tdModel = document.createElement("td");
     tdModel.className = "tdModel";
-    const modelLabel = String(row.model_name || "").trim() || "—";
     if (modelLabel === "—") {
       tdModel.textContent = "—";
     } else {

@@ -103,6 +103,13 @@ def test_tokens_page_redirect_and_access(tmp_path):
     assert "tokenFinBlock" in page.text or "tokenFinPrimaryKpi" in page.text
     assert "/static/js/money.js" in page.text
     assert "/static/js/pages/tokens.js" in page.text
+    assert "scope-url.js" in page.text
+    assert 'id="openInCostLink"' in page.text
+    assert 'id="outInRatioKpi"' in page.text
+    assert 'id="costPer1kRequestsKpi"' in page.text
+    assert 'id="tokenSelectionHint"' in page.text
+    assert "Open in Cost" in page.text
+    assert "Import token CSVs" in page.text
     assert "metricPanel" in page.text
     assert "flowBlock" in page.text
     assert "filterCard" in page.text

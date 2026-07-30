@@ -28,6 +28,14 @@
     tokenTrendsLead: document.getElementById("tokenTrendsLead"),
     tokenSourceMeta: document.getElementById("tokenSourceMeta"),
     avgDailyTokens: document.getElementById("avgDailyTokens"),
+    outInRatioKpi: document.getElementById("outInRatioKpi"),
+    outInRatioNote: document.getElementById("outInRatioNote"),
+    costPer1kRequestsCard: document.getElementById("costPer1kRequestsCard"),
+    costPer1kRequestsKpi: document.getElementById("costPer1kRequestsKpi"),
+    costPer1kRequestsNote: document.getElementById("costPer1kRequestsNote"),
+    openInCostLink: document.getElementById("openInCostLink"),
+    noImportOpenCostLink: document.getElementById("noImportOpenCostLink"),
+    tokenSelectionHint: document.getElementById("tokenSelectionHint"),
     activeDaysCount: document.getElementById("activeDaysCount"),
     tokenPeriodRange: document.getElementById("tokenPeriodRange"),
     tokenPeriodFootnote: document.getElementById("tokenPeriodFootnote"),
@@ -100,7 +108,16 @@
     const hosts = panel.querySelectorAll("[data-chart-host]");
     if (empty) {
       empty.hidden = !!hasData;
-      if (!hasData && emptyMessage) empty.textContent = emptyMessage;
+      if (!hasData && emptyMessage) {
+        empty.replaceChildren();
+        empty.append(document.createTextNode(String(emptyMessage)));
+        empty.append(document.createTextNode(" "));
+        const a = document.createElement("a");
+        a.href = "/import";
+        a.className = "drillLink";
+        a.textContent = "Open Import";
+        empty.appendChild(a);
+      }
     }
     hosts.forEach((host) => {
       host.hidden = !hasData;
@@ -137,8 +154,136 @@
   }
 
   function scopedMetricEmptyMessage(metricLabel, subproject) {
-    if (subproject) return `No ${metricLabel} data for subproject “${subproject}”.`;
-    return `No ${metricLabel} data for this scope.`;
+    const importHint =
+      metricLabel.includes("latency")
+        ? " Import avg-latency CSV under performance/ on the Import page."
+        : metricLabel.includes("cache")
+          ? " Import cache-match-rate CSV under performance/ on the Import page."
+          : metricLabel.includes("request")
+            ? " Import model-requests CSV under performance/ on the Import page."
+            : "";
+    if (subproject) {
+      return `No ${metricLabel} data for subproject “${subproject}”.${importHint}`;
+    }
+    return `No ${metricLabel} data for this scope.${importHint}`;
+  }
+
+  function clearTokenSelection() {
+    if (els.tokenSelectionHint) {
+      els.tokenSelectionHint.hidden = true;
+      els.tokenSelectionHint.textContent = "";
+    }
+    if (els.modelTbody) {
+      for (const tr of els.modelTbody.querySelectorAll("tr.is-rowSelected")) {
+        tr.classList.remove("is-rowSelected");
+      }
+    }
+    window.AppDashboardInteractions?.highlightChartPoint?.(tokenInputChart, null);
+    window.AppDashboardInteractions?.highlightChartPoint?.(tokenOutputChart, null);
+  }
+
+  function currentScopeFromDom(extra = {}) {
+    return window.AppScopeUrl?.fromDom?.({
+      projectEl: els.projectSelect,
+      subprojectEl: els.subprojectSelect,
+      startEl: els.startDate,
+      endEl: els.endDate,
+      model: extra.model,
+    }) || {
+      project: els.projectSelect?.value || "",
+      subproject: selectedSubproject(),
+      start: els.startDate?.value || "",
+      end: els.endDate?.value || "",
+      model: extra.model || "",
+    };
+  }
+
+  function syncTokenScopeUrl(extra = {}) {
+    if (!window.AppScopeUrl) return;
+    const scope = currentScopeFromDom(extra);
+    window.AppScopeUrl.write(scope);
+    refreshTokenCrossLinks(scope);
+  }
+
+  function refreshTokenCrossLinks(scope) {
+    if (!window.AppScopeUrl) return;
+    const s = scope || currentScopeFromDom();
+    const href = window.AppScopeUrl.href("/", s);
+    if (els.openInCostLink) els.openInCostLink.href = href;
+    if (els.noImportOpenCostLink) els.noImportOpenCostLink.href = href;
+  }
+
+  function highlightModelFromQuery(modelName) {
+    if (!modelName || !els.modelTbody) return;
+    const want = String(modelName).toLowerCase();
+    let matched = null;
+    for (const tr of els.modelTbody.querySelectorAll("tr")) {
+      const name = (tr.dataset.modelName || tr.cells?.[0]?.textContent || "").trim();
+      if (name.toLowerCase() === want || name.toLowerCase().includes(want) || want.includes(name.toLowerCase())) {
+        tr.classList.add("is-rowSelected");
+        matched = tr;
+        break;
+      }
+    }
+    if (matched && els.tokenSelectionHint) {
+      els.tokenSelectionHint.hidden = false;
+      els.tokenSelectionHint.textContent = `Highlighted model ${matched.dataset.modelName || modelName} from Cost deep link — change scope to clear`;
+      matched.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+  }
+
+  function updateEfficiencyKpis(stats, series, points) {
+    const totals = sumTokenPoints(points);
+    const input = Number(stats?.estimated_input_tokens ?? totals.input) || 0;
+    const output = Number(stats?.estimated_output_tokens ?? totals.output) || 0;
+    if (els.outInRatioKpi) {
+      if (input > 0) {
+        const ratio = output / input;
+        els.outInRatioKpi.textContent = fmtRatio(ratio);
+        if (els.outInRatioNote) {
+          els.outInRatioNote.textContent =
+            ratio < 0.05
+              ? "Very low output share · check context size"
+              : "Output ÷ input · period";
+        }
+      } else {
+        els.outInRatioKpi.textContent = "—";
+        if (els.outInRatioNote) els.outInRatioNote.textContent = "Output ÷ input · period";
+      }
+    }
+
+    const reqMetric = series?.token_metrics?.metrics?.model_requests;
+    let requestTotal = 0;
+    if (reqMetric?.points?.length) {
+      for (const p of reqMetric.points) {
+        if (p?.values && typeof p.values === "object") {
+          for (const v of Object.values(p.values)) {
+            const n = Number(v);
+            if (Number.isFinite(n) && n > 0) requestTotal += n;
+          }
+        } else {
+          const v = Number(p.value ?? p.metric_value ?? 0);
+          if (Number.isFinite(v) && v > 0) requestTotal += v;
+        }
+      }
+    }
+    if (!requestTotal && reqMetric?.total != null) {
+      requestTotal = Number(reqMetric.total) || 0;
+    }
+    const opex = Number(stats?.actual_cost_usd_total);
+    if (els.costPer1kRequestsCard && els.costPer1kRequestsKpi) {
+      if (requestTotal > 0 && Number.isFinite(opex) && opex > 0) {
+        els.costPer1kRequestsCard.hidden = false;
+        const per1k = (opex / requestTotal) * 1000;
+        els.costPer1kRequestsKpi.textContent = fmtUsd(per1k, stats?.currency);
+        if (els.costPer1kRequestsNote) {
+          els.costPer1kRequestsNote.textContent = `${fmtUsd(opex, stats?.currency)} ÷ ${fmtInt(requestTotal)} requests`;
+        }
+      } else {
+        els.costPer1kRequestsCard.hidden = true;
+        els.costPer1kRequestsKpi.textContent = "—";
+      }
+    }
   }
 
   function _metricChartUnitLabel(unit) {
@@ -941,9 +1086,11 @@
     const dir = String(row.token_direction || "").toLowerCase();
     const share = Number(row.share_pct) || 0;
     const widthPct = Math.max(2, Math.round((share / maxShare) * 100));
+    const modelName = row.model_name || "-";
+    tr.dataset.modelName = modelName;
 
     const tdModel = document.createElement("td");
-    tdModel.textContent = row.model_name || "-";
+    tdModel.textContent = modelName;
     const tdDir = document.createElement("td");
     const pill = document.createElement("span");
     pill.className = `dirPill ${dir}`;
@@ -1100,10 +1247,28 @@
     const inputCtx = document.getElementById("tokenInputChart")?.getContext("2d");
     if (inputCtx) {
       if (tokenInputChart) tokenInputChart.destroy();
+      const inputOpts = {
+        ...chartOptions("tokens", "", labels.length),
+        onClick: (_evt, elements) => {
+          if (!elements?.length) {
+            clearTokenSelection();
+            return;
+          }
+          const idx = elements[0].index;
+          clearTokenSelection();
+          window.AppDashboardInteractions?.highlightChartPoint?.(tokenInputChart, idx);
+          if (els.tokenSelectionHint) {
+            els.tokenSelectionHint.hidden = false;
+            els.tokenSelectionHint.textContent = `Selected day ${labels[idx]} · input ${fmtInt(
+              inputValues[idx]
+            )} — change scope or Load to clear`;
+          }
+        },
+      };
       tokenInputChart = new Chart(inputCtx, {
         type: "line",
         data: { labels, datasets: inputDatasets },
-        options: chartOptions("tokens", "", labels.length),
+        options: inputOpts,
         plugins: chartPlugins(),
       });
     }
@@ -1111,10 +1276,28 @@
     const outputCtx = document.getElementById("tokenOutputChart")?.getContext("2d");
     if (outputCtx) {
       if (tokenOutputChart) tokenOutputChart.destroy();
+      const outputOpts = {
+        ...chartOptions("tokens", "", labels.length),
+        onClick: (_evt, elements) => {
+          if (!elements?.length) {
+            clearTokenSelection();
+            return;
+          }
+          const idx = elements[0].index;
+          clearTokenSelection();
+          window.AppDashboardInteractions?.highlightChartPoint?.(tokenOutputChart, idx);
+          if (els.tokenSelectionHint) {
+            els.tokenSelectionHint.hidden = false;
+            els.tokenSelectionHint.textContent = `Selected day ${labels[idx]} · output ${fmtInt(
+              outputValues[idx]
+            )} — change scope or Load to clear`;
+          }
+        },
+      };
       tokenOutputChart = new Chart(outputCtx, {
         type: "line",
         data: { labels, datasets: outputDatasets },
-        options: chartOptions("tokens", "", labels.length),
+        options: outputOpts,
         plugins: chartPlugins(),
       });
     }
@@ -1251,6 +1434,7 @@
     const project = els.projectSelect.value;
     if (!project) return;
     const subproject = selectedSubproject();
+    clearTokenSelection();
     setLoading(true);
     try {
       const statsParams = new URLSearchParams();
@@ -1301,11 +1485,13 @@
               `Project "${project}" has no imported token CSVs. Import input/output files under bills/${project}/token/ on the Import page.`;
           }
         }
+        syncTokenScopeUrl();
         return;
       }
       applySourceUi(source, series, stats, { project, subproject });
       const points = series.points || [];
       updateSummaryPeriodKpis(stats, series, points);
+      updateEfficiencyKpis(stats, series, points);
       updateDataStatusBar(project, stats, series, subproject);
 
       const totals = sumTokenPoints(points);
@@ -1385,6 +1571,11 @@
       } catch (e) {
         console.error("renderRatioChart failed", e);
       }
+      syncTokenScopeUrl();
+      const urlModel = window.AppScopeUrl?.read?.()?.model;
+      if (urlModel) {
+        highlightModelFromQuery(urlModel);
+      }
     } catch (err) {
       console.error(err);
       window.AppShell?.toast?.(`Failed to load token data: ${err?.message || "unknown error"}`, "error", 5200);
@@ -1439,6 +1630,7 @@
   async function init() {
     setLoading(true);
     clearDateFilters();
+    const urlScope = window.AppScopeUrl?.read?.() || {};
     try {
       const data = await window.AppHttp.getJson("/api/projects");
       const projects = data.projects || [];
@@ -1470,7 +1662,10 @@
       }
 
       const tokenSet = new Set(projectsWithImportedTokens);
-      let defaultProject = projectsWithImportedTokens.find((p) => projects.includes(p)) || null;
+      let defaultProject =
+        urlScope.project && projects.includes(urlScope.project)
+          ? urlScope.project
+          : projectsWithImportedTokens.find((p) => projects.includes(p)) || null;
       if (!defaultProject) {
         try {
           const latestToken = await window.AppHttp.getJson("/api/projects/latest-token");
@@ -1498,7 +1693,19 @@
         if (firstWithTokens) els.projectSelect.value = firstWithTokens;
       }
       syncSubprojectOptions(els.projectSelect.value);
+      if (urlScope.subproject && els.subprojectSelect) {
+        const detail = projectDetailsByName.get(els.projectSelect.value);
+        const subs = Array.isArray(detail?.subprojects) ? detail.subprojects : [];
+        if (subs.includes(urlScope.subproject)) {
+          els.subprojectSelect.value = urlScope.subproject;
+        }
+      }
+      if (urlScope.start || urlScope.end) {
+        if (els.startDate) els.startDate.value = urlScope.start || "";
+        if (els.endDate) els.endDate.value = urlScope.end || "";
+      }
       await loadTokenData();
+      refreshTokenCrossLinks();
     } catch (err) {
       console.error(err);
       window.AppShell?.toast?.("Failed to initialize token page", "error", 4200);
@@ -1521,11 +1728,13 @@
 
   els.loadBtn.addEventListener("click", loadTokenData);
   els.projectSelect.addEventListener("change", () => {
+    clearTokenSelection();
     clearDateFilters();
     syncSubprojectOptions(els.projectSelect.value);
     loadTokenData();
   });
   els.subprojectSelect?.addEventListener("change", () => {
+    clearTokenSelection();
     clearDateFilters();
     loadTokenData();
   });

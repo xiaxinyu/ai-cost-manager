@@ -6,7 +6,7 @@
     <title>Reports - Models Cost Management</title>
     <link rel="stylesheet" href="/static/css/app-shell.css" />
     <link rel="stylesheet" href="/static/css/page-common.css" />
-    <link rel="stylesheet" href="/static/css/pages/reports.css?v=20260713-ledger-stats" />
+    <link rel="stylesheet" href="/static/css/pages/reports.css?v=20260730-scope-ux" />
     <link rel="stylesheet" href="/static/css/layout-pro.css" />
     <link rel="stylesheet" href="/static/css/dashboard-shared.css?v=20260710-table-unify" />
     <link rel="stylesheet" href="/static/css/date-range-picker.css?v=20260606-drp" />
@@ -28,6 +28,7 @@
                   <span class="costPill costPill--actual">OpEx</span>
                   <span class="costPill costPill--market">Market</span>
                   <span class="costPill costPill--actual">Volume</span>
+                  <span class="costLegendNote">Negative variance = OpEx below list (cheaper)</span>
                 </div>
               </div>
             </div>
@@ -748,6 +749,8 @@
       let projectBreakdownRows = [];
       let clearProjectRowSelect = null;
       let selectedDailyChartIndex = null;
+      let selectedDailyDate = null;
+      let lastDailyLedgerPoints = [];
       let pbSortKey = 'actual_cost_usd_total';
       let pbSortDir = -1;
       let reportLoading = false;
@@ -1900,6 +1903,8 @@
           disableEls,
         });
         try {
+          selectedDailyDate = null;
+          selectedDailyChartIndex = null;
           const report = await fetchReport();
           applyReportPayload(report);
         } catch (e) {
@@ -2514,6 +2519,13 @@
               if (!elements?.length) {
                 selectedDailyChartIndex = null;
                 window.AppDashboardInteractions?.highlightChartPoint?.(dailyChart, null);
+                applyDailyChartLedgerSelection(null);
+                const dailyTotal = dailyActual.reduce((s, v) => s + Number(v || 0), 0);
+                window.AppDashboardInteractions?.setChartFootnote?.(
+                  document.getElementById('dailyChartFoot'),
+                  `${dailyLabels.length} days · total CostUSD <strong>${fmtCost(dailyTotal)}</strong> · click a point to link ledger`,
+                  { html: true }
+                );
                 return;
               }
               const idx = elements[0].index;
@@ -2521,11 +2533,7 @@
               window.AppDashboardInteractions?.highlightChartPoint?.(dailyChart, idx);
               const label = dailyLabels[idx];
               const val = dailyActual[idx];
-              window.AppDashboardInteractions?.setChartFootnote?.(
-                document.getElementById('dailyChartFoot'),
-                label ? `Selected <strong>${label}</strong>: ${fmtCost(val)}` : '',
-                { html: true }
-              );
+              applyDailyChartLedgerSelection(label, val);
             },
           },
           plugins: reportChartPlugins(),
@@ -2758,6 +2766,7 @@
         nextBtn,
         label,
         peakDate = null,
+        selectedDate = null,
         mode = 'monthly',
       }) {
         const colSpan = mode === 'daily' ? 3 : 4;
@@ -2776,7 +2785,9 @@
           for (const p of slice) {
             const tr = document.createElement('tr');
             if (peakDate && p.date === peakDate) tr.classList.add('reportLedgerRowPeak');
+            if (selectedDate && p.date === selectedDate) tr.classList.add('is-rowSelected');
             if (mode === 'daily') {
+              tr.dataset.ledgerDate = p.date || '';
               tr.innerHTML = `<td class="tdText reportLedgerDate">${p.date ?? ''}</td><td class="num mono tdCostActual">${fmtCostCell(p.cost_usd)}</td><td class="num">${fmtDeltaPct(p.vs_avg_pct)}</td>`;
             } else {
               tr.innerHTML = `<td class="tdText reportLedgerDate">${p.date ?? ''}</td><td class="num mono tdCostActual">${fmtCostCell(p.cost_usd)}</td><td class="num">${fmtShareCell(p.share_pct)}</td><td class="num">${fmtDeltaPct(p.change_pct)}</td>`;
@@ -2791,6 +2802,68 @@
           ? `No ${label}`
           : `Page ${safePage} of ${pageCount} · ${total} ${label}`;
         return safePage;
+      }
+
+      function applyDailyChartLedgerSelection(dateLabel, value) {
+        selectedDailyDate = dateLabel || null;
+        if (!selectedDailyDate) {
+          selectedDailyChartIndex = null;
+          window.AppDashboardInteractions?.highlightChartPoint?.(dailyChart, null);
+          if (lastDailyLedgerPoints.length) {
+            dailyPage = renderPagedTable({
+              points: lastDailyLedgerPoints,
+              page: dailyPage,
+              pageSize: dailyPageSize,
+              tbodyEl: document.getElementById('dailyTbody'),
+              pageInfoEl: document.getElementById('dailyPageInfo'),
+              prevBtn: document.getElementById('dailyPrevBtn'),
+              nextBtn: document.getElementById('dailyNextBtn'),
+              label: 'days',
+              peakDate: lastDailyLedgerPoints.reduce(
+                (b, r) => (r.cost_usd > (b?.cost_usd ?? -1) ? r : b),
+                null
+              )?.date,
+              selectedDate: null,
+              mode: 'daily',
+            });
+          }
+          return;
+        }
+        const idx = lastDailyLedgerPoints.findIndex((p) => p.date === selectedDailyDate);
+        if (idx >= 0) {
+          dailyPage = Math.floor(idx / dailyPageSize) + 1;
+        }
+        const peak = lastDailyLedgerPoints.reduce(
+          (b, r) => (r.cost_usd > (b?.cost_usd ?? -1) ? r : b),
+          null
+        );
+        dailyPage = renderPagedTable({
+          points: lastDailyLedgerPoints,
+          page: dailyPage,
+          pageSize: dailyPageSize,
+          tbodyEl: document.getElementById('dailyTbody'),
+          pageInfoEl: document.getElementById('dailyPageInfo'),
+          prevBtn: document.getElementById('dailyPrevBtn'),
+          nextBtn: document.getElementById('dailyNextBtn'),
+          label: 'days',
+          peakDate: peak?.date ?? null,
+          selectedDate: selectedDailyDate,
+          mode: 'daily',
+        });
+        const peakNote =
+          peak?.date && peak.date === selectedDailyDate ? ' · peak day' : '';
+        const dayPt = lastDailyLedgerPoints.find((p) => p.date === selectedDailyDate);
+        const vs =
+          dayPt?.vs_avg_pct != null && Number.isFinite(Number(dayPt.vs_avg_pct))
+            ? ` · ${fmtDeltaPct(dayPt.vs_avg_pct)} vs avg`
+            : '';
+        window.AppDashboardInteractions?.setChartFootnote?.(
+          document.getElementById('dailyChartFoot'),
+          selectedDailyDate
+            ? `Selected <strong>${selectedDailyDate}</strong>: ${fmtCost(value)}${vs}${peakNote} · linked in General ledger`
+            : '',
+          { html: true }
+        );
       }
 
       function medianFromCosts(points) {
@@ -2833,6 +2906,7 @@
         const monthlyMedian = Number(report?.monthly?.median_actual);
         const daily = enrichDailyPoints(report.daily_points || [], periodAvg);
         const monthly = enrichCostPoints(report.monthly_points || []);
+        lastDailyLedgerPoints = daily;
         const periodTotal = daily.reduce((s, r) => s + Number(r.cost_usd || 0), 0);
         const monthlyTotal = monthly.reduce((s, r) => s + Number(r.cost_usd || 0), 0);
         const computedAvg = daily.length > 0 ? periodTotal / daily.length : null;
@@ -2947,6 +3021,7 @@
           nextBtn: dailyNextBtn,
           label: 'days',
           peakDate: dailyPeak?.date ?? null,
+          selectedDate: selectedDailyDate,
           mode: 'daily',
         });
 
@@ -3140,6 +3215,40 @@
 
       bindTablePager();
       bindProjectBreakdownTable();
+
+      (function bindReportJumpNavActive() {
+        const nav = document.querySelector('.reportNav');
+        if (!nav) return;
+        const links = [...nav.querySelectorAll('a.dashSectionNavLink[href^="#"]')];
+        if (!links.length || !window.IntersectionObserver) return;
+        const sections = links
+          .map((a) => ({
+            link: a,
+            el: document.querySelector(a.getAttribute('href')),
+          }))
+          .filter((x) => x.el);
+        let visible = new Map();
+        const obs = new IntersectionObserver(
+          (entries) => {
+            for (const entry of entries) {
+              visible.set(entry.target.id, entry.isIntersecting ? entry.intersectionRatio : 0);
+            }
+            let bestId = null;
+            let bestRatio = 0;
+            for (const [id, ratio] of visible.entries()) {
+              if (ratio > bestRatio) {
+                bestRatio = ratio;
+                bestId = id;
+              }
+            }
+            for (const { link, el } of sections) {
+              link.classList.toggle('is-navActive', !!bestId && el.id === bestId);
+            }
+          },
+          { rootMargin: '-18% 0px -55% 0px', threshold: [0, 0.2, 0.45, 0.7] }
+        );
+        for (const { el } of sections) obs.observe(el);
+      })();
 
       const logoutBtn = document.getElementById('logoutBtn');
       if (logoutBtn) {

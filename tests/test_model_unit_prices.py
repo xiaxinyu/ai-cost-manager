@@ -545,6 +545,14 @@ def test_catalog_market_cost_timeseries(tmp_path):
     assert "costBenchmarkRow" in page.text
     assert "dashSectionNav" in page.text
     assert "data-sort-key" in page.text
+    assert "scope-url.js" in page.text
+    assert 'id="openInTokensLink"' in page.text
+    assert 'id="exportScopeBtn"' in page.text
+    assert 'id="runRateProjection"' in page.text
+    assert 'id="costSelectionHint"' in page.text
+    assert "Negative variance = OpEx below list" in page.text
+    assert "Month at run-rate" in page.text
+    assert "Clear filter" in page.text or "clearCostSelection" in page.text or "costSelectionHint" in page.text
 
     api = client.get("/api/projects/projCat/catalog-market-timeseries?currency=USD")
     assert api.status_code == 200

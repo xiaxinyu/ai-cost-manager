@@ -6,7 +6,7 @@
     <title>Cost - Models Cost Management</title>
     <link rel="stylesheet" href="/static/css/app-shell.css" />
     <link rel="stylesheet" href="/static/css/page-common.css" />
-    <link rel="stylesheet" href="/static/css/pages/index.css?v=20260710-chart-sharp" />
+    <link rel="stylesheet" href="/static/css/pages/index.css?v=20260730-scope-ux" />
     <link rel="stylesheet" href="/static/css/layout-pro.css" />
     <link rel="stylesheet" href="/static/css/dashboard-shared.css?v=20260710-table-unify" />
     <link rel="stylesheet" href="/static/css/date-range-picker.css?v=20260606-drp" />
@@ -30,6 +30,7 @@
                   <span class="costPill costPill--actual">OpEx</span>
                   <span class="costPill costPill--market">Market</span>
                   <span class="costPill costPill--platform">Platform</span>
+                  <span class="costLegendNote">Negative variance = OpEx below list (cheaper)</span>
                 </div>
               </div>
               <p class="costSourceNote muted">
@@ -63,9 +64,12 @@
               </div>
               <div class="toolbarActions">
                 <button id="applyFiltersBtn" class="btn btnPrimary btnApply" type="button" aria-busy="false">Apply</button>
+                <a id="openInTokensLink" class="btnSecondary btnLinkQuiet" href="/tokens">Open in Tokens</a>
+                <button id="exportScopeBtn" class="btnSecondary btnLinkQuiet" type="button" title="Export model daily CSV for this scope">Export CSV</button>
               </div>
             </div>
             <p id="projectModelHint" class="projectModelHint costScopeMeta muted" aria-live="polite"></p>
+            <p id="costSelectionHint" class="tableSelectionHint muted" hidden aria-live="polite"></p>
           </section>
 
           <nav class="dashSectionNav card costNav costNavSticky" aria-label="Cost sections">
@@ -117,6 +121,13 @@
                       <div class="sub tokenStats kpiFootnote" id="periodFootnote">Data range in scope</div>
                     </div>
                   </article>
+                  <article class="monitorKpi monitorKpi--neutral" id="runRateProjectionCard">
+                    <div class="stat">
+                      <div class="label">Month at run-rate</div>
+                      <div class="value value--md" id="runRateProjection">—</div>
+                      <div class="sub tokenStats kpiFootnote" id="runRateProjectionNote">avg/day × days in end month</div>
+                    </div>
+                  </article>
                 </div>
 
                 <div class="costStatementLayer costStatementLayer--opex" id="costOpexCompositionRow" hidden aria-label="OpEx composition">
@@ -166,7 +177,7 @@
                       <div class="stat">
                         <div class="label">Market variance</div>
                         <div class="value value--md" id="catalogVariancePct">-</div>
-                        <div class="sub tokenStats kpiFootnote" id="catalogVarianceNote">OpEx − market</div>
+                        <div class="sub tokenStats kpiFootnote" id="catalogVarianceNote">OpEx − market · negative = below list</div>
                       </div>
                     </article>
                     <article class="monitorKpi monitorKpi--neutral monitorKpi--meta">
@@ -512,7 +523,8 @@
     <script src="/static/js/cost-semantics.js?v=20260710-opex"></script>
     <script src="/static/js/dashboard-ui.js?v=20260707-detail"></script>
     <script src="/static/js/dashboard-interactions.js?v=20260707-ui"></script>
-    <script src="/static/js/billing-detail-table.js?v=20260707-detail"></script>
+    <script src="/static/js/scope-url.js?v=20260730-scope"></script>
+    <script src="/static/js/billing-detail-table.js?v=20260730-scope-ux"></script>
     <script src="/static/js/date-range-picker.js?v=20260710-drp-fix3"></script>
     <script>
       window.AppChartStyle?.applyDefaults?.();
@@ -546,6 +558,11 @@
       const startDateInput = document.getElementById('startDateInput');
       const endDateInput = document.getElementById('endDateInput');
       const applyFiltersBtn = document.getElementById('applyFiltersBtn');
+      const openInTokensLink = document.getElementById('openInTokensLink');
+      const exportScopeBtn = document.getElementById('exportScopeBtn');
+      const costSelectionHintEl = document.getElementById('costSelectionHint');
+      const runRateProjectionEl = document.getElementById('runRateProjection');
+      const runRateProjectionNoteEl = document.getElementById('runRateProjectionNote');
 
       let chartMarket = null;
       let chartInputByModel = null;
@@ -601,6 +618,10 @@
       const modelDailyNextBtn = document.getElementById('modelDailyNextBtn');
       let lastModelDailyRows = [];
       let modelDailyPage = 1;
+      let selectedCostDay = null;
+      let peakCostDay = null;
+      let modelDailyModelFilter = null;
+      let lastCostChartPoints = [];
       const modelCostSummaryTbodyEl = document.getElementById('modelCostSummaryTbody');
       const modelCostSummaryTfootEl = document.getElementById('modelCostSummaryTfoot');
       const inputModelChartCardEl = document.getElementById('inputModelChartCard');
@@ -696,7 +717,9 @@
                 (acc, p) => acc + (Number(p?.cost_usd) || 0),
                 0
               );
-        costChartFootnoteEl.textContent = `Total CostUSD: ${fmt2(totalActual)}`;
+        const peak = findPeakCostDay(costPoints);
+        const peakNote = peak ? ` · peak day ${peak}` : '';
+        costChartFootnoteEl.textContent = `Total CostUSD: ${fmt2(totalActual)}${peakNote} · click a day to link Billing detail`;
       }
 
       function updateSpendChartLegend() {
@@ -1288,12 +1311,35 @@
       function _buildModelSummaryRow(r) {
         const tr = document.createElement('tr');
         tr.className = 'modelSummaryRow';
+        const modelName = String(r.model_name ?? '—');
+        tr.dataset.modelName = modelName;
+        tr.title = modelName.startsWith('Others')
+          ? modelName
+          : `Click to filter Billing detail by ${modelName}`;
+        tr.addEventListener('click', (e) => {
+          if (e.target.closest('a')) return;
+          if (modelName.startsWith('Others')) return;
+          applyModelDailyFilter(
+            modelDailyModelFilter === modelName ? null : modelName
+          );
+        });
 
         const tdName = document.createElement('td');
         tdName.className = 'modelNameCell';
-        const code = document.createElement('code');
-        code.textContent = String(r.model_name ?? '—');
-        tdName.appendChild(code);
+        if (modelName && modelName !== '—' && !modelName.startsWith('Others')) {
+          const link = document.createElement('a');
+          link.className = 'drillLink modelTokensLink';
+          link.href = tokensHrefForModel(modelName);
+          link.title = `Open ${modelName} on Tokens with this scope`;
+          const code = document.createElement('code');
+          code.textContent = modelName;
+          link.appendChild(code);
+          tdName.appendChild(link);
+        } else {
+          const code = document.createElement('code');
+          code.textContent = modelName;
+          tdName.appendChild(code);
+        }
         tr.appendChild(tdName);
 
         const tdCatalog = document.createElement('td');
@@ -1396,6 +1442,136 @@
         modelCostSummaryTfootEl.appendChild(tr);
       }
 
+      function findPeakCostDay(points) {
+        let peakDate = null;
+        let peakVal = -Infinity;
+        for (const p of points || []) {
+          const v = Number(p?.cost_usd);
+          if (!Number.isFinite(v) || v <= peakVal) continue;
+          peakVal = v;
+          peakDate = String(p.date || p.usage_date || '').slice(0, 10) || null;
+        }
+        return peakDate;
+      }
+
+      function filteredModelDailyRows() {
+        const rows = Array.isArray(lastModelDailyRows) ? lastModelDailyRows : [];
+        if (!modelDailyModelFilter) return rows;
+        const want = String(modelDailyModelFilter).toLowerCase();
+        return rows.filter((r) => String(r.model_name || '').toLowerCase() === want);
+      }
+
+      function setCostSelectionHint(message, { showClear = true } = {}) {
+        if (!costSelectionHintEl) return;
+        if (!message) {
+          costSelectionHintEl.hidden = true;
+          costSelectionHintEl.replaceChildren();
+          return;
+        }
+        costSelectionHintEl.hidden = false;
+        costSelectionHintEl.replaceChildren();
+        costSelectionHintEl.append(document.createTextNode(message));
+        if (showClear) {
+          costSelectionHintEl.append(document.createTextNode(' · '));
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'drillLink';
+          btn.dataset.clearCostSelection = '1';
+          btn.textContent = 'Clear filter';
+          costSelectionHintEl.appendChild(btn);
+        }
+      }
+
+      function highlightCostDayRows() {
+        const day = selectedCostDay;
+        const peak = peakCostDay;
+        if (modelDailyTbodyEl) {
+          for (const tr of modelDailyTbodyEl.querySelectorAll('tr')) {
+            const rowDate = tr.dataset.date || '';
+            tr.classList.toggle('is-rowSelected', !!(day && rowDate === day));
+            tr.classList.toggle('costDayPeak', !!(peak && rowDate === peak));
+          }
+        }
+        if (billingRawTableEl) {
+          for (const tr of billingRawTableEl.querySelectorAll('tr')) {
+            const rowDate = tr.dataset.billingDate || '';
+            tr.classList.toggle('is-rowSelected', !!(day && rowDate === day));
+          }
+        }
+        if (modelCostSummaryTbodyEl) {
+          for (const tr of modelCostSummaryTbodyEl.querySelectorAll('tr.modelSummaryRow')) {
+            const name = tr.dataset.modelName || '';
+            tr.classList.toggle(
+              'is-rowSelected',
+              !!(modelDailyModelFilter && name === modelDailyModelFilter)
+            );
+          }
+        }
+      }
+
+      function applyCostDaySelection(date, { value = null, seriesLabel = 'OpEx', fromPeak = false } = {}) {
+        selectedCostDay = date || null;
+        if (!selectedCostDay) {
+          window.AppDashboardInteractions?.highlightChartPoint?.(chartMarket, null);
+          if (!modelDailyModelFilter) setCostSelectionHint('');
+          else {
+            setCostSelectionHint(`Filtered By model: ${modelDailyModelFilter}`);
+          }
+          highlightCostDayRows();
+          return;
+        }
+        const labels = (chartMarket?.data?.labels || []).map(String);
+        const idx = labels.indexOf(selectedCostDay);
+        if (idx >= 0) {
+          window.AppDashboardInteractions?.highlightChartPoint?.(chartMarket, idx);
+        }
+        const peakNote =
+          peakCostDay && selectedCostDay === peakCostDay
+            ? ' · peak day in range'
+            : fromPeak
+              ? ' · peak day'
+              : '';
+        const vsAvg = (() => {
+          const pts = lastCostChartPoints || [];
+          if (!pts.length) return '';
+          const vals = pts.map((p) => Number(p.cost_usd)).filter((n) => Number.isFinite(n) && n > 0);
+          if (!vals.length) return '';
+          const avg = vals.reduce((a, b) => a + b, 0) / vals.length;
+          const dayPt = pts.find((p) => String(p.date || p.usage_date || '').slice(0, 10) === selectedCostDay);
+          const dayVal = Number(dayPt?.cost_usd);
+          if (!(avg > 0) || !Number.isFinite(dayVal)) return '';
+          const pct = ((dayVal - avg) / avg) * 100;
+          return ` · ${pct > 0 ? '+' : ''}${pct.toFixed(1)}% vs avg`;
+        })();
+        const valText = value != null && Number.isFinite(Number(value)) ? ` · ${seriesLabel} ${fmt2(value)}` : '';
+        setCostSelectionHint(
+          `Selected day ${selectedCostDay}${valText}${vsAvg}${peakNote} — linked in Billing detail`
+        );
+        if (costChartFootnoteEl) {
+          costChartFootnoteEl.textContent = `${selectedCostDay}: ${seriesLabel}${
+            value != null ? ` ${fmt2(value)}` : ''
+          }${peakNote} · click empty area to reset`;
+        }
+        highlightCostDayRows();
+        const detail = document.getElementById('cost-by-model');
+        if (detail && selectedCostDay) {
+          detail.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+      }
+
+      function applyModelDailyFilter(modelName) {
+        modelDailyModelFilter = modelName || null;
+        selectedCostDay = null;
+        window.AppDashboardInteractions?.highlightChartPoint?.(chartMarket, null);
+        renderModelDailyDetailTable(lastModelDailyRows, currentCurrency, { resetPage: true });
+        if (modelDailyModelFilter) {
+          setCostSelectionHint(`Filtered By model: ${modelDailyModelFilter}`);
+        } else {
+          setCostSelectionHint('');
+        }
+        highlightCostDayRows();
+      }
+
       function modelDailyPageSize() {
         const v = Number(modelDailyPageSizeEl?.value);
         return Number.isFinite(v) && v > 0 ? v : 25;
@@ -1409,20 +1585,22 @@
         if (resetPage) modelDailyPage = 1;
 
         lastModelDailyRows = BDT.sortRows(Array.isArray(dailyByModel) ? dailyByModel : []);
-        const summary = BDT.rowSummary(lastModelDailyRows);
+        const visible = filteredModelDailyRows();
+        const summary = BDT.rowSummary(visible);
 
         if (modelDailyBadgeEl) {
           if (!summary.total) {
             modelDailyBadgeEl.hidden = true;
           } else {
             modelDailyBadgeEl.hidden = false;
+            const filterNote = modelDailyModelFilter ? ` · filter ${modelDailyModelFilter}` : '';
             modelDailyBadgeEl.textContent =
-              `${summary.total} rows · ${summary.meter} meter-matched · ${summary.withCost} with cost`;
+              `${summary.total} rows · ${summary.meter} meter-matched · ${summary.withCost} with cost${filterNote}`;
           }
         }
 
         modelDailyPage = DASH.renderPagedSlice({
-          items: lastModelDailyRows,
+          items: visible,
           page: modelDailyPage,
           pageSize: modelDailyPageSize(),
           tbodyEl: modelDailyTbodyEl,
@@ -1431,12 +1609,15 @@
           nextBtn: modelDailyNextBtn,
           pagerEl: modelDailyPagerEl,
           label: 'rows',
-          emptyMessage: 'No model/day rows in selected range.',
+          emptyMessage: modelDailyModelFilter
+            ? `No model/day rows for “${modelDailyModelFilter}”. Clear filter to see all.`
+            : 'No model/day rows in selected range.',
           colSpan: window.AppBillingDetailTable?.COL_COUNT?.cost || 13,
           renderRow: (row) => {
             BDT.appendRow(modelDailyTbodyEl, row, { currency, variant: 'cost' });
           },
         });
+        highlightCostDayRows();
       }
 
       function exportModelDailyCsv() {
@@ -1893,7 +2074,7 @@
             },
             onClick: (_evt, elements) => {
               if (!elements?.length) {
-                window.AppDashboardInteractions?.highlightChartPoint?.(chartMarket, null);
+                applyCostDaySelection(null);
                 updateChartFootnote(
                   footnoteBase.costPoints,
                   footnoteBase.authoritativeActualTotal
@@ -1905,10 +2086,7 @@
               const dsIdx = elements[0].datasetIndex;
               const val = datasets[dsIdx]?.data?.[idx];
               const seriesLabel = datasets[dsIdx]?.fullLabel || datasets[dsIdx]?.label || 'Cost';
-              window.AppDashboardInteractions?.highlightChartPoint?.(chartMarket, idx);
-              if (costChartFootnoteEl) {
-                costChartFootnoteEl.textContent = `${date}: ${seriesLabel} ${fmt2(val)} · click empty area to reset`;
-              }
+              applyCostDaySelection(date, { value: val, seriesLabel });
             },
           },
           plugins: [
@@ -2096,7 +2274,7 @@
         subprojectCostStripEl.hidden = false;
       }
 
-      async function loadProjects(preferredProject) {
+      async function loadProjects(preferredProject, urlScope = null) {
         const data = await window.AppHttp.getJson('/api/projects');
         projectDetailsByName = {};
         for (const d of data.project_details || []) {
@@ -2114,14 +2292,31 @@
           projectSelect.appendChild(opt);
         }
         if (data.projects.length > 0) {
+          const preferred = urlScope?.project || preferredProject;
           const chosen =
-            (preferredProject && data.projects.includes(preferredProject)) ? preferredProject : data.projects[0];
+            (preferred && data.projects.includes(preferred)) ? preferred : data.projects[0];
           projectSelect.value = chosen;
           updateProjectModelHint(chosen);
           syncSubprojectOptions(chosen);
-          applyDefaultCostDateRange();
+          if (urlScope?.subproject) {
+            applySubprojectFilterByNameQuiet(urlScope.subproject);
+          }
+          if (urlScope?.start || urlScope?.end) {
+            setDateInputsQuietly(urlScope.start || '', urlScope.end || '');
+          } else {
+            applyDefaultCostDateRange();
+          }
           await loadProjectSafe(chosen);
         }
+      }
+
+      function applySubprojectFilterByNameQuiet(name) {
+        if (!subprojectSelect || !name) return false;
+        const detail = projectDetailsByName[projectSelect.value];
+        const subprojects = Array.isArray(detail?.subprojects) ? detail.subprojects : [];
+        if (!subprojects.includes(name)) return false;
+        subprojectSelect.value = name;
+        return true;
       }
 
       function commitDateInputsBeforeApply() {
@@ -2538,11 +2733,13 @@
           );
           if (billingRawFetchKey !== fetchKey) return;
           renderBillingRawTable(payload);
+          highlightCostDayRows();
         } catch (e) {
           console.error(e);
           if (billingRawFetchKey === fetchKey) {
             billingRawTotal = 0;
             renderBillingRawTable({ total: 0, rows: [] });
+            highlightCostDayRows();
           }
         } finally {
           window.AppDashboardUi?.setTableLoading?.({
@@ -2554,6 +2751,7 @@
 
       async function loadProject(projectName) {
         if (!projectName) return;
+        clearDashboardSelection();
         currentProjectName = projectName;
         if (projectSelect && projectSelect.value !== projectName) {
           projectSelect.value = projectName;
@@ -2591,9 +2789,11 @@
         const billedDays = Number(stats.actual_days ?? 0);
         if (billedDaysCountEl) billedDaysCountEl.textContent = billedDays > 0 ? String(billedDays) : '—';
         const total = Number(stats.actual_cost_usd_total ?? 0);
+        const avgDaily =
+          billedDays > 0 && Number.isFinite(total) ? total / billedDays : null;
         if (avgDailyCostEl) {
           avgDailyCostEl.textContent =
-            billedDays > 0 && Number.isFinite(total) ? fmt2(total / billedDays) : '—';
+            avgDaily != null ? fmt2(avgDaily) : '—';
         }
         if (periodFootnoteEl) {
           periodFootnoteEl.textContent = stats.currency ? `${stats.currency} · in-scope dates` : 'Data range in scope';
@@ -2608,6 +2808,11 @@
         }
         currentStartDate = startDateInput.value || null;
         currentEndDate = endDateInput.value || null;
+        updateRunRateProjection(
+          avgDaily,
+          currentEndDate || stats.max_usage_date || null,
+          currentCurrency
+        );
 
         const tsParams = new URLSearchParams();
         tsParams.set('granularity', 'day');
@@ -2649,6 +2854,8 @@
         }
 
         const costPts = ts.points || [];
+        lastCostChartPoints = costPts;
+        peakCostDay = findPeakCostDay(costPts);
         lastDailyByResource = ts.daily_by_resource || null;
         renderResourceBillingSection(resourceBilling);
         renderSubprojectCostStrip(resourceBilling, subproject);
@@ -2659,7 +2866,92 @@
         const costStats = _calcSeriesStatsFloat(costPts, 'cost_usd');
         _renderCostStats(costStatsEl, costStats);
 
+        syncScopeUrl();
         window.AppDashboardInteractions?.refreshDashPage?.();
+      }
+
+      function clearDashboardSelection() {
+        selectedCostDay = null;
+        modelDailyModelFilter = null;
+        clearBillingTableSelection();
+        window.AppDashboardInteractions?.highlightChartPoint?.(chartMarket, null);
+        setCostSelectionHint('');
+        if (modelDailyTbodyEl) {
+          for (const tr of modelDailyTbodyEl.querySelectorAll('tr')) {
+            tr.classList.remove('is-rowSelected', 'costDayPeak');
+          }
+        }
+        if (modelCostSummaryTbodyEl) {
+          for (const tr of modelCostSummaryTbodyEl.querySelectorAll('tr.is-rowSelected')) {
+            tr.classList.remove('is-rowSelected');
+          }
+        }
+      }
+
+      function syncScopeUrl(extra = {}) {
+        if (!window.AppScopeUrl) return;
+        const scope = window.AppScopeUrl.fromDom({
+          projectEl: projectSelect,
+          subprojectEl: subprojectSelect,
+          startEl: startDateInput,
+          endEl: endDateInput,
+          model: extra.model,
+        });
+        window.AppScopeUrl.write(scope);
+        refreshCrossPageLinks(scope);
+      }
+
+      function refreshCrossPageLinks(scope) {
+        if (!window.AppScopeUrl) return;
+        const s =
+          scope ||
+          window.AppScopeUrl.fromDom({
+            projectEl: projectSelect,
+            subprojectEl: subprojectSelect,
+            startEl: startDateInput,
+            endEl: endDateInput,
+          });
+        if (openInTokensLink) {
+          openInTokensLink.href = window.AppScopeUrl.href('/tokens', s);
+        }
+      }
+
+      function daysInMonthYmd(ymd) {
+        if (!ymd || !/^\d{4}-\d{2}-\d{2}$/.test(ymd)) return null;
+        const y = Number(ymd.slice(0, 4));
+        const m = Number(ymd.slice(5, 7));
+        if (!y || !m) return null;
+        return new Date(y, m, 0).getDate();
+      }
+
+      function updateRunRateProjection(avgDaily, endYmd, currency) {
+        if (!runRateProjectionEl) return;
+        const dim = daysInMonthYmd(endYmd);
+        if (!(avgDaily > 0) || !dim) {
+          runRateProjectionEl.textContent = '—';
+          if (runRateProjectionNoteEl) {
+            runRateProjectionNoteEl.textContent = 'avg/day × days in end month';
+          }
+          return;
+        }
+        runRateProjectionEl.textContent = fmt2(avgDaily * dim);
+        if (runRateProjectionNoteEl) {
+          const label = endYmd.slice(0, 7);
+          runRateProjectionNoteEl.textContent = `${fmt2(avgDaily)}/day × ${dim}d (${label})${
+            currency ? ` · ${currency}` : ''
+          }`;
+        }
+      }
+
+      function tokensHrefForModel(modelName) {
+        if (!window.AppScopeUrl) return '/tokens';
+        return window.AppScopeUrl.href('/tokens', {
+          project: currentProjectName || projectSelect?.value || '',
+          subproject: selectedSubproject(),
+          start: startDateInput?.value || currentStartDate || '',
+          end: endDateInput?.value || currentEndDate || '',
+          model: modelName || '',
+        });
       }
 
       async function loadProjectSafe(projectName) {
@@ -2683,19 +2975,26 @@
       });
 
       projectSelect.addEventListener('change', (e) => {
+        clearDashboardSelection();
         clearDateFilters();
         syncSubprojectOptions(e.target.value);
         loadProjectSafe(e.target.value);
       });
       subprojectSelect?.addEventListener('change', () => {
+        clearDashboardSelection();
         loadProjectSafe(projectSelect.value);
       });
       applyFiltersBtn.addEventListener('click', () => {
+        clearDashboardSelection();
         runApplyFilters();
+      });
+      exportScopeBtn?.addEventListener('click', () => {
+        exportModelDailyCsv();
       });
       document.querySelector('.costDashboard .filterBar')?.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') {
           e.preventDefault();
+          clearDashboardSelection();
           runApplyFilters();
         }
       });
@@ -2718,6 +3017,22 @@
       });
       billingRawExportBtn?.addEventListener('click', () => {
         exportBillingRawCsv().catch((e) => console.error(e));
+      });
+      costSelectionHintEl?.addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-clear-cost-selection]');
+        if (!btn) return;
+        e.preventDefault();
+        const hadModelFilter = !!modelDailyModelFilter;
+        selectedCostDay = null;
+        modelDailyModelFilter = null;
+        window.AppDashboardInteractions?.highlightChartPoint?.(chartMarket, null);
+        setCostSelectionHint('');
+        if (hadModelFilter) {
+          renderModelDailyDetailTable(lastModelDailyRows, currentCurrency, { resetPage: true });
+        } else {
+          highlightCostDayRows();
+        }
+        updateChartFootnote(lastCostChartPoints);
       });
       resourceBillingSelectionHintEl?.addEventListener('click', (e) => {
         const btn = e.target.closest('[data-filter-resource]');
@@ -2747,9 +3062,9 @@
       });
 
       async function bootstrap() {
+        const urlScope = window.AppScopeUrl?.read?.() || {};
         const qs = new URLSearchParams(window.location.search);
-        const urlProject = qs.get('project');
-        let preferred = urlProject || null;
+        let preferred = urlScope.project || qs.get('project') || null;
         if (!preferred) {
           try {
             const latest = await window.AppHttp.getJson('/api/projects/latest');
@@ -2758,7 +3073,8 @@
             console.error(e);
           }
         }
-        await loadProjects(preferred);
+        await loadProjects(preferred, urlScope);
+        refreshCrossPageLinks();
       }
 
       bootstrap().catch((e) => {
