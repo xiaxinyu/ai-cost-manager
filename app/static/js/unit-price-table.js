@@ -68,7 +68,33 @@
     return td;
   }
 
-  function renderScopedRows(models, { currency, dailyRows, tbody }) {
+  function resolveModelRates(model, dailyRows, source = "opex") {
+    const m = model || {};
+    const periodEff = periodEffectiveFromModel(m, dailyRows);
+    const catalogIn = _num(m.catalog_usd_per_1m_input);
+    const catalogOut = _num(m.catalog_usd_per_1m_output);
+    const opexIn = _num(periodEff.input ?? m.effective_usd_per_1m_input);
+    const opexOut = _num(periodEff.output ?? m.effective_usd_per_1m_output);
+    if (source === "market") {
+      return { rateIn: catalogIn, rateOut: catalogOut, source: "market" };
+    }
+    if (source === "opex") {
+      return {
+        rateIn: opexIn ?? catalogIn,
+        rateOut: opexOut ?? catalogOut,
+        source: opexIn != null || opexOut != null ? "opex" : "market",
+      };
+    }
+    return { rateIn: catalogIn, rateOut: catalogOut, source: "custom" };
+  }
+
+  function _num(v) {
+    if (v == null || v === "") return null;
+    const n = Number(v);
+    return Number.isFinite(n) ? n : null;
+  }
+
+  function renderScopedRows(models, { currency, dailyRows, tbody, onRowActivate } = {}) {
     if (!tbody) return false;
     const rows = (models || []).filter(
       (m) =>
@@ -90,6 +116,22 @@
       const periodEff = periodEffectiveFromModel(m, dailyRows);
       const tr = document.createElement("tr");
       tr.className = "unitPriceSummaryRow";
+      tr.dataset.modelName = m.model_name || "";
+      tr.dataset.catalogIn = m.catalog_usd_per_1m_input ?? "";
+      tr.dataset.catalogOut = m.catalog_usd_per_1m_output ?? "";
+      tr.dataset.opexIn = periodEff.input ?? m.effective_usd_per_1m_input ?? "";
+      tr.dataset.opexOut = periodEff.output ?? m.effective_usd_per_1m_output ?? "";
+      tr.title = "Click to prepare Estimate link for this model";
+      if (typeof onRowActivate === "function") {
+        tr.tabIndex = 0;
+        tr.addEventListener("click", () => onRowActivate(m, periodEff));
+        tr.addEventListener("keydown", (e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            onRowActivate(m, periodEff);
+          }
+        });
+      }
 
       const tdModel = document.createElement("td");
       tdModel.className = "unitPriceModelCell";
@@ -181,6 +223,7 @@
     fmtUsdPer1m,
     periodEffectiveUsdPer1m,
     periodEffectiveFromModel,
+    resolveModelRates,
     appendUnitPriceCell,
     renderScopedRows,
     renderProjectRows,

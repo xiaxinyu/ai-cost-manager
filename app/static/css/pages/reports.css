@@ -1002,6 +1002,22 @@
   gap: 12px;
 }
 
+.reportEstimateCta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 14px;
+  margin-top: 4px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(173, 196, 228, 0.14);
+}
+
+.reportEstimateCta .panelDesc {
+  margin: 0;
+  flex: 1 1 220px;
+}
+
 .reportUnitRatesHead {
   display: flex;
   align-items: flex-start;

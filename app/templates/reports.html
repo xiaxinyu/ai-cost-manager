@@ -6,7 +6,7 @@
     <title>Reports - Models Cost Management</title>
     <link rel="stylesheet" href="/static/css/app-shell.css" />
     <link rel="stylesheet" href="/static/css/page-common.css" />
-    <link rel="stylesheet" href="/static/css/pages/reports.css?v=20260730-scope-ux" />
+    <link rel="stylesheet" href="/static/css/pages/reports.css?v=20260731-estimate" />
     <link rel="stylesheet" href="/static/css/layout-pro.css" />
     <link rel="stylesheet" href="/static/css/dashboard-shared.css?v=20260710-table-unify" />
     <link rel="stylesheet" href="/static/css/date-range-picker.css?v=20260606-drp" />
@@ -544,6 +544,13 @@
                   </table>
                 </div>
               </div>
+
+              <div class="reportEstimateCta" id="reportEstimateCta">
+                <p class="tableNote panelDesc">
+                  Project 1 / 7 / 30 / 365 day spend from these unit rates on the Estimate page.
+                </p>
+                <a id="reportOpenEstimateLink" class="btnSecondary btnLinkQuiet" href="/estimate">Open Estimate</a>
+              </div>
             </article>
             <article class="card reportPanel reportModelPanel">
               <div class="rowsToolbar reportPanelToolbarWithVariance">
@@ -723,7 +730,7 @@
     <script src="/static/js/chart-plugins.js"></script>
     <script src="/static/js/chart-style.js?v=20260605-dates"></script>
     <script src="/static/js/cost-semantics.js?v=20260710-market"></script>
-    <script src="/static/js/unit-price-table.js?v=20260709-unit-rates"></script>
+    <script src="/static/js/unit-price-table.js?v=20260731-proj"></script>
     <script src="/static/js/dashboard-ui.js?v=20260605-datesort"></script>
     <script src="/static/js/date-range-picker.js?v=20260710-drp-fix2"></script>
     <script src="/static/js/dashboard-interactions.js?v=20260707-ui"></script>
@@ -1001,6 +1008,28 @@
       }
 
       let reportUnitRatesView = 'scoped';
+      const reportOpenEstimateLink = document.getElementById('reportOpenEstimateLink');
+
+      function estimateHrefForModel(modelName) {
+        const qs = new URLSearchParams();
+        if (modelName) qs.set('model', modelName);
+        const s = qs.toString();
+        return s ? `/estimate?${s}` : '/estimate';
+      }
+
+      function activateUnitRateModel(model) {
+        if (!model?.model_name) return;
+        const tbody = document.getElementById('reportUnitRatesScopedTbody');
+        if (tbody) {
+          for (const tr of tbody.querySelectorAll('tr.unitPriceSummaryRow')) {
+            tr.classList.toggle('is-rowSelected', tr.dataset.modelName === model.model_name);
+          }
+        }
+        if (reportOpenEstimateLink) {
+          reportOpenEstimateLink.href = estimateHrefForModel(model.model_name);
+          reportOpenEstimateLink.textContent = `Estimate ${model.model_name}`;
+        }
+      }
 
       function _setReportUnitRatesView(view) {
         reportUnitRatesView = view;
@@ -1023,19 +1052,34 @@
 
         if (!panel) return;
         panel.hidden = !show;
+
+        const scopedWrap = document.getElementById('reportUnitRatesScoped');
+        const projectWrap = document.getElementById('reportUnitRatesByProject');
+
         if (!show) {
           const scopedTbody = document.getElementById('reportUnitRatesScopedTbody');
           const projectTbody = document.getElementById('reportUnitRatesProjectTbody');
           if (scopedTbody) scopedTbody.replaceChildren();
           if (projectTbody) projectTbody.replaceChildren();
+          if (scopedWrap) scopedWrap.hidden = true;
+          if (projectWrap) projectWrap.hidden = true;
+          if (document.getElementById('reportUnitRatesViewBar')) {
+            document.getElementById('reportUnitRatesViewBar').hidden = true;
+          }
+          if (reportOpenEstimateLink) {
+            reportOpenEstimateLink.href = '/estimate';
+            reportOpenEstimateLink.textContent = 'Open Estimate';
+          }
           return;
         }
 
+        if (scopedWrap) scopedWrap.hidden = reportUnitRatesView !== 'scoped';
         const scopeBadge = document.getElementById('reportUnitRatesScope');
         const periodBadge = document.getElementById('reportUnitRatesPeriod');
         const viewBar = document.getElementById('reportUnitRatesViewBar');
         const scopeLabel = _reportScopeLabel(report);
         const periodLabel = _reportUnitRatePeriodLabel(report);
+        const currency = catalog.currency || report.currency || 'USD';
 
         if (scopeBadge) {
           scopeBadge.hidden = false;
@@ -1057,13 +1101,19 @@
         }
         _setReportUnitRatesView(reportUnitRatesView);
 
+        if (reportOpenEstimateLink) {
+          reportOpenEstimateLink.href = '/estimate';
+          reportOpenEstimateLink.textContent = 'Open Estimate';
+        }
+
         window.AppUnitPriceTable?.renderScopedRows?.(unitRates, {
-          currency: catalog.currency || report.currency,
+          currency,
           dailyRows: catalog.daily_by_model || [],
           tbody: document.getElementById('reportUnitRatesScopedTbody'),
+          onRowActivate: activateUnitRateModel,
         });
         window.AppUnitPriceTable?.renderProjectRows?.(projectRates, {
-          currency: catalog.currency || report.currency,
+          currency,
           tbody: document.getElementById('reportUnitRatesProjectTbody'),
         });
       }

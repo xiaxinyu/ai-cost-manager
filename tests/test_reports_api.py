@@ -452,6 +452,8 @@ def test_reports_page_layout_without_token_forecast(tmp_path):
     assert "applyDailyChartLedgerSelection" in page.text
     assert "reportUnitRatesPanel" in page.text
     assert "unit-price-table.js" in page.text
+    assert "reportOpenEstimateLink" in page.text
+    assert 'href="/estimate"' in page.text
     assert "reportUnitRatesScopedTable" in page.text
     assert "reportIncomeSupplement" in page.text
     assert "reportCollapseDetails" in page.text

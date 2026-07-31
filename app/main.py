@@ -302,6 +302,17 @@ def create_app(
             {"username": username},
         )
 
+    @app.get("/estimate", response_class=HTMLResponse)
+    def estimate_page(request: Request) -> HTMLResponse:
+        username = _require_ui_username(request)
+        if username is None:
+            return RedirectResponse(url="/login", status_code=303)
+        return templates.TemplateResponse(
+            request,
+            "estimate.html",
+            {"username": username},
+        )
+
     @app.get("/tokens", response_class=HTMLResponse)
     def tokens_page(request: Request) -> HTMLResponse:
         username = _require_ui_username(request)

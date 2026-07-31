@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="en" class="estimatePageRoot">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Estimate - Models Cost Management</title>
+    <link rel="stylesheet" href="/static/css/app-shell.css" />
+    <link rel="stylesheet" href="/static/css/page-common.css" />
+    <link rel="stylesheet" href="/static/css/pages/estimate.css?v=20260731-team" />
+    <link rel="stylesheet" href="/static/css/layout-pro.css" />
+    <link rel="stylesheet" href="/static/css/dashboard-shared.css?v=20260710-table-unify" />
+  </head>
+  <body>
+    {% set active_page = 'estimate' %}
+    {% set logout_btn_id = 'logoutBtnTop' %}
+    {% include "_app_nav.html" %}
+    <div class="appLayout">
+      <main class="contentArea">
+        <div class="container estimatePage dashPage">
+          <header class="pageHeader estimatePageHeader dashPageHeader">
+            <div class="breadcrumb">Home / Estimate</div>
+            <div class="estimateTitleRow">
+              <div>
+                <h1 class="pageTitle">Estimate</h1>
+                <p class="pageDesc">
+                  Pick a model, daily token volume per person, and team size — Market and OpEx costs
+                  are projected together for 1 / 7 / 30 / 365 days.
+                </p>
+                <div class="estimateLegendRow muted" aria-label="Estimate semantics">
+                  <span class="costPill costPill--market">Market</span>
+                  <span class="costPill costPill--actual">OpEx</span>
+                  <span class="estimateLegendNote">Both rates · per-person tokens × team size · (tokens ÷ 1M) × USD/1M</span>
+                </div>
+              </div>
+            </div>
+          </header>
+
+          <section class="card estimateFilterCard filterCard" aria-label="Estimate inputs">
+            <div class="filterCardHead filterCardHead--compact">
+              <h2 class="filterCardTitle">Projection inputs</h2>
+              <p class="filterCardHint muted">
+                Select a model, enter daily tokens per person, then choose team size (default 1)
+              </p>
+            </div>
+            <div class="estimateForm" id="estimateForm">
+              <div class="field estimateField">
+                <label for="projModelSelect">Model</label>
+                <select id="projModelSelect" class="control" aria-label="Model for projection">
+                  <option value="">Select a model…</option>
+                </select>
+              </div>
+              <div class="field estimateField">
+                <label for="projInputTokens">Input tokens / day / person</label>
+                <input id="projInputTokens" class="control" type="number" min="0" step="1" inputmode="numeric" placeholder="e.g. 2000000" />
+              </div>
+              <div class="field estimateField">
+                <label for="projOutputTokens">Output tokens / day / person</label>
+                <input id="projOutputTokens" class="control" type="number" min="0" step="1" inputmode="numeric" placeholder="e.g. 200000" />
+              </div>
+              <div class="field estimateField">
+                <label for="projTeamSizeSelect">Team size</label>
+                <select id="projTeamSizeSelect" class="control" aria-label="Team size">
+                  <option value="1" selected>1 person</option>
+                  <option value="3">3 people</option>
+                  <option value="5">5 people</option>
+                  <option value="10">10 people</option>
+                  <option value="custom">Custom…</option>
+                </select>
+              </div>
+              <div class="field estimateField" id="projTeamSizeCustomField" hidden>
+                <label for="projTeamSizeCustom">Custom headcount</label>
+                <input id="projTeamSizeCustom" class="control" type="number" min="1" step="1" inputmode="numeric" placeholder="e.g. 8" value="1" />
+              </div>
+              <div class="field estimateField estimateFieldAction">
+                <label class="estimateActionLabel" for="estimateLoadRatesBtn">Catalog rates</label>
+                <button id="estimateLoadRatesBtn" class="btn btnPrimary control" type="button">Load model rates</button>
+              </div>
+            </div>
+
+            <div class="estimateRateStrip" id="estimateRateStrip" hidden aria-live="polite">
+              <div class="estimateRateChip estimateRateChip--market">
+                <span class="estimateRateChipKey"><span class="costPill costPill--market">Market</span> USD/1M</span>
+                <strong class="estimateRateChipValue" id="estimateMarketRates">—</strong>
+              </div>
+              <div class="estimateRateChip estimateRateChip--opex">
+                <span class="estimateRateChipKey"><span class="costPill costPill--actual">OpEx</span> USD/1M</span>
+                <strong class="estimateRateChipValue" id="estimateOpexRates">—</strong>
+              </div>
+            </div>
+
+            <p class="estimateHint muted" id="estimateHint" aria-live="polite">
+              Select a model and enter daily tokens to compare Market vs OpEx spend.
+            </p>
+            <div id="estimateStatusBar" class="dataStatusBar dataStatusBar--compact" hidden aria-live="polite"></div>
+          </section>
+
+          <section class="card estimateResultsCard" aria-label="Projected cost">
+            <div class="estimateResultsHead">
+              <h2 class="estimateSectionTitle">Projected cost</h2>
+              <p class="muted estimateSectionLead">
+                Each horizon shows <span class="costPill costPill--market">Market</span> and
+                <span class="costPill costPill--actual">OpEx</span> totals · daily volume × team size
+              </p>
+            </div>
+            <div class="estimateResultsGrid" id="estimateKpiGrid">
+              <article class="estimateKpi" data-horizon-kpi="day">
+                <div class="estimateKpiLabel">1 day</div>
+                <div class="estimateKpiDual">
+                  <div class="estimateKpiDualRow">
+                    <span class="costPill costPill--market">Market</span>
+                    <strong class="estimateKpiValue" id="estimateKpiDayMarket">—</strong>
+                  </div>
+                  <div class="estimateKpiDualRow">
+                    <span class="costPill costPill--actual">OpEx</span>
+                    <strong class="estimateKpiValue" id="estimateKpiDayOpex">—</strong>
+                  </div>
+                </div>
+              </article>
+              <article class="estimateKpi" data-horizon-kpi="week">
+                <div class="estimateKpiLabel">7 days</div>
+                <div class="estimateKpiDual">
+                  <div class="estimateKpiDualRow">
+                    <span class="costPill costPill--market">Market</span>
+                    <strong class="estimateKpiValue" id="estimateKpiWeekMarket">—</strong>
+                  </div>
+                  <div class="estimateKpiDualRow">
+                    <span class="costPill costPill--actual">OpEx</span>
+                    <strong class="estimateKpiValue" id="estimateKpiWeekOpex">—</strong>
+                  </div>
+                </div>
+              </article>
+              <article class="estimateKpi" data-horizon-kpi="month">
+                <div class="estimateKpiLabel">30 days</div>
+                <div class="estimateKpiDual">
+                  <div class="estimateKpiDualRow">
+                    <span class="costPill costPill--market">Market</span>
+                    <strong class="estimateKpiValue" id="estimateKpiMonthMarket">—</strong>
+                  </div>
+                  <div class="estimateKpiDualRow">
+                    <span class="costPill costPill--actual">OpEx</span>
+                    <strong class="estimateKpiValue" id="estimateKpiMonthOpex">—</strong>
+                  </div>
+                </div>
+              </article>
+              <article class="estimateKpi estimateKpi--emphasis" data-horizon-kpi="year">
+                <div class="estimateKpiLabel">365 days</div>
+                <div class="estimateKpiDual">
+                  <div class="estimateKpiDualRow">
+                    <span class="costPill costPill--market">Market</span>
+                    <strong class="estimateKpiValue" id="estimateKpiYearMarket">—</strong>
+                  </div>
+                  <div class="estimateKpiDualRow">
+                    <span class="costPill costPill--actual">OpEx</span>
+                    <strong class="estimateKpiValue" id="estimateKpiYearOpex">—</strong>
+                  </div>
+                </div>
+              </article>
+            </div>
+            <div class="tableScroll estimateTableScroll">
+              <table class="dataTable dashTable estimateProjectionTable" id="reportCostProjectionTable">
+                <thead>
+                  <tr class="costColGroupRow">
+                    <th scope="col" rowspan="2">Horizon</th>
+                    <th class="num colGroupMarket" scope="colgroup" colspan="3">
+                      <span class="costPill costPill--market">Market</span>
+                    </th>
+                    <th class="num colGroupActual" scope="colgroup" colspan="3">
+                      <span class="costPill costPill--actual">OpEx</span>
+                    </th>
+                    <th class="num" scope="col" rowspan="2"><span class="thLabel">Δ OpEx−Market</span></th>
+                  </tr>
+                  <tr>
+                    <th class="num colCostMarket" scope="col">Total</th>
+                    <th class="num colCostMarket" scope="col">Input</th>
+                    <th class="num colCostMarket" scope="col">Output</th>
+                    <th class="num colCostActual" scope="col">Total</th>
+                    <th class="num colCostActual" scope="col">Input</th>
+                    <th class="num colCostActual" scope="col">Output</th>
+                  </tr>
+                </thead>
+                <tbody id="reportCostProjectionTbody">
+                  <tr data-horizon="day">
+                    <td>1 day</td>
+                    <td class="num mono tdCostMarket" data-cell="market-total">—</td>
+                    <td class="num mono tdCostMarket" data-cell="market-input">—</td>
+                    <td class="num mono tdCostMarket" data-cell="market-output">—</td>
+                    <td class="num mono tdCostActual" data-cell="opex-total">—</td>
+                    <td class="num mono tdCostActual" data-cell="opex-input">—</td>
+                    <td class="num mono tdCostActual" data-cell="opex-output">—</td>
+                    <td class="num mono" data-cell="delta">—</td>
+                  </tr>
+                  <tr data-horizon="week">
+                    <td>7 days</td>
+                    <td class="num mono tdCostMarket" data-cell="market-total">—</td>
+                    <td class="num mono tdCostMarket" data-cell="market-input">—</td>
+                    <td class="num mono tdCostMarket" data-cell="market-output">—</td>
+                    <td class="num mono tdCostActual" data-cell="opex-total">—</td>
+                    <td class="num mono tdCostActual" data-cell="opex-input">—</td>
+                    <td class="num mono tdCostActual" data-cell="opex-output">—</td>
+                    <td class="num mono" data-cell="delta">—</td>
+                  </tr>
+                  <tr data-horizon="month">
+                    <td>30 days</td>
+                    <td class="num mono tdCostMarket" data-cell="market-total">—</td>
+                    <td class="num mono tdCostMarket" data-cell="market-input">—</td>
+                    <td class="num mono tdCostMarket" data-cell="market-output">—</td>
+                    <td class="num mono tdCostActual" data-cell="opex-total">—</td>
+                    <td class="num mono tdCostActual" data-cell="opex-input">—</td>
+                    <td class="num mono tdCostActual" data-cell="opex-output">—</td>
+                    <td class="num mono" data-cell="delta">—</td>
+                  </tr>
+                  <tr data-horizon="year">
+                    <td>365 days</td>
+                    <td class="num mono tdCostMarket" data-cell="market-total">—</td>
+                    <td class="num mono tdCostMarket" data-cell="market-input">—</td>
+                    <td class="num mono tdCostMarket" data-cell="market-output">—</td>
+                    <td class="num mono tdCostActual" data-cell="opex-total">—</td>
+                    <td class="num mono tdCostActual" data-cell="opex-input">—</td>
+                    <td class="num mono tdCostActual" data-cell="opex-output">—</td>
+                    <td class="num mono" data-cell="delta">—</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="card estimateRatesCard" id="estimateRatesCard" hidden aria-label="Available unit rates">
+            <div class="estimateResultsHead">
+              <h2 class="estimateSectionTitle">Unit rates in catalog</h2>
+              <p class="muted estimateSectionLead">Click a row to select the model for dual Market / OpEx projection</p>
+            </div>
+            <div class="tableScroll">
+              <table class="unitPriceSummaryTable dataTable dashTable" id="estimateRatesTable">
+                <thead>
+                  <tr class="costColGroupRow">
+                    <th scope="col" rowspan="2" class="colGroupMeta colHeaderMeta">Model</th>
+                    <th class="num colGroupMarket" scope="colgroup" colspan="2">
+                      <span class="costPill costPill--market">Market</span>
+                    </th>
+                    <th class="num colGroupActual" scope="colgroup" colspan="2">
+                      <span class="costPill costPill--actual">OpEx</span> Effective
+                    </th>
+                  </tr>
+                  <tr>
+                    <th class="num colCostMarket" scope="col">Input</th>
+                    <th class="num colCostMarket" scope="col">Output</th>
+                    <th class="num colCostActual" scope="col">Input</th>
+                    <th class="num colCostActual" scope="col">Output</th>
+                  </tr>
+                </thead>
+                <tbody id="estimateRatesTbody"></tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+      </main>
+    </div>
+
+    <script src="/static/js/money.js"></script>
+    <script src="/static/js/http.js"></script>
+    <script src="/static/js/app-shell.js"></script>
+    <script src="/static/js/cost-semantics.js?v=20260710-opex"></script>
+    <script src="/static/js/unit-price-table.js?v=20260731-proj"></script>
+    <script src="/static/js/cost-projection.js?v=20260731-team"></script>
+    <script src="/static/js/pages/estimate.js?v=20260731-team"></script>
+  </body>
+</html>
