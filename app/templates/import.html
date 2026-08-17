@@ -6,9 +6,9 @@
     <title>Import - Models Cost Management</title>
     <link rel="stylesheet" href="/static/css/app-shell.css" />
     <link rel="stylesheet" href="/static/css/page-common.css" />
-    <link rel="stylesheet" href="/static/css/pages/import.css?v=20260708-dash-polish" />
+    <link rel="stylesheet" href="/static/css/pages/import.css?v=20260817-import-type" />
     <link rel="stylesheet" href="/static/css/layout-pro.css" />
-    <link rel="stylesheet" href="/static/css/dashboard-shared.css?v=20260708-dash-polish" />
+    <link rel="stylesheet" href="/static/css/dashboard-shared.css?v=20260817-import-type" />
   </head>
   <body>
     {% set active_page = 'import' %}
@@ -56,11 +56,16 @@
               <table class="dashTable" id="missingFilesTable">
                 <thead>
                   <tr>
-                    <th class="colPick" scope="col"><span class="thLabel">Pick</span></th>
+                    <th class="colPick" scope="col">
+                      <label class="pickAllLabel" title="Select all / Deselect all">
+                        <input type="checkbox" id="missingSelectAll" aria-label="Select all missing files" />
+                        <span class="pickAllCaption">All</span>
+                      </label>
+                    </th>
                     <th class="colType" data-sortable data-sort-type="text" scope="col"><span class="thLabel">Type</span></th>
                     <th class="colProject" data-sortable data-sort-type="text" scope="col"><span class="thLabel">Project</span></th>
                     <th data-sortable data-sort-type="text" scope="col"><span class="thLabel">File</span></th>
-                    <th style="width:200px;" data-sortable data-sort-type="date" scope="col"><span class="thLabel">Last Modified</span></th>
+                    <th class="colModified" data-sortable data-sort-type="date" scope="col"><span class="thLabel">Modified</span></th>
                   </tr>
                 </thead>
                 <tbody id="missingFilesTbody"></tbody>
@@ -104,12 +109,17 @@
               <table class="dashTable" id="ingestedFilesTable">
                 <thead>
                   <tr>
-                    <th class="colPick" scope="col"><span class="thLabel">Verify</span></th>
+                    <th class="colPick" scope="col">
+                      <label class="pickAllLabel" title="Select all / Deselect all on this page">
+                        <input type="checkbox" id="ingestedSelectAll" aria-label="Select all imported files on this page" />
+                        <span class="pickAllCaption">All</span>
+                      </label>
+                    </th>
                     <th class="colType" scope="col"><span class="thLabel">Type</span></th>
                     <th class="colProject" scope="col"><span class="thLabel">Project</span></th>
                     <th scope="col"><span class="thLabel">File</span></th>
-                    <th class="num" style="width:120px;" scope="col"><span class="thLabel">Rows</span><span class="thUnit">count</span></th>
-                    <th class="is-sorted" aria-sort="descending" style="width:200px;" scope="col"><span class="thLabel">Ingested</span><span class="thUnit">local time</span></th>
+                    <th class="colRows num" scope="col"><span class="thLabel">Rows</span></th>
+                    <th class="colModified is-sorted" aria-sort="descending" scope="col"><span class="thLabel">Ingested</span></th>
                   </tr>
                 </thead>
                 <tbody id="ingestedFilesTbody"></tbody>
@@ -133,6 +143,8 @@
 
       const selectedFiles = new Set();
       const selectedVerifyFiles = new Set();
+      const missingSelectAll = document.getElementById('missingSelectAll');
+      const ingestedSelectAll = document.getElementById('ingestedSelectAll');
 
       const ingestedFilesTbody = document.getElementById('ingestedFilesTbody');
       const ingestedCountEl = document.getElementById('ingestedCount');
@@ -335,15 +347,88 @@
 
         const empty = missing.length === 0;
         importBtn.disabled = empty || selectedFiles.size === 0;
-        importStatus.textContent = empty ? 'Up to date' : 'Ready';
+        importStatus.textContent = empty
+          ? 'Up to date'
+          : selectedFiles.size > 0
+            ? `Ready · ${selectedFiles.size} selected`
+            : 'Ready';
         window.AppDashboardUi?.applyTruncationTitles?.(missingFilesTbody);
         window.AppDashboardInteractions?.refreshDashPage?.();
+        syncMissingSelectAllState();
         } catch (e) {
           console.error(e);
           importStatus.textContent = 'Failed to load missing files';
         } finally {
           setImportLoading(false);
         }
+      }
+
+      function syncMissingSelectAllState() {
+        if (!missingSelectAll) return;
+        const boxes = [...missingFilesTbody.querySelectorAll('input.filePick[type="checkbox"]')];
+        const total = boxes.length;
+        const checked = boxes.filter((b) => b.checked).length;
+        missingSelectAll.disabled = total === 0;
+        missingSelectAll.indeterminate = checked > 0 && checked < total;
+        missingSelectAll.checked = total > 0 && checked === total;
+        missingSelectAll.title =
+          total === 0
+            ? 'No missing files'
+            : checked === total
+              ? 'Deselect all'
+              : 'Select all';
+      }
+
+      function syncIngestedSelectAllState() {
+        if (!ingestedSelectAll) return;
+        const boxes = [...ingestedFilesTbody.querySelectorAll('input.verifyFilePick[type="checkbox"]')];
+        const total = boxes.length;
+        const checked = boxes.filter((b) => b.checked).length;
+        ingestedSelectAll.disabled = total === 0;
+        ingestedSelectAll.indeterminate = checked > 0 && checked < total;
+        ingestedSelectAll.checked = total > 0 && checked === total;
+        ingestedSelectAll.title =
+          total === 0
+            ? 'No imported files on this page'
+            : checked === total
+              ? 'Deselect all on this page'
+              : 'Select all on this page';
+      }
+
+      function setAllMissingPicks(checked) {
+        const boxes = missingFilesTbody.querySelectorAll('input.filePick[type="checkbox"]');
+        for (const box of boxes) {
+          box.checked = checked;
+          const val = box.value;
+          if (checked) selectedFiles.add(val);
+          else selectedFiles.delete(val);
+          const tr = box.closest('tr');
+          if (tr) tr.classList.toggle('is-rowSelected', checked);
+        }
+        importBtn.disabled = selectedFiles.size === 0;
+        const total = boxes.length;
+        importStatus.textContent =
+          total === 0
+            ? 'Up to date'
+            : selectedFiles.size > 0
+              ? `Ready · ${selectedFiles.size} selected`
+              : 'Ready';
+        syncMissingSelectAllState();
+      }
+
+      function setAllIngestedPicks(checked) {
+        const boxes = ingestedFilesTbody.querySelectorAll('input.verifyFilePick[type="checkbox"]');
+        for (const box of boxes) {
+          box.checked = checked;
+          const val = box.value;
+          if (checked) selectedVerifyFiles.add(val);
+          else selectedVerifyFiles.delete(val);
+          const tr = box.closest('tr');
+          if (tr) tr.classList.toggle('is-rowSelected', checked);
+        }
+        if (verifyImportedBtn) verifyImportedBtn.disabled = selectedVerifyFiles.size === 0;
+        if (reimportSelectedBtn) reimportSelectedBtn.disabled = selectedVerifyFiles.size === 0;
+        syncIngestedSelectAllState();
       }
 
       async function runImport() {
@@ -526,6 +611,7 @@
           bindVerifyPickEvents();
           window.AppDashboardUi?.applyTruncationTitles?.(ingestedFilesTbody);
           renderIngestedPagination();
+          syncIngestedSelectAllState();
           window.AppDashboardInteractions?.refreshDashPage?.();
         } catch (e) {
           console.error(e);
@@ -549,8 +635,17 @@
             importBtn.disabled = selectedFiles.size === 0;
             const tr = e.target.closest('tr');
             if (tr) tr.classList.toggle('is-rowSelected', e.target.checked);
+            const total = missingFilesTbody.querySelectorAll('input.filePick[type="checkbox"]').length;
+            importStatus.textContent =
+              total === 0
+                ? 'Up to date'
+                : selectedFiles.size > 0
+                  ? `Ready · ${selectedFiles.size} selected`
+                  : 'Ready';
+            syncMissingSelectAllState();
           });
         }
+        syncMissingSelectAllState();
       }
 
       function bindVerifyPickEvents() {
@@ -564,8 +659,10 @@
             if (reimportSelectedBtn) reimportSelectedBtn.disabled = selectedVerifyFiles.size === 0;
             const tr = e.target.closest('tr');
             if (tr) tr.classList.toggle('is-rowSelected', e.target.checked);
+            syncIngestedSelectAllState();
           });
         }
+        syncIngestedSelectAllState();
       }
 
       async function refreshAll() {
@@ -575,6 +672,23 @@
         await loadMissingFiles();
         bindPickEvents();
         await loadIngestedFiles({ withOverlay: true });
+      }
+
+      if (missingSelectAll) {
+        missingSelectAll.addEventListener('change', (e) => {
+          setAllMissingPicks(!!e.target.checked);
+        });
+        missingSelectAll.addEventListener('click', (e) => {
+          e.stopPropagation();
+        });
+      }
+      if (ingestedSelectAll) {
+        ingestedSelectAll.addEventListener('change', (e) => {
+          setAllIngestedPicks(!!e.target.checked);
+        });
+        ingestedSelectAll.addEventListener('click', (e) => {
+          e.stopPropagation();
+        });
       }
 
       if (ingestedPageSizeSelect) {

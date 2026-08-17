@@ -130,3 +130,23 @@ def test_import_selected_files_flow(tmp_path):
     stats = res.json()
     assert stats["actual_cost_usd_total"] == 1.0
 
+
+
+def test_import_page_has_select_all_controls(tmp_path):
+    bills_dir = tmp_path / "bills"
+    bills_dir.mkdir(parents=True, exist_ok=True)
+    db_path = tmp_path / "cost_mgmt.sqlite3"
+    app = create_app(db_path=str(db_path), bills_dir=str(bills_dir), auto_ingest=False)
+    client = TestClient(app)
+    _create_admin(str(db_path))
+    login = client.post("/auth/login", data={"username": "admin", "password": "admin12345"})
+    assert login.status_code in {200, 303}
+
+    page = client.get("/import")
+    assert page.status_code == 200
+    assert 'id="missingSelectAll"' in page.text
+    assert 'id="ingestedSelectAll"' in page.text
+    assert "Select all missing files" in page.text
+    assert "setAllMissingPicks" in page.text
+    assert "syncMissingSelectAllState" in page.text
+    assert "indeterminate" in page.text

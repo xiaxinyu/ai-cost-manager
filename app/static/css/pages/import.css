@@ -5,18 +5,18 @@
 }
 
 .importPage .tableScroll {
-  max-height: 420px;
+  max-height: 440px;
   overflow: auto;
-  border-radius: 8px;
-  border: 1px solid rgba(148, 163, 184, 0.12);
-  margin-top: 0;
+  border-radius: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  margin-top: 4px;
 }
 
 #import-ingested .tableScroll,
 #ingestedTableHost.tableScroll {
-  height: 420px;
-  min-height: 420px;
-  max-height: 420px;
+  height: 440px;
+  min-height: 440px;
+  max-height: 440px;
 }
 
 .importPage .ingestedToolbar {
@@ -43,7 +43,7 @@
 }
 
 .importPage .ingestedPagination .pgInfo {
-  font-size: 12px;
+  font-size: 12.5px;
   color: #94a8c0;
 }
 
@@ -65,7 +65,17 @@
 
 .importPage .cellFile {
   word-break: break-word;
-  max-width: 520px;
+  max-width: 560px;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: #b6c4d6;
+}
+
+.importPage .colProject {
+  font-size: 13px;
+  font-weight: 600;
+  color: #e8eef6;
+  letter-spacing: 0.01em;
 }
 
 .importPage thead th {
@@ -73,8 +83,135 @@
   top: 0;
   background: rgba(11, 18, 32, 0.98);
   z-index: 1;
+  padding: 10px 12px;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #9fb0c6;
+}
+
+.importPage thead th .thLabel {
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
 }
 
 .importPage tbody tr:nth-child(odd) {
   background: rgba(255, 255, 255, 0.02);
+}
+
+.importPage tbody td {
+  padding: 10px 12px;
+  vertical-align: middle;
+  line-height: 1.4;
+}
+
+/* Pick / select-all column: was 44px and clipped "Pick" into "PI TYPE" */
+.importPage .dashTable .colPick {
+  width: 64px;
+  min-width: 64px;
+  max-width: 64px;
+  text-align: center;
+  padding-left: 10px;
+  padding-right: 10px;
+}
+
+.importPage .dashTable .colType {
+  width: 128px;
+  min-width: 120px;
+  max-width: 140px;
+  white-space: nowrap;
+  padding-left: 8px;
+}
+
+.importPage .dashTable .colProject {
+  width: 200px;
+  min-width: 160px;
+  max-width: 240px;
+}
+
+.importPage .dashTable .colRows {
+  width: 88px;
+  min-width: 80px;
+}
+
+.importPage .dashTable .colModified {
+  width: 168px;
+  min-width: 150px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.importPage .pickAllLabel {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  cursor: pointer;
+  user-select: none;
+  margin: 0;
+  min-height: 36px;
+}
+
+.importPage .pickAllLabel input[type="checkbox"] {
+  width: 15px;
+  height: 15px;
+  margin: 0;
+  cursor: pointer;
+  accent-color: #5eead4;
+}
+
+.importPage .pickAllCaption {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #8fa3bb;
+  line-height: 1;
+}
+
+.importPage .dashTable tbody td.colPick input[type="checkbox"] {
+  width: 15px;
+  height: 15px;
+  margin: 0;
+  vertical-align: middle;
+  accent-color: #5eead4;
+}
+
+.importPage .typeBadge {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  line-height: 1.25;
+  font-weight: 650;
+}
+
+.importPage .typeBadgeKind {
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  opacity: 0.9;
+}
+
+.importPage .typeBadgeDetail {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.importPage .importStatCard .value {
+  font-size: 18px;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+}
+
+.importPage .importStatGrid {
+  gap: 12px;
+  margin-bottom: 4px;
 }
