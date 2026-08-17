@@ -2409,6 +2409,29 @@
   letter-spacing: 0.01em;
 }
 
+.tokenPageRoot .tokenDashboard .kpiDelta {
+  margin-top: 4px;
+  font-size: 12px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+  line-height: 1.3;
+}
+
+.tokenPageRoot .tokenDashboard .kpiDelta.is-up-volume {
+  color: #7dd3fc;
+}
+
+.tokenPageRoot .tokenDashboard .kpiDelta.is-down-volume {
+  color: #94a3b8;
+}
+
+.tokenPageRoot .tokenDashboard .kpiDelta.is-flat,
+.tokenPageRoot .tokenDashboard .kpiDelta.is-na {
+  color: #94a3b8;
+  font-weight: 600;
+}
+
 .tokenPageRoot .tokenDashboard .monitorCard {
   display: flex;
   flex-direction: column;

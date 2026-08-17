@@ -2724,6 +2724,30 @@
   text-decoration: underline;
 }
 
+.costPageRoot .costDashboard .kpiDelta,
+.tokenPageRoot .tokenDashboard .kpiDelta {
+  margin-top: 4px;
+  font-size: 12px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+  line-height: 1.3;
+}
+
+.costPageRoot .costDashboard .kpiDelta.is-up {
+  color: #f87171;
+}
+
+.costPageRoot .costDashboard .kpiDelta.is-down {
+  color: #34d399;
+}
+
+.costPageRoot .costDashboard .kpiDelta.is-flat,
+.costPageRoot .costDashboard .kpiDelta.is-na {
+  color: #94a3b8;
+  font-weight: 600;
+}
+
 .costPageRoot .costTariffSubzone {
   padding-top: calc(var(--cost-gutter) + 4px);
   margin-top: 2px;

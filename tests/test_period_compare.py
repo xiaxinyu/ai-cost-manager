@@ -91,7 +91,53 @@ def test_compute_period_compare_mom() -> None:
             assert float(cmp["actual_cost_usd_total"]) == 30.0
             assert cmp["delta_pct"] == 100.0
             assert cmp["avg_daily_delta_pct"] == 100.0
+            assert cmp["mode"] == "prior_period"
+            assert cmp["label"] == "上期"
             assert get_data_as_of_utc(conn, "demo") is not None
+        finally:
+            conn.close()
+
+
+def test_compute_period_compare_prior_month() -> None:
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as tmp:
+        db_path = str(Path(tmp) / "t.sqlite3")
+        conn = sqlite3.connect(db_path)
+        conn.row_factory = sqlite3.Row
+        try:
+            init_db(conn)
+            conn.execute("INSERT OR IGNORE INTO projects(name) VALUES ('demo')")
+            # Feb full month vs Jan full month
+            rows = []
+            for day in range(1, 32):
+                rows.append((f"2024-01-{day:02d}", 10.0))
+            for day in range(1, 30):
+                rows.append((f"2024-02-{day:02d}", 20.0))
+            for i, (d, cost) in enumerate(rows):
+                conn.execute(
+                    """
+                    INSERT INTO transactions(
+                      project_name, usage_date, cost_usd, cost, currency, raw_json,
+                      source_file, source_row_index
+                    ) VALUES ('demo', ?, ?, ?, 'USD', '{}', ?, ?)
+                    """,
+                    (d, cost, cost, "/tmp/demo/month.csv", i),
+                )
+            conn.commit()
+            cmp = compute_period_compare(
+                conn,
+                "demo",
+                start="2024-02-01",
+                end="2024-02-29",
+                currency="USD",
+            )
+            assert cmp["mode"] == "prior_month"
+            assert cmp["label"] == "上月"
+            assert cmp["prev_start"] == "2024-01-01"
+            assert cmp["prev_end"] == "2024-01-31"
+            # Feb: 29*20=580, Jan: 31*10=310 → +87.1%
+            assert cmp["delta_pct"] == 87.1
         finally:
             conn.close()
 
@@ -116,6 +162,8 @@ def test_stats_api_includes_period_compare_and_data_as_of(tmp_path: Path) -> Non
     assert "period_compare" in body
     assert body["period_compare"]["prev_start"] == "2024-01-01"
     assert body["period_compare"]["delta_pct"] == 100.0
+    assert body["period_compare"]["mode"] == "prior_period"
+    assert body["period_compare"]["label"] == "上期"
     assert "data_as_of_utc" in body
     assert body["data_as_of_utc"]
 
@@ -135,6 +183,7 @@ def test_ui_contract_period_compare_and_savings_ids(tmp_path: Path) -> None:
     assert 'id="costSavingsBanner"' in cost.text
     assert 'id="actualCostPeriodCompare"' in cost.text
     assert 'id="avgDailyCostPeriodCompare"' in cost.text
+    assert 'class="sub kpiDelta"' in cost.text
     assert 'id="costDataAsOf"' in cost.text
 
     tokens = client.get("/tokens")

@@ -103,7 +103,7 @@
                       <div class="label"><span class="costPill costPill--actual">OpEx</span> Total</div>
                       <div class="value" id="actualCost">-</div>
                       <div class="sub tokenStats kpiFootnote kpiFootnote--stats" id="costStats">Max: - · Mean: - · Min: -</div>
-                      <div class="sub tokenStats kpiFootnote" id="actualCostPeriodCompare">— n/a</div>
+                      <div class="sub kpiDelta" id="actualCostPeriodCompare" title="">—</div>
                       <div id="costBudgetProgress" class="costBudgetProgress" hidden>
                         <div class="costBudgetProgressTrack" aria-hidden="true">
                           <div class="costBudgetProgressFill" id="costBudgetProgressFill"></div>
@@ -117,7 +117,7 @@
                       <div class="label">Avg / day</div>
                       <div class="value value--md" id="avgDailyCost">-</div>
                       <div class="sub tokenStats kpiFootnote">Total ÷ billed days</div>
-                      <div class="sub tokenStats kpiFootnote" id="avgDailyCostPeriodCompare">— n/a</div>
+                      <div class="sub kpiDelta" id="avgDailyCostPeriodCompare" title="">—</div>
                     </div>
                   </article>
                   <article class="monitorKpi monitorKpi--neutral">
@@ -794,16 +794,36 @@
         return window.AppMoney?.fmtCost(n, currentCurrency) ?? '-';
       }
 
-      function formatPeriodCompareFootnote(deltaPct, { prevStart, prevEnd } = {}) {
+      function applyKpiDelta(el, deltaPct, compare, { costSemantics = true } = {}) {
+        if (!el) return;
+        el.classList.remove('is-up', 'is-down', 'is-flat', 'is-na');
+        const label = compare?.label || '上期';
+        const prevStart = compare?.prev_start;
+        const prevEnd = compare?.prev_end;
+        const tip =
+          prevStart && prevEnd
+            ? `对比区间 ${prevStart} → ${prevEnd}`
+            : '无足够的上期数据可对比';
+        el.title = tip;
+
         if (deltaPct === null || deltaPct === undefined || !Number.isFinite(Number(deltaPct))) {
-          return '— n/a vs prev period';
+          el.textContent = `— vs ${label}`;
+          el.classList.add('is-na');
+          return;
         }
         const v = Number(deltaPct);
         const arrow = v > 0 ? '↑' : v < 0 ? '↓' : '→';
         const abs = Math.abs(v).toFixed(1);
-        const range =
-          prevStart && prevEnd ? ` · ${prevStart}→${prevEnd}` : '';
-        return `${arrow}${abs}% vs prev${range}`;
+        el.textContent = `${arrow}${abs}% vs ${label}`;
+        if (v === 0) {
+          el.classList.add('is-flat');
+        } else if (costSemantics) {
+          // Cost: up is worse, down is better
+          el.classList.add(v > 0 ? 'is-up' : 'is-down');
+        } else {
+          // Volume: directional only (up = accent, down = muted)
+          el.classList.add(v > 0 ? 'is-up-volume' : 'is-down-volume');
+        }
       }
 
       function formatDataAsOfLabel(iso) {
@@ -3107,22 +3127,12 @@
             avgDaily != null ? fmt2(avgDaily) : '—';
         }
         const compare = stats.period_compare || {};
-        const compareOpts = {
-          prevStart: compare.prev_start,
-          prevEnd: compare.prev_end,
-        };
-        if (actualCostPeriodCompareEl) {
-          actualCostPeriodCompareEl.textContent = formatPeriodCompareFootnote(
-            compare.delta_pct,
-            compareOpts
-          );
-        }
-        if (avgDailyCostPeriodCompareEl) {
-          avgDailyCostPeriodCompareEl.textContent = formatPeriodCompareFootnote(
-            compare.avg_daily_delta_pct,
-            compareOpts
-          );
-        }
+        applyKpiDelta(actualCostPeriodCompareEl, compare.delta_pct, compare, {
+          costSemantics: true,
+        });
+        applyKpiDelta(avgDailyCostPeriodCompareEl, compare.avg_daily_delta_pct, compare, {
+          costSemantics: true,
+        });
         if (costDataAsOfEl) {
           costDataAsOfEl.textContent = formatDataAsOfLabel(stats.data_as_of_utc);
         }

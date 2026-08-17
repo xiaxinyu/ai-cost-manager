@@ -1128,6 +1128,36 @@ def _delta_pct(current: float | None, previous: float | None) -> float | None:
     return round(((cur - prev) / abs(prev)) * 100.0, 1)
 
 
+def _last_day_of_month(d: date) -> date:
+    if d.month == 12:
+        return date(d.year + 1, 1, 1) - timedelta(days=1)
+    return date(d.year, d.month + 1, 1) - timedelta(days=1)
+
+
+def _is_full_calendar_month(start_d: date, end_d: date) -> bool:
+    return start_d.day == 1 and end_d == _last_day_of_month(start_d)
+
+
+def _prior_compare_window(
+    start_d: date, end_d: date
+) -> tuple[date, date, str, str]:
+    """Return (prev_start, prev_end, mode, label).
+
+    - Full calendar month → prior calendar month (mode=prior_month, label=上月)
+    - Otherwise → equal-length window ending the day before start
+      (mode=prior_period, label=上期)
+    """
+    if _is_full_calendar_month(start_d, end_d):
+        prev_end = start_d - timedelta(days=1)
+        prev_start = date(prev_end.year, prev_end.month, 1)
+        return prev_start, prev_end, "prior_month", "上月"
+
+    span_days = (end_d - start_d).days
+    prev_end = start_d - timedelta(days=1)
+    prev_start = prev_end - timedelta(days=span_days)
+    return prev_start, prev_end, "prior_period", "上期"
+
+
 def compute_period_compare(
     conn: sqlite3.Connection,
     project_name: str,
@@ -1137,11 +1167,15 @@ def compute_period_compare(
     currency: str | None = None,
     subproject_name: str | None = None,
 ) -> dict[str, Any]:
-    """Compare [start, end] to the previous equal-length calendar window.
+    """Compare current [start, end] to the prior window (上月 or 上期).
 
-    prev_end = start − 1 day; prev_start = prev_end − (end − start) days.
+    Prior window:
+    - if [start, end] is a full calendar month → previous calendar month
+    - else → equal-length period ending at start−1
     """
     empty: dict[str, Any] = {
+        "mode": None,
+        "label": None,
         "prev_start": None,
         "prev_end": None,
         "actual_cost_usd_total": None,
@@ -1156,9 +1190,7 @@ def compute_period_compare(
     if start_d is None or end_d is None or end_d < start_d:
         return empty
 
-    span_days = (end_d - start_d).days
-    prev_end = start_d - timedelta(days=1)
-    prev_start = prev_end - timedelta(days=span_days)
+    prev_start, prev_end, mode, label = _prior_compare_window(start_d, end_d)
 
     current = get_project_stats(
         conn,
@@ -1177,6 +1209,8 @@ def compute_period_compare(
         subproject_name=subproject_name,
     )
     return {
+        "mode": mode,
+        "label": label,
         "prev_start": prev_start.isoformat(),
         "prev_end": prev_end.isoformat(),
         "actual_cost_usd_total": previous.actual_cost_usd_total,

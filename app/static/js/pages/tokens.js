@@ -1511,18 +1511,24 @@
       els.estimatedOutput.textContent = fmtInt(stats.estimated_output_tokens ?? totals.output);
       els.estimatedTotal.textContent = fmtInt(stats.estimated_total_tokens ?? totals.total);
       if (els.totalTokensPeriodCompare) {
-        const tp = stats.period_compare?.token_delta_pct;
-        if (tp === null || tp === undefined || !Number.isFinite(Number(tp))) {
-          els.totalTokensPeriodCompare.textContent = "— n/a vs prev period";
+        const compare = stats.period_compare || {};
+        const el = els.totalTokensPeriodCompare;
+        const deltaPct = compare.token_delta_pct;
+        const label = compare.label || "上期";
+        el.classList.remove("is-up", "is-down", "is-flat", "is-na", "is-up-volume", "is-down-volume");
+        el.title =
+          compare.prev_start && compare.prev_end
+            ? `对比区间 ${compare.prev_start} → ${compare.prev_end}`
+            : "无足够的上期数据可对比";
+        if (deltaPct === null || deltaPct === undefined || !Number.isFinite(Number(deltaPct))) {
+          el.textContent = `— vs ${label}`;
+          el.classList.add("is-na");
         } else {
-          const v = Number(tp);
+          const v = Number(deltaPct);
           const arrow = v > 0 ? "↑" : v < 0 ? "↓" : "→";
-          const prev = stats.period_compare || {};
-          const range =
-            prev.prev_start && prev.prev_end
-              ? ` · ${prev.prev_start}→${prev.prev_end}`
-              : "";
-          els.totalTokensPeriodCompare.textContent = `${arrow}${Math.abs(v).toFixed(1)}% vs prev${range}`;
+          el.textContent = `${arrow}${Math.abs(v).toFixed(1)}% vs ${label}`;
+          if (v === 0) el.classList.add("is-flat");
+          else el.classList.add(v > 0 ? "is-up-volume" : "is-down-volume");
         }
       }
       if (els.tokenDataAsOf) {
