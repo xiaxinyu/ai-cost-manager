@@ -1514,12 +1514,12 @@
         const compare = stats.period_compare || {};
         const el = els.totalTokensPeriodCompare;
         const deltaPct = compare.token_delta_pct;
-        const label = compare.label || "上期";
+        const label = compare.label || "prior period";
         el.classList.remove("is-up", "is-down", "is-flat", "is-na", "is-up-volume", "is-down-volume");
         el.title =
           compare.prev_start && compare.prev_end
-            ? `对比区间 ${compare.prev_start} → ${compare.prev_end}`
-            : "无足够的上期数据可对比";
+            ? `Compared with ${compare.prev_start} → ${compare.prev_end}`
+            : "Insufficient prior-period data for comparison";
         if (deltaPct === null || deltaPct === undefined || !Number.isFinite(Number(deltaPct))) {
           el.textContent = `— vs ${label}`;
           el.classList.add("is-na");

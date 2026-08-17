@@ -535,8 +535,8 @@ def allocation_by_user_or_department(
         "dimension": dim,
         "reason": "missing_fields",
         "message": (
-            f"By {dim} allocation requires stable '{dim}' fields in billing or token CSVs "
-            "(or a mapping table). No such fields are present yet."
+            f"By {dim} allocation is unavailable: billing or token CSVs do not yet expose a stable "
+            f"'{dim}' field (or mapping table)."
         ),
         "rows": [],
     }
@@ -1143,19 +1143,19 @@ def _prior_compare_window(
 ) -> tuple[date, date, str, str]:
     """Return (prev_start, prev_end, mode, label).
 
-    - Full calendar month → prior calendar month (mode=prior_month, label=上月)
+    - Full calendar month → prior calendar month (mode=prior_month)
     - Otherwise → equal-length window ending the day before start
-      (mode=prior_period, label=上期)
+      (mode=prior_period)
     """
     if _is_full_calendar_month(start_d, end_d):
         prev_end = start_d - timedelta(days=1)
         prev_start = date(prev_end.year, prev_end.month, 1)
-        return prev_start, prev_end, "prior_month", "上月"
+        return prev_start, prev_end, "prior_month", "prior month"
 
     span_days = (end_d - start_d).days
     prev_end = start_d - timedelta(days=1)
     prev_start = prev_end - timedelta(days=span_days)
-    return prev_start, prev_end, "prior_period", "上期"
+    return prev_start, prev_end, "prior_period", "prior period"
 
 
 def compute_period_compare(
@@ -1167,7 +1167,7 @@ def compute_period_compare(
     currency: str | None = None,
     subproject_name: str | None = None,
 ) -> dict[str, Any]:
-    """Compare current [start, end] to the prior window (上月 or 上期).
+    """Compare current [start, end] to the prior window (prior month or prior period).
 
     Prior window:
     - if [start, end] is a full calendar month → previous calendar month

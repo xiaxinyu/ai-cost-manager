@@ -3343,7 +3343,7 @@
               if (!rows.length) {
                 if (altMsg) {
                   altMsg.textContent =
-                    'No subproject tags yet. Add tags via POST /api/tags (project_name, subproject_name, tag).';
+                    'No subproject tags yet. Create tags via POST /api/tags with project_name, subproject_name, and tag.';
                 }
                 return;
               }
@@ -3379,7 +3379,7 @@
             if (altMsg) {
               altMsg.textContent =
                 payload?.message ||
-                `By ${tab} requires stable fields in billing/token CSVs (deps first).`;
+                `By ${tab} allocation requires stable '${tab}' fields in billing or token CSVs.`;
             }
           } catch (e) {
             if (altMsg) altMsg.textContent = e?.message || `Failed to load by ${tab}`;

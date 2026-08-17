@@ -92,7 +92,7 @@ def test_compute_period_compare_mom() -> None:
             assert cmp["delta_pct"] == 100.0
             assert cmp["avg_daily_delta_pct"] == 100.0
             assert cmp["mode"] == "prior_period"
-            assert cmp["label"] == "上期"
+            assert cmp["label"] == "prior period"
             assert get_data_as_of_utc(conn, "demo") is not None
         finally:
             conn.close()
@@ -133,7 +133,7 @@ def test_compute_period_compare_prior_month() -> None:
                 currency="USD",
             )
             assert cmp["mode"] == "prior_month"
-            assert cmp["label"] == "上月"
+            assert cmp["label"] == "prior month"
             assert cmp["prev_start"] == "2024-01-01"
             assert cmp["prev_end"] == "2024-01-31"
             # Feb: 29*20=580, Jan: 31*10=310 → +87.1%
@@ -163,7 +163,7 @@ def test_stats_api_includes_period_compare_and_data_as_of(tmp_path: Path) -> Non
     assert body["period_compare"]["prev_start"] == "2024-01-01"
     assert body["period_compare"]["delta_pct"] == 100.0
     assert body["period_compare"]["mode"] == "prior_period"
-    assert body["period_compare"]["label"] == "上期"
+    assert body["period_compare"]["label"] == "prior period"
     assert "data_as_of_utc" in body
     assert body["data_as_of_utc"]
 

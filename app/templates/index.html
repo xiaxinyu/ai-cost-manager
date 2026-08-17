@@ -797,13 +797,13 @@
       function applyKpiDelta(el, deltaPct, compare, { costSemantics = true } = {}) {
         if (!el) return;
         el.classList.remove('is-up', 'is-down', 'is-flat', 'is-na');
-        const label = compare?.label || '上期';
+        const label = compare?.label || 'prior period';
         const prevStart = compare?.prev_start;
         const prevEnd = compare?.prev_end;
         const tip =
           prevStart && prevEnd
-            ? `对比区间 ${prevStart} → ${prevEnd}`
-            : '无足够的上期数据可对比';
+            ? `Compared with ${prevStart} → ${prevEnd}`
+            : 'Insufficient prior-period data for comparison';
         el.title = tip;
 
         if (deltaPct === null || deltaPct === undefined || !Number.isFinite(Number(deltaPct))) {
@@ -862,7 +862,7 @@
           vPct === null || vPct === undefined || !Number.isFinite(Number(vPct))
             ? '—'
             : `${Number(vPct) > 0 ? '+' : ''}${Number(vPct)}%`;
-        const outcomeLabel = z >= 0 ? 'Saved' : 'Above market';
+        const outcomeLabel = z >= 0 ? 'Below market' : 'Above market';
         const outcomeVal = fmt2(Math.abs(z));
         costSavingsBannerEl.classList.toggle('is-savings', z >= 0);
         costSavingsBannerEl.classList.toggle('is-overspend', z < 0);
@@ -2360,7 +2360,7 @@
               });
               const cum7 =
                 window.AppMoney?.roundCost?.(sma * 7) ?? Math.round(sma * 7 * 100) / 100;
-              forecastNote = ` · Forecast +7d ≈ ${fmt2(cum7)} (SMA)`;
+              forecastNote = ` · +7d forecast ≈ ${fmt2(cum7)} (7-day SMA)`;
             }
           }
         }
