@@ -411,23 +411,35 @@
 
 .verifyBanner {
   margin-top: 12px;
-  padding: 10px 12px;
+  padding: 12px 14px;
   border-radius: var(--control-radius);
-  font-size: 12px;
-  line-height: 1.4;
-  border: 1px solid rgba(173, 196, 228, 0.2);
-  background: rgba(255, 255, 255, 0.04);
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 1.45;
+  border: 1px solid rgba(173, 196, 228, 0.35);
+  background: rgba(15, 23, 42, 0.72);
+  color: #e2e8f0;
+  opacity: 1;
+}
+
+.verifyBanner[hidden] {
+  display: none !important;
 }
 
 .verifyBanner.verifyOk {
-  border-color: rgba(94, 234, 212, 0.35);
-  background: rgba(94, 234, 212, 0.08);
+  border-color: rgba(94, 234, 212, 0.55);
+  background: rgba(94, 234, 212, 0.16);
   color: #b8fff0;
 }
 
 .verifyBanner.verifyFail {
-  border-color: rgba(248, 113, 113, 0.4);
-  background: rgba(248, 113, 113, 0.1);
+  border-color: rgba(248, 113, 113, 0.55);
+  background: rgba(248, 113, 113, 0.14);
+  color: #fecaca;
+}
+
+.dataStatusBar.is-verifyWarn {
+  border-color: rgba(248, 113, 113, 0.45);
   color: #fecaca;
 }
 
@@ -644,7 +656,36 @@
 }
 
 .reportPage .dataTable tbody tr:nth-child(even) {
-  background: rgba(255, 255, 255, 0.02);
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.reportPage .dataTable tbody tr:nth-child(odd) {
+  background: rgba(255, 255, 255, 0.015);
+}
+
+.reportPage .dataTable td.num,
+.reportPage .dataTable th.num,
+.reportPage .dataTable td.tdCostActual,
+.reportPage .dataTable td.tdCostMarket,
+.reportPage .dataTable th.tdCostActual,
+.reportPage .dataTable th.tdCostMarket {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.reportAllocTabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.reportAllocAltPanel {
+  margin-top: 12px;
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(173, 196, 228, 0.16);
+  background: rgba(12, 22, 38, 0.35);
 }
 
 .reportPage .dataTable tbody tr:hover td {

@@ -28,6 +28,14 @@ from .db import (
     get_available_currencies,
     get_connection,
     get_project_stats,
+    compute_period_compare,
+    get_data_as_of_utc,
+    get_project_monthly_budget,
+    list_subproject_tags,
+    set_subproject_tag,
+    delete_subproject_tag,
+    detect_and_store_daily_cost_anomalies,
+    allocation_by_user_or_department,
     get_rows,
     get_imported_token_breakdown_by_model,
     get_imported_token_daily_by_model,
@@ -456,6 +464,22 @@ def create_app(
                 currency=currency,
                 subproject_name=subproject_name,
             )
+            compare_start = from_date or stats.min_usage_date
+            compare_end = to_date or stats.max_usage_date
+            period_compare = compute_period_compare(
+                conn,
+                project_name,
+                start=compare_start,
+                end=compare_end,
+                currency=currency or stats.currency,
+                subproject_name=subproject_name,
+            )
+            yyyymm = None
+            if compare_end:
+                yyyymm = str(compare_end)[:7].replace("-", "")
+            budget_usd = (
+                get_project_monthly_budget(conn, project_name, yyyymm) if yyyymm else None
+            )
             return JSONResponse(
                 {
                     "project": stats.project_name,
@@ -472,6 +496,10 @@ def create_app(
                     "estimated_total_tokens": stats.estimated_total_tokens,
                     "token_estimate_model": stats.token_estimate_model,
                     "token_data_source": stats.token_data_source,
+                    "period_compare": period_compare,
+                    "data_as_of_utc": get_data_as_of_utc(conn, project_name),
+                    "budget_yyyymm": yyyymm,
+                    "budget_usd": budget_usd,
                 }
             )
         finally:
@@ -1286,6 +1314,10 @@ def create_app(
             report_body["insights"] = insight_cards_to_dicts(
                 compute_report_insights(report_body)
             )
+            if project_names and len(project_names) == 1:
+                report_body["data_as_of_utc"] = get_data_as_of_utc(conn, project_names[0])
+            else:
+                report_body["data_as_of_utc"] = get_data_as_of_utc(conn, None)
             return JSONResponse(report_body)
         finally:
             conn.close()
@@ -1461,6 +1493,171 @@ def create_app(
             if row is None:
                 raise HTTPException(status_code=404, detail="Price row not found")
             return JSONResponse(row)
+        finally:
+            conn.close()
+
+    @app.get("/api/projects/{project_name}/budget")
+    def api_project_budget(
+        project_name: str,
+        yyyymm: Optional[str] = Query(default=None, description="YYYYMM"),
+        _: str = Depends(_auth_dep),
+    ) -> JSONResponse:
+        conn = get_connection(db_path)
+        try:
+            ym = (yyyymm or "").strip()
+            if not ym:
+                today = date.today()
+                ym = f"{today.year:04d}{today.month:02d}"
+            budget = get_project_monthly_budget(conn, project_name, ym)
+            return JSONResponse(
+                {
+                    "project": project_name,
+                    "yyyymm": ym,
+                    "budget_usd": budget,
+                    "editable": False,
+                }
+            )
+        finally:
+            conn.close()
+
+    @app.get("/api/projects/{project_name}/anomalies")
+    def api_project_anomalies(
+        project_name: str,
+        start_date: Optional[str] = Query(default=None),
+        end_date: Optional[str] = Query(default=None),
+        currency: Optional[str] = Query(default=None),
+        detect: bool = Query(default=True),
+        _: str = Depends(_auth_dep),
+    ) -> JSONResponse:
+        start_date, end_date = _normalize_date_range(
+            start_date, end_date, start_name="start_date", end_name="end_date"
+        )
+        conn = get_connection(db_path)
+        try:
+            detected = []
+            if detect:
+                detected = detect_and_store_daily_cost_anomalies(
+                    conn,
+                    project_name,
+                    start_date=start_date,
+                    end_date=end_date,
+                    currency=currency,
+                )
+            rows = conn.execute(
+                """
+                SELECT project_name, usage_date, metric, value, mean, stddev, z_score, detected_at
+                FROM anomaly_events
+                WHERE project_name = ?
+                  AND (? IS NULL OR usage_date >= ?)
+                  AND (? IS NULL OR usage_date <= ?)
+                ORDER BY usage_date DESC
+                """,
+                (project_name, start_date, start_date, end_date, end_date),
+            ).fetchall()
+            return JSONResponse(
+                {
+                    "project": project_name,
+                    "detected_now": detected,
+                    "events": [dict(r) for r in rows],
+                }
+            )
+        finally:
+            conn.close()
+
+    @app.get("/api/tags")
+    def api_list_tags(
+        project: Optional[str] = Query(default=None),
+        _: str = Depends(_auth_dep),
+    ) -> JSONResponse:
+        conn = get_connection(db_path)
+        try:
+            return JSONResponse({"tags": list_subproject_tags(conn, project)})
+        finally:
+            conn.close()
+
+    @app.post("/api/tags")
+    def api_create_tag(body: dict = Body(...), _: str = Depends(_auth_dep)) -> JSONResponse:
+        project_name = str(body.get("project_name") or "").strip()
+        subproject_name = str(body.get("subproject_name") or "").strip()
+        tag = str(body.get("tag") or "").strip()
+        if not project_name or not subproject_name or not tag:
+            raise HTTPException(status_code=400, detail="project_name, subproject_name, and tag are required")
+        conn = get_connection(db_path)
+        try:
+            set_subproject_tag(
+                conn,
+                project_name=project_name,
+                subproject_name=subproject_name,
+                tag=tag,
+            )
+            return JSONResponse({"ok": True})
+        finally:
+            conn.close()
+
+    @app.delete("/api/tags")
+    def api_delete_tag(
+        project_name: str = Query(...),
+        subproject_name: str = Query(...),
+        tag: str = Query(...),
+        _: str = Depends(_auth_dep),
+    ) -> JSONResponse:
+        conn = get_connection(db_path)
+        try:
+            delete_subproject_tag(
+                conn,
+                project_name=project_name,
+                subproject_name=subproject_name,
+                tag=tag,
+            )
+            return JSONResponse({"ok": True})
+        finally:
+            conn.close()
+
+    @app.get("/api/reports/allocation-by-user")
+    def api_allocation_by_user(
+        start_date: Optional[str] = Query(default=None),
+        end_date: Optional[str] = Query(default=None),
+        project_names: Optional[list[str]] = Query(default=None),
+        _: str = Depends(_auth_dep),
+    ) -> JSONResponse:
+        start_date, end_date = _normalize_date_range(
+            start_date, end_date, start_name="start_date", end_name="end_date"
+        )
+        conn = get_connection(db_path)
+        try:
+            return JSONResponse(
+                allocation_by_user_or_department(
+                    conn,
+                    dimension="user",
+                    project_names=project_names,
+                    start_date=start_date,
+                    end_date=end_date,
+                )
+            )
+        finally:
+            conn.close()
+
+    @app.get("/api/reports/allocation-by-department")
+    def api_allocation_by_department(
+        start_date: Optional[str] = Query(default=None),
+        end_date: Optional[str] = Query(default=None),
+        project_names: Optional[list[str]] = Query(default=None),
+        _: str = Depends(_auth_dep),
+    ) -> JSONResponse:
+        start_date, end_date = _normalize_date_range(
+            start_date, end_date, start_name="start_date", end_name="end_date"
+        )
+        conn = get_connection(db_path)
+        try:
+            return JSONResponse(
+                allocation_by_user_or_department(
+                    conn,
+                    dimension="department",
+                    project_names=project_names,
+                    start_date=start_date,
+                    end_date=end_date,
+                )
+            )
         finally:
             conn.close()
 

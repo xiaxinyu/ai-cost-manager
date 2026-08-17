@@ -69,6 +69,7 @@
               </div>
             </div>
             <p id="projectModelHint" class="projectModelHint costScopeMeta muted" aria-live="polite"></p>
+            <p id="costDataAsOf" class="costScopeMeta muted" aria-live="polite">Data as of: —</p>
             <p id="costSelectionHint" class="tableSelectionHint muted" hidden aria-live="polite"></p>
           </section>
 
@@ -90,6 +91,10 @@
               <span class="costSectionMeta costCurrencyBadge" id="currencyLabel"></span>
             </div>
 
+            <div id="costSavingsBanner" class="costSavingsBanner" hidden role="status" aria-live="polite">
+              <span class="costSavingsBannerText" id="costSavingsBannerText"></span>
+            </div>
+
             <div class="costStatementBody">
               <div class="costStatementMetrics">
                 <div class="costMonitorKpi costFinPrimaryKpi" aria-label="OpEx totals">
@@ -98,6 +103,13 @@
                       <div class="label"><span class="costPill costPill--actual">OpEx</span> Total</div>
                       <div class="value" id="actualCost">-</div>
                       <div class="sub tokenStats kpiFootnote kpiFootnote--stats" id="costStats">Max: - · Mean: - · Min: -</div>
+                      <div class="sub tokenStats kpiFootnote" id="actualCostPeriodCompare">— n/a</div>
+                      <div id="costBudgetProgress" class="costBudgetProgress" hidden>
+                        <div class="costBudgetProgressTrack" aria-hidden="true">
+                          <div class="costBudgetProgressFill" id="costBudgetProgressFill"></div>
+                        </div>
+                        <div class="sub tokenStats kpiFootnote" id="costBudgetProgressNote">Budget —</div>
+                      </div>
                     </div>
                   </article>
                   <article class="monitorKpi monitorKpi--neutral">
@@ -105,6 +117,7 @@
                       <div class="label">Avg / day</div>
                       <div class="value value--md" id="avgDailyCost">-</div>
                       <div class="sub tokenStats kpiFootnote">Total ÷ billed days</div>
+                      <div class="sub tokenStats kpiFootnote" id="avgDailyCostPeriodCompare">— n/a</div>
                     </div>
                   </article>
                   <article class="monitorKpi monitorKpi--neutral">
@@ -239,12 +252,16 @@
                     </p>
                   </div>
                   <div class="detailTableActions">
+                    <div class="costModelViewToggle" role="group" aria-label="By model view">
+                      <button type="button" class="btnChip is-active" id="costModelViewTableBtn" data-view="table">Table</button>
+                      <button type="button" class="btnChip" id="costModelViewBarBtn" data-view="bar">Bar view</button>
+                    </div>
                     <span id="modelSectionHint" class="detailTableDesc muted costBreakdownPanelHint" hidden></span>
                     <span id="modelTableBadge" class="tableRowBadge muted" hidden></span>
                   </div>
                 </header>
                 <div class="detailTableBody dashTablePanel modelSummaryCard">
-                <div class="tableScroll dataTableWrap dashTableShell modelSummaryTableWrap">
+                <div class="tableScroll dataTableWrap dashTableShell modelSummaryTableWrap" id="modelCostSummaryTableWrap">
                   <table class="dataTable dashTable modelSummaryTable" id="modelCostSummaryTable">
                     <thead>
                       <tr class="costColGroupRow">
@@ -283,6 +300,9 @@
                     <tbody id="modelCostSummaryTbody"></tbody>
                     <tfoot id="modelCostSummaryTfoot"></tfoot>
                   </table>
+                </div>
+                <div class="costModelBarWrap" id="costModelBarWrap" hidden>
+                  <canvas id="costModelBarChart" aria-label="Cost by model bar chart"></canvas>
                 </div>
                 </div>
               </section>
@@ -574,6 +594,20 @@
       let currentEndDate = null;
       let costDateRangePicker = null;
       const catalogMarketTotalEl = document.getElementById('catalogMarketTotal');
+      const costSavingsBannerEl = document.getElementById('costSavingsBanner');
+      const costSavingsBannerTextEl = document.getElementById('costSavingsBannerText');
+      const actualCostPeriodCompareEl = document.getElementById('actualCostPeriodCompare');
+      const avgDailyCostPeriodCompareEl = document.getElementById('avgDailyCostPeriodCompare');
+      const costDataAsOfEl = document.getElementById('costDataAsOf');
+      const costBudgetProgressEl = document.getElementById('costBudgetProgress');
+      const costBudgetProgressFillEl = document.getElementById('costBudgetProgressFill');
+      const costBudgetProgressNoteEl = document.getElementById('costBudgetProgressNote');
+      const costModelViewTableBtn = document.getElementById('costModelViewTableBtn');
+      const costModelViewBarBtn = document.getElementById('costModelViewBarBtn');
+      const modelCostSummaryTableWrapEl = document.getElementById('modelCostSummaryTableWrap');
+      const costModelBarWrapEl = document.getElementById('costModelBarWrap');
+      let chartModelBar = null;
+      let costModelViewMode = 'table';
       const catalogMarketNoteEl = document.getElementById('catalogMarketNote');
       const catalogVariancePctEl = document.getElementById('catalogVariancePct');
       const catalogVarianceNoteEl = document.getElementById('catalogVarianceNote');
@@ -708,7 +742,7 @@
         footnoteEl.hidden = parts.length === 0;
       }
 
-      function updateChartFootnote(costPoints, authoritativeActualTotal) {
+      function updateChartFootnote(costPoints, authoritativeActualTotal, forecastNote = '') {
         if (!costChartFootnoteEl) return;
         const totalActual =
           authoritativeActualTotal != null
@@ -719,7 +753,8 @@
               );
         const peak = findPeakCostDay(costPoints);
         const peakNote = peak ? ` · peak day ${peak}` : '';
-        costChartFootnoteEl.textContent = `Total CostUSD: ${fmt2(totalActual)}${peakNote} · click a day to link Billing detail`;
+        costChartFootnoteEl.textContent =
+          `Total CostUSD: ${fmt2(totalActual)}${peakNote}${forecastNote || ''} · click a day to link Billing detail`;
       }
 
       function updateSpendChartLegend() {
@@ -757,6 +792,66 @@
 
       function fmt2(n) {
         return window.AppMoney?.fmtCost(n, currentCurrency) ?? '-';
+      }
+
+      function formatPeriodCompareFootnote(deltaPct, { prevStart, prevEnd } = {}) {
+        if (deltaPct === null || deltaPct === undefined || !Number.isFinite(Number(deltaPct))) {
+          return '— n/a vs prev period';
+        }
+        const v = Number(deltaPct);
+        const arrow = v > 0 ? '↑' : v < 0 ? '↓' : '→';
+        const abs = Math.abs(v).toFixed(1);
+        const range =
+          prevStart && prevEnd ? ` · ${prevStart}→${prevEnd}` : '';
+        return `${arrow}${abs}% vs prev${range}`;
+      }
+
+      function formatDataAsOfLabel(iso) {
+        if (!iso) return 'Data as of: —';
+        const raw = String(iso).trim();
+        const m = raw.match(/^(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2})/);
+        if (m) return `Data as of: ${m[1]} ${m[2]} UTC`;
+        return `Data as of: ${raw}`;
+      }
+
+      function renderCostSavingsBanner(summary, available, authoritativeActualTotal) {
+        if (!costSavingsBannerEl || !costSavingsBannerTextEl) return;
+        const market = summary?.total_catalog_cost_usd;
+        const opex =
+          authoritativeActualTotal ??
+          summary?.total_actual_cost_usd ??
+          summary?.actual_cost_usd_total;
+        const vPct = summary?.variance_pct;
+        const ok =
+          available === true &&
+          market != null &&
+          opex != null &&
+          Number.isFinite(Number(market)) &&
+          Number.isFinite(Number(opex)) &&
+          Number(market) > 0;
+        if (!ok) {
+          costSavingsBannerEl.hidden = true;
+          costSavingsBannerEl.classList.remove('is-overspend', 'is-savings');
+          costSavingsBannerTextEl.textContent = '';
+          return;
+        }
+        const x = Number(opex);
+        const y = Number(market);
+        const z = y - x; // Market − OpEx; positive = under list (saved)
+        const vText =
+          vPct === null || vPct === undefined || !Number.isFinite(Number(vPct))
+            ? '—'
+            : `${Number(vPct) > 0 ? '+' : ''}${Number(vPct)}%`;
+        const outcomeLabel = z >= 0 ? 'Saved' : 'Above market';
+        const outcomeVal = fmt2(Math.abs(z));
+        costSavingsBannerEl.classList.toggle('is-savings', z >= 0);
+        costSavingsBannerEl.classList.toggle('is-overspend', z < 0);
+        costSavingsBannerTextEl.innerHTML =
+          `Period <span class="costPill costPill--actual">OpEx</span> ${fmt2(x)} · ` +
+          `<span class="costPill costPill--market">Market</span> ${fmt2(y)} · ` +
+          `<strong>${outcomeLabel}</strong> ${outcomeVal}` +
+          ` <span class="costSavingsBannerVar">(variance ${vText})</span>`;
+        costSavingsBannerEl.hidden = false;
       }
 
       function fmtTableAmount(n) {
@@ -990,6 +1085,7 @@
         updateChartFootnote(costPoints, authoritativeActualTotal);
 
         if (!available) {
+          renderCostSavingsBanner(null, false);
           if (costOpexCompositionRowEl) costOpexCompositionRowEl.hidden = true;
           if (catalogMarketTotalEl) catalogMarketTotalEl.textContent = '—';
           if (catalogMarketNoteEl) {
@@ -1023,6 +1119,7 @@
 
         const totalCat = summary.total_catalog_cost_usd;
         if (catalogMarketTotalEl) catalogMarketTotalEl.textContent = fmt2(totalCat);
+        renderCostSavingsBanner(summary, true, authoritativeActualTotal);
         const src = catalogPayload.token_data_source === 'imported' ? 'Imported tokens' : 'Estimated tokens';
         let note = `${src} × list USD/1M`;
         const unpriced = catalogPayload.unpriced_models || [];
@@ -1683,6 +1780,8 @@
           console.error('model summary footer failed', err);
           if (modelCostSummaryTfootEl) modelCostSummaryTfootEl.replaceChildren();
         }
+        renderModelBarChart(sorted);
+        applyCostModelViewMode(costModelViewMode);
 
         try {
           initModelSummaryTableSort();
@@ -1704,6 +1803,104 @@
                 ? `${total} rows · ${modelCount} models · ${otherCount} other`
                 : `${total} rows · ${modelCount} models`;
           }
+        }
+      }
+
+      function applyCostModelViewMode(mode) {
+        costModelViewMode = mode === 'bar' ? 'bar' : 'table';
+        costModelViewTableBtn?.classList.toggle('is-active', costModelViewMode === 'table');
+        costModelViewBarBtn?.classList.toggle('is-active', costModelViewMode === 'bar');
+        if (modelCostSummaryTableWrapEl) {
+          modelCostSummaryTableWrapEl.hidden = costModelViewMode === 'bar';
+        }
+        if (costModelBarWrapEl) {
+          costModelBarWrapEl.hidden = costModelViewMode !== 'bar';
+        }
+      }
+
+      function renderModelBarChart(rows) {
+        const canvas = document.getElementById('costModelBarChart');
+        if (!canvas || typeof Chart === 'undefined') return;
+        if (chartModelBar) {
+          chartModelBar.destroy();
+          chartModelBar = null;
+        }
+        const sorted = [...(rows || [])]
+          .map((r) => ({
+            name: r.model_name || '—',
+            opex: Number(r.actual_cost_usd) || 0,
+          }))
+          .filter((r) => r.opex > 0)
+          .sort((a, b) => b.opex - a.opex)
+          .slice(0, 20);
+        if (!sorted.length) return;
+        const labels = sorted.map((r) => r.name);
+        const data = sorted.map((r) => r.opex);
+        const colors = data.map((_, i) =>
+          i === 0 ? 'rgba(94, 234, 212, 0.85)' : 'rgba(94, 234, 212, 0.28)'
+        );
+        chartModelBar = new Chart(canvas, {
+          type: 'bar',
+          data: {
+            labels,
+            datasets: [
+              {
+                label: 'OpEx',
+                data,
+                backgroundColor: colors,
+                borderWidth: 0,
+              },
+            ],
+          },
+          options: {
+            indexAxis: 'y',
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                callbacks: {
+                  label(ctx) {
+                    return fmt2(ctx.parsed.x);
+                  },
+                },
+              },
+            },
+            scales: {
+              x: {
+                beginAtZero: true,
+                ticks: {
+                  callback(v) {
+                    return fmt2(v);
+                  },
+                },
+              },
+            },
+          },
+        });
+      }
+
+      function renderCostBudgetProgress(stats) {
+        if (!costBudgetProgressEl) return;
+        const budget = stats?.budget_usd;
+        const spent = Number(stats?.actual_cost_usd_total);
+        if (budget == null || !Number.isFinite(Number(budget)) || Number(budget) <= 0) {
+          costBudgetProgressEl.hidden = true;
+          return;
+        }
+        const b = Number(budget);
+        const pct = Number.isFinite(spent) && b > 0 ? (spent / b) * 100 : 0;
+        costBudgetProgressEl.hidden = false;
+        costBudgetProgressEl.classList.toggle('is-over', pct > 100);
+        if (costBudgetProgressFillEl) {
+          costBudgetProgressFillEl.style.width = `${Math.max(0, Math.min(pct, 100))}%`;
+        }
+        if (costBudgetProgressNoteEl) {
+          const ym = stats.budget_yyyymm || '';
+          const ymLabel =
+            ym && ym.length === 6 ? `${ym.slice(0, 4)}-${ym.slice(4, 6)}` : ym;
+          costBudgetProgressNoteEl.textContent =
+            `Period spend ${fmt2(spent)} / ${ymLabel || 'month'} budget ${fmt2(b)} (${pct.toFixed(0)}%)`;
         }
       }
 
@@ -2049,6 +2246,105 @@
         }
 
         const footnoteBase = { costPoints, authoritativeActualTotal };
+        let forecastNote = '';
+        const histLabelCount = labels.length;
+
+        // ±2σ anomaly coloring + 7-day SMA forecast on the total series.
+        const totalDsIdx = datasets.findIndex(
+          (d) => d.label === 'Total' || d.label === 'Daily cost' || (subproject && d.label === subproject)
+        );
+        const focusIdx = totalDsIdx >= 0 ? totalDsIdx : datasets.length - 1;
+        if (focusIdx >= 0 && datasets[focusIdx] && histLabelCount > 0) {
+          const seriesVals = (datasets[focusIdx].data || []).map((v) =>
+            v === null || v === undefined || Number.isNaN(Number(v)) ? null : Number(v)
+          );
+          const finite = seriesVals.filter((v) => v != null);
+          let mean = null;
+          let std = null;
+          if (finite.length >= 3) {
+            mean = finite.reduce((a, b) => a + b, 0) / finite.length;
+            const denom = Math.max(finite.length - 1, 1);
+            const varSum = finite.reduce((a, b) => a + (b - mean) ** 2, 0) / denom;
+            std = Math.sqrt(varSum);
+          }
+          const baseColor = datasets[focusIdx].borderColor || C.actual || '#5eead4';
+          const pointColors = seriesVals.map((v) => {
+            if (v == null || mean == null || std == null || std === 0) return baseColor;
+            return Math.abs(v - mean) > 2 * std ? '#f87171' : baseColor;
+          });
+          const pointRadii = seriesVals.map((v, i) => {
+            const isAnom =
+              v != null && mean != null && std != null && std > 0 && Math.abs(v - mean) > 2 * std;
+            return isAnom ? Math.max(Number(ptRTotal) || 0, 4) : ptRTotal;
+          });
+          datasets[focusIdx].pointBackgroundColor = pointColors;
+          datasets[focusIdx].pointBorderColor = pointColors;
+          datasets[focusIdx].pointRadius = pointRadii;
+          datasets[focusIdx]._anomalyMeta = { mean, std };
+
+          let lastActualIdx = -1;
+          for (let i = seriesVals.length - 1; i >= 0; i -= 1) {
+            if (seriesVals[i] != null) {
+              lastActualIdx = i;
+              break;
+            }
+          }
+          const last7 = finite.slice(-7);
+          const lastLabel = lastActualIdx >= 0 ? labels[lastActualIdx] : null;
+          if (last7.length >= 2 && lastLabel && _addDaysYmd(lastLabel, 1)) {
+            const sma = last7.reduce((a, b) => a + b, 0) / last7.length;
+            const forecastLabels = [];
+            for (let i = 1; i <= 7; i += 1) {
+              const d = _addDaysYmd(lastLabel, i);
+              if (!d) break;
+              forecastLabels.push(d);
+            }
+            if (forecastLabels.length === 7) {
+              labels.push(...forecastLabels);
+              for (const ds of datasets) {
+                const pad = Array(7).fill(null);
+                ds.data = [...(ds.data || []), ...pad];
+                if (Array.isArray(ds.pointBackgroundColor)) {
+                  ds.pointBackgroundColor = [
+                    ...ds.pointBackgroundColor,
+                    ...Array(7).fill('transparent'),
+                  ];
+                  ds.pointBorderColor = [
+                    ...(ds.pointBorderColor || []),
+                    ...Array(7).fill('transparent'),
+                  ];
+                }
+                if (Array.isArray(ds.pointRadius)) {
+                  ds.pointRadius = [...ds.pointRadius, ...Array(7).fill(0)];
+                }
+              }
+              const forecastData = Array(histLabelCount).fill(null);
+              forecastData[lastActualIdx] = seriesVals[lastActualIdx];
+              for (let i = 0; i < 7; i += 1) {
+                forecastData.push(sma);
+              }
+              datasets.push({
+                label: 'Forecast +7d',
+                fullLabel: '7-day moving-average forecast (display only)',
+                data: forecastData,
+                borderColor: 'rgba(148, 163, 184, 0.85)',
+                backgroundColor: 'transparent',
+                borderDash: [6, 4],
+                fill: false,
+                tension: 0,
+                pointRadius: 0,
+                pointHoverRadius: 3,
+                spanGaps: true,
+                unitType: 'currency',
+                order: 50,
+              });
+              const cum7 =
+                window.AppMoney?.roundCost?.(sma * 7) ?? Math.round(sma * 7 * 100) / 100;
+              forecastNote = ` · Forecast +7d ≈ ${fmt2(cum7)} (SMA)`;
+            }
+          }
+        }
+
         chartMarket = new Chart(ctx, {
           type: 'line',
           data: { labels, datasets },
@@ -2064,6 +2360,18 @@
                   const v = ctx.parsed?.y;
                   if (v === null || v === undefined || Number.isNaN(v)) return `${name}: -`;
                   const val = window.AppMoney?.fmtCost(v, currentCurrency) ?? '-';
+                  const meta = ds._anomalyMeta;
+                  if (
+                    meta?.mean != null &&
+                    Number.isFinite(meta.mean) &&
+                    meta.mean > 0 &&
+                    ctx.dataIndex < histLabelCount
+                  ) {
+                    const ratio = Number(v) / meta.mean;
+                    if (Number.isFinite(ratio)) {
+                      return `${name}: ${val} · avg/day ${fmt2(meta.mean)} · ${ratio.toFixed(1)}x`;
+                    }
+                  }
                   return `${name}: ${val}`;
                 },
               },
@@ -2077,11 +2385,13 @@
                 applyCostDaySelection(null);
                 updateChartFootnote(
                   footnoteBase.costPoints,
-                  footnoteBase.authoritativeActualTotal
+                  footnoteBase.authoritativeActualTotal,
+                  forecastNote
                 );
                 return;
               }
               const idx = elements[0].index;
+              if (idx >= histLabelCount) return;
               const date = labels[idx];
               const dsIdx = elements[0].datasetIndex;
               const val = datasets[dsIdx]?.data?.[idx];
@@ -2094,6 +2404,7 @@
             ...chartPluginsExtra(),
           ],
         });
+        updateChartFootnote(costPoints, authoritativeActualTotal, forecastNote);
       }
 
       function fmtTs(ts) {
@@ -2795,6 +3106,27 @@
           avgDailyCostEl.textContent =
             avgDaily != null ? fmt2(avgDaily) : '—';
         }
+        const compare = stats.period_compare || {};
+        const compareOpts = {
+          prevStart: compare.prev_start,
+          prevEnd: compare.prev_end,
+        };
+        if (actualCostPeriodCompareEl) {
+          actualCostPeriodCompareEl.textContent = formatPeriodCompareFootnote(
+            compare.delta_pct,
+            compareOpts
+          );
+        }
+        if (avgDailyCostPeriodCompareEl) {
+          avgDailyCostPeriodCompareEl.textContent = formatPeriodCompareFootnote(
+            compare.avg_daily_delta_pct,
+            compareOpts
+          );
+        }
+        if (costDataAsOfEl) {
+          costDataAsOfEl.textContent = formatDataAsOfLabel(stats.data_as_of_utc);
+        }
+        renderCostBudgetProgress(stats);
         if (periodFootnoteEl) {
           periodFootnoteEl.textContent = stats.currency ? `${stats.currency} · in-scope dates` : 'Data range in scope';
         }
@@ -2991,6 +3323,8 @@
       exportScopeBtn?.addEventListener('click', () => {
         exportModelDailyCsv();
       });
+      costModelViewTableBtn?.addEventListener('click', () => applyCostModelViewMode('table'));
+      costModelViewBarBtn?.addEventListener('click', () => applyCostModelViewMode('bar'));
       document.querySelector('.costDashboard .filterBar')?.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') {
           e.preventDefault();
@@ -3093,6 +3427,40 @@
       if (logoutBtnTop) {
         logoutBtnTop.addEventListener('click', doLogout);
       }
+
+      (function bindCostJumpNavActive() {
+        const nav = document.querySelector('.costNav');
+        if (!nav) return;
+        const links = [...nav.querySelectorAll('a.dashSectionNavLink[href^="#"]')];
+        if (!links.length || !window.IntersectionObserver) return;
+        const sections = links
+          .map((a) => ({
+            link: a,
+            el: document.querySelector(a.getAttribute('href')),
+          }))
+          .filter((x) => x.el);
+        const visible = new Map();
+        const obs = new IntersectionObserver(
+          (entries) => {
+            for (const entry of entries) {
+              visible.set(entry.target.id, entry.isIntersecting ? entry.intersectionRatio : 0);
+            }
+            let bestId = null;
+            let bestRatio = 0;
+            for (const [id, ratio] of visible.entries()) {
+              if (ratio > bestRatio) {
+                bestRatio = ratio;
+                bestId = id;
+              }
+            }
+            for (const { link, el } of sections) {
+              link.classList.toggle('is-navActive', !!bestId && el.id === bestId);
+            }
+          },
+          { rootMargin: '-18% 0px -55% 0px', threshold: [0, 0.2, 0.45, 0.7] }
+        );
+        for (const { el } of sections) obs.observe(el);
+      })();
     </script>
   </body>
 </html>

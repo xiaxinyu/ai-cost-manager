@@ -1030,6 +1030,120 @@
   margin-top: 2px;
 }
 
+.costSavingsBanner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 12px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(94, 234, 212, 0.35);
+  background: linear-gradient(
+    120deg,
+    rgba(94, 234, 212, 0.12) 0%,
+    rgba(167, 139, 250, 0.1) 100%
+  );
+  font-size: 13px;
+  font-weight: 600;
+  color: #e2e8f0;
+  line-height: 1.45;
+}
+
+.costSavingsBanner.is-savings {
+  border-color: rgba(52, 211, 153, 0.45);
+  background: linear-gradient(
+    120deg,
+    rgba(52, 211, 153, 0.14) 0%,
+    rgba(94, 234, 212, 0.08) 100%
+  );
+}
+
+.costSavingsBanner.is-overspend {
+  border-color: rgba(248, 113, 113, 0.45);
+  background: linear-gradient(
+    120deg,
+    rgba(248, 113, 113, 0.12) 0%,
+    rgba(251, 191, 36, 0.06) 100%
+  );
+}
+
+.costSavingsBanner[hidden] {
+  display: none !important;
+}
+
+.costSavingsBannerText {
+  font-variant-numeric: tabular-nums;
+}
+
+.costSavingsBannerVar {
+  font-weight: 500;
+  color: var(--text-muted, #94a3b8);
+  font-size: 12px;
+}
+
+.costBudgetProgress {
+  margin-top: 8px;
+  width: 100%;
+}
+
+.costBudgetProgressTrack {
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.18);
+  overflow: hidden;
+}
+
+.costBudgetProgressFill {
+  height: 100%;
+  width: 0%;
+  border-radius: inherit;
+  background: rgba(94, 234, 212, 0.85);
+  transition: width 0.25s ease;
+}
+
+.costBudgetProgress.is-over .costBudgetProgressFill {
+  background: rgba(248, 113, 113, 0.9);
+}
+
+.costModelViewToggle {
+  display: inline-flex;
+  gap: 4px;
+  margin-right: 8px;
+}
+
+.costModelBarWrap {
+  height: 280px;
+  margin-top: 10px;
+  position: relative;
+}
+
+.costModelBarWrap canvas {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.dashSectionNavLink.is-navActive {
+  color: #b8fff0;
+  border-color: rgba(94, 234, 212, 0.45);
+  background: rgba(94, 234, 212, 0.1);
+}
+
+.costPageRoot .costDashboard .dataTable.modelSummaryTable tbody tr:nth-child(odd) td,
+.costPageRoot .costDashboard .dataTable.resourceBillingTable tbody tr:nth-child(odd) td,
+.costPageRoot .costDashboard .dataTable.lineItemsTable tbody tr:nth-child(odd) td {
+  background: rgba(148, 163, 184, 0.04);
+}
+
+.costPageRoot .costDashboard .dataTable td.num,
+.costPageRoot .costDashboard .dataTable th.num,
+.costPageRoot .costDashboard .dataTable td.tdCostActual,
+.costPageRoot .costDashboard .dataTable td.tdCostMarket,
+.costPageRoot .costDashboard .dataTable th.tdCostActual,
+.costPageRoot .costDashboard .dataTable th.tdCostMarket {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
 .costFinBenchmarkKpi {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   margin-top: 2px;

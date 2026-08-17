@@ -49,6 +49,8 @@
     inputStats: document.getElementById("inputStats"),
     outputStats: document.getElementById("outputStats"),
     totalStats: document.getElementById("totalStats"),
+    totalTokensPeriodCompare: document.getElementById("totalTokensPeriodCompare"),
+    tokenDataAsOf: document.getElementById("tokenDataAsOf"),
     tokenModel: document.getElementById("tokenModel"),
     tokenRegion: document.getElementById("tokenRegion"),
     tokenMetaExtra: document.getElementById("tokenMetaExtra"),
@@ -1508,6 +1510,32 @@
       els.estimatedInput.textContent = fmtInt(stats.estimated_input_tokens ?? totals.input);
       els.estimatedOutput.textContent = fmtInt(stats.estimated_output_tokens ?? totals.output);
       els.estimatedTotal.textContent = fmtInt(stats.estimated_total_tokens ?? totals.total);
+      if (els.totalTokensPeriodCompare) {
+        const tp = stats.period_compare?.token_delta_pct;
+        if (tp === null || tp === undefined || !Number.isFinite(Number(tp))) {
+          els.totalTokensPeriodCompare.textContent = "— n/a vs prev period";
+        } else {
+          const v = Number(tp);
+          const arrow = v > 0 ? "↑" : v < 0 ? "↓" : "→";
+          const prev = stats.period_compare || {};
+          const range =
+            prev.prev_start && prev.prev_end
+              ? ` · ${prev.prev_start}→${prev.prev_end}`
+              : "";
+          els.totalTokensPeriodCompare.textContent = `${arrow}${Math.abs(v).toFixed(1)}% vs prev${range}`;
+        }
+      }
+      if (els.tokenDataAsOf) {
+        const iso = stats.data_as_of_utc;
+        if (!iso) {
+          els.tokenDataAsOf.textContent = "Data as of: —";
+        } else {
+          const m = String(iso).match(/^(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2})/);
+          els.tokenDataAsOf.textContent = m
+            ? `Data as of: ${m[1]} ${m[2]} UTC`
+            : `Data as of: ${iso}`;
+        }
+      }
       const range = resolveTokenDateRange(series, stats);
       updateMetricPanelScope(project, subproject, range);
       renderSubprojectTokenStrip(series, subproject);
@@ -1766,4 +1794,46 @@
   }
 
   init();
+
+  (function wireGrafanaLink() {
+    const link = document.getElementById("openGrafanaLink");
+    const url = String(window.COST_MGMT_GRAFANA_URL || "").trim();
+    if (!link || !url) return;
+    link.href = url;
+    link.hidden = false;
+  })();
+
+  (function bindTokenJumpNavActive() {
+    const nav = document.querySelector(".tokenNav");
+    if (!nav) return;
+    const links = [...nav.querySelectorAll('a.dashSectionNavLink[href^="#"]')];
+    if (!links.length || !window.IntersectionObserver) return;
+    const sections = links
+      .map((a) => ({
+        link: a,
+        el: document.querySelector(a.getAttribute("href")),
+      }))
+      .filter((x) => x.el);
+    const visible = new Map();
+    const obs = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          visible.set(entry.target.id, entry.isIntersecting ? entry.intersectionRatio : 0);
+        }
+        let bestId = null;
+        let bestRatio = 0;
+        for (const [id, ratio] of visible.entries()) {
+          if (ratio > bestRatio) {
+            bestRatio = ratio;
+            bestId = id;
+          }
+        }
+        for (const { link, el } of sections) {
+          link.classList.toggle("is-navActive", !!bestId && el.id === bestId);
+        }
+      },
+      { rootMargin: "-18% 0px -55% 0px", threshold: [0, 0.2, 0.45, 0.7] }
+    );
+    for (const { el } of sections) obs.observe(el);
+  })();
 })();

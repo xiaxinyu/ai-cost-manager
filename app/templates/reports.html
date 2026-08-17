@@ -76,6 +76,7 @@
               </div>
             </div>
             <div id="verifyResult" class="verifyBanner" hidden role="status"></div>
+            <p id="reportDataAsOf" class="reportScopeMeta muted" aria-live="polite">Data as of: —</p>
           </section>
 
           <div id="reportStatusBar" class="dataStatusBar dataStatusBar--compact" hidden aria-live="polite" aria-label="Load summary"></div>
@@ -399,6 +400,12 @@
               <div>
                 <h3 class="panelTitle">Daily average billing</h3>
                 <p class="tableNote panelDesc">Two variance views: <strong>OpEx total vs market</strong> (full invoice, matches Income Statement) and <strong>Meter vs market</strong> (token meter only, excludes platform).</p>
+                <div class="reportAllocTabs" role="tablist" aria-label="Allocation dimensions">
+                  <button type="button" class="btnChip is-active" id="reportAllocTabProject" data-alloc-tab="project">By project</button>
+                  <button type="button" class="btnChip" id="reportAllocTabUser" data-alloc-tab="user">By user</button>
+                  <button type="button" class="btnChip" id="reportAllocTabDept" data-alloc-tab="department">By department</button>
+                  <button type="button" class="btnChip" id="reportAllocTabTag" data-alloc-tab="tag">By tag</button>
+                </div>
               </div>
               <div class="reportPanelToolbarActions">
                 <div class="reportVarianceChipGroup" id="reportAllocVarianceChipGroup">
@@ -443,6 +450,20 @@
                   <tr><td colspan="9" class="muted emptyRow">Load a report to see project averages.</td></tr>
                 </tbody>
               </table>
+            </div>
+            <div id="reportAllocAltPanel" class="reportAllocAltPanel" hidden>
+              <p class="muted" id="reportAllocAltMessage">—</p>
+              <div class="tableScroll" hidden id="reportAllocAltTableWrap">
+                <table class="dataTable dashTable" id="reportAllocAltTable">
+                  <thead>
+                    <tr>
+                      <th scope="col">Key</th>
+                      <th class="num" scope="col">Cost</th>
+                    </tr>
+                  </thead>
+                  <tbody id="reportAllocAltTbody"></tbody>
+                </table>
+              </div>
             </div>
             <details class="reportCollapseDetails reportAllocTokenDetails" id="reportAllocTokenDetails">
               <summary>Token volume &amp; share <span id="reportAllocTokenHint" class="reportCollapseHint muted"></span></summary>
@@ -1905,6 +1926,18 @@
 
       function applyReportPayload(report) {
         lastReport = report;
+        const asOfEl = document.getElementById('reportDataAsOf');
+        if (asOfEl) {
+          const iso = report.data_as_of_utc;
+          if (!iso) {
+            asOfEl.textContent = 'Data as of: —';
+          } else {
+            const m = String(iso).match(/^(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2})/);
+            asOfEl.textContent = m
+              ? `Data as of: ${m[1]} ${m[2]} UTC`
+              : `Data as of: ${iso}`;
+          }
+        }
         const currencyOptions = report.currency_options || [];
         const currencySelect = document.getElementById('currencySelect');
         if (!currencySelect) return;
@@ -3197,18 +3230,33 @@
           try {
             const res = await fetchVerify('deep');
             const el = document.getElementById('verifyResult');
+            const statusBar = document.getElementById('reportStatusBar');
             if (el) {
               const total = (res?.checks || []).length;
               const failed = res?.failed_count ?? 0;
               el.hidden = false;
               el.classList.remove('verifyOk', 'verifyFail');
+              let summary = '';
               if (res?.ok) {
                 el.classList.add('verifyOk');
-                el.textContent = `Verify OK — ${total} checks passed.`;
+                summary = `Verify OK — ${total} checks passed.`;
+                el.textContent = summary;
               } else {
                 const names = (res?.failed_checks || []).slice(0, 5).join(', ');
                 el.classList.add('verifyFail');
-                el.textContent = `Verify failed — ${failed} of ${total} checks failed.${names ? ` ${names}` : ''}`;
+                summary = `Verify failed — ${failed} of ${total} checks failed.${names ? ` ${names}` : ''}`;
+                el.textContent = summary;
+              }
+              if (statusBar) {
+                statusBar.hidden = false;
+                statusBar.classList.toggle('is-verifyWarn', !res?.ok);
+                let pill = statusBar.querySelector('.statusPill--verify');
+                if (!pill) {
+                  pill = document.createElement('span');
+                  pill.className = 'statusPill statusPill--verify';
+                  statusBar.prepend(pill);
+                }
+                pill.textContent = summary;
               }
             }
           } catch (e) {
@@ -3265,6 +3313,85 @@
 
       bindTablePager();
       bindProjectBreakdownTable();
+
+      (function bindReportAllocTabs() {
+        const tabs = document.querySelectorAll('[data-alloc-tab]');
+        const projectTable = document.querySelector('#projectSummariesTable')?.closest('.tableScroll');
+        const altPanel = document.getElementById('reportAllocAltPanel');
+        const altMsg = document.getElementById('reportAllocAltMessage');
+        const altWrap = document.getElementById('reportAllocAltTableWrap');
+        const altTbody = document.getElementById('reportAllocAltTbody');
+
+        async function showTab(tab) {
+          for (const btn of tabs) {
+            btn.classList.toggle('is-active', btn.getAttribute('data-alloc-tab') === tab);
+          }
+          if (tab === 'project') {
+            if (projectTable) projectTable.hidden = false;
+            if (altPanel) altPanel.hidden = true;
+            return;
+          }
+          if (projectTable) projectTable.hidden = true;
+          if (altPanel) altPanel.hidden = false;
+          if (altWrap) altWrap.hidden = true;
+          if (altTbody) altTbody.replaceChildren();
+
+          if (tab === 'tag') {
+            try {
+              const tags = await window.AppHttp.getJson('/api/tags');
+              const rows = tags?.tags || [];
+              if (!rows.length) {
+                if (altMsg) {
+                  altMsg.textContent =
+                    'No subproject tags yet. Add tags via POST /api/tags (project_name, subproject_name, tag).';
+                }
+                return;
+              }
+              const byTag = new Map();
+              for (const r of rows) {
+                const t = r.tag || '—';
+                byTag.set(t, (byTag.get(t) || 0) + 1);
+              }
+              if (altMsg) altMsg.textContent = `${byTag.size} tag(s) · ${rows.length} assignment(s)`;
+              if (altWrap) altWrap.hidden = false;
+              for (const [tag, count] of [...byTag.entries()].sort((a, b) => b[1] - a[1])) {
+                const tr = document.createElement('tr');
+                const td1 = document.createElement('td');
+                td1.textContent = tag;
+                const td2 = document.createElement('td');
+                td2.className = 'num';
+                td2.textContent = String(count);
+                tr.append(td1, td2);
+                altTbody?.appendChild(tr);
+              }
+            } catch (e) {
+              if (altMsg) altMsg.textContent = e?.message || 'Failed to load tags';
+            }
+            return;
+          }
+
+          const endpoint =
+            tab === 'department'
+              ? '/api/reports/allocation-by-department'
+              : '/api/reports/allocation-by-user';
+          try {
+            const payload = await window.AppHttp.getJson(endpoint);
+            if (altMsg) {
+              altMsg.textContent =
+                payload?.message ||
+                `By ${tab} requires stable fields in billing/token CSVs (deps first).`;
+            }
+          } catch (e) {
+            if (altMsg) altMsg.textContent = e?.message || `Failed to load by ${tab}`;
+          }
+        }
+
+        for (const btn of tabs) {
+          btn.addEventListener('click', () => {
+            showTab(btn.getAttribute('data-alloc-tab') || 'project').catch((e) => console.error(e));
+          });
+        }
+      })();
 
       (function bindReportJumpNavActive() {
         const nav = document.querySelector('.reportNav');

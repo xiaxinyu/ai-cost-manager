@@ -6,7 +6,7 @@
     <title>Estimate - Models Cost Management</title>
     <link rel="stylesheet" href="/static/css/app-shell.css" />
     <link rel="stylesheet" href="/static/css/page-common.css" />
-    <link rel="stylesheet" href="/static/css/pages/estimate.css?v=20260731-team" />
+    <link rel="stylesheet" href="/static/css/pages/estimate.css?v=20260817-presets" />
     <link rel="stylesheet" href="/static/css/layout-pro.css" />
     <link rel="stylesheet" href="/static/css/dashboard-shared.css?v=20260710-table-unify" />
   </head>
@@ -34,6 +34,13 @@
               </div>
             </div>
           </header>
+
+          <nav class="dashSectionNav card estimateNav estimateNavSticky" aria-label="Estimate sections">
+            <span class="dashSectionNavLabel muted">Jump</span>
+            <a class="dashSectionNavLink" href="#estimateForm">Inputs</a>
+            <a class="dashSectionNavLink" href="#estimateKpiGrid">Projected cost</a>
+            <a class="dashSectionNavLink" href="#estimateRatesCard">Unit rates</a>
+          </nav>
 
           <section class="card estimateFilterCard filterCard" aria-label="Estimate inputs">
             <div class="filterCardHead filterCardHead--compact">
@@ -77,6 +84,19 @@
               </div>
             </div>
 
+            <div class="estimatePresetRow" role="group" aria-label="Scenario presets">
+              <span class="estimatePresetLabel muted">Presets</span>
+              <button type="button" class="btn estimatePresetBtn" id="estimatePresetSolo" data-preset="solo">
+                Solo · 2M in / 200k out / 1人
+              </button>
+              <button type="button" class="btn estimatePresetBtn" id="estimatePresetTeam5" data-preset="team5">
+                Team5 · 1M in / 100k out / 5人
+              </button>
+              <button type="button" class="btn estimatePresetBtn" id="estimatePresetTeam10" data-preset="team10">
+                Team10 · 500k in / 50k out / 10人
+              </button>
+            </div>
+
             <div class="estimateRateStrip" id="estimateRateStrip" hidden aria-live="polite">
               <div class="estimateRateChip estimateRateChip--market">
                 <span class="estimateRateChipKey"><span class="costPill costPill--market">Market</span> USD/1M</span>
@@ -89,7 +109,7 @@
             </div>
 
             <p class="estimateHint muted" id="estimateHint" aria-live="polite">
-              Select a model and enter daily tokens to compare Market vs OpEx spend.
+              Need: model + daily Input/Output tokens per person (use a preset or auto-fill from history)
             </p>
             <div id="estimateStatusBar" class="dataStatusBar dataStatusBar--compact" hidden aria-live="polite"></div>
           </section>
@@ -155,6 +175,9 @@
                   </div>
                 </div>
               </article>
+            </div>
+            <div class="estimateChartWrap" id="estimateChartWrap" hidden>
+              <canvas id="estimateMarketOpexChart" aria-label="Market vs OpEx by horizon"></canvas>
             </div>
             <div class="tableScroll estimateTableScroll">
               <table class="dataTable dashTable estimateProjectionTable" id="reportCostProjectionTable">
@@ -256,12 +279,15 @@
       </main>
     </div>
 
+    <script src="/static/js/chart.umd.min.js"></script>
+    <script src="/static/js/chart-plugins.js"></script>
+    <script src="/static/js/chart-style.js"></script>
     <script src="/static/js/money.js"></script>
     <script src="/static/js/http.js"></script>
     <script src="/static/js/app-shell.js"></script>
     <script src="/static/js/cost-semantics.js?v=20260710-opex"></script>
     <script src="/static/js/unit-price-table.js?v=20260731-proj"></script>
     <script src="/static/js/cost-projection.js?v=20260731-team"></script>
-    <script src="/static/js/pages/estimate.js?v=20260731-team"></script>
+    <script src="/static/js/pages/estimate.js?v=20260817-presets"></script>
   </body>
 </html>

@@ -5,7 +5,7 @@ import os
 import re
 import sqlite3
 from dataclasses import dataclass
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Iterable
 
@@ -22,7 +22,7 @@ from .meter_match import (
 )
 
 
-SCHEMA_VERSION = 11
+SCHEMA_VERSION = 12
 
 EXPECTED_CSV_COLUMNS = [
     "UsageDate",
@@ -252,6 +252,36 @@ def init_db(conn: sqlite3.Connection) -> None:
 
         CREATE INDEX IF NOT EXISTS idx_ingested_token_metric_files_project_name
             ON ingested_token_metric_files(project_name);
+
+        CREATE TABLE IF NOT EXISTS project_monthly_budgets (
+            project_name TEXT NOT NULL,
+            yyyymm TEXT NOT NULL,
+            budget_usd NUMERIC NOT NULL,
+            PRIMARY KEY (project_name, yyyymm)
+        );
+
+        CREATE TABLE IF NOT EXISTS subproject_tags (
+            project_name TEXT NOT NULL,
+            subproject_name TEXT NOT NULL,
+            tag TEXT NOT NULL,
+            PRIMARY KEY (project_name, subproject_name, tag)
+        );
+
+        CREATE TABLE IF NOT EXISTS anomaly_events (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            project_name TEXT NOT NULL,
+            usage_date TEXT NOT NULL,
+            metric TEXT NOT NULL,
+            value REAL,
+            mean REAL,
+            stddev REAL,
+            z_score REAL,
+            detected_at TEXT NOT NULL DEFAULT (datetime('now')),
+            UNIQUE (project_name, usage_date, metric)
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_anomaly_events_project_date
+            ON anomaly_events(project_name, usage_date);
         """
     )
     conn.execute(
@@ -279,6 +309,237 @@ def init_db(conn: sqlite3.Connection) -> None:
     _migrate_token_subproject_v1(conn)
     _migrate_model_prices_source_detail_json(conn)
     _ensure_price_source_catalog(conn)
+    _ensure_roadmap_tables_v12(conn)
+
+
+def _ensure_roadmap_tables_v12(conn: sqlite3.Connection) -> None:
+    """Additive tables for budget / tags / anomaly (schema v12)."""
+    conn.executescript(
+        """
+        CREATE TABLE IF NOT EXISTS project_monthly_budgets (
+            project_name TEXT NOT NULL,
+            yyyymm TEXT NOT NULL,
+            budget_usd NUMERIC NOT NULL,
+            PRIMARY KEY (project_name, yyyymm)
+        );
+        CREATE TABLE IF NOT EXISTS subproject_tags (
+            project_name TEXT NOT NULL,
+            subproject_name TEXT NOT NULL,
+            tag TEXT NOT NULL,
+            PRIMARY KEY (project_name, subproject_name, tag)
+        );
+        CREATE TABLE IF NOT EXISTS anomaly_events (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            project_name TEXT NOT NULL,
+            usage_date TEXT NOT NULL,
+            metric TEXT NOT NULL,
+            value REAL,
+            mean REAL,
+            stddev REAL,
+            z_score REAL,
+            detected_at TEXT NOT NULL DEFAULT (datetime('now')),
+            UNIQUE (project_name, usage_date, metric)
+        );
+        CREATE INDEX IF NOT EXISTS idx_anomaly_events_project_date
+            ON anomaly_events(project_name, usage_date);
+        """
+    )
+    conn.commit()
+
+
+def get_project_monthly_budget(
+    conn: sqlite3.Connection,
+    project_name: str,
+    yyyymm: str,
+) -> float | None:
+    row = conn.execute(
+        """
+        SELECT budget_usd FROM project_monthly_budgets
+        WHERE project_name = ? AND yyyymm = ?
+        """,
+        (project_name, yyyymm),
+    ).fetchone()
+    if not row:
+        return None
+    return round_cost(_safe_float(row["budget_usd"]))
+
+
+def upsert_project_monthly_budget(
+    conn: sqlite3.Connection,
+    project_name: str,
+    yyyymm: str,
+    budget_usd: float,
+) -> None:
+    conn.execute(
+        """
+        INSERT INTO project_monthly_budgets(project_name, yyyymm, budget_usd)
+        VALUES (?, ?, ?)
+        ON CONFLICT(project_name, yyyymm) DO UPDATE SET budget_usd = excluded.budget_usd
+        """,
+        (project_name, yyyymm, float(budget_usd)),
+    )
+    conn.commit()
+
+
+def list_subproject_tags(
+    conn: sqlite3.Connection,
+    project_name: str | None = None,
+) -> list[dict[str, str]]:
+    where = ""
+    params: tuple[object, ...] = ()
+    if project_name:
+        where = " WHERE project_name = ?"
+        params = (project_name,)
+    rows = conn.execute(
+        f"""
+        SELECT project_name, subproject_name, tag
+        FROM subproject_tags{where}
+        ORDER BY project_name, tag, subproject_name
+        """,
+        params,
+    ).fetchall()
+    return [
+        {
+            "project_name": r["project_name"],
+            "subproject_name": r["subproject_name"],
+            "tag": r["tag"],
+        }
+        for r in rows
+    ]
+
+
+def set_subproject_tag(
+    conn: sqlite3.Connection,
+    *,
+    project_name: str,
+    subproject_name: str,
+    tag: str,
+) -> None:
+    conn.execute(
+        """
+        INSERT OR IGNORE INTO subproject_tags(project_name, subproject_name, tag)
+        VALUES (?, ?, ?)
+        """,
+        (project_name, subproject_name, tag),
+    )
+    conn.commit()
+
+
+def delete_subproject_tag(
+    conn: sqlite3.Connection,
+    *,
+    project_name: str,
+    subproject_name: str,
+    tag: str,
+) -> None:
+    conn.execute(
+        """
+        DELETE FROM subproject_tags
+        WHERE project_name = ? AND subproject_name = ? AND tag = ?
+        """,
+        (project_name, subproject_name, tag),
+    )
+    conn.commit()
+
+
+def detect_and_store_daily_cost_anomalies(
+    conn: sqlite3.Connection,
+    project_name: str,
+    *,
+    start_date: str | None = None,
+    end_date: str | None = None,
+    currency: str | None = None,
+    z_threshold: float = 2.0,
+) -> list[dict[str, Any]]:
+    """Detect ±2σ daily cost outliers and upsert into anomaly_events."""
+    where = ["project_name = ?"]
+    params: list[object] = [project_name]
+    if start_date:
+        where.append("usage_date >= ?")
+        params.append(start_date)
+    if end_date:
+        where.append("usage_date <= ?")
+        params.append(end_date)
+    if currency:
+        where.append("currency = ?")
+        params.append(currency)
+    rows = conn.execute(
+        f"""
+        SELECT usage_date AS d, COALESCE(SUM(cost_usd), 0) AS cost_usd
+        FROM transactions
+        WHERE {' AND '.join(where)}
+        GROUP BY usage_date
+        ORDER BY usage_date
+        """,
+        tuple(params),
+    ).fetchall()
+    values = [float(r["cost_usd"] or 0) for r in rows]
+    if len(values) < 3:
+        return []
+    mean = sum(values) / len(values)
+    # Sample stddev so a single spike can exceed ±2σ with small n.
+    denom = max(len(values) - 1, 1)
+    var = sum((v - mean) ** 2 for v in values) / denom
+    std = var ** 0.5
+    if std <= 0:
+        return []
+    out: list[dict[str, Any]] = []
+    for r, v in zip(rows, values):
+        z = (v - mean) / std
+        if abs(z) <= z_threshold:
+            continue
+        conn.execute(
+            """
+            INSERT INTO anomaly_events(
+              project_name, usage_date, metric, value, mean, stddev, z_score
+            ) VALUES (?, ?, 'daily_cost_usd', ?, ?, ?, ?)
+            ON CONFLICT(project_name, usage_date, metric) DO UPDATE SET
+              value = excluded.value,
+              mean = excluded.mean,
+              stddev = excluded.stddev,
+              z_score = excluded.z_score,
+              detected_at = datetime('now')
+            """,
+            (project_name, r["d"], v, mean, std, z),
+        )
+        out.append(
+            {
+                "project_name": project_name,
+                "usage_date": r["d"],
+                "metric": "daily_cost_usd",
+                "value": round_cost(v),
+                "mean": round_cost(mean),
+                "stddev": round_cost(std),
+                "z_score": round(z, 2),
+            }
+        )
+    conn.commit()
+    return out
+
+
+def allocation_by_user_or_department(
+    conn: sqlite3.Connection,
+    *,
+    dimension: str,
+    project_names: list[str] | None = None,
+    start_date: str | None = None,
+    end_date: str | None = None,
+) -> dict[str, Any]:
+    """Stub until billing/token CSVs expose stable user/department fields."""
+    _ = (conn, project_names, start_date, end_date)
+    dim = (dimension or "").strip().lower()
+    if dim not in {"user", "department"}:
+        dim = "user"
+    return {
+        "available": False,
+        "dimension": dim,
+        "reason": "missing_fields",
+        "message": (
+            f"By {dim} allocation requires stable '{dim}' fields in billing or token CSVs "
+            "(or a mapping table). No such fields are present yet."
+        ),
+        "rows": [],
+    }
 
 
 def _table_exists(conn: sqlite3.Connection, table_name: str) -> bool:
@@ -844,6 +1105,158 @@ class ProjectStats:
     estimated_total_tokens: float | None
     token_estimate_model: str | None
     token_data_source: str | None = None
+
+
+def _parse_iso_date(value: str | None) -> date | None:
+    if not value:
+        return None
+    try:
+        return date.fromisoformat(str(value)[:10])
+    except ValueError:
+        return None
+
+
+def _delta_pct(current: float | None, previous: float | None) -> float | None:
+    if current is None or previous is None:
+        return None
+    cur = float(current)
+    prev = float(previous)
+    if prev == 0.0:
+        if cur == 0.0:
+            return 0.0
+        return None
+    return round(((cur - prev) / abs(prev)) * 100.0, 1)
+
+
+def compute_period_compare(
+    conn: sqlite3.Connection,
+    project_name: str,
+    *,
+    start: str | None,
+    end: str | None,
+    currency: str | None = None,
+    subproject_name: str | None = None,
+) -> dict[str, Any]:
+    """Compare [start, end] to the previous equal-length calendar window.
+
+    prev_end = start − 1 day; prev_start = prev_end − (end − start) days.
+    """
+    empty: dict[str, Any] = {
+        "prev_start": None,
+        "prev_end": None,
+        "actual_cost_usd_total": None,
+        "actual_days": None,
+        "delta_pct": None,
+        "avg_daily_delta_pct": None,
+        "estimated_total_tokens": None,
+        "token_delta_pct": None,
+    }
+    start_d = _parse_iso_date(start)
+    end_d = _parse_iso_date(end)
+    if start_d is None or end_d is None or end_d < start_d:
+        return empty
+
+    span_days = (end_d - start_d).days
+    prev_end = start_d - timedelta(days=1)
+    prev_start = prev_end - timedelta(days=span_days)
+
+    current = get_project_stats(
+        conn,
+        project_name,
+        from_date=start_d.isoformat(),
+        to_date=end_d.isoformat(),
+        currency=currency,
+        subproject_name=subproject_name,
+    )
+    previous = get_project_stats(
+        conn,
+        project_name,
+        from_date=prev_start.isoformat(),
+        to_date=prev_end.isoformat(),
+        currency=currency,
+        subproject_name=subproject_name,
+    )
+    return {
+        "prev_start": prev_start.isoformat(),
+        "prev_end": prev_end.isoformat(),
+        "actual_cost_usd_total": previous.actual_cost_usd_total,
+        "actual_days": previous.actual_days,
+        "delta_pct": _delta_pct(current.actual_cost_usd_total, previous.actual_cost_usd_total),
+        "avg_daily_delta_pct": _delta_pct(
+            (
+                (current.actual_cost_usd_total / current.actual_days)
+                if current.actual_days > 0
+                else None
+            ),
+            (
+                (previous.actual_cost_usd_total / previous.actual_days)
+                if previous.actual_days > 0
+                else None
+            ),
+        ),
+        "estimated_total_tokens": previous.estimated_total_tokens,
+        "token_delta_pct": _delta_pct(
+            current.estimated_total_tokens, previous.estimated_total_tokens
+        ),
+    }
+
+
+def _timestamp_candidate_to_utc(value: object) -> datetime | None:
+    if value is None:
+        return None
+    if isinstance(value, (int, float)):
+        try:
+            return datetime.fromtimestamp(float(value), tz=timezone.utc)
+        except (OverflowError, OSError, ValueError):
+            return None
+    text = str(value).strip()
+    if not text:
+        return None
+    if text.endswith("Z"):
+        text = text[:-1] + "+00:00"
+    try:
+        dt = datetime.fromisoformat(text)
+    except ValueError:
+        try:
+            dt = datetime.strptime(text, "%Y-%m-%d %H:%M:%S")
+        except ValueError:
+            return None
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)
+
+
+def get_data_as_of_utc(
+    conn: sqlite3.Connection,
+    project_name: str | None = None,
+) -> str | None:
+    """Latest billing/token ingest freshness as ISO8601 UTC."""
+    tables = (
+        "ingested_files",
+        "ingested_token_files",
+        "ingested_token_metric_files",
+    )
+    latest: datetime | None = None
+    for table in tables:
+        if not _table_exists(conn, table):
+            continue
+        where = ""
+        params: tuple[object, ...] = ()
+        if project_name:
+            where = " WHERE project_name = ?"
+            params = (project_name,)
+        rows = conn.execute(
+            f"SELECT ingested_at, source_last_modified FROM {table}{where}",
+            params,
+        ).fetchall()
+        for row in rows:
+            for key in ("ingested_at", "source_last_modified"):
+                cand = _timestamp_candidate_to_utc(row[key])
+                if cand is not None and (latest is None or cand > latest):
+                    latest = cand
+    if latest is None:
+        return None
+    return latest.strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def _safe_float(x: object) -> float:

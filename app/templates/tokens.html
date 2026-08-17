@@ -71,6 +71,7 @@
               </div>
             </div>
             <div id="dataStatusBar" class="dataStatusBar dataStatusBar--compact" hidden aria-live="polite" aria-label="Load summary"></div>
+            <p id="tokenDataAsOf" class="tokenScopeMeta muted" aria-live="polite">Data as of: —</p>
             <p id="tokenSelectionHint" class="tableSelectionHint muted" hidden aria-live="polite"></p>
           </section>
 
@@ -119,6 +120,7 @@
                       <div class="label"><span class="costPill costPill--actual">Volume</span> <span id="labelTotalTokens">Total</span></div>
                       <div class="value" id="estimatedTotalTokens">-</div>
                       <div class="sub kpiFootnote kpiFootnote--stats" id="totalStats">Max · Mean · Min</div>
+                      <div class="sub kpiFootnote" id="totalTokensPeriodCompare">— n/a</div>
                     </div>
                   </article>
                   <article class="monitorKpi monitorKpi--input">
@@ -225,7 +227,10 @@
                 <span class="tokenStep" aria-hidden="true">2</span>
                 <div class="tokenZoneHeadMain">
                   <h2 class="tokenZoneTitle">Performance</h2>
-                  <p class="tokenZoneLead muted" id="metricsFlowLead">Grafana panels — requests, cache match, and latency.</p>
+                  <p class="tokenZoneLead muted" id="metricsFlowLead">
+                    Native charts from imported <code>performance/</code> CSVs (not an embedded Grafana dashboard).
+                    <a id="openGrafanaLink" class="btnLinkQuiet" href="#" hidden target="_blank" rel="noopener noreferrer">Open Grafana</a>
+                  </p>
                 </div>
               </div>
 

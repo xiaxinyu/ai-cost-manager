@@ -181,3 +181,58 @@
 #projTeamSizeCustomField[hidden] {
   display: none !important;
 }
+
+.estimatePresetRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.estimateNav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+}
+
+.estimateNavSticky {
+  position: sticky;
+  top: 8px;
+  z-index: 5;
+}
+
+.estimatePresetLabel {
+  font-size: 11px;
+  font-weight: 650;
+  margin-right: 2px;
+}
+
+.estimatePresetBtn {
+  font-size: 11.5px;
+  padding: 6px 10px;
+  min-height: 32px;
+  border-radius: 8px;
+  border: 1px solid rgba(173, 196, 228, 0.22);
+  background: rgba(12, 22, 38, 0.55);
+  color: #e2e8f0;
+}
+
+.estimatePresetBtn:hover,
+.estimatePresetBtn.is-active {
+  border-color: rgba(94, 234, 212, 0.45);
+  background: rgba(94, 234, 212, 0.1);
+}
+
+.estimateChartWrap {
+  margin: 0 0 14px;
+  height: 260px;
+  position: relative;
+}
+
+.estimateChartWrap canvas {
+  width: 100% !important;
+  height: 100% !important;
+}

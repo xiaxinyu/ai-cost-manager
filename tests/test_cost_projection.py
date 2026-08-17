@@ -123,6 +123,10 @@ def test_estimate_page_ui_and_nav(tmp_path: Path) -> None:
     assert ">5 people<" in page.text
     assert ">10 people<" in page.text
     assert "Custom…" in page.text
+    assert 'id="estimatePresetSolo"' in page.text
+    assert 'id="estimatePresetTeam5"' in page.text
+    assert 'id="estimatePresetTeam10"' in page.text
+    assert 'id="estimateMarketOpexChart"' in page.text
     assert 'id="estimateMarketRates"' in page.text
     assert 'id="estimateOpexRates"' in page.text
     assert 'id="estimateKpiDayMarket"' in page.text
@@ -133,6 +137,7 @@ def test_estimate_page_ui_and_nav(tmp_path: Path) -> None:
     assert "365 days" in page.text
     assert "Δ OpEx−Market" in page.text
     assert 'href="/estimate"' in page.text
+    assert "Need: model + daily Input/Output tokens per person" in page.text
 
     reports = client.get("/reports")
     assert reports.status_code == 200
