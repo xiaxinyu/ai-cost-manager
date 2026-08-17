@@ -9,47 +9,81 @@
 
 ## 一、怎么跑起来
 
-按顺序做即可。命令默认在已激活的虚拟环境里执行。
+按你的系统选一节，从头复制执行即可。有 `bills/` 数据时会导入并建管理员；只想先看空页面可跳过 `ingest` / `create-admin`，并打开 `COST_MGMT_AUTH_ENABLED=0`。
 
-### 1. 环境差异（先看这张表）
-
-| 步骤 | macOS / Linux | Windows PowerShell |
-|------|---------------|-------------------|
-| 建环境 | `python3 -m venv .venv` | `python -m venv .venv` |
-| 激活 | `source .venv/bin/activate` | `.\.venv\Scripts\Activate.ps1` |
-| 设环境变量 | `export KEY=value` | `$env:KEY = "value"` |
-
-Windows CMD：激活用 `.venv\Scripts\activate.bat`，环境变量用 `set KEY=value`。  
-若 PowerShell 拒绝执行脚本：`Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`。
-
-### 2. 安装
+### macOS / Linux
 
 ```bash
+cd /path/to/ai-cost-manager
+
+python3 -m venv .venv
+source .venv/bin/activate
 pip install -r requirements.txt
-```
 
-### 3. （推荐）导入账单 + 建管理员
-
-有 `bills/` 数据时：
-
-```bash
+# 有账单数据时执行（可跳过）
 python -m app.cli ingest --bills-dir bills --db-path data/cost_mgmt.sqlite3
-python -m app.cli create-admin --bills-dir bills --db-path data/cost_mgmt.sqlite3 \
+python -m app.cli create-admin \
+  --bills-dir bills \
+  --db-path data/cost_mgmt.sqlite3 \
   --username admin --password "请换成强密码"
-```
 
-- 已导入文件会记在 `ingested_files`，重复跑会跳过；要按校验和重导加 `--reimport-changed`。
-- 不设密码时默认 `admin/admin12345`，勿用于生产。
-- 只想先看空页面：跳过本步，并设 `COST_MGMT_AUTH_ENABLED=0` 关闭登录。
+# 本机调试可关登录：export COST_MGMT_AUTH_ENABLED=0
+# 生产建议：export COST_MGMT_SESSION_SECRET_KEY="随机密钥"
 
-### 4. 启动
-
-```bash
 python -m app.cli serve \
   --bills-dir bills \
   --db-path data/cost_mgmt.sqlite3 \
   --host 127.0.0.1 --port 8000
 ```
+
+### Windows（PowerShell）
+
+```powershell
+cd C:\path\to\ai-cost-manager
+
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+
+# 若提示无法加载 Activate.ps1：
+# Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
+
+# 有账单数据时执行（可跳过）
+python -m app.cli ingest --bills-dir bills --db-path data/cost_mgmt.sqlite3
+python -m app.cli create-admin `
+  --bills-dir bills `
+  --db-path data/cost_mgmt.sqlite3 `
+  --username admin --password "请换成强密码"
+
+# 本机调试可关登录：$env:COST_MGMT_AUTH_ENABLED = "0"
+# 生产建议：$env:COST_MGMT_SESSION_SECRET_KEY = "随机密钥"
+
+python -m app.cli serve `
+  --bills-dir bills `
+  --db-path data/cost_mgmt.sqlite3 `
+  --host 127.0.0.1 --port 8000
+```
+
+### Windows（CMD）
+
+```bat
+cd C:\path\to\ai-cost-manager
+
+python -m venv .venv
+.venv\Scripts\activate.bat
+pip install -r requirements.txt
+
+REM 有账单数据时执行（可跳过）
+python -m app.cli ingest --bills-dir bills --db-path data/cost_mgmt.sqlite3
+python -m app.cli create-admin --bills-dir bills --db-path data/cost_mgmt.sqlite3 --username admin --password "请换成强密码"
+
+REM 本机调试可关登录：set COST_MGMT_AUTH_ENABLED=0
+REM 生产建议：set COST_MGMT_SESSION_SECRET_KEY=随机密钥
+
+python -m app.cli serve --bills-dir bills --db-path data/cost_mgmt.sqlite3 --host 127.0.0.1 --port 8000
+```
+
+### 启动后打开
 
 | 页面 | URL |
 |------|-----|
@@ -61,9 +95,11 @@ python -m app.cli serve \
 | Reports | http://127.0.0.1:8000/reports |
 | Health | http://127.0.0.1:8000/health |
 
-未导入数据时列表为空是正常的。
+未导入数据时列表为空是正常的。  
+`create-admin` 不设密码时默认 `admin/admin12345`，勿用于生产。  
+已导入文件记在 `ingested_files`，重复 `ingest` 会跳过；按校验和重导加 `--reimport-changed`。
 
-### 5. 常用环境变量
+### 常用环境变量
 
 | 变量 | 何时用 |
 |------|--------|
@@ -75,6 +111,8 @@ python -m app.cli serve \
 ---
 
 ## 二、测试与检查
+
+先激活虚拟环境，再执行：
 
 ```bash
 python -m pytest --ignore=tests/e2e
@@ -92,8 +130,6 @@ python -m pytest -m e2e
 ## 三、数据口径（可选）
 
 表定义在 `app/db.py`：`projects`、`ingested_files`、`transactions`。
-
-用 SQLite 自核时，与页面同一口径：
 
 ```sql
 SELECT COALESCE(SUM(cost_usd), 0) AS total_cost_usd
