@@ -1,13 +1,16 @@
 #!/usr/bin/env python3
 """
-Rename raw Grafana CSV downloads under bills/ to canonical names.
+Rename raw Grafana / Azure cost-analysis downloads under bills/ to canonical names.
 
-Example:
+Examples:
   …/2026-10-9/proj-…/Input Tokens-data-as-joinbyfield-2026-10-10 15_15_30.csv
   -> …/2026-10-9/proj-…/input-tokens-2026-10-9.csv
 
-Uses the parent snapshot date directory (not the timestamp in the Grafana
-filename). Also trims trailing/leading spaces on directory names.
+  …/2026-10-9/cost-analysis.csv  (or cost-analysis (1).csv)
+  -> …/2026-10-9/cost-2026-10-9.csv
+
+Uses the parent snapshot date directory (not timestamps in download names).
+Also trims trailing/leading spaces on directory names.
 
 Default is dry-run. Pass --apply to rename.
 """
@@ -15,6 +18,7 @@ Default is dry-run. Pass --apply to rename.
 from __future__ import annotations
 
 import argparse
+import re
 import sys
 from pathlib import Path
 
@@ -29,11 +33,16 @@ from app.bills_layout import (  # noqa: E402
 
 
 SKIP_PROJECT_NAMES = {"price", "prices"}
+_COST_ANALYSIS_RE = re.compile(r"^cost-analysis(?: \(\d+\))?\.csv$", re.IGNORECASE)
 
 
 def _needs_rename(name: str, stem: str, date: str) -> bool:
     canonical = f"{stem}-{date}.csv"
     return name != canonical
+
+
+def _is_cost_analysis_filename(name: str) -> bool:
+    return bool(_COST_ANALYSIS_RE.match(Path(name).name))
 
 
 def trim_directory_names(bills_dir: Path, *, apply: bool) -> list[tuple[str, str]]:
@@ -73,6 +82,12 @@ def build_rename_plan(bills_dir: Path) -> list[tuple[Path, Path]]:
             )
             for folder in targets:
                 for csv_path in sorted(folder.glob("*.csv")):
+                    # Azure cost-analysis exports live at the date-dir root.
+                    if folder == date_dir and _is_cost_analysis_filename(csv_path.name):
+                        dest = date_dir / f"cost-{date}.csv"
+                        if csv_path.name != dest.name:
+                            plan.append((csv_path, dest))
+                        continue
                     stem = canonical_stem_from_filename(csv_path.name)
                     if stem is None or not _needs_rename(csv_path.name, stem, date):
                         continue
