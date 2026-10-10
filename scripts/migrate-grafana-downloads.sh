@@ -3,6 +3,8 @@
 #
 # Two source layouts are supported:
 #   1. Bills tree (default): ~/Downloads/bills/<project>/{cost-*.csv,token/,performance/,...}
+#      After download, run scripts/migrate_bills_to_date_layout.py to reorganize into
+#      bills/<project>/<YYYY-M-D>/cost-*.csv and …/<subproject>/{input-tokens,model-requests,…}.csv
 #   2. Flat Downloads (legacy): ~/Downloads/*.csv with Grafana panel export names
 #
 # Grafana exports are renamed to repo conventions:

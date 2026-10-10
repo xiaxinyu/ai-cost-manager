@@ -1,6 +1,6 @@
 # Models Cost Management
 
-把 `bills/<project>/*.csv` 导入 SQLite，用 Web 查看 Cost / Tokens / Estimate / Reports。
+把 `bills/<project>/<date>/` 下的账单与 token CSV 导入 SQLite，用 Web 查看 Cost / Tokens / Estimate / Reports。
 
 默认地址：**http://127.0.0.1:8000/**  
 技术栈：FastAPI + SQLite + Chart.js（静态资源本地提供）+ pytest。
@@ -127,7 +127,41 @@ python -m pytest -m e2e
 
 ---
 
-## 三、数据口径（可选）
+## 三、账单目录布局
+
+推荐 **date-snapshot**（按快照日期归档，随时间累计）：
+
+```text
+bills/<project>/
+  2026-9-8/
+    cost-2026-9-8.csv                          # cost 放在日期层
+    proj-mdm-coding-1-resource/                # 资源/子项目
+      input-tokens-2026-9-8.csv                # token / performance 文件直接放这里
+      output-tokens-2026-9-8.csv
+      model-requests-2026-9-8.csv
+      …
+```
+
+- 日期目录与文件名一致，用 `2026-9-8`（不必补零）。
+- 用文件名前缀区分类型（`input-tokens` / `model-requests` 等），不再需要 `token/`、`performance/` 子目录。
+- 也识别 Grafana 原始下载名（如 `Input Tokens-data-as-joinbyfield-….csv`）；可规范化为规范名：
+
+```bash
+python scripts/normalize_grafana_bills_names.py --bills-dir bills
+python scripts/normalize_grafana_bills_names.py --bills-dir bills --apply
+```
+
+- 旧布局（含 `token/`、`performance/`）仍可发现与导入。
+- 一次性迁移全部项目（先 dry-run，再 apply + 改写 DB 路径）：
+
+```bash
+python scripts/migrate_bills_to_date_layout.py --bills-dir bills
+python scripts/migrate_bills_to_date_layout.py --bills-dir bills --apply --prune-empty \
+  --rewrite-db data/cost_mgmt.sqlite3 \
+  --map-out data/bills-date-layout-map.json
+```
+
+## 四、数据口径（可选）
 
 表定义在 `app/db.py`：`projects`、`ingested_files`、`transactions`。
 
@@ -146,13 +180,13 @@ WHERE project_name = 'YOUR_PROJECT' AND currency = 'USD';
 
 ---
 
-## 四、排障
+## 五、排障
 
 - 登录失败：回到 `/login?error=invalid`，看页面提示。
 - DevTools 里 `chrome-extension://...` 的 `ERR_FILE_NOT_FOUND`：浏览器扩展问题，与本项目无关。
 
 ---
 
-## 五、工程约定
+## 六、工程约定
 
 `AGENTS.md`、`.cursor/rules/`、`docs/harness-playbook.md`：小步改 → `pytest` 验证 → 写清原因与结果。

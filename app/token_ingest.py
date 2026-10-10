@@ -186,7 +186,8 @@ def discover_token_csv_files(bills_dir: str | os.PathLike[str]) -> list[tuple[st
     """
     Returns list of (project_name, csv_path_abs, file_path_rel, subproject_name), oldest first.
 
-    Supports flat ``<project>/token/*.csv`` and nested ``<project>/token/<subproject>/*.csv``.
+    Supports legacy ``<project>/token/[<subproject>/]*.csv`` and date-snapshot
+    ``<project>/<date>/<subproject>/token/*.csv``.
     """
     bills_path = Path(bills_dir).expanduser().resolve()
     if not bills_path.exists():
@@ -203,6 +204,7 @@ def discover_token_csv_files(bills_dir: str | os.PathLike[str]) -> list[tuple[st
             project_dir,
             subdir_name="token",
             accept_filename=is_token_usage_csv_filename,
+            include_date_flat=True,
         ):
             try:
                 infer_token_direction(csv_path.name)
@@ -706,6 +708,8 @@ def list_missing_token_files(
         existing = conn.execute("SELECT file_path FROM ingested_token_files").fetchall()
         ingested_paths = {r["file_path"] for r in existing}
 
+        from .bills_layout import enrich_file_listing_row
+
         missing: list[dict[str, object]] = []
         for project_name, csv_path_abs, file_path_rel, subproject_name in discover_token_csv_files(bills_dir):
             if file_path_rel in ingested_paths:
@@ -715,14 +719,16 @@ def list_missing_token_files(
             except ValueError:
                 direction = None
             missing.append(
-                {
-                    "project_name": project_name,
-                    "file_path_rel": file_path_rel,
-                    "file_kind": "token",
-                    "token_direction": direction,
-                    "subproject_name": subproject_name,
-                    "source_last_modified": float(csv_path_abs.stat().st_mtime),
-                }
+                enrich_file_listing_row(
+                    {
+                        "project_name": project_name,
+                        "file_path_rel": file_path_rel,
+                        "file_kind": "token",
+                        "token_direction": direction,
+                        "subproject_name": subproject_name,
+                        "source_last_modified": float(csv_path_abs.stat().st_mtime),
+                    }
+                )
             )
         missing.sort(key=lambda x: x["source_last_modified"], reverse=True)
         return missing

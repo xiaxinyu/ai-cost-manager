@@ -157,14 +157,9 @@ def _file_sort_key(csv_path: Path) -> tuple[float, str]:
 
 
 def _infer_metric_from_filename(name: str) -> str | None:
-    low = name.lower()
-    if low.startswith("cache-match-rate-"):
-        return "cache_match_rate"
-    if low.startswith("avg-latency-"):
-        return "avg_latency"
-    if low.startswith("model-requests-"):
-        return "model_requests"
-    return None
+    from .bills_layout import metric_name_from_filename
+
+    return metric_name_from_filename(name)
 
 
 def discover_token_metric_csv_files(
@@ -173,7 +168,7 @@ def discover_token_metric_csv_files(
     """
     Returns list of (project_name, csv_path_abs, file_path_rel, metric_name, subproject_name).
 
-    Supports flat and nested layouts under token/ and performance/.
+    Supports legacy and date-snapshot layouts under token/ and performance/.
     """
     bills_path = Path(bills_dir).expanduser().resolve()
     if not bills_path.exists():
@@ -192,6 +187,8 @@ def discover_token_metric_csv_files(
                 project_dir,
                 subdir_name=subdir,
                 accept_filename=is_metric_csv_filename,
+                # Flat date layout scanned once (on performance) to avoid duplicates.
+                include_date_flat=(subdir == "performance"),
             ):
                 metric = _infer_metric_from_filename(csv_path.name)
                 if metric is None:
@@ -508,6 +505,8 @@ def list_missing_token_metric_files(
         existing = conn.execute("SELECT file_path FROM ingested_token_metric_files").fetchall()
         ingested_paths = {r["file_path"] for r in existing}
 
+        from .bills_layout import enrich_file_listing_row
+
         missing: list[dict[str, object]] = []
         for project_name, csv_path_abs, file_path_rel, metric_name, subproject_name in discover_token_metric_csv_files(
             bills_dir
@@ -515,14 +514,16 @@ def list_missing_token_metric_files(
             if file_path_rel in ingested_paths:
                 continue
             missing.append(
-                {
-                    "project_name": project_name,
-                    "file_path_rel": file_path_rel,
-                    "file_kind": "token_metric",
-                    "metric_name": metric_name,
-                    "subproject_name": subproject_name,
-                    "source_last_modified": float(csv_path_abs.stat().st_mtime),
-                }
+                enrich_file_listing_row(
+                    {
+                        "project_name": project_name,
+                        "file_path_rel": file_path_rel,
+                        "file_kind": "token_metric",
+                        "metric_name": metric_name,
+                        "subproject_name": subproject_name,
+                        "source_last_modified": float(csv_path_abs.stat().st_mtime),
+                    }
+                )
             )
         missing.sort(key=lambda x: float(x["source_last_modified"] or 0), reverse=True)
         return missing

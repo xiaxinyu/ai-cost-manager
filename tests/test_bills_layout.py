@@ -4,10 +4,16 @@ from pathlib import Path
 
 from app.bills_layout import (
     discover_subprojects_on_disk,
+    is_billing_csv_relpath,
+    is_token_metric_csv_relpath,
+    is_token_usage_csv_relpath,
+    plan_date_layout_relpath,
+    snapshot_date_from_relpath,
     subproject_from_filename,
     subproject_from_relpath,
     subproject_from_resource_id,
 )
+from app.ingest import discover_csv_files
 from app.token_ingest import discover_token_csv_files, ingest_token_all
 from app.db import get_connection, get_imported_token_totals, get_imported_token_totals_by_subproject, init_db
 
@@ -16,6 +22,54 @@ def test_subproject_from_relpath_nested_and_flat():
     assert subproject_from_relpath("RG-HK/token/coding-1/input-tokens-2026-7-7.csv") == "coding-1"
     assert subproject_from_relpath("RG-HK/performance/coding-1/model-requests-2026-7-7.csv") == "coding-1"
     assert subproject_from_relpath("RG-HK/token/input-tokens-2026-7-7.csv") == ""
+
+
+def test_subproject_from_relpath_date_snapshot():
+    assert (
+        subproject_from_relpath(
+            "RG-HK/2026-9-8/proj-mdm-coding-1-resource/input-tokens-2026-9-8.csv"
+        )
+        == "proj-mdm-coding-1-resource"
+    )
+    assert (
+        subproject_from_relpath(
+            "RG-HK/2026-9-8/proj-mdm-coding-1-resource/model-requests-2026-9-8.csv"
+        )
+        == "proj-mdm-coding-1-resource"
+    )
+    # Compat: kind dirs under date still parse.
+    assert (
+        subproject_from_relpath(
+            "RG-HK/2026-9-8/proj-mdm-coding-1-resource/token/input-tokens-2026-9-8.csv"
+        )
+        == "proj-mdm-coding-1-resource"
+    )
+    assert snapshot_date_from_relpath("RG-HK/2026-9-8/cost-2026-9-8.csv") == "2026-9-8"
+    assert is_billing_csv_relpath("RG-HK/2026-9-8/cost-2026-9-8.csv") is True
+    assert is_billing_csv_relpath("RG-HK/2026-9-8/input-tokens-2026-9-8.csv") is False
+    assert is_token_usage_csv_relpath(
+        "RG-HK/2026-9-8/proj-a/input-tokens-2026-9-8.csv"
+    )
+    assert is_token_metric_csv_relpath(
+        "RG-HK/2026-9-8/proj-a/model-requests-2026-9-8.csv"
+    )
+
+
+def test_plan_date_layout_relpath():
+    assert plan_date_layout_relpath("RG-HK/cost-2026-9-8.csv") == "RG-HK/2026-9-8/cost-2026-9-8.csv"
+    assert (
+        plan_date_layout_relpath("RG-HK/token/coding-1/input-tokens-2026-7-7.csv")
+        == "RG-HK/2026-7-7/coding-1/input-tokens-2026-7-7.csv"
+    )
+    assert (
+        plan_date_layout_relpath(
+            "RG-HK/2026-9-8/coding-1/token/input-tokens-2026-9-8.csv"
+        )
+        == "RG-HK/2026-9-8/coding-1/input-tokens-2026-9-8.csv"
+    )
+    assert plan_date_layout_relpath("RG-HK/2026-9-8/cost-2026-9-8.csv") is None
+    assert plan_date_layout_relpath("RG-HK/2026-9-8/coding-1/input-tokens-2026-9-8.csv") is None
+    assert plan_date_layout_relpath("RG-HK/token/coding-1/input-tokens.csv") is None
 
 
 def test_subproject_from_legacy_filename_slug():
@@ -44,12 +98,104 @@ def test_is_token_usage_csv_filename_strict():
     assert is_token_usage_csv_filename("my-input-output-debug.csv") is False
 
 
+def test_grafana_raw_filenames_are_recognized():
+    from app.bills_layout import (
+        is_metric_csv_filename,
+        is_token_usage_csv_filename,
+        metric_name_from_filename,
+        subproject_from_relpath,
+    )
+
+    assert is_token_usage_csv_filename(
+        "Input Tokens-data-as-joinbyfield-2026-10-10 15_15_30.csv"
+    )
+    assert is_token_usage_csv_filename("Output Tokens-data-2026-10-10 15_21_09.csv")
+    assert is_metric_csv_filename(
+        "Token Cache Match Rate (OpenAI models)-data-as-joinbyfield-2026-10-10 15_15_09.csv"
+    )
+    assert is_metric_csv_filename(
+        "Average Latency (Time to Last Byte)-data-as-joinbyfield-2026-10-10 15_13_58.csv"
+    )
+    assert is_metric_csv_filename("Model Requests-data-as-joinbyfield-2026-10-10 15_13_45.csv")
+    assert metric_name_from_filename("Model Requests-data-x.csv") == "model_requests"
+    assert (
+        subproject_from_relpath(
+            "RG-HK/2026-10-9/proj-mdm-coding-1-resource/"
+            "Input Tokens-data-as-joinbyfield-2026-10-10 15_15_30.csv"
+        )
+        == "proj-mdm-coding-1-resource"
+    )
+
+
 def test_discover_subprojects_on_disk(tmp_path):
     project = tmp_path / "RG-HK-S56-MDM-Coding"
     (project / "token" / "coding-1").mkdir(parents=True)
     (project / "token" / "coding-2").mkdir(parents=True)
     (project / "performance" / "coding-1").mkdir(parents=True)
     assert discover_subprojects_on_disk(tmp_path, "RG-HK-S56-MDM-Coding") == ["coding-1", "coding-2"]
+
+
+def test_discover_subprojects_on_disk_date_layout(tmp_path):
+    project = tmp_path / "RG-HK"
+    (project / "2026-9-8" / "coding-1").mkdir(parents=True)
+    (project / "2026-9-8" / "coding-1" / "input-tokens-2026-9-8.csv").write_text("x\n", encoding="utf-8")
+    (project / "2026-10-8" / "coding-2").mkdir(parents=True)
+    (project / "2026-10-8" / "coding-2" / "model-requests-2026-10-8.csv").write_text("x\n", encoding="utf-8")
+    assert discover_subprojects_on_disk(tmp_path, "RG-HK") == ["coding-1", "coding-2"]
+
+
+def test_date_layout_billing_and_token_discovery(tmp_path):
+    bills_dir = tmp_path / "bills"
+    project = "RG-HK"
+    date_dir = bills_dir / project / "2026-9-8"
+    date_dir.mkdir(parents=True)
+    (date_dir / "cost-2026-9-8.csv").write_text(
+        "UsageDate,Cost\n2026-09-01,1.0\n",
+        encoding="utf-8",
+    )
+    sub_dir = date_dir / "coding-1"
+    sub_dir.mkdir(parents=True)
+    (sub_dir / "input-tokens-2026-9-8.csv").write_text(
+        '"Time","gpt-4o"\n2026-09-08 10:00:00,1 Mil\n',
+        encoding="utf-8",
+    )
+
+    billing = discover_csv_files(bills_dir)
+    assert len(billing) == 1
+    assert billing[0][2] == "RG-HK/2026-9-8/cost-2026-9-8.csv"
+
+    tokens = discover_token_csv_files(bills_dir)
+    assert len(tokens) == 1
+    assert tokens[0][2] == "RG-HK/2026-9-8/coding-1/input-tokens-2026-9-8.csv"
+    assert tokens[0][3] == "coding-1"
+
+
+def test_date_layout_token_ingest(tmp_path):
+    bills_dir = tmp_path / "bills"
+    project = "RG-HK"
+    for sub, mil in (("coding-1", 1), ("coding-2", 2)):
+        subdir = bills_dir / project / "2026-7-7" / sub
+        subdir.mkdir(parents=True)
+        (subdir / "input-tokens-2026-7-7.csv").write_text(
+            '"Time","gpt-5.3-codex"\n'
+            f"2026-07-07 10:00:00,{mil} Mil\n",
+            encoding="utf-8",
+        )
+
+    db_path = tmp_path / "cost_mgmt.sqlite3"
+    result = ingest_token_all(bills_dir=bills_dir, db_path=db_path)
+    assert result.files_ingested == 2
+    assert result.verification_passed is True
+
+    conn = get_connection(db_path)
+    try:
+        init_db(conn)
+        in1, _ = get_imported_token_totals(conn, project, subproject_name="coding-1")
+        in2, _ = get_imported_token_totals(conn, project, subproject_name="coding-2")
+        assert in1 == 1_000_000.0
+        assert in2 == 2_000_000.0
+    finally:
+        conn.close()
 
 
 def test_nested_token_ingest_keeps_subprojects_separate(tmp_path):

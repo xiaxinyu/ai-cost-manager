@@ -596,8 +596,12 @@ def _finalize_billing_file_ingest(
 def discover_csv_files(bills_dir: str | os.PathLike[str]) -> list[tuple[str, Path, str]]:
     """
     Returns list of (project_name, csv_path_abs, file_path_rel).
-    file_path_rel format: <project>/<filename>.csv
+
+    Supports legacy ``<project>/*.csv`` and date-snapshot
+    ``<project>/<YYYY-M-D>/*.csv`` billing layouts.
     """
+    from .bills_layout import iter_billing_csv_files
+
     bills_path = Path(bills_dir).expanduser().resolve()
     if not bills_path.exists():
         return []
@@ -610,8 +614,7 @@ def discover_csv_files(bills_dir: str | os.PathLike[str]) -> list[tuple[str, Pat
         # Do not treat the dedicated model price directory as a billing project.
         if project_name.strip().lower() in {"price", "prices"}:
             continue
-        for csv_path in sorted(project_dir.glob("*.csv")):
-            rel_path = str(csv_path.relative_to(bills_path))
+        for csv_path, rel_path in iter_billing_csv_files(project_dir):
             results.append((project_name, csv_path, rel_path))
     return results
 
@@ -865,18 +868,22 @@ def list_missing_files(
         existing = conn.execute("SELECT file_path FROM ingested_files").fetchall()
         ingested_paths = {r["file_path"] for r in existing}
 
+        from .bills_layout import enrich_file_listing_row
+
         files = discover_csv_files(bills_dir)
         missing: list[dict[str, object]] = []
         for project_name, csv_path_abs, file_path_rel in files:
             if file_path_rel in ingested_paths:
                 continue
             missing.append(
-                {
-                    "project_name": project_name,
-                    "file_path_rel": file_path_rel,
-                    "file_kind": "billing",
-                    "source_last_modified": float(csv_path_abs.stat().st_mtime),
-                }
+                enrich_file_listing_row(
+                    {
+                        "project_name": project_name,
+                        "file_path_rel": file_path_rel,
+                        "file_kind": "billing",
+                        "source_last_modified": float(csv_path_abs.stat().st_mtime),
+                    }
+                )
             )
         # Sort by mtime desc to show recent bills first.
         missing.sort(key=lambda x: x["source_last_modified"], reverse=True)
@@ -912,15 +919,19 @@ def list_ingested_files(
             (limit,),
         ).fetchall()
 
+        from .bills_layout import enrich_file_listing_row
+
         return [
-            {
-                "project_name": r["project_name"],
-                "file_path_rel": r["file_path"],
-                "file_kind": "billing",
-                "row_count": int(r["row_count"]),
-                "ingested_at": r["ingested_at"],
-                "source_last_modified": r["source_last_modified"],
-            }
+            enrich_file_listing_row(
+                {
+                    "project_name": r["project_name"],
+                    "file_path_rel": r["file_path"],
+                    "file_kind": "billing",
+                    "row_count": int(r["row_count"]),
+                    "ingested_at": r["ingested_at"],
+                    "source_last_modified": r["source_last_modified"],
+                }
+            )
             for r in rows
         ]
     finally:

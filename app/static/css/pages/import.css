@@ -130,6 +130,14 @@
   max-width: 240px;
 }
 
+.importPage .dashTable .colSnapshot {
+  width: 110px;
+  min-width: 96px;
+  max-width: 120px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
 .importPage .dashTable .colRows {
   width: 88px;
   min-width: 80px;

@@ -63,7 +63,11 @@ def _default_deepseek_v4_pro_csv_path() -> str:
 def _cli_common_parent() -> argparse.ArgumentParser:
     """Shared --db-path / --bills-dir on each subcommand (can appear after the subcommand name)."""
     p = argparse.ArgumentParser(add_help=False)
-    p.add_argument("--bills-dir", default=_default_bills_dir(), help="Directory containing bills/<project>/*.csv")
+    p.add_argument(
+        "--bills-dir",
+        default=_default_bills_dir(),
+        help="Directory containing bills/<project>/<date>/cost-*.csv (legacy flat paths also work)",
+    )
     p.add_argument("--db-path", default=_default_db_path(), help="SQLite database file path")
     return p
 
@@ -77,7 +81,7 @@ def main() -> None:
     ingest_p = sub.add_parser(
         "ingest",
         parents=[common],
-        help="Ingest bills/<project>/*.csv and bills/<project>/token/*.csv into SQLite",
+        help="Ingest billing/token/performance CSVs under bills/<project>/ into SQLite",
     )
     ingest_p.add_argument("--reimport-changed", action="store_true", help="Re-import files whose checksum changed")
     ingest_p.add_argument(

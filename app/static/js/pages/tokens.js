@@ -1652,8 +1652,8 @@
   }
 
   function tokenImportPathLabel(project, subproject) {
-    if (subproject) return `bills/${project}/token/${subproject}/`;
-    return `bills/${project}/token/`;
+    if (subproject) return `bills/${project}/<date>/${subproject}/`;
+    return `bills/${project}/<date>/<subproject>/`;
   }
 
   function clearDateFilters() {

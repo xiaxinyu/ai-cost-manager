@@ -116,18 +116,22 @@ def list_all_ingested_files(
             """,
             (limit, offset),
         ).fetchall()
+        from .bills_layout import enrich_file_listing_row
+
         return [
-            {
-                "project_name": r["project_name"],
-                "file_path_rel": r["file_path_rel"],
-                "file_kind": r["file_kind"],
-                "token_direction": r["token_direction"],
-                "metric_name": r["metric_name"],
-                "row_count": int(r["row_count"]),
-                "ingested_at": r["ingested_at"],
-                "ingested_at_epoch": _ingested_at_epoch(r["ingested_at"]),
-                "source_last_modified": r["source_last_modified"],
-            }
+            enrich_file_listing_row(
+                {
+                    "project_name": r["project_name"],
+                    "file_path_rel": r["file_path_rel"],
+                    "file_kind": r["file_kind"],
+                    "token_direction": r["token_direction"],
+                    "metric_name": r["metric_name"],
+                    "row_count": int(r["row_count"]),
+                    "ingested_at": r["ingested_at"],
+                    "ingested_at_epoch": _ingested_at_epoch(r["ingested_at"]),
+                    "source_last_modified": r["source_last_modified"],
+                }
+            )
             for r in rows
         ]
     finally:

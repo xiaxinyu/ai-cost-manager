@@ -859,7 +859,7 @@ def _backfill_subproject_from_source_file(
 def _migrate_token_subproject_v1(conn: sqlite3.Connection) -> None:
     """
     Add subproject_name to token ingest tables and extend natural keys so nested
-    bills/<project>/token/<subproject>/ layouts do not collide.
+    bills/<project>/<date>/<subproject>/ layouts do not collide.
     """
     row = conn.execute("SELECT value FROM meta WHERE key = 'token_subproject_v1'").fetchone()
     if row is not None and str(row["value"]).strip() == "1":
