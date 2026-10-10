@@ -108,7 +108,7 @@ def test_estimate_page_ui_and_nav(tmp_path: Path) -> None:
 
     page = client.get("/estimate")
     assert page.status_code == 200
-    assert "Estimate" in page.text
+    assert "Forecast" in page.text
     assert 'id="estimateForm"' in page.text
     assert 'id="projModelSelect"' in page.text
     assert 'id="projTeamSizeSelect"' in page.text

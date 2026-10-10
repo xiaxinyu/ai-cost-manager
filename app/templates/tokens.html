@@ -3,13 +3,13 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Tokens - Models Cost Management</title>
+    <title>Tokens - Cost Management</title>
     <link rel="stylesheet" href="/static/css/app-shell.css" />
     <link rel="stylesheet" href="/static/css/page-common.css" />
     <link rel="stylesheet" href="/static/css/pages/tokens.css?v=20260730-scope-ux" />
     <link rel="stylesheet" href="/static/css/layout-pro.css" />
     <link rel="stylesheet" href="/static/css/dashboard-shared.css?v=20260710-table-unify" />
-    <link rel="stylesheet" href="/static/css/date-range-picker.css?v=20260606-drp" />
+    <link rel="stylesheet" href="/static/css/date-range-picker.css?v=20261010-azure" />
   </head>
   <body>
     {% set active_page = 'tokens' %}
@@ -24,10 +24,12 @@
             <div class="tokenTitleRow">
               <div>
                 <h1 class="pageTitle">Tokens</h1>
-                <p class="pageDesc">Consumption statement — volume run rate, performance, and unit economics vs reference tariff.</p>
+                <p class="pageDesc">
+                  Input / output volume, cache match rate, and unit economics — Azure Monitor style metrics for AI Foundry usage.
+                </p>
                 <div class="tokenLegendRow muted" aria-label="Token semantics">
-                  <span class="costPill costPill--actual">Volume</span>
-                  <span class="costPill costPill--market">Market</span>
+                  <span class="costPill costPill--actual">Input / Output</span>
+                  <span class="costPill costPill--market">Market rate</span>
                 </div>
               </div>
               <div id="tokenSourceBadge" class="sourceBadge sourceEstimated" hidden>
@@ -39,26 +41,26 @@
 
           <section class="card tokenFilterCard filterCard" aria-label="Filters">
             <div class="filterCardHead filterCardHead--compact">
-              <h2 class="filterCardTitle">Reporting scope</h2>
-              <p class="filterCardHint muted">Project · subproject · date range · Load to refresh</p>
+              <h2 class="filterCardTitle">Scope</h2>
+              <p class="filterCardHint muted">Resource group · resource · time period · Load to refresh</p>
             </div>
             <div id="toolbarGrid" class="toolbarGrid toolbarGrid--noSubproject filterBar controls">
               <div class="field projectField">
-                <label class="filterLabel" for="projectSelect">Project</label>
+                <label class="filterLabel" for="projectSelect">Resource group</label>
                 <div class="controlWrap controlWrapSelect">
                   <select id="projectSelect" class="control"></select>
                 </div>
               </div>
               <div class="field subprojectField" id="subprojectField" hidden>
-                <label class="filterLabel" for="subprojectSelect">Subproject</label>
+                <label class="filterLabel" for="subprojectSelect">Resource</label>
                 <div class="controlWrap controlWrapSelect">
                   <select id="subprojectSelect" class="control">
-                    <option value="">All subprojects</option>
+                    <option value="">All resources</option>
                   </select>
                 </div>
               </div>
               <div class="field fieldDateRange">
-                <label class="filterLabel" for="tokenStartDateInput">Date range</label>
+                <label class="filterLabel" for="tokenStartDateInput">Time period</label>
                 <div class="controlWrap dateRangePickerHost">
                   <input id="tokenStartDateInput" class="control controlDate" type="date" autocomplete="off" aria-label="Start date" />
                   <input id="tokenEndDateInput" class="control controlDate" type="date" autocomplete="off" aria-label="End date" />
@@ -390,8 +392,8 @@
     <script src="/static/js/dashboard-ui.js?v=20260605-datesort"></script>
     <script src="/static/js/dashboard-interactions.js?v=20260707-ui"></script>
     <script src="/static/js/scope-url.js?v=20260730-scope"></script>
-    <script src="/static/js/date-range-picker.js?v=20260710-drp-fix2"></script>
+    <script src="/static/js/date-range-picker.js?v=20261010-azure"></script>
     <script src="/static/js/unit-price-table.js?v=20260709-unit-rates"></script>
-    <script src="/static/js/pages/tokens.js?v=20260730-scope-ux"></script>
+    <script src="/static/js/pages/tokens.js?v=20261010-azure"></script>
   </body>
 </html>

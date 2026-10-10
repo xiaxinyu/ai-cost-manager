@@ -448,7 +448,7 @@ def test_reports_page_layout_without_token_forecast(tmp_path):
     assert "reportStatusBar" in page.text
     assert "reportToolbarGrid" in page.text
     assert "heroMetricGrid" in page.text
-    assert "Negative variance = OpEx below list" in page.text
+    assert "Negative variance = actual below list price" in page.text
     assert "applyDailyChartLedgerSelection" in page.text
     assert "reportUnitRatesPanel" in page.text
     assert "unit-price-table.js" in page.text

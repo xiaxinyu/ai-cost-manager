@@ -1656,10 +1656,30 @@
     return `bills/${project}/<date>/<subproject>/`;
   }
 
+  function applyDefaultTokenDateRange() {
+    if (!els.startDate || !els.endDate) return false;
+    if (els.startDate.value || els.endDate.value) return false;
+    if (tokenDateRangePicker?.applyDefaultPreset) {
+      return tokenDateRangePicker.applyDefaultPreset(
+        window.AppDateRangePicker?.DEFAULT_PRESET || "this_year",
+        { emit: false }
+      );
+    }
+    const picker = window.AppDateRangePicker;
+    if (!picker?.computePresetRange || !picker?.toYmd) return false;
+    const { start, end } = picker.computePresetRange(picker.DEFAULT_PRESET || "this_year");
+    els.startDate.value = picker.toYmd(start);
+    els.endDate.value = picker.toYmd(end);
+    return true;
+  }
+
   function clearDateFilters() {
     if (els.startDate) els.startDate.value = "";
     if (els.endDate) els.endDate.value = "";
+    applyDefaultTokenDateRange();
   }
+
+  let tokenDateRangePicker = null;
 
   async function init() {
     setLoading(true);
@@ -1737,6 +1757,9 @@
       if (urlScope.start || urlScope.end) {
         if (els.startDate) els.startDate.value = urlScope.start || "";
         if (els.endDate) els.endDate.value = urlScope.end || "";
+        tokenDateRangePicker?.setValues?.(els.startDate?.value || "", els.endDate?.value || "");
+      } else {
+        applyDefaultTokenDateRange();
       }
       await loadTokenData();
       refreshTokenCrossLinks();
@@ -1748,10 +1771,11 @@
     }
   }
 
-  window.AppDateRangePicker?.mount({
+  tokenDateRangePicker = window.AppDateRangePicker?.mount({
     startInput: els.startDate,
     endInput: els.endDate,
     autoApply: true,
+    defaultPreset: window.AppDateRangePicker?.DEFAULT_PRESET || "this_year",
     onApply: () => loadTokenData(),
   });
 

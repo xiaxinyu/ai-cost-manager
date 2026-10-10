@@ -3,13 +3,13 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Cost - Models Cost Management</title>
+    <title>Cost analysis - Cost Management</title>
     <link rel="stylesheet" href="/static/css/app-shell.css" />
     <link rel="stylesheet" href="/static/css/page-common.css" />
-    <link rel="stylesheet" href="/static/css/pages/index.css?v=20260730-scope-ux" />
+    <link rel="stylesheet" href="/static/css/pages/index.css?v=20261010-azure" />
     <link rel="stylesheet" href="/static/css/layout-pro.css" />
     <link rel="stylesheet" href="/static/css/dashboard-shared.css?v=20260710-table-unify" />
-    <link rel="stylesheet" href="/static/css/date-range-picker.css?v=20260606-drp" />
+    <link rel="stylesheet" href="/static/css/date-range-picker.css?v=20261010-azure" />
   </head>
   <body>
     {% set active_page = 'cost' %}
@@ -19,44 +19,44 @@
       <main class="contentArea">
         <div class="container costDashboard dashPage">
           <header class="pageHeader costPageHeader dashPageHeader">
-            <div class="breadcrumb">Home / Cost</div>
+            <div class="breadcrumb">Home / Cost analysis</div>
             <div class="costTitleRow">
               <div>
-                <h1 class="pageTitle">Cost</h1>
+                <h1 class="pageTitle">Cost analysis</h1>
                 <p class="pageDesc">
-                  Project OpEx statement — period totals, run rate, tariff reference, and allocation.
+                  Actual cost, forecast context, and allocation by resource — aligned with Azure Cost Management.
                 </p>
                 <div class="costLegendRow muted" aria-label="Cost semantics">
-                  <span class="costPill costPill--actual">OpEx</span>
+                  <span class="costPill costPill--actual">Actual cost</span>
                   <span class="costPill costPill--market">Market</span>
                   <span class="costPill costPill--platform">Platform</span>
-                  <span class="costLegendNote">Negative variance = OpEx below list (cheaper)</span>
+                  <span class="costLegendNote">Negative variance = actual below list price</span>
                 </div>
               </div>
               <p class="costSourceNote muted">
-                CSV: <span class="pill">{{ default_bills_dir }}</span>
+                Scope data: <span class="pill">{{ default_bills_dir }}</span>
               </p>
             </div>
           </header>
 
           <section class="card costFilterCard filterCard" aria-label="Filters">
             <div class="filterCardHead filterCardHead--compact">
-              <h2 class="filterCardTitle">Reporting scope</h2>
-              <p class="filterCardHint muted">Project · accounting period · Apply to refresh</p>
+              <h2 class="filterCardTitle">Scope</h2>
+              <p class="filterCardHint muted">Resource group · time period · Apply to refresh</p>
             </div>
             <div class="filterBar costToolbarGrid costToolbarGrid--noSubproject" id="costToolbarGrid" role="group" aria-label="Scope filters">
               <div class="field filterField filterFieldProject">
-                <label class="filterLabel" for="projectSelect">Project</label>
+                <label class="filterLabel" for="projectSelect">Resource group</label>
                 <select id="projectSelect" title="Folder under bills/ — suffix shows primary deployment model"></select>
               </div>
               <div class="field filterField subprojectField" id="subprojectField" hidden>
-                <label class="filterLabel" for="subprojectSelect">Subproject</label>
+                <label class="filterLabel" for="subprojectSelect">Resource</label>
                 <select id="subprojectSelect" title="Azure resource account or token subfolder">
-                  <option value="">All subprojects</option>
+                  <option value="">All resources</option>
                 </select>
               </div>
               <div class="field filterField filterFieldDateRange">
-                <label class="filterLabel" for="startDateInput">Date range</label>
+                <label class="filterLabel" for="startDateInput">Time period</label>
                 <div class="dateRangePickerHost">
                   <input id="startDateInput" type="date" lang="en" aria-label="Start date" />
                   <input id="endDateInput" type="date" lang="en" aria-label="End date" />
@@ -74,19 +74,19 @@
           </section>
 
           <nav class="dashSectionNav card costNav costNavSticky" aria-label="Cost sections">
-            <span class="dashSectionNavLabel muted">Statement</span>
+            <span class="dashSectionNavLabel muted">Views</span>
             <a class="dashSectionNavLink" href="#cost-summary">Overview</a>
-            <a class="dashSectionNavLink" href="#cost-trends">Run Rate</a>
-            <a class="dashSectionNavLink" href="#cost-tariff-reference">Market</a>
-            <a class="dashSectionNavLink" href="#costBreakdownSection">Allocation</a>
+            <a class="dashSectionNavLink" href="#cost-trends">Daily costs</a>
+            <a class="dashSectionNavLink" href="#cost-tariff-reference">Benchmark</a>
+            <a class="dashSectionNavLink" href="#costBreakdownSection">Breakdown</a>
           </nav>
 
-          <section id="cost-summary" class="costZone costFinBlock card costStatement" aria-label="OpEx statement">
+          <section id="cost-summary" class="costZone costFinBlock card costStatement" aria-label="Cost overview">
             <div class="costSectionHead">
               <span class="costStep" aria-hidden="true">1</span>
               <div class="costSectionHeadMain">
-                <h2 class="costSectionTitle">OpEx Statement</h2>
-                <p class="costSectionLead muted" id="costSummaryLead">Billing totals, composition, and run rate for the selected scope.</p>
+                <h2 class="costSectionTitle">Overview</h2>
+                <p class="costSectionLead muted" id="costSummaryLead">Actual cost, composition, and run rate for the selected scope.</p>
               </div>
               <span class="costSectionMeta costCurrencyBadge" id="currencyLabel"></span>
             </div>
@@ -97,10 +97,10 @@
 
             <div class="costStatementBody">
               <div class="costStatementMetrics">
-                <div class="costMonitorKpi costFinPrimaryKpi" aria-label="OpEx totals">
-                  <article class="monitorKpi monitorKpi--actual monitorKpi--hero" data-dash-jump="#cost-trends" title="Jump to run rate">
+                <div class="costMonitorKpi costFinPrimaryKpi" aria-label="Cost KPIs">
+                  <article class="monitorKpi monitorKpi--actual monitorKpi--hero" data-dash-jump="#cost-trends" title="Jump to daily costs">
                     <div class="stat">
-                      <div class="label"><span class="costPill costPill--actual">OpEx</span> Total</div>
+                      <div class="label">Actual cost (USD)</div>
                       <div class="value" id="actualCost">-</div>
                       <div class="sub tokenStats kpiFootnote kpiFootnote--stats" id="costStats">Max: - · Mean: - · Min: -</div>
                       <div class="sub kpiDelta" id="actualCostPeriodCompare" title="">—</div>
@@ -112,6 +112,20 @@
                       </div>
                     </div>
                   </article>
+                  <article class="monitorKpi monitorKpi--neutral" id="runRateProjectionCard">
+                    <div class="stat">
+                      <div class="label">Month forecast</div>
+                      <div class="value value--md" id="runRateProjection">—</div>
+                      <div class="sub tokenStats kpiFootnote" id="runRateProjectionNote">At current run rate</div>
+                    </div>
+                  </article>
+                  <article class="monitorKpi monitorKpi--neutral">
+                    <div class="stat">
+                      <div class="label">Budget</div>
+                      <div class="value value--md" id="costBudgetKpiValue">None</div>
+                      <div class="sub tokenStats kpiFootnote" id="costBudgetKpiNote">No budget configured</div>
+                    </div>
+                  </article>
                   <article class="monitorKpi monitorKpi--neutral">
                     <div class="stat">
                       <div class="label">Avg / day</div>
@@ -120,25 +134,12 @@
                       <div class="sub kpiDelta" id="avgDailyCostPeriodCompare" title="">—</div>
                     </div>
                   </article>
-                  <article class="monitorKpi monitorKpi--neutral">
-                    <div class="stat">
-                      <div class="label">Billed days</div>
-                      <div class="value value--md" id="billedDaysCount">-</div>
-                      <div class="sub tokenStats kpiFootnote">Days with non-zero spend</div>
-                    </div>
-                  </article>
                   <article class="monitorKpi monitorKpi--neutral monitorKpi--period">
                     <div class="stat">
-                      <div class="label">Period</div>
+                      <div class="label">Time period</div>
                       <div class="value value--period" id="dateRange">-</div>
-                      <div class="sub tokenStats kpiFootnote" id="periodFootnote">Data range in scope</div>
-                    </div>
-                  </article>
-                  <article class="monitorKpi monitorKpi--neutral" id="runRateProjectionCard">
-                    <div class="stat">
-                      <div class="label">Month at run-rate</div>
-                      <div class="value value--md" id="runRateProjection">—</div>
-                      <div class="sub tokenStats kpiFootnote" id="runRateProjectionNote">avg/day × days in end month</div>
+                      <div class="sub tokenStats kpiFootnote" id="periodFootnote">Selected range</div>
+                      <div class="sub tokenStats kpiFootnote"><span id="billedDaysCount">-</span> billed days</div>
                     </div>
                   </article>
                 </div>
@@ -213,8 +214,8 @@
                 <article class="monitorCard monitorCard--primary monitorCard--inset costTrendCard" id="marketCompareSection">
                   <header class="monitorCardHead monitorCardHead--chart">
                     <div class="monitorCardHeadMain">
-                      <h3 class="monitorCardTitle">Daily spend</h3>
-                      <p class="monitorCardDesc muted" id="costTrendsLead">Daily OpEx total for the reporting period.</p>
+                      <h3 class="monitorCardTitle">Daily costs</h3>
+                      <p class="monitorCardDesc muted" id="costTrendsLead">Actual cost by day · Granularity: Daily · Group by: Resource</p>
                     </div>
                   </header>
                   <div id="costSpendSegmentLegend" class="costSpendLegendRow" hidden aria-label="Chart segments"></div>
@@ -545,7 +546,7 @@
     <script src="/static/js/dashboard-interactions.js?v=20260707-ui"></script>
     <script src="/static/js/scope-url.js?v=20260730-scope"></script>
     <script src="/static/js/billing-detail-table.js?v=20260730-scope-ux"></script>
-    <script src="/static/js/date-range-picker.js?v=20260710-drp-fix3"></script>
+    <script src="/static/js/date-range-picker.js?v=20261010-azure"></script>
     <script>
       window.AppChartStyle?.applyDefaults?.();
       const CHART_OPTS = window.AppChartStyle;
@@ -1901,13 +1902,17 @@
       }
 
       function renderCostBudgetProgress(stats) {
-        if (!costBudgetProgressEl) return;
+        const budgetKpiValueEl = document.getElementById('costBudgetKpiValue');
+        const budgetKpiNoteEl = document.getElementById('costBudgetKpiNote');
         const budget = stats?.budget_usd;
         const spent = Number(stats?.actual_cost_usd_total);
         if (budget == null || !Number.isFinite(Number(budget)) || Number(budget) <= 0) {
-          costBudgetProgressEl.hidden = true;
+          if (costBudgetProgressEl) costBudgetProgressEl.hidden = true;
+          if (budgetKpiValueEl) budgetKpiValueEl.textContent = 'None';
+          if (budgetKpiNoteEl) budgetKpiNoteEl.textContent = 'No budget configured';
           return;
         }
+        if (!costBudgetProgressEl) return;
         const b = Number(budget);
         const pct = Number.isFinite(spent) && b > 0 ? (spent / b) * 100 : 0;
         costBudgetProgressEl.hidden = false;
@@ -1915,10 +1920,14 @@
         if (costBudgetProgressFillEl) {
           costBudgetProgressFillEl.style.width = `${Math.max(0, Math.min(pct, 100))}%`;
         }
+        const ym = stats.budget_yyyymm || '';
+        const ymLabel =
+          ym && ym.length === 6 ? `${ym.slice(0, 4)}-${ym.slice(4, 6)}` : ym;
+        if (budgetKpiValueEl) budgetKpiValueEl.textContent = fmt2(b);
+        if (budgetKpiNoteEl) {
+          budgetKpiNoteEl.textContent = `${ymLabel || 'Period'} · ${pct.toFixed(0)}% used`;
+        }
         if (costBudgetProgressNoteEl) {
-          const ym = stats.budget_yyyymm || '';
-          const ymLabel =
-            ym && ym.length === 6 ? `${ym.slice(0, 4)}-${ym.slice(4, 6)}` : ym;
           costBudgetProgressNoteEl.textContent =
             `Period spend ${fmt2(spent)} / ${ymLabel || 'month'} budget ${fmt2(b)} (${pct.toFixed(0)}%)`;
         }
@@ -2673,7 +2682,9 @@
       }
 
       function clearDateFilters() {
+        // Keep commercial default (This year) when switching projects.
         setDateInputsQuietly('', '');
+        applyDefaultCostDateRange();
       }
 
       function applySubprojectFilterByName(name) {
@@ -2779,9 +2790,17 @@
       function applyDefaultCostDateRange() {
         if (!startDateInput || !endDateInput) return false;
         if (startDateInput.value || endDateInput.value) return false;
+        if (costDateRangePicker?.applyDefaultPreset) {
+          return costDateRangePicker.applyDefaultPreset(
+            window.AppDateRangePicker?.DEFAULT_PRESET || 'this_year',
+            { emit: false }
+          );
+        }
         const picker = window.AppDateRangePicker;
         if (!picker?.computePresetRange || !picker?.toYmd) return false;
-        const { start, end } = picker.computePresetRange('last_30');
+        const { start, end } = picker.computePresetRange(
+          picker.DEFAULT_PRESET || 'this_year'
+        );
         startDateInput.value = picker.toYmd(start);
         endDateInput.value = picker.toYmd(end);
         return true;
@@ -3313,6 +3332,7 @@
         startInput: startDateInput,
         endInput: endDateInput,
         autoApply: false,
+        defaultPreset: window.AppDateRangePicker?.DEFAULT_PRESET || 'this_year',
         onApply: () => runApplyFilters(),
       });
 

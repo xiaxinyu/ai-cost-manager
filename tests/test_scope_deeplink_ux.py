@@ -39,8 +39,9 @@ def test_cost_tokens_reports_scope_deeplink_contracts(tmp_path: Path) -> None:
     assert 'id="exportScopeBtn"' in cost.text
     assert 'id="runRateProjection"' in cost.text
     assert 'id="costSelectionHint"' in cost.text
-    assert "Negative variance = OpEx below list" in cost.text
-    assert "Month at run-rate" in cost.text
+    assert "Negative variance = actual below list price" in cost.text
+    assert "Month forecast" in cost.text
+    assert "Actual cost (USD)" in cost.text
     assert "clearDashboardSelection" in cost.text
     assert "AppScopeUrl" in cost.text
     assert "tokensHrefForModel" in cost.text
@@ -58,7 +59,7 @@ def test_cost_tokens_reports_scope_deeplink_contracts(tmp_path: Path) -> None:
 
     reports = client.get("/reports")
     assert reports.status_code == 200
-    assert "Negative variance = OpEx below list" in reports.text
+    assert "Negative variance = actual below list price" in reports.text
     assert "applyDailyChartLedgerSelection" in reports.text
     assert "is-navActive" in reports.text or "bindReportJumpNavActive" in reports.text
 

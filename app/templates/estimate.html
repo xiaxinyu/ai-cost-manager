@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Estimate - Models Cost Management</title>
+    <title>Forecast - Cost Management</title>
     <link rel="stylesheet" href="/static/css/app-shell.css" />
     <link rel="stylesheet" href="/static/css/page-common.css" />
     <link rel="stylesheet" href="/static/css/pages/estimate.css?v=20260817-presets" />
@@ -18,33 +18,32 @@
       <main class="contentArea">
         <div class="container estimatePage dashPage">
           <header class="pageHeader estimatePageHeader dashPageHeader">
-            <div class="breadcrumb">Home / Estimate</div>
+            <div class="breadcrumb">Home / Forecast</div>
             <div class="estimateTitleRow">
               <div>
-                <h1 class="pageTitle">Estimate</h1>
+                <h1 class="pageTitle">Forecast</h1>
                 <p class="pageDesc">
-                  Pick a model, daily token volume per person, and team size — Market and OpEx costs
-                  are projected together for 1 / 7 / 30 / 365 days.
+                  Project spend from model, daily tokens per person, and team size — market and actual-cost rates for 1 / 7 / 30 / 365 days.
                 </p>
-                <div class="estimateLegendRow muted" aria-label="Estimate semantics">
+                <div class="estimateLegendRow muted" aria-label="Forecast semantics">
                   <span class="costPill costPill--market">Market</span>
-                  <span class="costPill costPill--actual">OpEx</span>
-                  <span class="estimateLegendNote">Both rates · per-person tokens × team size · (tokens ÷ 1M) × USD/1M</span>
+                  <span class="costPill costPill--actual">Actual cost</span>
+                  <span class="estimateLegendNote">Per-person tokens × team size · (tokens ÷ 1M) × USD/1M</span>
                 </div>
               </div>
             </div>
           </header>
 
-          <nav class="dashSectionNav card estimateNav estimateNavSticky" aria-label="Estimate sections">
+          <nav class="dashSectionNav card estimateNav estimateNavSticky" aria-label="Forecast sections">
             <span class="dashSectionNavLabel muted">Jump</span>
             <a class="dashSectionNavLink" href="#estimateForm">Inputs</a>
-            <a class="dashSectionNavLink" href="#estimateKpiGrid">Projected cost</a>
+            <a class="dashSectionNavLink" href="#estimateKpiGrid">Forecast</a>
             <a class="dashSectionNavLink" href="#estimateRatesCard">Unit rates</a>
           </nav>
 
-          <section class="card estimateFilterCard filterCard" aria-label="Estimate inputs">
+          <section class="card estimateFilterCard filterCard" aria-label="Forecast inputs">
             <div class="filterCardHead filterCardHead--compact">
-              <h2 class="filterCardTitle">Projection inputs</h2>
+              <h2 class="filterCardTitle">Forecast inputs</h2>
               <p class="filterCardHint muted">
                 Select a model, enter daily tokens per person, then choose team size (default 1)
               </p>

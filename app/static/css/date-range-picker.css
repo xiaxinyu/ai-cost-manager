@@ -8,7 +8,7 @@
 
 .dateRangePickerInputs {
   display: grid;
-  grid-template-columns: 1fr auto 1fr auto;
+  grid-template-columns: 1fr auto 1fr minmax(7.5rem, auto);
   align-items: center;
   gap: 6px;
   width: 100%;
@@ -31,15 +31,26 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
+  gap: 6px;
+  min-width: 36px;
   min-height: 40px;
-  padding: 0;
+  padding: 0 10px;
   border-radius: 8px;
   border: 1px solid var(--border, rgba(173, 196, 228, 0.22));
   background: rgba(255, 255, 255, 0.06);
-  color: #d4e0ef;
+  color: #e8eef6;
   cursor: pointer;
   transition: background 0.15s ease, border-color 0.15s ease;
+  font-size: 12.5px;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+
+.dateRangePickerToggleLabel {
+  max-width: 9.5rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .dateRangePickerToggle:hover {
@@ -181,7 +192,8 @@
 .tokenPage .dateRangePickerToggle,
 .reportPage .dateRangePickerToggle {
   min-height: 38px;
-  width: 34px;
+  width: auto;
+  min-width: 7.5rem;
   border-radius: 7px;
 }
 

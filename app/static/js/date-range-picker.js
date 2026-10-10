@@ -87,13 +87,31 @@
     return formatMonthSpan(start, end);
   }
 
+  const DEFAULT_PRESET = "this_year";
+
+  const PRESET_LABELS = {
+    last_7: "Last 7 days",
+    last_30: "Last 30 days",
+    this_month: "This month",
+    this_quarter: "This quarter",
+    this_year: "This year",
+    last_month: "Last month",
+    last_quarter: "Last quarter",
+    last_3_months: "Last 3 months",
+    last_6_months: "Last 6 months",
+    last_12_months: "Last 12 months",
+    clear: "All dates",
+    custom: "Custom",
+  };
+
   const PRESET_SECTIONS = [
     {
       id: "recommended",
       label: "Recommended",
       items: [
-        { id: "last_7", label: "Last 7 days" },
+        { id: "this_year", label: "This year" },
         { id: "this_month", label: "This month" },
+        { id: "last_30", label: "Last 30 days" },
         { id: "custom", label: "Custom date range", action: "custom" },
       ],
     },
@@ -107,7 +125,7 @@
     },
     {
       id: "calendar",
-      label: "Calendar months",
+      label: "Calendar periods",
       items: [
         { id: "this_month", label: "This month" },
         { id: "this_quarter", label: "This quarter" },
@@ -226,9 +244,16 @@
    * @param {HTMLInputElement} opts.endInput
    * @param {(detail: {preset: string|null, start: string, end: string}) => void} [opts.onApply]
    * @param {boolean} [opts.autoApply]
+   * @param {string|null} [opts.defaultPreset] Apply when both inputs are empty (e.g. "this_year")
    */
   function mount(opts = {}) {
-    const { startInput, endInput, onApply, autoApply = false } = opts;
+    const {
+      startInput,
+      endInput,
+      onApply,
+      autoApply = false,
+      defaultPreset = null,
+    } = opts;
     if (!startInput || !endInput) return null;
 
     const root = document.createElement("div");
@@ -253,11 +278,14 @@
     const toggle = document.createElement("button");
     toggle.type = "button";
     toggle.className = "dateRangePickerToggle";
-    toggle.setAttribute("aria-label", "Quick date ranges");
+    toggle.setAttribute("aria-label", "Time period");
     toggle.setAttribute("aria-haspopup", "dialog");
     toggle.setAttribute("aria-expanded", "false");
-    toggle.innerHTML = '<span class="dateRangePickerToggleIcon" aria-hidden="true"></span>';
+    toggle.innerHTML =
+      '<span class="dateRangePickerToggleLabel">Time period</span>' +
+      '<span class="dateRangePickerToggleIcon" aria-hidden="true"></span>';
     inputsWrap.appendChild(toggle);
+    const toggleLabel = toggle.querySelector(".dateRangePickerToggleLabel");
 
     const panel = document.createElement("div");
     panel.className = "dateRangePickerPanel";
@@ -286,6 +314,31 @@
       });
     }
 
+    function syncToggleLabel() {
+      if (!toggleLabel) return;
+      const startYmd = startInput.value || "";
+      const endYmd = endInput.value || "";
+      const preset = activePreset || detectActivePreset(startYmd, endYmd);
+      if (preset && PRESET_LABELS[preset]) {
+        toggleLabel.textContent = PRESET_LABELS[preset];
+        toggle.title = PRESET_LABELS[preset];
+        return;
+      }
+      if (startYmd || endYmd) {
+        const start = parseYmd(startYmd);
+        const end = parseYmd(endYmd);
+        const text =
+          start && end
+            ? formatRangeHint(start, end) || PRESET_LABELS.custom
+            : PRESET_LABELS.custom;
+        toggleLabel.textContent = text;
+        toggle.title = `${startYmd || "…"} – ${endYmd || "…"}`;
+        return;
+      }
+      toggleLabel.textContent = "Time period";
+      toggle.title = "Select time period";
+    }
+
     function syncActiveOption() {
       activePreset = detectActivePreset(startInput.value, endInput.value);
       panel.querySelectorAll(".dateRangePickerOption[data-preset]").forEach((btn) => {
@@ -294,6 +347,7 @@
         btn.classList.toggle("is-active", Boolean(isActive));
         btn.setAttribute("aria-pressed", isActive ? "true" : "false");
       });
+      syncToggleLabel();
     }
 
     function isManualRangeValid() {
@@ -420,6 +474,13 @@
     startInput.addEventListener("change", onManualDateInput);
     endInput.addEventListener("change", onManualDateInput);
 
+    if (defaultPreset && !startInput.value && !endInput.value) {
+      const range = computePresetRange(defaultPreset);
+      if (range.start && range.end) {
+        applyRange(range.start, range.end, defaultPreset, { emit: false });
+      }
+    }
+
     syncActiveOption();
 
     return {
@@ -431,6 +492,12 @@
         suppressManualApply = false;
         activePreset = detectActivePreset(startInput.value, endInput.value);
         syncActiveOption();
+      },
+      applyDefaultPreset(presetId = DEFAULT_PRESET, { emit = false } = {}) {
+        const range = computePresetRange(presetId);
+        if (!range.start || !range.end) return false;
+        applyRange(range.start, range.end, presetId, { emit });
+        return true;
       },
       close: closePanel,
       destroy() {
@@ -450,6 +517,8 @@
     detectActivePreset,
     toYmd,
     formatRangeHint,
+    DEFAULT_PRESET,
+    PRESET_LABELS,
     PRESET_SECTIONS,
   };
 })();

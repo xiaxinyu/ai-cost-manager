@@ -1028,6 +1028,8 @@
 
 .costFinPrimaryKpi {
   margin-top: 2px;
+  /* Actual / Forecast / Budget / Avg / Period — five Azure-style KPIs */
+  grid-template-columns: repeat(5, minmax(0, 1fr));
 }
 
 .costSavingsBanner {
@@ -1471,7 +1473,8 @@
 }
 
 .costDashboard .dateRangePickerToggle {
-  width: 32px;
+  width: auto;
+  min-width: 7.5rem;
   min-height: var(--cost-control-h);
   border-radius: 7px;
 }
@@ -2287,6 +2290,10 @@
 
 @media (max-width: 1100px) {
   .costMonitorKpi {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .costFinPrimaryKpi {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 

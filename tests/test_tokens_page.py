@@ -149,7 +149,7 @@ def test_login_to_token_workspace_e2e_smoke(tmp_path):
         ("/", "Cost"),
         ("/tokens", "Tokens"),
         ("/reports", "Reports"),
-        ("/estimate", "Estimate"),
+        ("/estimate", "Forecast"),
         ("/prices", "Price catalog"),
         ("/import", "Import data"),
     ):

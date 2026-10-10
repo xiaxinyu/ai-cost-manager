@@ -3,13 +3,13 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Reports - Models Cost Management</title>
+    <title>Reports - Cost Management</title>
     <link rel="stylesheet" href="/static/css/app-shell.css" />
     <link rel="stylesheet" href="/static/css/page-common.css" />
     <link rel="stylesheet" href="/static/css/pages/reports.css?v=20260731-estimate" />
     <link rel="stylesheet" href="/static/css/layout-pro.css" />
     <link rel="stylesheet" href="/static/css/dashboard-shared.css?v=20260710-table-unify" />
-    <link rel="stylesheet" href="/static/css/date-range-picker.css?v=20260606-drp" />
+    <link rel="stylesheet" href="/static/css/date-range-picker.css?v=20261010-azure" />
   </head>
   <body>
     {% set active_page = 'reports' %}
@@ -23,12 +23,14 @@
             <div class="reportTitleRow">
               <div>
                 <h1 class="pageTitle">Reports</h1>
-                <p class="pageDesc">Four-table OpEx report — income statement, cash flow, allocation, and supporting detail for the selected scope.</p>
+                <p class="pageDesc">
+                  Actual cost statement, cash flow, allocation, and supporting detail for the selected scope.
+                </p>
                 <div class="reportLegendRow muted" aria-label="Report semantics">
-                  <span class="costPill costPill--actual">OpEx</span>
+                  <span class="costPill costPill--actual">Actual cost</span>
                   <span class="costPill costPill--market">Market</span>
                   <span class="costPill costPill--actual">Volume</span>
-                  <span class="costLegendNote">Negative variance = OpEx below list (cheaper)</span>
+                  <span class="costLegendNote">Negative variance = actual below list price</span>
                 </div>
               </div>
             </div>
@@ -36,8 +38,8 @@
 
           <section class="card reportFilters filterCard reportFilterCard" aria-label="Filters">
             <div class="filterCardHead filterCardHead--compact">
-              <h2 class="filterCardTitle">Report scope</h2>
-              <p class="filterCardHint muted">Projects · currency · dates · Load to refresh</p>
+              <h2 class="filterCardTitle">Scope</h2>
+              <p class="filterCardHint muted">Resource groups · currency · time period · Load to refresh</p>
             </div>
             <div class="controlsRow toolbarGrid reportToolbarGrid">
               <div class="field fieldProject">
@@ -64,7 +66,7 @@
                 </div>
               </div>
               <div class="field fieldDateRange">
-                <label for="startDate">Date range</label>
+                <label for="startDate">Time period</label>
                 <div class="controlWrap dateRangePickerHost">
                   <input id="startDate" class="control controlDate" type="date" autocomplete="off" aria-label="Start date" />
                   <input id="endDate" class="control controlDate" type="date" autocomplete="off" aria-label="End date" />
@@ -568,9 +570,9 @@
 
               <div class="reportEstimateCta" id="reportEstimateCta">
                 <p class="tableNote panelDesc">
-                  Project 1 / 7 / 30 / 365 day spend from these unit rates on the Estimate page.
+                  Project 1 / 7 / 30 / 365 day spend from these unit rates on the Forecast page.
                 </p>
-                <a id="reportOpenEstimateLink" class="btnSecondary btnLinkQuiet" href="/estimate">Open Estimate</a>
+                <a id="reportOpenEstimateLink" class="btnSecondary btnLinkQuiet" href="/estimate">Open Forecast</a>
               </div>
             </article>
             <article class="card reportPanel reportModelPanel">
@@ -753,7 +755,7 @@
     <script src="/static/js/cost-semantics.js?v=20260710-market"></script>
     <script src="/static/js/unit-price-table.js?v=20260731-proj"></script>
     <script src="/static/js/dashboard-ui.js?v=20260605-datesort"></script>
-    <script src="/static/js/date-range-picker.js?v=20260710-drp-fix2"></script>
+    <script src="/static/js/date-range-picker.js?v=20261010-azure"></script>
     <script src="/static/js/dashboard-interactions.js?v=20260707-ui"></script>
     <script>
       window.AppChartStyle?.applyDefaults?.();
@@ -1048,7 +1050,7 @@
         }
         if (reportOpenEstimateLink) {
           reportOpenEstimateLink.href = estimateHrefForModel(model.model_name);
-          reportOpenEstimateLink.textContent = `Estimate ${model.model_name}`;
+          reportOpenEstimateLink.textContent = `Forecast ${model.model_name}`;
         }
       }
 
@@ -1089,7 +1091,7 @@
           }
           if (reportOpenEstimateLink) {
             reportOpenEstimateLink.href = '/estimate';
-            reportOpenEstimateLink.textContent = 'Open Estimate';
+            reportOpenEstimateLink.textContent = 'Open Forecast';
           }
           return;
         }
@@ -1124,7 +1126,7 @@
 
         if (reportOpenEstimateLink) {
           reportOpenEstimateLink.href = '/estimate';
-          reportOpenEstimateLink.textContent = 'Open Estimate';
+            reportOpenEstimateLink.textContent = 'Open Forecast';
         }
 
         window.AppUnitPriceTable?.renderScopedRows?.(unitRates, {
@@ -3189,12 +3191,23 @@
             }
           });
         }
-        window.AppDateRangePicker?.mount({
+        const reportDateRangePicker = window.AppDateRangePicker?.mount({
           startInput: document.getElementById('startDate'),
           endInput: document.getElementById('endDate'),
           autoApply: true,
+          defaultPreset: window.AppDateRangePicker?.DEFAULT_PRESET || 'this_year',
           onApply: () => loadReportWithUi(),
         });
+        if (reportDateRangePicker?.applyDefaultPreset) {
+          const startEl = document.getElementById('startDate');
+          const endEl = document.getElementById('endDate');
+          if (startEl && endEl && !startEl.value && !endEl.value) {
+            reportDateRangePicker.applyDefaultPreset(
+              window.AppDateRangePicker?.DEFAULT_PRESET || 'this_year',
+              { emit: false }
+            );
+          }
+        }
 
         const report = await fetchReport();
         applyReportPayload(report);
