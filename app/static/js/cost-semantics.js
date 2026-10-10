@@ -15,13 +15,13 @@
   };
 
   const meter = {
-    color: "#5eead4",
-    rgb: "94,234,212",
-    label: "OpEx · Meter",
-    shortLabel: "Meter",
-    subtitle: "Token meter (inp/out)",
-    hint: "By model table — Meter column (model rows: Input + Output USD)",
-    pillClass: "costPill--actual",
+    color: "#38bdf8",
+    rgb: "56,189,248",
+    label: "AI usage",
+    shortLabel: "AI usage",
+    subtitle: "Model-matched meter (inp/out)",
+    hint: "Part of Actual — model rows Meter column (Input + Output USD)",
+    pillClass: "costPill--meter",
     colClass: "colCostActual",
     tdClass: "tdCostActual",
   };
@@ -29,10 +29,10 @@
   const platform = {
     color: "#fbbf24",
     rgb: "251,191,36",
-    label: "OpEx · Platform",
+    label: "Platform",
     shortLabel: "Platform",
-    subtitle: "Non-token services",
-    hint: "By model table — Others · … rows (non-token services; chart Platform stack)",
+    subtitle: "Non-token Azure services",
+    hint: "Part of Actual — Others · … rows (non-token services; chart Platform stack)",
     pillClass: "costPill--platform",
     colClass: "colCostPlatform",
     tdClass: "tdCostPlatform",
@@ -103,22 +103,22 @@
     if (split) {
       rows.push({
         kind: "meter",
-        text: "Model rows · <b>Meter</b> column (Input + Output USD)",
+        text: "<b>AI usage</b> · model Meter column (Input + Output USD)",
       });
       rows.push({
         kind: "platform",
-        text: "<b>Others · …</b> rows · non-token platform services",
+        text: "<b>Platform</b> · Others · … rows (non-token Azure)",
       });
     } else {
       rows.push({
         kind: "opex",
-        text: "Daily <b>CostUSD</b> from billing CSV",
+        text: "Daily <b>CostUSD</b> from billing CSV (= Actual)",
       });
     }
     if (hasTariff) {
       rows.push({
         kind: "tariff",
-        text: "<b>Market</b> column · catalog USD/1M (<a href=\"/prices\">Price catalog</a>)",
+        text: "<b>Market</b> · catalog USD/1M — benchmark only, not invoice (<a href=\"/prices\">Price catalog</a>)",
       });
     }
     if (!rows.length) return "";

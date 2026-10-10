@@ -76,6 +76,7 @@
           <nav class="dashSectionNav card costNav costNavSticky" aria-label="Cost sections">
             <span class="dashSectionNavLabel muted">Views</span>
             <a class="dashSectionNavLink" href="#cost-summary">Overview</a>
+            <a class="dashSectionNavLink" href="#cost-composition">Composition</a>
             <a class="dashSectionNavLink" href="#cost-trends">Daily costs</a>
             <a class="dashSectionNavLink" href="#cost-tariff-reference">Benchmark</a>
             <a class="dashSectionNavLink" href="#costBreakdownSection">Breakdown</a>
@@ -86,7 +87,7 @@
               <span class="costStep" aria-hidden="true">1</span>
               <div class="costSectionHeadMain">
                 <h2 class="costSectionTitle">Overview</h2>
-                <p class="costSectionLead muted" id="costSummaryLead">Actual cost, composition, and run rate for the selected scope.</p>
+                <p class="costSectionLead muted" id="costSummaryLead">Invoice Actual = AI usage + Platform. Market is a separate benchmark — not part of the sum.</p>
               </div>
               <span class="costSectionMeta costCurrencyBadge" id="currencyLabel"></span>
             </div>
@@ -96,11 +97,11 @@
             </div>
 
             <div class="costStatementBody">
-              <div class="costStatementMetrics">
+              <div class="costOverviewKpis costStatementMetrics">
                 <div class="costMonitorKpi costFinPrimaryKpi" aria-label="Cost KPIs">
-                  <article class="monitorKpi monitorKpi--actual monitorKpi--hero" data-dash-jump="#cost-trends" title="Jump to daily costs">
+                  <article class="monitorKpi monitorKpi--actual monitorKpi--hero" data-dash-jump="#cost-composition" title="Jump to composition">
                     <div class="stat">
-                      <div class="label">Actual cost (USD)</div>
+                      <div class="label">Actual (invoice)</div>
                       <div class="value" id="actualCost">-</div>
                       <div class="sub tokenStats kpiFootnote kpiFootnote--stats" id="costStats">Max: - · Mean: - · Min: -</div>
                       <div class="sub kpiDelta" id="actualCostPeriodCompare" title="">—</div>
@@ -143,87 +144,117 @@
                     </div>
                   </article>
                 </div>
-
-                <div class="costStatementLayer costStatementLayer--opex" id="costOpexCompositionRow" hidden aria-label="OpEx composition">
-                  <p class="costStatementLayerTag muted">OpEx billing · composition</p>
-                  <div class="costMonitorKpi costFinOpexCompositionKpi">
-                    <article class="monitorKpi monitorKpi--actual">
-                      <div class="stat">
-                        <div class="label"><span class="costPill costPill--actual">OpEx</span> · Meter</div>
-                        <div class="value value--md" id="costMeterTotal">—</div>
-                        <div class="sub tokenStats kpiFootnote" id="costMeterNote">By model · Meter column</div>
-                      </div>
-                    </article>
-                    <article class="monitorKpi monitorKpi--platform">
-                      <div class="stat">
-                        <div class="label"><span class="costPill costPill--platform">OpEx</span> · Platform</div>
-                        <div class="value value--md" id="costPlatformTotal">—</div>
-                        <div class="sub tokenStats kpiFootnote" id="costPlatformNote">By model · Others · … rows</div>
-                      </div>
-                    </article>
-                    <article class="monitorKpi monitorKpi--rate monitorKpi--neutral">
-                      <div class="stat">
-                        <div class="label">Meter share</div>
-                        <div class="value value--md" id="costMeterSharePct">—</div>
-                        <div class="sub tokenStats kpiFootnote">Meter ÷ OpEx total</div>
-                      </div>
-                    </article>
-                  </div>
-                </div>
-
-                <div id="cost-tariff-reference" class="costStatementSubzone costTariffSubzone costStatementLayer costStatementLayer--refarch" hidden aria-label="Market benchmark">
-                  <div class="costSubzoneHead">
-                    <div>
-                      <h3 class="costSubzoneTitle">Market benchmark</h3>
-                      <p class="costSubzoneLead muted">Market benchmark — not invoice spend.</p>
-                    </div>
-                    <span class="costStatementLayerBadge">Not invoice</span>
-                  </div>
-                  <div class="costMonitorKpi costFinBenchmarkKpi" id="costBenchmarkRow" aria-label="Market benchmark">
-                    <article class="monitorKpi monitorKpi--market" id="catalogMarketCard" data-dash-jump="#cost-by-model" title="Jump to model allocation">
-                      <div class="stat">
-                        <div class="label"><span class="costPill costPill--market">Market</span></div>
-                        <div class="value" id="catalogMarketTotal">-</div>
-                        <div class="sub tokenStats kpiFootnote" id="catalogMarketNote">Tokens × list USD/1M · benchmark only</div>
-                      </div>
-                    </article>
-                    <article class="monitorKpi monitorKpi--delta monitorKpi--neutral" id="catalogVarianceCard">
-                      <div class="stat">
-                        <div class="label">Market variance</div>
-                        <div class="value value--md" id="catalogVariancePct">-</div>
-                        <div class="sub tokenStats kpiFootnote" id="catalogVarianceNote">OpEx − market · negative = below list</div>
-                      </div>
-                    </article>
-                    <article class="monitorKpi monitorKpi--neutral monitorKpi--meta">
-                      <div class="stat">
-                        <div class="label">Price catalog</div>
-                        <div class="value value--md value--text">Market</div>
-                        <div class="sub tokenStats kpiFootnote">From <a href="/prices">Price catalog</a> · configuration</div>
-                      </div>
-                    </article>
-                  </div>
-                </div>
-
-                <div id="subprojectCostStrip" class="dashSubprojectStrip costSubprojectStrip" hidden aria-label="Segment totals">
-                  <p class="dashSubprojectStripLead costSubprojectStripLead muted">Segments — cost by Azure resource (click to filter scope)</p>
-                  <div id="subprojectCostCards" class="costSubprojectCards"></div>
-                </div>
               </div>
 
-              <div id="cost-trends" class="costStatementSubzone costRunRateSubzone" aria-label="Run rate">
-                <article class="monitorCard monitorCard--primary monitorCard--inset costTrendCard" id="marketCompareSection">
-                  <header class="monitorCardHead monitorCardHead--chart">
-                    <div class="monitorCardHeadMain">
-                      <h3 class="monitorCardTitle">Daily costs</h3>
-                      <p class="monitorCardDesc muted" id="costTrendsLead">Actual cost by day · Granularity: Daily · Group by: Resource</p>
-                    </div>
-                  </header>
-                  <div id="costSpendSegmentLegend" class="costSpendLegendRow" hidden aria-label="Chart segments"></div>
-                  <div class="chartCanvasHost monitorChartHost" data-chart-host>
-                    <canvas id="timeseriesChartMarket" role="img" aria-label="Daily billing chart"></canvas>
+              <div class="costStatementLayer costCompositionPanel" id="costOpexCompositionRow" hidden aria-label="How Actual is composed">
+                <div class="costCompositionHead" id="cost-composition">
+                  <div>
+                    <p class="costStatementLayerTag muted">Composition</p>
+                    <h3 class="costCompositionTitle">How Actual is composed</h3>
+                    <p class="costCompositionLead muted">
+                      <span class="costPill costPill--meter">AI usage</span>
+                      <span class="costEqInlineOp" aria-hidden="true">+</span>
+                      <span class="costPill costPill--platform">Platform</span>
+                      <span class="costEqInlineOp" aria-hidden="true">=</span>
+                      <span class="costPill costPill--actual">Actual</span>
+                      <span class="costCompositionLeadSep">·</span>
+                      invoice CostUSD split — not Market
+                    </p>
                   </div>
-                  <footer class="monitorCardFoot muted" id="costChartFootnote">—</footer>
-                </article>
+                  <p class="costCompositionSum muted" id="costCompositionSum" hidden>
+                    Of Actual <strong id="costCompActualTotal">—</strong>
+                  </p>
+                </div>
+                <div class="costEquationBar" id="costEquationBar" hidden aria-label="AI usage plus Platform equals Actual">
+                  <div class="costShareTrack" id="costShareTrack" aria-hidden="true">
+                    <span class="costShareSeg costShareSeg--meter" id="costShareMeter"></span>
+                    <span class="costShareSeg costShareSeg--platform" id="costSharePlatform"></span>
+                  </div>
+                  <div class="costEquationTerms">
+                    <div class="costEqTerm costEqTerm--meter">
+                      <span class="costEqLabel"><span class="costPill costPill--meter">AI usage</span></span>
+                      <strong class="costEqValue" id="costMeterTotal">—</strong>
+                      <span class="costEqHint" id="costMeterNote">Model token meter</span>
+                      <span class="costEqShare" id="costMeterSharePct" hidden></span>
+                    </div>
+                    <span class="costEqOp" aria-hidden="true">+</span>
+                    <div class="costEqTerm costEqTerm--platform">
+                      <span class="costEqLabel"><span class="costPill costPill--platform">Platform</span></span>
+                      <strong class="costEqValue" id="costPlatformTotal">—</strong>
+                      <span class="costEqHint" id="costPlatformNote">Other Azure services</span>
+                      <span class="costEqShare costEqShare--platform" id="costPlatformSharePct" hidden></span>
+                    </div>
+                  </div>
+                  <div class="costEquationResult">
+                    <span class="costEqOp costEqOp--equals" aria-hidden="true">=</span>
+                    <div class="costEqTerm costEqTerm--total costEqTerm--result">
+                      <span class="costEqLabel"><span class="costPill costPill--actual">Actual</span></span>
+                      <strong class="costEqValue" id="costCompActualTotalEq">—</strong>
+                      <span class="costEqHint">Invoice total (AI usage + Platform)</span>
+                    </div>
+                  </div>
+                </div>
+                <p class="costCompositionEmpty muted" id="costCompositionEmpty" hidden>
+                  Import token CSVs to split Actual into AI usage vs Platform. Until then, only the invoice total is available.
+                </p>
+              </div>
+
+              <div class="costOverviewMain">
+                <div id="cost-trends" class="costStatementSubzone costRunRateSubzone" aria-label="Run rate">
+                  <article class="monitorCard monitorCard--primary monitorCard--inset costTrendCard" id="marketCompareSection">
+                    <header class="monitorCardHead monitorCardHead--chart">
+                      <div class="monitorCardHeadMain">
+                        <h3 class="monitorCardTitle">Daily costs</h3>
+                        <p class="monitorCardDesc muted" id="costTrendsLead">Actual cost by day · Granularity: Daily · Group by: Resource</p>
+                      </div>
+                    </header>
+                    <div id="costSpendSegmentLegend" class="costSpendLegendRow" hidden aria-label="Chart segments"></div>
+                    <div class="chartCanvasHost monitorChartHost" data-chart-host>
+                      <canvas id="timeseriesChartMarket" role="img" aria-label="Daily billing chart"></canvas>
+                    </div>
+                    <footer class="monitorCardFoot muted" id="costChartFootnote">—</footer>
+                  </article>
+                </div>
+
+                <div class="costOverviewSide">
+                  <div id="cost-tariff-reference" class="costStatementSubzone costTariffSubzone costStatementLayer costStatementLayer--refarch" hidden aria-label="Market benchmark">
+                    <div class="costSubzoneHead">
+                      <div>
+                        <h3 class="costSubzoneTitle">Market benchmark</h3>
+                        <p class="costSubzoneLead muted">List price × tokens. Compare only — not part of Actual.</p>
+                      </div>
+                      <span class="costStatementLayerBadge">Not invoice</span>
+                    </div>
+                    <div class="costMonitorKpi costFinBenchmarkKpi" id="costBenchmarkRow" aria-label="Market benchmark">
+                      <article class="monitorKpi monitorKpi--market" id="catalogMarketCard" data-dash-jump="#cost-by-model" title="Jump to model allocation">
+                        <div class="stat">
+                          <div class="label"><span class="costPill costPill--market">Market</span></div>
+                          <div class="value" id="catalogMarketTotal">-</div>
+                          <div class="sub tokenStats kpiFootnote" id="catalogMarketNote">Tokens × list USD/1M</div>
+                        </div>
+                      </article>
+                      <article class="monitorKpi monitorKpi--delta monitorKpi--neutral" id="catalogVarianceCard">
+                        <div class="stat">
+                          <div class="label">vs Actual</div>
+                          <div class="value value--md" id="catalogVariancePct">-</div>
+                          <div class="sub tokenStats kpiFootnote" id="catalogVarianceNote">Actual − Market · negative = below list</div>
+                        </div>
+                      </article>
+                      <article class="monitorKpi monitorKpi--neutral monitorKpi--meta">
+                        <div class="stat">
+                          <div class="label">Price catalog</div>
+                          <div class="value value--md value--text">Market</div>
+                          <div class="sub tokenStats kpiFootnote">From <a href="/prices">Price catalog</a></div>
+                        </div>
+                      </article>
+                    </div>
+                  </div>
+
+                  <div id="subprojectCostStrip" class="dashSubprojectStrip costSubprojectStrip" hidden aria-label="Segment totals">
+                    <p class="dashSubprojectStripLead costSubprojectStripLead muted">Segments — cost by Azure resource (click to filter)</p>
+                    <div id="subprojectCostCards" class="costSubprojectCards"></div>
+                  </div>
+                </div>
               </div>
             </div>
           </section>
@@ -248,8 +279,9 @@
                   <div class="detailTableIdentity">
                     <h3 class="detailTableTitle">By model</h3>
                     <p class="detailTableDesc muted modelTableHint">
-                      Model rows = token meter (Input / Output / Meter); <span class="costPill costPill--platform">OpEx · Platform</span> = <b>Others · …</b>.
-                      <span class="costPill costPill--market">Market</span> = catalog USD/1M from <a href="/prices">Price catalog</a> (benchmark, not invoice).
+                      <span class="costPill costPill--actual">AI usage</span> = model Meter (Input / Output).
+                      <span class="costPill costPill--platform">Platform</span> = <b>Others · …</b> (non-token Azure).
+                      <span class="costPill costPill--market">Market</span> = catalog USD/1M — benchmark only, not invoice.
                     </p>
                   </div>
                   <div class="detailTableActions">
@@ -569,9 +601,17 @@
       const costBenchmarkRowEl = document.getElementById('costBenchmarkRow');
       const costTariffReferenceSectionEl = document.getElementById('cost-tariff-reference');
       const costOpexCompositionRowEl = document.getElementById('costOpexCompositionRow');
+      const costEquationBarEl = document.getElementById('costEquationBar');
+      const costCompositionEmptyEl = document.getElementById('costCompositionEmpty');
+      const costCompositionSumEl = document.getElementById('costCompositionSum');
+      const costCompActualTotalEl = document.getElementById('costCompActualTotal');
+      const costCompActualTotalEqEl = document.getElementById('costCompActualTotalEq');
       const costMeterTotalEl = document.getElementById('costMeterTotal');
       const costPlatformTotalEl = document.getElementById('costPlatformTotal');
       const costMeterSharePctEl = document.getElementById('costMeterSharePct');
+      const costPlatformSharePctEl = document.getElementById('costPlatformSharePct');
+      const costShareMeterEl = document.getElementById('costShareMeter');
+      const costSharePlatformEl = document.getElementById('costSharePlatform');
       const costMeterNoteEl = document.getElementById('costMeterNote');
       const costPlatformNoteEl = document.getElementById('costPlatformNote');
       const costModelChartsRowEl = document.getElementById('costModelChartsRow');
@@ -1066,31 +1106,74 @@
         const meter = summary?.total_meter_cost_usd;
         const platform = summary?.billing_other_usd;
         const total = Number(authoritativeActualTotal ?? summary?.total_actual_cost_usd ?? 0);
-        const hasMeter = meter != null && Number(meter) > 0;
-        const hasPlatform = platform != null && Number(platform) > 0;
-        const show = hasMeter || hasPlatform;
+        const meterN = Number.isFinite(Number(meter)) ? Number(meter) : 0;
+        const platformN = Number.isFinite(Number(platform)) ? Number(platform) : 0;
+        const hasMeter = meterN > 0;
+        const hasPlatform = platformN > 0;
+        const hasSplit = hasMeter || hasPlatform;
+        const show = total > 0 || hasSplit;
         if (costOpexCompositionRowEl) costOpexCompositionRowEl.hidden = !show;
         if (!show) return;
-        if (costMeterTotalEl) costMeterTotalEl.textContent = hasMeter ? fmt2(meter) : '—';
-        if (costPlatformTotalEl) costPlatformTotalEl.textContent = hasPlatform ? fmt2(platform) : '—';
-        if (costMeterNoteEl && hasMeter) {
-          const inp = summary.total_input_cost_usd;
-          const out = summary.total_output_cost_usd;
-          costMeterNoteEl.textContent =
-            inp != null || out != null
-              ? `By model · in ${fmt2(inp)} · out ${fmt2(out)}`
-              : 'By model · Meter column (model rows)';
+
+        const totalText = total > 0 ? fmt2(total) : '—';
+        if (costCompActualTotalEl) costCompActualTotalEl.textContent = totalText;
+        if (costCompActualTotalEqEl) costCompActualTotalEqEl.textContent = totalText;
+        if (costCompositionSumEl) costCompositionSumEl.hidden = !(total > 0);
+        if (costEquationBarEl) costEquationBarEl.hidden = !hasSplit;
+        if (costCompositionEmptyEl) costCompositionEmptyEl.hidden = hasSplit;
+        if (!hasSplit) return;
+
+        const platformShown = hasPlatform ? platformN : hasMeter && total > 0 ? Math.max(0, total - meterN) : 0;
+        if (costMeterTotalEl) costMeterTotalEl.textContent = hasMeter ? fmt2(meterN) : '—';
+        if (costPlatformTotalEl) {
+          costPlatformTotalEl.textContent =
+            hasPlatform || (hasMeter && total > 0) ? fmt2(platformShown) : '—';
         }
-        if (costPlatformNoteEl && hasPlatform) {
-          costPlatformNoteEl.textContent = 'By model · Others · … rows';
-        }
-        if (costMeterSharePctEl) {
-          if (hasMeter && total > 0) {
-            const pct = (Number(meter) / total) * 100;
-            costMeterSharePctEl.textContent = `${pct.toFixed(1)}%`;
+        if (costMeterNoteEl) {
+          if (hasMeter) {
+            const inp = summary.total_input_cost_usd;
+            const out = summary.total_output_cost_usd;
+            costMeterNoteEl.textContent =
+              inp != null || out != null
+                ? `Input ${fmt2(inp)} · Output ${fmt2(out)}`
+                : 'Model token meter';
           } else {
-            costMeterSharePctEl.textContent = '—';
+            costMeterNoteEl.textContent = 'No model-matched usage';
           }
+        }
+        if (costPlatformNoteEl) {
+          costPlatformNoteEl.textContent = platformShown > 0
+            ? 'Non-token Azure (compute, storage, …)'
+            : 'No platform lines in range';
+        }
+
+        const meterPct = total > 0 && hasMeter ? (meterN / total) * 100 : 0;
+        const platformPct = total > 0 && platformShown > 0 ? (platformShown / total) * 100 : 0;
+        if (costMeterSharePctEl) {
+          if (meterPct > 0) {
+            costMeterSharePctEl.hidden = false;
+            costMeterSharePctEl.textContent = `${meterPct.toFixed(1)}%`;
+          } else {
+            costMeterSharePctEl.hidden = true;
+            costMeterSharePctEl.textContent = '';
+          }
+        }
+        if (costPlatformSharePctEl) {
+          if (platformPct > 0) {
+            costPlatformSharePctEl.hidden = false;
+            costPlatformSharePctEl.textContent = `${platformPct.toFixed(1)}%`;
+          } else {
+            costPlatformSharePctEl.hidden = true;
+            costPlatformSharePctEl.textContent = '';
+          }
+        }
+        if (costShareMeterEl) {
+          costShareMeterEl.style.flexGrow = String(Math.max(meterPct, meterPct > 0 ? 2 : 0));
+          costShareMeterEl.title = hasMeter ? `AI usage ${meterPct.toFixed(1)}%` : '';
+        }
+        if (costSharePlatformEl) {
+          costSharePlatformEl.style.flexGrow = String(Math.max(platformPct, platformPct > 0 ? 2 : 0));
+          costSharePlatformEl.title = platformShown > 0 ? `Platform ${platformPct.toFixed(1)}%` : '';
         }
       }
 
@@ -1107,7 +1190,6 @@
 
         if (!available) {
           renderCostSavingsBanner(null, false);
-          if (costOpexCompositionRowEl) costOpexCompositionRowEl.hidden = true;
           if (catalogMarketTotalEl) catalogMarketTotalEl.textContent = '—';
           if (catalogMarketNoteEl) {
             const reason = catalogPayload?.reason === 'no_token_volume'
@@ -1168,8 +1250,8 @@
         if (catalogVarianceNoteEl) {
           catalogVarianceNoteEl.textContent =
             vUsd === null || vUsd === undefined
-              ? 'OpEx − market'
-              : `Δ ${fmt2(vUsd)} (OpEx − market)`;
+              ? 'Actual − Market'
+              : `Δ ${fmt2(vUsd)} (Actual − Market)`;
         }
 
         renderModelCostSection(catalogPayload);
@@ -1501,7 +1583,7 @@
 
         const tdCatalog = document.createElement('td');
         tdCatalog.className = 'catalogSourceCell muted';
-        tdCatalog.innerHTML = '<span class="costPill costPill--platform">OpEx · Platform</span> · non-token service';
+        tdCatalog.innerHTML = '<span class="costPill costPill--platform">Platform</span> · non-token Azure';
         tr.appendChild(tdCatalog);
 
         _appendModelNumCell(tr, null, { costKind: 'actual' });
@@ -2514,16 +2596,17 @@
             ? ` · ${currentStartDate || '…'} – ${currentEndDate || '…'}`
             : '';
         if (costSummaryLeadEl) {
+          const equation =
+            'Actual = AI usage + Platform. Market is a separate benchmark.';
+          let scopeNote;
           if (subproject) {
-            costSummaryLeadEl.textContent =
-              `Period totals for subproject “${subproject}” in ${projectName}${rangeText}.`;
+            scopeNote = `Subproject “${subproject}” in ${projectName}${rangeText}.`;
           } else if (subprojectField && !subprojectField.hidden) {
-            costSummaryLeadEl.textContent =
-              `Project-level totals${rangeText}. Use Segments or the subproject filter to drill down.`;
+            scopeNote = `Project totals${rangeText}. Use Segments to drill down.`;
           } else {
-            costSummaryLeadEl.textContent =
-              `Period totals for ${projectName}${rangeText}.`;
+            scopeNote = `Period totals for ${projectName}${rangeText}.`;
           }
+          costSummaryLeadEl.textContent = `${equation} ${scopeNote}`;
         }
         if (costTrendsLeadEl) {
           const segCount = resourceSeriesCountFromPayload(lastDailyByResource);

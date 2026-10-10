@@ -41,7 +41,9 @@ def test_cost_tokens_reports_scope_deeplink_contracts(tmp_path: Path) -> None:
     assert 'id="costSelectionHint"' in cost.text
     assert "Negative variance = actual below list price" in cost.text
     assert "Month forecast" in cost.text
-    assert "Actual cost (USD)" in cost.text
+    assert "Actual (invoice)" in cost.text
+    assert "How Actual is composed" in cost.text
+    assert 'id="costEquationBar"' in cost.text
     assert "clearDashboardSelection" in cost.text
     assert "AppScopeUrl" in cost.text
     assert "tokensHrefForModel" in cost.text
@@ -60,6 +62,12 @@ def test_cost_tokens_reports_scope_deeplink_contracts(tmp_path: Path) -> None:
     reports = client.get("/reports")
     assert reports.status_code == 200
     assert "Negative variance = actual below list price" in reports.text
+    assert 'id="reportCompositionEquation"' in reports.text
+    assert "How Actual is composed" in reports.text
+    assert 'id="reportShareTrack"' in reports.text
+    assert "reportCompositionGrid" in reports.text
+    assert "reportMarketCompareStrip" in reports.text
+    assert "Actual vs Market" in reports.text
     assert "applyDailyChartLedgerSelection" in reports.text
     assert "is-navActive" in reports.text or "bindReportJumpNavActive" in reports.text
 

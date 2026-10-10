@@ -1859,6 +1859,378 @@
   box-shadow: 0 1px 0 rgba(255, 255, 255, 0.03) inset;
 }
 
+.visually-hidden {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.reportCompositionEquation {
+  margin: 0 0 14px;
+  padding: 16px 18px;
+  border-radius: 12px;
+  border: 1px solid rgba(94, 234, 212, 0.2);
+  background:
+    linear-gradient(135deg, rgba(94, 234, 212, 0.06) 0%, rgba(255, 255, 255, 0.015) 50%),
+    rgba(10, 18, 28, 0.4);
+}
+
+.reportCompositionHead {
+  margin-bottom: 14px;
+}
+
+.reportCompositionEqLead {
+  margin: 0 0 4px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted, #7d92ab);
+}
+
+.reportCompositionTitle {
+  margin: 0 0 4px;
+  font-size: 16px;
+  font-weight: 720;
+  letter-spacing: -0.01em;
+  color: var(--text, #e8eef7);
+}
+
+.reportCompositionLead {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.45;
+  max-width: 64ch;
+  color: var(--muted, #7d92ab);
+}
+
+.reportCompositionEmpty {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 12.5px;
+  line-height: 1.45;
+  background: rgba(173, 196, 228, 0.06);
+  border: 1px dashed rgba(173, 196, 228, 0.18);
+}
+
+.reportEquationBar {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.reportShareLegend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+}
+
+.reportShareLegendItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--muted, #7d92ab);
+}
+
+.reportShareLegendItem strong {
+  font-variant-numeric: tabular-nums;
+  color: var(--text, #e8eef7);
+}
+
+.reportShareLegendSwatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.reportShareLegendItem--meter .reportShareLegendSwatch {
+  background: #38bdf8;
+}
+
+.reportShareLegendItem--platform .reportShareLegendSwatch {
+  background: #fbbf24;
+}
+
+.reportShareTrack {
+  display: flex;
+  width: 100%;
+  height: 14px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgba(173, 196, 228, 0.1);
+  border: 1px solid rgba(173, 196, 228, 0.14);
+}
+
+.reportShareSeg {
+  display: block;
+  height: 100%;
+  width: 0;
+  min-width: 0;
+  transition: width 220ms ease;
+}
+
+.reportShareSeg--meter {
+  background: linear-gradient(90deg, #38bdf8, #0ea5e9);
+}
+
+.reportShareSeg--platform {
+  background: linear-gradient(90deg, #fbbf24, #f59e0b);
+}
+
+.reportCompositionGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1.1fr);
+  gap: 10px;
+  align-items: stretch;
+}
+
+.reportCompCard {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 14px 16px;
+  border-radius: 10px;
+  border: 1px solid rgba(173, 196, 228, 0.12);
+  background: rgba(255, 255, 255, 0.03);
+  min-width: 0;
+}
+
+.reportCompCard--meter {
+  border-color: rgba(56, 189, 248, 0.35);
+  background: rgba(56, 189, 248, 0.08);
+}
+
+.reportCompCard--platform {
+  border-color: rgba(251, 191, 36, 0.32);
+  background: rgba(251, 191, 36, 0.07);
+}
+
+.reportCompCard--actual {
+  border-color: rgba(94, 234, 212, 0.38);
+  background: rgba(94, 234, 212, 0.1);
+}
+
+.reportCompCardLabel {
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.reportCompCardValue {
+  font-size: clamp(20px, 2.2vw, 26px);
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  color: var(--text, #e8eef7);
+}
+
+.reportCompCardHint {
+  font-size: 11.5px;
+  line-height: 1.4;
+  color: var(--muted, #7d92ab);
+}
+
+.reportCompOp {
+  align-self: center;
+  width: 2rem;
+  height: 2rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--text, #e8eef7);
+  background: rgba(173, 196, 228, 0.12);
+  border: 1px solid rgba(173, 196, 228, 0.2);
+}
+
+.reportCompOp--eq {
+  background: rgba(94, 234, 212, 0.14);
+  border-color: rgba(94, 234, 212, 0.3);
+  color: rgba(94, 234, 212, 0.95);
+}
+
+.reportMarketCompareStrip {
+  margin: 0 0 12px;
+  padding: 16px 18px;
+  border-radius: 12px;
+  border: 1px solid rgba(192, 132, 252, 0.28);
+  background:
+    linear-gradient(135deg, rgba(192, 132, 252, 0.08) 0%, rgba(255, 255, 255, 0.015) 55%),
+    rgba(10, 18, 28, 0.35);
+}
+
+.reportMarketCompareHead {
+  margin-bottom: 14px;
+}
+
+.reportMarketCompareTitle {
+  margin: 0 0 4px;
+  font-size: 16px;
+  font-weight: 720;
+  letter-spacing: -0.01em;
+  color: var(--text, #e8eef7);
+}
+
+.reportMarketCompareLead {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.45;
+  max-width: 64ch;
+}
+
+.reportMarketCompareBody {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1.15fr);
+  gap: 12px;
+  align-items: stretch;
+}
+
+.reportMarketCompareTerm {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 16px;
+  border-radius: 10px;
+  border: 1px solid rgba(173, 196, 228, 0.12);
+  background: rgba(255, 255, 255, 0.03);
+  min-width: 0;
+}
+
+.reportMarketCompareTerm--actual {
+  border-color: rgba(94, 234, 212, 0.3);
+  background: rgba(94, 234, 212, 0.07);
+}
+
+.reportMarketCompareTerm--market {
+  border-color: rgba(192, 132, 252, 0.35);
+  background: rgba(192, 132, 252, 0.08);
+}
+
+.reportMarketCompareLabel {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.reportMarketCompareValue {
+  font-size: clamp(22px, 2.4vw, 28px);
+  font-weight: 760;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  color: var(--text, #e8eef7);
+}
+
+.reportMarketCompareValue--market {
+  color: #e9d5ff;
+}
+
+.reportMarketCompareHint {
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.reportMarketCompareBridge {
+  align-self: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  min-width: 88px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(253, 230, 138, 0.28);
+  background: rgba(253, 230, 138, 0.08);
+  text-align: center;
+}
+
+.reportMarketCompareBridgeKey {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted, #7d92ab);
+}
+
+.reportMarketCompareBridgePct {
+  font-size: 18px;
+  font-weight: 780;
+  font-variant-numeric: tabular-nums;
+  color: #fde68a;
+  line-height: 1.1;
+}
+
+.reportMarketCompareBridgeUsd {
+  font-size: 11px;
+  line-height: 1.2;
+}
+
+.reportNotInvoiceBadge {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgba(192, 132, 252, 0.95);
+}
+
+.reportMarketVarianceRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(253, 230, 138, 0.22);
+  background: rgba(253, 230, 138, 0.06);
+}
+
+.reportMarketVarianceRow .reportIncomeAnnotLabel {
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.reportMarketVarianceRow .reportIncomeAnnotVal {
+  font-size: 15px;
+  font-weight: 750;
+}
+
+@media (max-width: 900px) {
+  .reportCompositionGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .reportCompositionGrid .reportCompOp {
+    justify-self: center;
+    transform: rotate(90deg);
+  }
+
+  .reportMarketCompareBody {
+    grid-template-columns: 1fr;
+  }
+
+  .reportMarketCompareBridge {
+    flex-direction: row;
+    justify-content: center;
+    gap: 10px;
+    min-width: 0;
+  }
+}
+
 .reportPageRoot .reportSectionCard .reportStatementCompare {
   margin-top: 0;
 }

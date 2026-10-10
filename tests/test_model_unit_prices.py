@@ -552,7 +552,11 @@ def test_catalog_market_cost_timeseries(tmp_path):
     assert 'id="costSelectionHint"' in page.text
     assert "Negative variance = actual below list price" in page.text
     assert "Month forecast" in page.text
-    assert "Actual cost (USD)" in page.text
+    assert "Actual (invoice)" in page.text
+    assert "How Actual is composed" in page.text
+    assert 'id="costEquationBar"' in page.text
+    assert 'id="costShareTrack"' in page.text
+    assert "costOverviewMain" in page.text
     assert "Clear filter" in page.text or "clearCostSelection" in page.text or "costSelectionHint" in page.text
 
     api = client.get("/api/projects/projCat/catalog-market-timeseries?currency=USD")

@@ -438,8 +438,9 @@ def test_reports_page_layout_without_token_forecast(tmp_path):
     assert "reportRefArchPanel" in page.text
     assert "reportBenchmarkRow" not in page.text
     assert "reportVolumeRow" in page.text
-    assert "reportIncomeStatement" in page.text
-    assert "reportIncomeHead" in page.text
+    assert "reportCompositionEquation" in page.text
+    assert "reportCompositionGrid" in page.text
+    assert "reportMarketCompareStrip" in page.text
     assert "reportCashFlowTieOut" in page.text
     assert "report-raw-data" not in page.text
     assert "filterCard" in page.text

@@ -97,102 +97,106 @@
               <span class="reportStep" aria-hidden="true">1</span>
               <div>
                 <h2 class="reportSectionTitle">Income Statement</h2>
-                <p class="reportSectionLead muted" id="reportInsightLine">Period OpEx — invoice actuals and benchmark notes.</p>
+                <p class="reportSectionLead muted" id="reportInsightLine">Actual = AI usage + Platform. Market is a separate benchmark — not part of the sum.</p>
               </div>
               <span class="reportSectionMeta reportCurrencyBadge" id="reportCurrencyMeta"></span>
             </div>
 
-            <div class="reportStatementCompare" id="reportStatementCompare">
-              <div class="reportStatementDualGrid" id="reportStatementDualGrid">
-                <div class="reportStatementBlock reportStatementBlock--actual">
-                  <div class="reportIncomeStatement" id="reportIncomePanel">
-                    <header class="reportIncomeHead reportIncomeHead--actual">
-                      <p class="reportStatementLayerTag muted"><span class="reportStatementStep">1</span> Invoice actual</p>
-                      <div class="reportIncomeHeadKpi">
-                        <span class="reportIncomeHeadLabel"><span class="costPill costPill--actual">OpEx</span> Total</span>
-                        <strong class="reportIncomeHeadValue" id="hero_total_spend">—</strong>
-                      </div>
-                      <p class="reportIncomeHeadMeta muted" id="hero_summary_meta">—</p>
-                    </header>
-                    <div class="reportIncomeBody">
-                      <table class="reportIncomeTable" aria-label="Invoice actual line items">
-                        <thead>
-                          <tr>
-                            <th scope="col">Line item</th>
-                            <th class="num" scope="col"><span class="thLabel">Amount</span><span class="thUnit" id="incomeLineCurrencyUnit">USD</span></th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          <tr id="incomeLineMeterRow" hidden>
-                            <th scope="row"><span class="costPill costPill--actual">OpEx</span> · Meter</th>
-                            <td class="num mono tdCostActual" id="incomeLineMeter">—</td>
-                          </tr>
-                          <tr id="incomeLineMeterDetailRow" class="reportIncomeDetailRow" hidden>
-                            <td colspan="2" class="reportIncomeDetailCell muted" id="incomeLineMeterDetail">—</td>
-                          </tr>
-                          <tr id="incomeLinePlatformRow" hidden>
-                            <th scope="row"><span class="costPill costPill--platform">OpEx</span> · Platform</th>
-                            <td class="num mono tdCostPlatform" id="incomeLinePlatform">—</td>
-                          </tr>
-                        </tbody>
-                      </table>
-                    </div>
-                    <div class="reportIncomeFooter reportIncomeFooter--actual">
-                      <span class="reportIncomeFooterLabel"><span class="costPill costPill--actual">OpEx</span> Total</span>
-                      <span class="reportIncomeFooterVal mono" id="incomeLineTotal">—</span>
-                    </div>
-                  </div>
-                </div>
-
-                <aside class="reportStatementConnector" id="reportStatementConnector" hidden aria-label="OpEx vs market variance">
-                  <span class="reportStatementConnectorArrow" aria-hidden="true">→</span>
-                  <div class="reportStatementConnectorChip">
-                    <span class="reportStatementConnectorKey">Variance</span>
-                    <strong class="reportStatementConnectorVal" id="bridgeVariancePct">—</strong>
-                    <span class="reportStatementConnectorSub muted" id="bridgeVarianceUsd">—</span>
-                  </div>
-                </aside>
-
-                <div class="reportStatementBlock reportStatementBlock--market" id="reportRefArchBlock" hidden>
-                  <div class="reportIncomeStatement reportIncomeStatement--refarch" id="reportRefArchPanel">
-                    <header class="reportIncomeHead reportIncomeHead--market">
-                      <p class="reportStatementLayerTag muted"><span class="reportStatementStep">2</span> Market benchmark</p>
-                      <div class="reportIncomeHeadKpi">
-                        <span class="reportIncomeHeadLabel"><span class="costPill costPill--market">Market</span></span>
-                        <strong class="reportIncomeHeadValue reportIncomeHeadValue--market" id="refArchHeadValue">—</strong>
-                      </div>
-                      <p class="reportIncomeHeadMeta muted" id="refArch_summary_meta">—</p>
-                    </header>
-                    <div class="reportIncomeBody">
-                      <table class="reportIncomeTable" aria-label="Market benchmark line items">
-                        <thead>
-                          <tr>
-                            <th scope="col">Line item</th>
-                            <th class="num" scope="col"><span class="thLabel">Amount</span><span class="thUnit">USD</span></th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          <tr>
-                            <th scope="row"><span class="costPill costPill--market">Market</span></th>
-                            <td class="num mono tdCostMarket" id="refArchLineTariff">—</td>
-                          </tr>
-                          <tr class="reportIncomeDetailRow">
-                            <td colspan="2" class="reportIncomeDetailCell muted" id="refArchLineTariffDetail">Benchmark only · not invoice spend</td>
-                          </tr>
-                          <tr id="refArchVarianceRow" hidden>
-                            <th scope="row" class="reportIncomeAnnotLabel">OpEx − market</th>
-                            <td class="num mono reportIncomeAnnotVal" id="refArchLineVariance">—</td>
-                          </tr>
-                        </tbody>
-                      </table>
-                    </div>
-                    <div class="reportIncomeFooter reportIncomeFooter--market">
-                      <span class="reportIncomeFooterLabel"><span class="costPill costPill--market">Market</span> total</span>
-                      <span class="reportIncomeFooterVal mono" id="refArchLineTotal">—</span>
-                    </div>
-                  </div>
+            <div class="reportCompositionEquation" id="reportCompositionEquation" hidden aria-label="How Actual is composed">
+              <div class="reportCompositionHead">
+                <div>
+                  <p class="reportCompositionEqLead muted">1 · Composition</p>
+                  <h3 class="reportCompositionTitle">How Actual is composed</h3>
+                  <p class="reportCompositionLead muted">
+                    Invoice CostUSD split into AI usage and Platform. Market is compared below — not added here.
+                  </p>
                 </div>
               </div>
+              <div class="reportEquationBar" id="reportEquationBar" hidden>
+                <div class="reportShareLegend" aria-hidden="true">
+                  <span class="reportShareLegendItem reportShareLegendItem--meter">
+                    <span class="reportShareLegendSwatch"></span>AI usage <strong id="reportEqMeterShare">—</strong>
+                  </span>
+                  <span class="reportShareLegendItem reportShareLegendItem--platform">
+                    <span class="reportShareLegendSwatch"></span>Platform <strong id="reportEqPlatformShare">—</strong>
+                  </span>
+                </div>
+                <div class="reportShareTrack" id="reportShareTrack" role="img" aria-label="Share of Actual">
+                  <span class="reportShareSeg reportShareSeg--meter" id="reportShareMeter"></span>
+                  <span class="reportShareSeg reportShareSeg--platform" id="reportSharePlatform"></span>
+                </div>
+                <div class="reportCompositionGrid">
+                  <article class="reportCompCard reportCompCard--meter">
+                    <span class="reportCompCardLabel"><span class="costPill costPill--meter">AI usage</span></span>
+                    <strong class="reportCompCardValue" id="reportEqMeter">—</strong>
+                    <span class="reportCompCardHint" id="reportEqMeterHint">Model token meter</span>
+                  </article>
+                  <span class="reportCompOp" aria-hidden="true">+</span>
+                  <article class="reportCompCard reportCompCard--platform">
+                    <span class="reportCompCardLabel"><span class="costPill costPill--platform">Platform</span></span>
+                    <strong class="reportCompCardValue" id="reportEqPlatform">—</strong>
+                    <span class="reportCompCardHint">Non-token Azure</span>
+                  </article>
+                  <span class="reportCompOp reportCompOp--eq" aria-hidden="true">=</span>
+                  <article class="reportCompCard reportCompCard--actual">
+                    <span class="reportCompCardLabel"><span class="costPill costPill--actual">Actual</span></span>
+                    <strong class="reportCompCardValue" id="hero_total_spend">—</strong>
+                    <span class="reportCompCardHint" id="hero_summary_meta">—</span>
+                  </article>
+                </div>
+              </div>
+              <p class="reportCompositionEmpty muted" id="reportCompositionEmpty" hidden>
+                Import token CSVs to split Actual into AI usage vs Platform.
+              </p>
+              <!-- Keep ids for scripts/tests; composition replaces the old invoice table UI -->
+              <div id="reportIncomePanel" class="visually-hidden" aria-hidden="true">
+                <span id="incomeLineCurrencyUnit">USD</span>
+                <span id="incomeLineMeter">—</span>
+                <span id="incomeLineMeterDetail">—</span>
+                <span id="incomeLinePlatform">—</span>
+                <span id="incomeLineTotal">—</span>
+                <span id="reportEqActual">—</span>
+                <span id="reportCompositionSum"></span>
+                <span id="incomeLineMeterRow"></span>
+                <span id="incomeLineMeterDetailRow"></span>
+                <span id="incomeLinePlatformRow"></span>
+              </div>
+            </div>
+
+            <div class="reportMarketCompareStrip" id="reportStatementCompare" hidden aria-label="Actual vs Market">
+              <div class="reportMarketCompareHead">
+                <p class="reportCompositionEqLead muted">2 · Benchmark</p>
+                <h3 class="reportMarketCompareTitle">Actual vs Market</h3>
+                <p class="reportMarketCompareLead muted" id="refArchLineTariffDetail">
+                  Market = tokens × list USD/1M from <a href="/prices">Price catalog</a> — not invoice spend.
+                </p>
+              </div>
+              <div class="reportMarketCompareBody" id="reportStatementDualGrid">
+                <div class="reportMarketCompareTerm reportMarketCompareTerm--actual">
+                  <span class="reportMarketCompareLabel"><span class="costPill costPill--actual">Actual</span></span>
+                  <strong class="reportMarketCompareValue" id="reportCompareActual">—</strong>
+                </div>
+                <aside class="reportMarketCompareBridge" id="reportStatementConnector" hidden>
+                  <span class="reportMarketCompareBridgeKey">vs Market</span>
+                  <strong class="reportMarketCompareBridgePct" id="bridgeVariancePct">—</strong>
+                  <span class="reportMarketCompareBridgeUsd muted" id="bridgeVarianceUsd">—</span>
+                </aside>
+                <div class="reportMarketCompareTerm reportMarketCompareTerm--market" id="reportRefArchBlock" hidden>
+                  <span class="reportMarketCompareLabel">
+                    <span class="costPill costPill--market">Market</span>
+                    <span class="reportNotInvoiceBadge">not invoice</span>
+                  </span>
+                  <strong class="reportMarketCompareValue reportMarketCompareValue--market" id="refArchHeadValue">—</strong>
+                  <span class="reportMarketCompareHint muted" id="refArch_summary_meta">—</span>
+                </div>
+              </div>
+              <div class="reportMarketVarianceRow" id="refArchVarianceRow" hidden>
+                <span class="reportIncomeAnnotLabel">Actual − Market</span>
+                <strong class="reportIncomeAnnotVal mono" id="refArchLineVariance">—</strong>
+              </div>
+              <span id="refArchLineTariff" class="visually-hidden">—</span>
+              <span id="refArchLineTotal" class="visually-hidden">—</span>
+              <div id="reportRefArchPanel" class="visually-hidden" aria-hidden="true"></div>
             </div>
 
             <details class="reportCollapseDetails reportIncomeSupplement" id="reportIncomeSupplement">
@@ -230,7 +234,7 @@
             </div>
             </div>
             <div id="reportQualityStrip" class="qualityStrip" hidden aria-label="Data coverage"></div>
-            <p class="reportStatementFootnotes muted" id="reportStatementFootnotes">① OpEx from billing CSV CostUSD · ② Market from Model Prices (not invoice) · ③ Token volume from imported CSV (no implied spend)</p>
+            <p class="reportStatementFootnotes muted" id="reportStatementFootnotes">① Actual = billing CSV CostUSD · ② AI usage + Platform = Actual split (needs token CSVs) · ③ Market = catalog × tokens (not invoice)</p>
             <div class="gridStats reportKpis reportKpisCompact">
                 <article class="card kpiCard">
                   <h3 class="kpiTitle">Cost · Daily</h3>
@@ -1493,62 +1497,86 @@
         const meter = summary.total_meter_cost_usd;
         const platform = summary.billing_other_usd;
         const totalOpex = Number(d.total_actual ?? 0);
-        const hasMeter = meter != null && Number(meter) > 0;
-        const hasPlatform = platform != null && Number(platform) > 0;
-        const hasComposition = hasMeter || hasPlatform;
+        const meterN = Number.isFinite(Number(meter)) ? Number(meter) : 0;
+        const platformN = Number.isFinite(Number(platform)) ? Number(platform) : 0;
+        const hasMeter = meterN > 0;
+        const hasPlatform = platformN > 0;
+        const hasSplit = hasMeter || hasPlatform;
 
-        const panel = document.getElementById('reportIncomePanel');
-        if (panel) panel.hidden = !hasComposition && !(totalOpex > 0);
-
-        const meterRow = document.getElementById('incomeLineMeterRow');
-        const meterDetailRow = document.getElementById('incomeLineMeterDetailRow');
-        const platformRow = document.getElementById('incomeLinePlatformRow');
-        if (meterRow) meterRow.hidden = !hasMeter;
-        if (meterDetailRow) meterDetailRow.hidden = !hasMeter;
-        if (platformRow) platformRow.hidden = !hasPlatform;
+        const eqPanel = document.getElementById('reportCompositionEquation');
+        const eqBar = document.getElementById('reportEquationBar');
+        const eqEmpty = document.getElementById('reportCompositionEmpty');
+        if (eqPanel) eqPanel.hidden = !(totalOpex > 0 || hasSplit);
+        if (eqBar) eqBar.hidden = !hasSplit;
+        if (eqEmpty) eqEmpty.hidden = hasSplit || !(totalOpex > 0);
 
         const set = (id, text) => {
           const el = document.getElementById(id);
           if (el) el.textContent = text ?? '—';
         };
 
-        const ccy = report?.currency || 'USD';
-        set('incomeLineCurrencyUnit', ccy);
+        const totalText = totalOpex > 0 ? fmtCost(d.total_actual) : '—';
+        set('incomeLineCurrencyUnit', report?.currency || 'USD');
+        set('reportEqActual', totalText);
+        set('hero_total_spend', totalText);
+        set('incomeLineTotal', totalText);
+        set('reportCompareActual', totalText);
+
+        const platformShown = hasPlatform
+          ? platformN
+          : hasMeter && totalOpex > 0
+            ? Math.max(0, totalOpex - meterN)
+            : 0;
+        set('reportEqMeter', hasMeter ? fmtCost(meterN) : '—');
+        set(
+          'reportEqPlatform',
+          hasPlatform || (hasMeter && totalOpex > 0) ? fmtCost(platformShown) : '—'
+        );
+        set('incomeLineMeter', hasMeter ? fmtCost(meterN) : '—');
+        if (hasPlatform || platformShown > 0) set('incomeLinePlatform', fmtCost(platformShown));
+
+        const meterPct = totalOpex > 0 && hasMeter ? (meterN / totalOpex) * 100 : 0;
+        const platformPct = totalOpex > 0 && platformShown > 0 ? (platformShown / totalOpex) * 100 : 0;
+        set('reportEqMeterShare', meterPct > 0 ? `${meterPct.toFixed(1)}%` : '—');
+        set('reportEqPlatformShare', platformPct > 0 ? `${platformPct.toFixed(1)}%` : '—');
+
+        const shareMeter = document.getElementById('reportShareMeter');
+        const sharePlatform = document.getElementById('reportSharePlatform');
+        if (shareMeter) shareMeter.style.width = `${Math.max(meterPct, 0)}%`;
+        if (sharePlatform) sharePlatform.style.width = `${Math.max(platformPct, 0)}%`;
 
         if (hasMeter) {
-          set('incomeLineMeter', fmtCost(meter));
           const inCost = summary.total_input_cost_usd;
           const outCost = summary.total_output_cost_usd;
-          const sharePct =
-            totalOpex > 0 ? ((Number(meter) / totalOpex) * 100).toFixed(1) : null;
-          let detail = 'Meter matched billing';
-          if (inCost != null || outCost != null) {
-            detail = `Meter matched · in ${fmtCost(inCost)} · out ${fmtCost(outCost)}`;
-          }
-          if (sharePct != null) detail += ` · ${sharePct}% of OpEx`;
+          const detail =
+            inCost != null || outCost != null
+              ? `Input ${fmtCost(inCost)} · Output ${fmtCost(outCost)}`
+              : 'Model token meter';
           set('incomeLineMeterDetail', detail);
+          set('reportEqMeterHint', detail);
+        } else {
+          set('reportEqMeterHint', 'Model token meter');
         }
-        if (hasPlatform) set('incomeLinePlatform', fmtCost(platform));
-        set('incomeLineTotal', fmtCost(d.total_actual));
 
         const metaParts = [];
         if (d.avg_actual != null) metaParts.push(`avg ${fmtCost(d.avg_actual)}/day`);
         if (d.count_days > 0) metaParts.push(`${d.count_days} billed days`);
         if (d.median_actual != null) metaParts.push(`median ${fmtCost(d.median_actual)}`);
-        set('hero_summary_meta', metaParts.length ? metaParts.join(' · ') : '—');
+        set('hero_summary_meta', metaParts.length ? metaParts.join(' · ') : 'Invoice total');
       }
 
       function renderStatementBridge(report) {
+        const strip = document.getElementById('reportStatementCompare');
         const connector = document.getElementById('reportStatementConnector');
-        const grid = document.getElementById('reportStatementDualGrid');
         const cm = report?.catalog_market;
         const summary = cm?.summary || {};
         const catalogAvailable = cm?.available === true;
         const opex = Number(report?.daily?.total_actual ?? 0);
         const tariff = summary.total_catalog_cost_usd;
-        const showConnector = catalogAvailable && opex > 0 && tariff != null && summary.variance_pct != null;
+        const showStrip = catalogAvailable && opex > 0 && tariff != null;
+        const showConnector = showStrip && summary.variance_pct != null;
+        if (strip) strip.hidden = !showStrip;
         if (connector) connector.hidden = !showConnector;
-        if (grid) grid.classList.toggle('reportStatementDualGrid--solo', !catalogAvailable);
         if (!showConnector) return;
 
         const set = (id, text) => {
@@ -1584,27 +1612,15 @@
           const varianceRow = document.getElementById('refArchVarianceRow');
           if (varianceRow) varianceRow.hidden = false;
           set('refArchLineVariance', fmtCost(summary.variance_usd));
+          const below = Number(summary.variance_usd) < 0;
+          set(
+            'refArch_summary_meta',
+            `${below ? 'Below' : 'Above'} list · ${fmtPct(summary.variance_pct)}`
+          );
         } else {
           const varianceRow = document.getElementById('refArchVarianceRow');
           if (varianceRow) varianceRow.hidden = true;
-        }
-
-        const metaParts = [];
-        if (summary.variance_pct != null) metaParts.push(`${fmtPct(summary.variance_pct)} vs OpEx`);
-        metaParts.push('not invoice');
-        metaParts.push('from <a href="/prices">Price catalog</a>');
-        const metaEl = document.getElementById('refArch_summary_meta');
-        if (metaEl) {
-          metaEl.innerHTML = metaParts.join(' · ');
-        }
-
-        const opexTotal = Number(report?.daily?.total_actual ?? 0);
-        const detail = document.getElementById('refArchLineTariffDetail');
-        if (detail) {
-          detail.textContent =
-            opexTotal > 0 && tariff != null
-              ? `Market × token volume · not invoice spend`
-              : 'Benchmark only · not invoice spend';
+          set('refArch_summary_meta', 'Benchmark only');
         }
       }
 

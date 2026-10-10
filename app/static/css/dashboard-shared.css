@@ -462,6 +462,17 @@
   box-shadow: 0 0 0 2px rgba(var(--cost-actual-rgb), 0.2);
 }
 
+.costPill--meter {
+  color: #bae6fd;
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  background: rgba(56, 189, 248, 0.12);
+}
+
+.costPill--meter::before {
+  background: #38bdf8;
+  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.22);
+}
+
 .costPill--market {
   color: #e9d5ff;
   border: 1px solid var(--cost-market-border);
